@@ -77,7 +77,7 @@ should be able to build it. Feel free to get creative.
 > Let me commit the vision exactly as you handed it to me, before I move
 > anything.
 
-*[commit] 5d07b40c - six-sided-dice-layer-cake: the page it started from*
+*[commit] 4ce216ba - six-sided-dice-layer-cake: the page it started from*
 
 > Now the documentation. Starting with what the machine actually is.
 
@@ -95,7 +95,7 @@ should be able to build it. Feel free to get creative.
 
 > Let me commit the documentation set before starting on issues.
 
-*[commit] 5fd478f7 - six-sided-dice-layer-cake: the shape of the thing, and five ways through it*
+*[commit] a31b6306 - six-sided-dice-layer-cake: the shape of the thing, and five ways through it*
 
 > Something's off — my staged rename got picked up by another commit. Let me
 > look.
@@ -105,9 +105,9 @@ should be able to build it. Feel free to get creative.
 > I'll stage-and-commit tightly from here. Now the issue files, starting with
 > phase 1.
 
-*[commit] edd567bc - six-sided-dice-layer-cake: eighteen tickets, and a cold plate that had to change metal*
+*[commit] ba4e1b94 - six-sided-dice-layer-cake: eighteen tickets, and a cold plate that had to change metal*
 
-*[commit] 6990729c - six-sided-dice-layer-cake: the rails and the yolk, and one bit that flips every two hours*
+*[commit] b846a638 - six-sided-dice-layer-cake: the rails and the yolk, and one bit that flips every two hours*
 
 > Two things I should check with you before I write the remaining fifty issues
 > and ninety blueprints — the answers change what gets written.
@@ -199,7 +199,7 @@ should be able to build it. Feel free to get creative.
 > Renumbering the blocking questions was a mistake — it collides with the
 > answered ones and breaks references. Reverting to stable identifiers.
 
-*[commit] 0ecff9c5 - six-sided-dice-layer-cake: the sieve turns out to run backwards, and the tube gets a far end*
+*[commit] a5edcfcd - six-sided-dice-layer-cake: the sieve turns out to run backwards, and the tube gets a far end*
 
 > Committing with an explicit pathspec worked cleanly — I'll use that form
 > from here so nothing of mine sits staged. Continuing with phase 8.
@@ -651,7 +651,7 @@ Summary:
      file btw, so do they," and no `llm-transcripts/` file has been created for
      this session
    - **Correct the crossed git commits** — the user asked for this; two
-     batches of my files were absorbed into commits `aa4ef04b` and `443a0b15`.
+     batches of my files were absorbed into commits `d471a161` and `a4d2e7f0`.
      Not done, and it requires rewriting history other agents have built on, so
      it needs discussing with the user before acting
    - Optionally: the 110 orphan symbols; the interactive slider half of `099`
@@ -728,7 +728,7 @@ please continue
 > I'll pick up with the commit of the documentation reconciliation, then the
 > table of contents and transcript.
 
-*[commit] 6561a6ff - six-sided-dice-layer-cake: the prose caught up with the arithmetic*
+*[commit] b3d6960a - six-sided-dice-layer-cake: the prose caught up with the arithmetic*
 
 > Now the table of contents, which was written when the project had fourteen
 > planned phases and nothing built.
@@ -740,18 +740,18 @@ please continue
 > Now rebuild the generated docs and site so the renamed listing lands at its
 > new index, then verify nothing broke.
 
-*[commit] 119befef - six-sided-dice-layer-cake: one number meant two things, and the map was drawn from memory*
+*[commit] 5a343690 - six-sided-dice-layer-cake: one number meant two things, and the map was drawn from memory*
 
 > That's the right tool.
 
-*[commit] e6d77a57 - six-sided-dice-layer-cake: the conversation the cube was argued out of*
+*[commit] 33f2fae4 - six-sided-dice-layer-cake: the conversation the cube was argued out of*
 
 > Now the issue files, written before the work.
 
 > Now I'll update both reopened issues to state the gap honestly before the
 > work.
 
-*[commit] 6b2496ca - six-sided-dice-layer-cake: two tickets that said they were not finished, filed as finished*
+*[commit] bd0176da - six-sided-dice-layer-cake: two tickets that said they were not finished, filed as finished*
 
 > Now the notation change. Let me look at how the reader and ledger handle
 > kinds.
@@ -806,7 +806,7 @@ please continue
 
 > Everything holds. Committing the whole piece of work.
 
-*[commit] 3e9da2f0 - six-sided-dice-layer-cake: the plumbing solved itself, and sixteen ways out of sixty-four turned out to be right*
+*[commit] 30506c83 - six-sided-dice-layer-cake: the plumbing solved itself, and sixteen ways out of sixty-four turned out to be right*
 
 > The git history question needs your decision, so I'll surface it at the end.
 > Meanwhile, the largest remaining mechanical gap is the orphan symbols.
@@ -847,9 +847,9 @@ the limit was reached; do not repeat work that is already complete.
 > My own dimensionless-literal rule catches those two — the bounds need to be
 > named quantities.
 
-*[commit] 9af00304 - six-sided-dice-layer-cake: twelve unread material properties, four of which were holes*
+*[commit] f5ec54d6 - six-sided-dice-layer-cake: twelve unread material properties, four of which were holes*
 
-*[commit] 07315bf1 - six-sided-dice-layer-cake: the rest of the conversation*
+*[commit] 80c4eed8 - six-sided-dice-layer-cake: the rest of the conversation*
 
 Everything is committed and the tree is clean. Here's where the project stands.
 
@@ -912,9 +912,9 @@ Three commits absorbed 26 of this project's files under other projects' names:
 
 | commit | files | committed as |
 |---|---|---|
-| `1e94aa53` | 10 issue tickets | my-own-custom-vtt phase four |
-| `443a0b15` | 15 issue tickets | my-own-custom-vtt, first code |
-| `aa4ef04b` | the vision note's move into `notes/` | kanji-learning-image-generator |
+| `997fafae` | 10 issue tickets | my-own-custom-vtt phase four |
+| `a4d2e7f0` | 15 issue tickets | my-own-custom-vtt, first code |
+| `d471a161` | the vision note's move into `notes/` | kanji-learning-image-generator |
 
 The oldest is 78 commits back and other agents have built on top of all three.
 Correcting them means rewriting shared history, which would break anything
@@ -939,11 +939,11 @@ The one thing I need you to decide
   ┌──────────┬────────────────────────────────────┬────────────────────────────────┐
   │ commit │ files │ committed as │
   ├──────────┼────────────────────────────────────┼────────────────────────────────┤
-  │ 1e94aa53 │ 10 issue tickets │ my-own-custom-vtt phase four │
+  │ 997fafae │ 10 issue tickets │ my-own-custom-vtt phase four │
   ├──────────┼────────────────────────────────────┼────────────────────────────────┤
-  │ 443a0b15 │ 15 issue tickets │ my-own-custom-vtt, first code │
+  │ a4d2e7f0 │ 15 issue tickets │ my-own-custom-vtt, first code │
   ├──────────┼────────────────────────────────────┼────────────────────────────────┤
-  │ aa4ef04b │ the vision note's move into notes/ │
+  │ d471a161 │ the vision note's move into notes/ │
   kanji-learning-image-generator │
   └──────────┴────────────────────────────────────┴────────────────────────────────┘
 
@@ -1042,7 +1042,7 @@ since my last catch-up, so it needs one more replay first.
 Two commands, best run when the other agents are idle:
 
 ```
-! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits 3d2b5fe5..master
+! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits 737db373..master
 ```
 ```
 ! git update-ref refs/heads/master $(git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix rev-parse HEAD) $(git rev-parse master)
@@ -1163,15 +1163,15 @@ commits; it's 10 now.
 
 **Three reference points, all safe:**
 - `history-fix/tip` → `a8c026b7` — the repair
-- `backup/before-history-fix` → `0b2697d2` — where master was when I started
-- `master` → `c46dac94` — untouched, nothing lost
+- `backup/before-history-fix` → `d91ef6cd` — where master was when I started
+- `master` → `89e6d594` — untouched, nothing lost
 
 The main checkout was never touched. My project still passes 566 of 566.
 
 **To finish**, when the other agents are quiet:
 
 ```
-! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits 3d2b5fe5..master
+! git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix cherry-pick --allow-empty --keep-redundant-commits 737db373..master
 ```
 ```
 ! git update-ref refs/heads/master $(git -C /mnt/mtwo/programming/ai-worktrees/six-sided-history-fix rev-parse HEAD) $(git rev-parse master)
@@ -1216,7 +1216,7 @@ development of any kind.
 > literal values, which sidesteps it:
 >
 > ```
-> ! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 864a23dcb6138cfac9fe28e5c871250abfc3bc6b
+> ! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 150d1f32521fb67c909540c5d53dd811555c2889
 > ```
 >
 > Your cherry-pick caught the branch all the way up, and I've confirmed both
@@ -1262,7 +1262,7 @@ development of any kind.
 
 > The transcript was renamed to span both days. Let me commit that.
 
-*[commit] 9cb43745 - six-sided-dice-layer-cake: the conversation, now spanning two days*
+*[commit] f79ae1b9 - six-sided-dice-layer-cake: the conversation, now spanning two days*
 
 Clean. Here's where things stand.
 
@@ -1273,7 +1273,7 @@ all the way up to master, and both tips end in the identical tree `8f0256b1`.
 Run this and it's done:
 
 ```
-! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 864a23dcb6138cfac9fe28e5c871250abfc3bc6b
+! git update-ref refs/heads/master 690a4d37713c78f2a7b0157826382a87fd959a05 150d1f32521fb67c909540c5d53dd811555c2889
 ```
 
 It fails safely rather than clobbering if master has moved again — tell me if
@@ -1327,10 +1327,10 @@ pages.
 
 [ritz@kuvalu six-sided-dice-layer-cake]$ git update-ref refs/heads/master
 690a4d37713c78f2a7b0157826382a87fd959a05
-864a23dcb6138cfac9fe28e5c871250abfc3bc6b
+150d1f32521fb67c909540c5d53dd811555c2889
 fatal: update_ref failed for ref 'refs/heads/master': cannot lock ref
-'refs/heads/master': is at 69997570223a2a16207d00d7b49aabd160bc9ce9 but expected
-864a23dcb6138cfac9fe28e5c871250abfc3bc6b
+'refs/heads/master': is at 48d9a6801428811eef4cd48d0d18c1bfeeb46fcc but expected
+150d1f32521fb67c909540c5d53dd811555c2889
 
 can you tell me what this project is about in your own words?
 
@@ -1813,11 +1813,11 @@ kinda weak, can we replace them? And yes please commit them
 
 > The bug is repeated in two other files. Let me fix those before committing.
 
-*[commit] ccad2cfd - six-sided-dice-layer-cake: a table said the cube had six opposite faces, and nothing could tell*
+*[commit] 31c63d5b - six-sided-dice-layer-cake: a table said the cube had six opposite faces, and nothing could tell*
 
-*[commit] d23336d8 - six-sided-dice-layer-cake: the same design, told to somebody deciding whether to fund it*
+*[commit] 447fdbb4 - six-sided-dice-layer-cake: the same design, told to somebody deciding whether to fund it*
 
-*[commit] 1b4e68f5 - six-sided-dice-layer-cake: the conversation, now spanning three days*
+*[commit] 9ba0e57b - six-sided-dice-layer-cake: the conversation, now spanning three days*
 
 All three committed, tree clean. **Deck:**
 https://claude.ai/code/artifact/c19b2a76-b2b6-4de2-a748-787ab6767984
@@ -1930,9 +1930,9 @@ a regular GPU setup? Highlight where our system would perform better or worse.
 > They're all there — pandoc emits a short-form heading my grep missed. Twelve
 > sections, and the PDF grew accordingly.
 
-*[commit] 66337465 - six-sided-dice-layer-cake: how long the lead lasts, and a way of cooling nobody had considered*
+*[commit] 43874cb7 - six-sided-dice-layer-cake: how long the lead lasts, and a way of cooling nobody had considered*
 
-*[commit] 5ecaed0f - six-sided-dice-layer-cake: the pitch stops being about the object and starts being about the choice*
+*[commit] 2d157cd5 - six-sided-dice-layer-cake: the pitch stops being about the object and starts being about the choice*
 
 Clean, committed, 573 of 573 holding.
 https://claude.ai/code/artifact/c19b2a76-b2b6-4de2-a748-787ab6767984

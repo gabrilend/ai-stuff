@@ -1,0 +1,278 @@
+------------------------------------------------------------------------
+DRAFTING NOTE -- not part of this document, and not yet in force.
+
+This is the RGPL-era replacement for the file named COPYRIGHT. It takes
+effect only when the owner switches the repository's license from the
+AGPL to the RGPL; until then COPYRIGHT and LICENSE govern, unchanged.
+When the switch happens, this file replaces COPYRIGHT, the RGPL file
+replaces LICENSE, and this note is deleted.
+
+What changed from COPYRIGHT:
+  - The license named throughout is the RGPL, Our Great Public Library
+    license, version 1 or later, in place of AGPL-3.0-or-later.
+  - "What the AGPL actually does" is rewritten as "What the RGPL
+    actually does", describing our clause and the reports rule.
+  - Open: where reports about this repository are sent, and where they
+    are displayed. Not written yet; see the RGPL's section 14 questions.
+  - The artist offer is unchanged in substance. Only its references to
+    the AGPL now name the RGPL.
+  - "Where the source lives" no longer points at a public GitHub mirror.
+    The source comes directly from whoever you are using the program
+    with, or from the program itself. No third-party host is named as
+    the source of truth.
+  - The per-file notice is the RGPL one.
+  - Kept word for word: the whole section on work in this repository
+    that I did not write, including the rule for finding which license
+    covers what.
+------------------------------------------------------------------------
+
+Copyright and licensing for this monorepo
+=========================================
+
+Copyright (C) 2025-2026 gabrilend <gabrilend@gmail.com>
+
+Everything in this repository that I wrote is licensed under the RGPL, Our
+Great Public Library license, version 1 or (at your option) any later
+version. The full text of that license is in the file named LICENSE, sitting
+next to this one. Anything I have to say about how it applies here lives in
+this file rather than in the license itself, so that the license stays one
+text that means the same thing wherever it is used.
+
+What the RGPL actually does, mechanically
+-----------------------------------------
+
+The RGPL descends from the GPL family, and it keeps what that family does:
+anybody may run, read, modify, and redistribute this. If they pass it on, they
+pass it on under this same license, with source. They cannot add restrictions
+on top. There is no warranty. Their patent rights in what they contribute pass
+along with the code.
+
+It also keeps the Affero line's answer to a gap in the ordinary GPL. Under the
+ordinary GPL, the obligation to hand over source is triggered only by giving
+somebody a copy. A program run on your own machine and reached over a network
+never changes hands, so nobody using it is ever owed its source.
+
+The RGPL closes that gap more widely, with one rule of its own, which is the
+entire reason to pick it over any other: our clause, section 13.
+
+Using the program *with* another person is not private use. If someone else is
+using it, operating it, or interacting with it -- or reaching you, or anyone
+else, through it -- in the same room or over a network, modified or not, you
+owe that person the source of the version you are running, at no charge. It
+must go straight from you to them: through the program itself, over the same
+connection, or by some other direct hand-off. It may not be routed through, held
+by, or made conditional on any third party, and no third party may be told it
+was asked for or given.
+
+Two things do not trigger it. Using the program alone, by yourself, owes
+nothing. And the things the program makes -- a file, an image, a printed page --
+travel free once they are made; handing someone a result is not using the
+program with them.
+
+There is a second rule of its own, section 14: reports. Whoever passes the
+program on, or uses it with someone else, must keep a way open for anyone to
+report what is wrong with it -- no account, no fee, no password -- and must
+display every report they receive, either in public or in a file named REPORTS
+that travels with the source. They never have to fix anything or answer
+anyone. What they cannot do is hide that a fault was reported. Security flaws
+may be held back for up to ninety days so they can be fixed first; personal
+information may be cut, with the cut marked; a reporter can ask to stay
+nameless; and bulk mail can be set aside, but the number set aside is shown.
+
+The practical effect is that this work stays open in every direction it can
+travel, and in every room it is used in. Someone can build on it, including
+commercially; what they cannot do is close it, or put it between themselves and
+another person while keeping its workings to themselves.
+
+Work in this repository that I did not write
+--------------------------------------------
+
+I cannot license code I did not write, and I am not going to pretend otherwise.
+
+Anything in these directories that came from somewhere else is covered by
+whatever license its original author gave it, not by mine. Where a directory
+carries its own license file, that file governs that directory and this one
+does not reach inside it. This applies to vendored dependencies, upstream
+checkouts, downloaded art assets, toolchains, and anything else that arrived
+here already licensed -- including cases where the original terms are
+proprietary and could not be combined with the RGPL even if I wanted to.
+
+It also applies to a few of my own projects that carry a different license of
+their own choosing. Those are mine either way, so there is no conflict; the
+subdirectory license simply wins where one exists.
+
+The rule is: look for the nearest license file, walking up from whatever you
+are holding, and read the file's own header while you are at it -- plenty of
+single-file libraries carry their entire grant inline as a comment and never
+ship a separate license file at all. If you find terms before you reach this
+directory, those are the ones that apply. If you get all the way here without
+finding anything, the work is mine and it is RGPL-1.0-or-later.
+
+One correction to that rule, and it matters more than the rule does: a missing
+license file does not make somebody else's work mine. If a vendored library or
+a downloaded asset landed here without its license attached, that is a bug in
+how I stored it, not a transfer of ownership. It stays under whatever terms its
+author actually granted, and the fix is to go put the license file where it
+belongs. Nothing in this document is a claim over work I did not do.
+
+A standing offer to any artist whose work is here
+-------------------------------------------------
+
+If you made art that one of these projects uses -- a painting, a drawing, music,
+a sound, a font, a typeface, a map, writing, anything I would have had to ask a
+person for -- then everything that project is, is yours for the asking.
+
+Ask, and I will send you the whole project: the source code, the documents, the
+issue files, the design notes, the tooling, the LLM transcripts, and the git
+history of that project's directory. Not a release build and not a tidied-up
+snapshot -- the working material, in whatever state it is actually in. And with
+it, permission to do anything you want with what you have been sent, under no
+conditions at all: build on it, sell it, close it, take it apart, ship it under
+your own name, license it however you like, or throw it away. You do not owe me
+the source of your version, you do not owe me credit, and you do not owe me a
+reason for asking. The one thing with a rule attached is handing this on to
+somebody else, and that rule has a bullet of its own further down.
+
+The scope is the projects that use your art, each one entire. Not this monorepo.
+If your painting is in one game, that game is the thing you can have; the dozens
+of other directories in here are not part of the offer, because they have
+nothing to do with you.
+
+Now the parts of this that are not mine to give, stated plainly, because an
+offer with an unmarked hole in it is worse than a smaller offer honestly drawn.
+
+- **Other people's work travels under its own terms.** Vendored libraries,
+  toolchains, downloaded assets: I can hand you the copy I have, and it arrives
+  under whatever license its author actually granted, exactly as it does for
+  anybody else. My grant covers my work and only my work.
+
+- **Another artist's art is theirs, and not mine to sign over to you.** If two
+  people made art for the same project, each of you can have everything I did,
+  and neither of you receives the other's work through me. Ask them yourself;
+  they may well say yes.
+
+- **Ownership here is whole, and it is shared.** You do not get a slice of this
+  sized to how much of it you made. You made part of it, so you own all of it --
+  the same all of it that I own. The one thing you cannot get is exclusive
+  title, and that is a decision rather than a limit I ran into: this should never
+  be owned by one person or a few. The code is already published under the RGPL
+  and cannot be un-published, and if a second artist asks I will say yes to them
+  on the same terms without hesitating. Nobody's ownership shrinks when another
+  person's begins. What this is made of is not in finite supply, and there is no
+  version of this where somebody else having all of it leaves you with less.
+
+  Concretely, what that ownership is made of: a permanent, irrevocable, no-cost
+  grant, sitting on top of the RGPL and free of every condition the RGPL would
+  otherwise impose, of everything I as the copyright holder am able to do with
+  the work. The practical difference is the whole of it -- the RGPL says you
+  must pass the source along, and this says you do not have to.
+
+- **It is transferrable once, and after that only by asking.** It is not stapled
+  to your person. You may sell it, or give it, to one other person. One. That
+  power is single-use: spending it spends it, and there is no second one behind
+  it. What it costs you is the power to do it again -- not the thing itself. You
+  still own everything you owned the day before, because you own it for having
+  made the art, and no sale changes the fact that you made the art. And what you
+  *make* with it is yours in the ordinary way, to sell, license, or transfer as
+  often and as freely as you please. That is your work; this rule is not about
+  your work.
+
+  It has to land somewhere it will be used. You cannot sell it to somebody who
+  cannot use it -- not to a broker, not to a shell, not to anyone acquiring it in
+  order to sit on it. This is a seat at a workbench and not an instrument, and it
+  is void the moment it is parked.
+
+  Whoever you hand it to arrives owning everything you own, and arrives with no
+  onward sale of their own. They cannot sell it. They cannot trade it. What they
+  can do is ask me first, before anything moves -- and the most I am able to say
+  yes to is their giving it away. Never their selling it on. A sale stops dead at
+  the person who bought it. This holds at every further remove: three steps down
+  the chain, money or no money, gift or trade, the rule is ask the royalty first.
+
+Two things that shape is doing, since neither falls out of the rules by reading
+them.
+
+It keeps the freedom moving on foot rather than by post. Every move is one
+person handing it to one person who will use it, which is slow, and slow is the
+whole point -- a freedom that can be forwarded arrives everywhere at once, and
+then it is not an offer to artists any more, it is a permissive license with
+extra steps and the copyleft has quietly evaporated for everybody. The copyleft
+is here to stop this being fenced off by somebody who did none of the work. It
+was never meant to hold a door shut against the person who painted it, and it is
+not meant to swing open for everyone standing behind them either.
+
+And it keeps me reachable. Every move past the first comes back through me,
+which is not a toll -- there is nothing to pay, and no royalty for the royalty
+to collect except the asking. It is that somebody ought to be able to find out
+where a copy went, and the only way that stays true is if there is a person
+standing at every link in the chain.
+
+There is no form, no fee, no NDA, and no negotiation. Email gabrilend@gmail.com
+and say which project. It applies backwards to art that is already here, it does
+not expire, I cannot revoke it, and asking does not end anything -- you may ask
+and keep working, or ask and walk away, or ask years later, and it costs you
+nothing in any of those cases.
+
+Why this exists: I am doing software design, not building a product. A project
+in here is worth more to me as a thing that got designed than as a thing whose
+copies I control. Art is the one part I cannot do myself and cannot generate my
+way around, and somebody who makes it should not end up with a weaker claim on
+the result than I have.
+
+Where the source comes from, and why it comes from a person
+------------------------------------------------------------
+
+Section 13 of the RGPL says that whoever you use this program with owes you its
+source, and must give it to you directly. So the answer to "where do I get the
+source?" is always the same: from the person you got the program from, or from
+the person you are using it with, or from the program itself.
+
+There is deliberately no central address to fetch it from. A copy served from a
+host -- whether it is the running system's own "Source" link or a public mirror
+somewhere -- puts a third party between two people. That third party can watch
+who asks, can go away, can be told what to serve, and can quietly stand in for
+the truth. A host is a convenience, never the authority. If you want to check
+that the source you were handed is the source you are running, compare the two
+directly: build what you were given and see whether it behaves the same, or ask
+the person who handed it to you to show you.
+
+The kindest program carries its own source and knows how to give it -- a
+command, a menu item, or a step in the first handshake between two copies,
+sending it straight from one machine to the other. Where a project in here can
+do that, that is the preferred route. Where it cannot yet, the source is handed
+over by hand: a copy of the directory, on whatever medium the two of you use.
+
+To get the source from me, ask me directly. rmail, the mail system I am
+building, is the channel I would reach for: it goes from one machine to one
+machine with nobody in the middle. Plain email to gabrilend@gmail.com also
+works. Either way I send the source straight to you.
+
+The same holds for everyone else. Someone who takes this, changes it, and uses
+it with other people owes those people the source of *their* version, handed
+over the same way: from them, directly, with nobody in between.
+
+Per-file license notices
+------------------------
+
+The RGPL's closing section suggests putting a short notice at the top of every
+source file, so a file that gets copied out of here still says what it is. That
+is a suggestion, not an obligation -- a license file at the root is enough to
+license the work, and nothing in this repository is out of compliance for
+lacking headers. The only thing skipping them costs is that a lone file, torn
+out of context and mailed to somebody, arrives carrying no evidence of its own
+terms.
+
+If that ever matters, the notice to paste, in the comment syntax of whatever
+language the file is written in, is:
+
+    This file is part of gabrilend's monorepo.
+    Copyright (C) 2026 gabrilend
+
+    You may use, study, change and share this program under the RGPL,
+    Our Great Public Library license, version 1 or (at your option)
+    any later version.  If you use it with anyone else, you owe them
+    its source, from your hands to theirs.
+
+    It comes with NO WARRANTY, not even of MERCHANTABILITY or FITNESS
+    FOR A PARTICULAR PURPOSE.  The full terms are in the file named
+    LICENSE, which should have come with it.

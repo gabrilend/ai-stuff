@@ -331,3 +331,17 @@ output/centroid/
 ### Status
 
 **COMPLETED** - All acceptance criteria met. Ready for integration into main pipeline.
+
+### Later (2026-10-04): the mood pages will not be built
+
+Phase C (centroid similarity and diversity pages linked from the explore page)
+was never done: `src/centroid-html-generator.lua` was written but nothing ever
+ran it, and `output/centroid/` never existed. The owner retired it -- "that
+function is fulfilled by the word-cloud" -- and the file was removed (recorded
+in 10-060). The centroids themselves remain in use: `src/centroid-generator.lua`
+builds them, and the hope-card PDF export (6-012,
+`docs/centroids-for-hope-cards.md`) picks poems near the hope moods.
+
+## Blocks
+
+- 8-043
