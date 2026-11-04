@@ -3,7 +3,8 @@ Shared Lists Between Two Players (Issue 609a)
 
 The conversation that carries a shared map-and-model list (share/list.lua)
 from one player to another, and the one consent step before anything is
-applied. It speaks through a transport (anything with send(to, message)),
+kept ("check out my map": a map and its list given to keep). It speaks
+through a transport (anything with send(to, message)),
 so the mail system that carries it is glue: share/rmail_hook.lua is that
 glue for rmail, written against an assumed hook contract (the issue has
 it), and a test passes messages by hand.
@@ -14,14 +15,14 @@ it), and a test passes messages by hand.
                        <-- want --       only the hashes the store lacks
     on_message: only hashes offered
     to ben, copied from the pack -- files -->
-                                         every file checked; profile.apply
-                                         ready: P:attach(L) for the game
+                                         every file checked; profile.keep
+                                         ready: kept as one of the player's packs
 
     local exchange = require("share.exchange")
     local X = exchange.new({ data = folder, me = "ana", transport = t,
                              pack = folder .. "/asset-packs/mine",  -- the sharer's files
                              consent = function(q) return nil end,  -- default: ask later
-                             on_ready = function(P, q) end })
+                             on_ready = function(pack, q) end })  -- pack: the kept pack's folder
     X:offer("ben", l)                    -- the sharer
     X:on_message(msg)                    -- every message the transport delivers
     X:pending()                          -- questions waiting for the player
@@ -36,7 +37,7 @@ Messages are plain tables:
 
 Consent defaults to asking: unless the player said "always from this
 player" or "always for this map" (profile.trust), nothing is requested,
-stored or applied until they answer yes. A sharer only ever sends files
+stored or kept until they answer yes. A sharer only ever sends files
 it offered to that same player, and a receiver only takes files it asked
 that sender for.
 ]]
@@ -75,9 +76,10 @@ end
 -- message ids), transport ({ send = function(to, message) }), pack (the
 -- folder a sharer's files come from), consent (function(question) giving
 -- "yes", "no" or nil for "ask the player later"; default nil), on_ready
--- (function(P, question): a list was applied), on_problem (function(id,
--- what)), name_for (function(question): the profile's name; default the
--- message id), store (default <data>/blobs).
+-- (function(pack, question): a list was kept, as the asset pack in folder
+-- PACK), on_problem (function(id, what)), name_for (function(question):
+-- the kept pack's name; default "share-" and the message id), store
+-- (default <data>/blobs).
 function exchange.new(opts)
     assert(type(opts) == "table" and opts.data, "exchange: needs opts.data")
     assert(opts.transport and type(opts.transport.send) == "function", "exchange: needs a transport with send(to, message)")
@@ -180,7 +182,7 @@ function X:pending()
 end
 
 -- The player's answer to question ID: "yes" asks the sender for only the
--- files the store lacks (or applies at once when it has them all); "no"
+-- files the store lacks (or keeps the list at once when it has them all); "no"
 -- forgets the list and sends nothing.
 function X:answer(id, yes)
     local r = self.received[id]
@@ -190,7 +192,7 @@ function X:answer(id, yes)
         return "declined"
     end
     local missing = list.missing(r.list, self.store)
-    if #missing == 0 then return self:apply(id, nil) end
+    if #missing == 0 then return self:keep(id, nil) end
     r.wanted = {}
     for _, h in ipairs(missing) do r.wanted[hex_of(h)] = true end
     r.state = "waiting"
@@ -224,32 +226,34 @@ function X:files(msg)
             end
         end
     end
-    local result, err = self:apply(msg.id, dir)
+    local result, err = self:keep(msg.id, dir)
     os.execute("rm -rf " .. sh(dir))
     return result, err
 end
 
-function X:apply(id, bundle)
+-- Every file checked, then the list kept as one of the player's asset
+-- packs (profile.keep); one bad file refuses it whole.
+function X:keep(id, bundle)
     local r = self.received[id]
-    local ok, P, problems = pcall(profile.apply, r.list, { data = self.data, store = self.store, bundle = bundle,
-                                                          name = self.name_for(r.question) })
-    if not ok then r.state = "failed"; return self:problem(id, tostring(P)) end
-    if not P then
+    local ok, pack, problems = pcall(profile.keep, r.list, { data = self.data, store = self.store, bundle = bundle,
+                                                            name = self.name_for(r.question) })
+    if not ok then r.state = "failed"; return self:problem(id, tostring(pack)) end
+    if not pack then
         r.state = "failed"
         local words = {}
         for _, p in ipairs(problems) do words[#words + 1] = p.key .. " " .. p.problem end
         return self:problem(id, "the list was refused whole: " .. table.concat(words, "; "))
     end
     r.state = "ready"
-    r.profile = P
-    pcall(self.on_ready, P, r.question)
-    return "ready", P
+    r.pack = pack
+    pcall(self.on_ready, pack, r.question)
+    return "ready", pack
 end
 -- }}}
 
 -- {{{ function X:on_message
 -- Every message the transport delivers. Gives what happened ("asking",
--- "waiting", "declined", "ready", true for files sent), or nil and why it
+-- "waiting", "declined", "ready" (kept), true for files sent), or nil and why it
 -- was refused. Nothing a message says is run.
 function X:on_message(msg)
     if type(msg) ~= "table" or not good_id(msg.id) or type(msg.from) ~= "string" or msg.from == "" then
@@ -264,12 +268,14 @@ end
 -- }}}
 
 -- {{{ function exchange.prompt
--- The one prompt's words for question Q: who, which map, and each entry's
+-- The one prompt's words for question Q (asked when a map and its list
+-- are given to keep; the lobby's prompt, for a hosted map, is the W
+-- client's, its issue 1110): who, which map, and each entry's
 -- provenance (its file, size and where else it can be had). A list of
 -- lines; the first is the question.
 function exchange.prompt(q)
     local lines = {}
-    lines[1] = string.format("Use %s's models for this game?", q.sender)
+    lines[1] = string.format("Keep %s's models for this map?", q.sender)
     lines[2] = string.format("Map: %s (%s)", q.map.name or "unnamed", q.map.hash:sub(1, 19))
     lines[3] = string.format("%d files, %d to fetch from %s:", #q.entries, q.missing, q.sender)
     for _, e in ipairs(q.entries) do

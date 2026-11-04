@@ -118,6 +118,9 @@ List format (a Lua table):
       reads the same with a list on; two real players in one game wait on
       phase 8's multiplayer)
 - [x] Accepting a list applies it automatically for that game and reverts afterwards
+      (checked here in this project's loader on 2026-11-02; that code was
+      taken out on 2026-11-04 and is the W client's 1110 now, see
+      "Trimmed after the split" below)
 - [x] "Always accept from this player" makes the next list apply without a prompt
 - [x] Hash mismatches are refused and reported
 
@@ -213,6 +216,37 @@ travels only with its map" above:
   worked out and tested; the W client builds them in its own asset
   lookup (its 105a), reusing this list format. The acceptance lines about
   "that game" were checked here, in this project's loader.
+
+### Trimmed after the split (2026-11-04)
+
+The owner agreed to take out of this project what the split gave to the
+W client. Removed in a commit of their own, so the code stays in this
+branch's history for the W client's 1110 to read:
+
+- **`profile.apply`, `P:attach` and `P:revert`** (a list used for one
+  game, through a profile folder under `<data>/profiles/`), and
+  `P.types` with them.
+- **The loader's `L:push_layer` / `L:pop_layer`** and the
+  `"layer:NAME"` source (decision 5). `loader.lua` and its info file are
+  as they were before this issue.
+- **Their tests** in `test_share.lua`: the sharer's grass from the layer
+  during a game, the receiver's unit table unchanged with the layer on,
+  the receiver's own grass and an emptied profile afterwards.
+
+Kept, and reshaped where it leaned on what was removed:
+
+- **`profile.keep(l, opts)`** now takes the list itself (`data`, `store`,
+  `bundle`, `name`): it checks every file, refuses the whole list on one
+  bad file with nothing stored, stores the rest once and links them into
+  `<data>/asset-packs/<name>/`. Before, `P:keep` turned an applied
+  profile into a pack. Its tests: the refusals (with nothing kept or
+  stored), the kept pack serving the sharer's grass, the knight's model
+  and the horn the receiver already had, the receiver's own packs
+  unchanged, `gc` keeping its files, a taken or climbing name refused,
+  and no bundle needed when the store has every file.
+- **`list.lua`, `profile.verify`, `profile.trust` and
+  `src/cli/share.lua`**, unchanged apart from their comments.
+  `test_share.lua` has 53 tests.
 - **A list travels only with its map.** `list.build` already names the
   map by its hash; sending the map file in the same rmail message as the
   list is the rmail glue's (609a, then 609b).

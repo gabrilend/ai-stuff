@@ -4,7 +4,7 @@
 -- In plain terms: Ana offers her list to Ben; Ben's game reads it (never
 -- runs it) and asks him first, unless he trusts Ana or the map; on yes it
 -- asks Ana for only the files his store lacks; Ana sends only files she
--- offered to Ben; Ben checks every file and applies the list for one game.
+-- offered to Ben; Ben checks every file and keeps the list as a pack.
 -- Everything goes through a fake rmail built to the contract the issue
 -- assumes, so the real glue is the only part left.
 --
@@ -68,7 +68,7 @@ local ready, problems = {}, {}
 local ana = exchange.new({ data = A, me = "ana", pack = MINE, transport = hook.transport(rmail_for("ana")),
                            on_problem = function(id, what) problems[#problems + 1] = "ana: " .. what end })
 local ben = exchange.new({ data = B, me = "ben", transport = hook.transport(rmail_for("ben")),
-                           on_ready = function(P, q) ready[#ready + 1] = { P = P, q = q } end,
+                           on_ready = function(pack, q) ready[#ready + 1] = { pack = pack, q = q } end,
                            on_problem = function(id, what) problems[#problems + 1] = "ben: " .. what end })
 local ana_hook, ben_hook = hook.on_receive(ana), hook.on_receive(ben)
 
@@ -96,7 +96,7 @@ test("one question waits for Ben", #waiting == 1 and waiting[1].sender == "ana" 
     tostring(waiting[1] and waiting[1].missing))
 test("nothing was asked for yet", #boxes.ana == 0)
 local words = exchange.prompt(waiting[1])
-test("the prompt asks the one question", words[1] == "Use ana's models for this game?")
+test("the prompt asks the one question", words[1] == "Keep ana's models for this map?")
 test("and names the map and each entry's provenance", words[2]:match("^Map: Castle Fight")
     and #words == 3 + #l.entries and table.concat(words, "\n"):match("hfoo uses units/knight/knight.mdx")
     and table.concat(words, "\n"):match("only from ana"))
@@ -117,13 +117,13 @@ test("Ana replies with two attachments named by hash", #boxes.ben == 1 and #boxe
     and boxes.ben[1].attachments[1].name:match("^%x+$") and #boxes.ben[1].attachments[1].name == 64)
 got = deliver("ben", ben_hook)
 test("Ben's hook takes the files", got[1] == "accept", tostring(got[1]) .. " " .. table.concat(problems, "; "))
-test("the list was applied: ready, with its profile", #ready == 1 and ready[1].P.types.hfoo == "units/knight/knight.mdx")
-test("the profile holds the knight", read(ready[1].P.dir .. "/units/knight/knight.mdx") == "MDLX a knight, by Ana")
+test("the list was kept: ready, as a pack of Ben's own", #ready == 1 and ready[1].pack == B .. "/asset-packs/share-" .. id,
+    tostring(ready[1] and ready[1].pack))
+test("the pack holds the knight", read(ready[1].pack .. "/units/knight/knight.mdx") == "MDLX a knight, by Ana")
 test("the arrived files were cleaned up", not exists(B .. "/share-incoming/" .. id))
 ana:sent(id)
 test("Ana's bundle can be cleaned up once sent", not exists(A .. "/share-outgoing/" .. id))
 test("no question waits now", #ben:pending() == 0)
-ready[1].P:revert()
 -- }}}
 
 -- {{{ No
@@ -135,15 +135,15 @@ test("a second answer is refused", ben:answer(id2, "yes") == nil)
 -- }}}
 
 -- {{{ Trusted: no prompt
-print("\n=== A trusted sender's list applies without a prompt ===")
+print("\n=== A trusted sender's list is kept without a prompt ===")
 profile.trust(B):always_from("ana", true)
 ben.trust = profile.trust(B)
 local id3 = ana:offer("ben", l)
 deliver("ben", ben_hook)
--- (the first game's files are still in Ben's store, so nothing need be sent)
-test("no question, nothing to fetch: applied at once", #ben:pending() == 0 and #boxes.ana == 0
-    and #ready == 2 and ready[2].q.trusted == true and ready[2].q.id == id3)
-ready[2].P:revert()
+-- (the first list's files are still in Ben's store, so nothing need be sent)
+test("no question, nothing to fetch: kept at once", #ben:pending() == 0 and #boxes.ana == 0
+    and #ready == 2 and ready[2].q.trusted == true and ready[2].q.id == id3
+    and read(ready[2].pack .. "/units/knight/knight.mdx") == "MDLX a knight, by Ana")
 profile.trust(B):always_from("ana", false)
 ben.trust = profile.trust(B)
 -- }}}
@@ -160,7 +160,9 @@ test("consent got the question and its answer was used", asked and asked.id == i
 
 -- {{{ What each side refuses
 print("\n=== What each side refuses ===")
-ben.store:gc()      -- the stored files of the games above go, so they must be sent again
+-- Ben deletes the packs kept above, so their stored files go and must be sent again
+os.execute("rm -rf " .. sh(B .. "/asset-packs"))
+ben.store:gc()
 local id5 = ana:offer("ben", l)
 -- Eve asks Ana for the files offered to Ben
 local eve = rmail_for("eve")
@@ -184,7 +186,7 @@ mail.attachments[1].path = SCR .. "/swapped"
 local n_ready = #ready
 deliver("ben", ben_hook)
 test("one bad file refuses the whole list", #ready == n_ready and problems[#problems]:match("refused whole"))
-test("and nothing was applied", not exists(B .. "/profiles/share-" .. id5))
+test("and nothing was kept", not exists(B .. "/asset-packs/share-" .. id5))
 -- an attachment named like a path is never written outside
 local id6 = ana:offer("ben", l)
 deliver("ben", ben_hook)
