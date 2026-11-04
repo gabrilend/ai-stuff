@@ -37,7 +37,7 @@ Each returns one frame row as a colored string. `progress_chars` is
 - **`M.nav_line(similar, different, chronological, progress_chars)`** →
   `║ similar │ … chronological … │ different │`. The three args are HTML anchor
   strings (or plain text); `chronological` may be nil to omit the center link.
-- **`M.bottom_border(progress_pct)`** → `╚══╧══…══┴══╩─▶`. Junctions land under the
+- **`M.bottom_border(progress_pct, has_nav)`** (`has_nav`: boolean, false drops the junctions, for a frame without the nav strip) → `╚══╧══…══┴══╩─▶`. Junctions land under the
   nav-box walls (columns 12 and 69 = bar-index 10 and 67).
 
 ## Drawing the whole frame

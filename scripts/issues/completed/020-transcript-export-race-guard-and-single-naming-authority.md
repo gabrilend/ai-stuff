@@ -85,6 +85,21 @@ summarizers — reads names through the shared rulebook and writes none.
    moved — which is also what repairs a file some checkout or copy scrambled.
    Nothing in git watches an mtime, so enforcing it costs no churn.
 
+5. **A rename is told to git as a rename**: the authority that renames is also
+   the one that tells git. Git stores no renames. It infers one when the
+   staging list loses a path and gains a similar one, so a plain move and
+   delete showed up as "old name deleted, new name untracked" until the next
+   commit (reported for an Oct 4–5 span on 2026-10-06). When the folder is in
+   git and git was following the old name, both halves go into the staging
+   list in one `update-index --add --remove`. While no commit holds the new
+   name yet, each later rewrite re-stages it, but only if the staged copy is
+   still the one the exporter wrote. Otherwise the frozen copy would differ
+   from what `commit-own-changes` commits, and that tool's tidy-up step would
+   warn that someone had staged the path "in a way that conflicts". A
+   transcript git never knew, a committed file, an ignored file, and anyone
+   else's staged copy are left alone. The staging list is shared and locked,
+   so a held lock is waited on briefly and then reported, never skipped.
+
 ## Suggested implementation steps
 
 1. `libs/conversation-parser.lua` — compute "ends with an unanswered user
@@ -136,6 +151,26 @@ summarizers — reads names through the shared rulebook and writes none.
    mtime back from the log either way; (e) a pass after appending an exchange
    still rewrites the file, so the skip cannot over-fire; (f) a hand-scrambled
    mtime is restored without the contents being rewritten.
+
+7. `backup-conversations`: settle once per run whether the transcript folder
+   is in a git working tree. Before an in-place overwrite, fingerprint the
+   file's current content (`git hash-object`). After the move and delete,
+   apply intended behavior 5: stage the rename when the old name had a
+   staging entry, or re-stage an uncommitted file whose staged copy matches
+   that fingerprint. Writes to the staging list wait on its lock for up to two
+   seconds. `git` and `awk` join the required tools.
+   `tests/test-transcript-rename-in-git.sh`: one throwaway repository holding
+   two projects. In the first, a conversation is committed and then crosses a
+   day (→ `R `), and is rewritten again (→ still `R `, no unstaged half). It is
+   then committed through the real `commit-own-changes`, which must succeed,
+   record a rename, print no WARNING, and leave `git status` clean. One more
+   rewrite after that gives ` M`. The second project, which that commit does
+   not carry, holds an untracked conversation crossing a day (→ `??` only) and
+   a hand-staged copy that must survive. The fixture's first answer is long on
+   purpose: below 50% similarity git stops pairing the delete with the add,
+   and a two-line fixture would end up testing git's guess rather than the
+   exporter. A control run with the re-staging step switched off fails the
+   no-warning and clean-status checks, which proves those checks have teeth.
 
 ## Related files
 

@@ -24,6 +24,14 @@ repository, and `hook.connect()` is a stub. The prompt's words exist
   the profile on yes (`P:attach(L)`), and reverts it after the game unless
   the player keeps it (`P:keep`).
 
+**After the editor-and-client split (2026-11-04).** Playing happens in
+the W client (issue 913), and using a list during a game, the lobby
+prompt included, is the W client's (its 1110), for "come check out my
+map", where the host's list comes with the join (609, "A list travels
+only with its map"). The rmail glue stays here, for "check out my map":
+the map and its list in one message, asked about once by the editor or
+launcher, then stored.
+
 ## Suggested Implementation Steps
 
 1. Read rmail's message, attachment and hook docs (`docs/attachments.md`,

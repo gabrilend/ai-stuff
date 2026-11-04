@@ -13,34 +13,63 @@
 # "please write a character counting script and count every line".)
 #
 # Usage:
-#   scripts/validate-output [DIR] [--output PATH] [--max-width N] [--report PATH]
+#   scripts/validate-output [--dir PATH] --jobs N [--output PATH] [--max-width N] [--report PATH]
 #
-#   DIR          project directory (default below)
+#   --dir PATH   project directory (default below)
+#   --jobs       how many pages-checking processes run at once (required; run.sh
+#                passes its --threads value, so one number governs the whole run)
 #   --output     the built site to check (default DIR/output)
 #   --max-width  widest allowed line inside a poem column, in visible
-#                characters (default 84, the golden frame -- the widest drawn)
+#                characters, and the width every frame piece must be
+#                (default: config.lua layout.text_content_width + 4 -- a
+#                wall, a space, the text, a space, a wall: 84)
 #   --report     where the full report goes (default
 #                DIR/tmp/shared-memory/validate-output-report.txt)
 #
 # Exit status: 0 when nothing is over-wide or broken, 1 otherwise.
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 OUTPUT=""
-MAX_WIDTH=84
+MAX_WIDTH=""
 REPORT=""
+JOBS=""
 
 # {{{ parse arguments
+# The project folder: --dir PATH, or the path above; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). What is left is this script's
+# own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$DIR" "--jobs --output --max-width --report" "$@"
+set -- "${PROJECT_ARGS[@]}"
 while [ $# -gt 0 ]; do
     case "$1" in
+        --jobs)      JOBS="$2"; shift 2 ;;
         --output)    OUTPUT="$2"; shift 2 ;;
         --max-width) MAX_WIDTH="$2"; shift 2 ;;
         --report)    REPORT="$2"; shift 2 ;;
-        --*)         echo "validate-output: unknown option $1" >&2; exit 1 ;;
-        *)           DIR="$1"; shift ;;
+        *)           echo "validate-output: unknown option $1" >&2; exit 1 ;;
     esac
 done
 [ -n "$OUTPUT" ] || OUTPUT="$DIR/output"
+# the frame's width, from the text width in config.lua (src/poem-bars.lua draws
+# every frame from the same setting)
+if [ -z "$MAX_WIDTH" ]; then
+    MAX_WIDTH=$(luajit -e "package.path = '$DIR/libs/?.lua;' .. package.path
+        local layout = require('config-loader').load().layout or error('config.lua has no layout section')
+        print((layout.text_content_width or error('config.lua layout.text_content_width is missing')) + 4)") || exit 1
+fi
 [ -n "$REPORT" ] || REPORT="$DIR/tmp/shared-memory/validate-output-report.txt"
+# Required, not defaulted to every processor: the run's --threads is the
+# operator's statement of how much of the machine this build may take, and
+# this check used to ignore it.
+if ! [[ "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "validate-output: --jobs N is required (how many processes check pages at once), got '$JOBS'" >&2
+    exit 1
+fi
 if ! [[ "$MAX_WIDTH" =~ ^[1-9][0-9]*$ ]]; then
     echo "validate-output: --max-width needs a whole number, got '$MAX_WIDTH'" >&2
     exit 1
@@ -51,25 +80,41 @@ if [ ! -d "$OUTPUT" ]; then
 fi
 # }}}
 
-"$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null || exit 1
-WORK="$DIR/tmp/shared-memory/validate-output"
-rm -rf "$WORK"
+"$DIR/scripts/ensure-tmp-symlink" --dir "$DIR" >/dev/null || exit 1
+# Each run works in its own folder, named by its process id: two checks at
+# once (the test runner runs several tests side by side, two of which run
+# this) used to share one folder, and each wiped the other's findings. A
+# finished run's folder stays until the next run starts, so its
+# findings.tsv can be read; then it is cleared, unless that run is still
+# going.
+WORK_BASE="$DIR/tmp/shared-memory/validate-output"
+mkdir -p "$WORK_BASE"
+for old_run in "$WORK_BASE"/run-*; do
+    [ -d "$old_run" ] || continue
+    kill -0 "${old_run##*-}" 2>/dev/null || rm -rf "$old_run"
+done
+WORK="$WORK_BASE/run-$$"
 mkdir -p "$WORK"
 mkdir -p "$(dirname "$REPORT")"
 
 # Absolute paths throughout: the worker resolves each link against the folder
 # of the page it sits in.
 OUTPUT="$(cd "$OUTPUT" && pwd)"
-JOBS="$(nproc)"
 
-# {{{ scan, one worker per processor
+# {{{ scan, --jobs workers at once
 # Each worker gets batches of pages and writes its findings to its own file,
 # named after its process id, so parallel workers never write to the same file.
-PAGE_COUNT=$(find "$OUTPUT" -name '*.html' -type f | wc -l)
-echo "Checking $PAGE_COUNT pages under $OUTPUT on $JOBS processors (max width $MAX_WIDTH)..."
+# source/archive/ is skipped: those are the saved word clouds of past builds,
+# published for reference, whose words link to today's word pages -- and a word
+# with no page today is expected there (owner, 2026-10-07: "let's just not
+# check the archived pages"). Every other page is checked.
+# find -H: the site folder output/ is a link into RAM (Issue 10-072), and find
+# does not go into a starting point that is a link unless told to.
+PAGE_COUNT=$(find -H "$OUTPUT" -path "$OUTPUT/source/archive" -prune -o -name '*.html' -type f -print | wc -l)
+echo "Checking $PAGE_COUNT pages under $OUTPUT on $JOBS processes (max width $MAX_WIDTH; archived word clouds skipped)..."
 export WORKER="$DIR/scripts/validate-output-worker.lua" FINDINGS_DIR="$WORK" MAX_WIDTH
-find "$OUTPUT" -name '*.html' -type f -print0 \
-    | xargs -0 -n 200 -P "$JOBS" sh -c \
+find -H "$OUTPUT" -path "$OUTPUT/source/archive" -prune -o -name '*.html' -type f -print0 \
+    | xargs -0 -r -n 200 -P "$JOBS" sh -c \
         'exec luajit "$WORKER" "$MAX_WIDTH" "$FINDINGS_DIR/part.$$.tsv" "$@"' _
 SCAN_STATUS=$?
 if [ "$SCAN_STATUS" -ne 0 ]; then
