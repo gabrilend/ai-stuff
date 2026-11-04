@@ -12,9 +12,17 @@
 --
 -- It writes the pages to a scratch folder, never to output/.
 --
--- Run directly:  luajit src/gallery-pages.test.lua [project-dir]
+-- Run directly:  luajit src/gallery-pages.test.lua [--dir PATH]
 
-local DIR = arg and arg[1] or nil
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- folder above src/ is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local DIR = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir:sub(-1) == "/" and dir or (dir .. "/")
+end)()
 
 -- {{{ local function setup_path()
 local function setup_path()
@@ -135,7 +143,7 @@ end
 -- {{{ Case: the real pages, and every link followed
 do
     os.execute('rm -rf "' .. SCRATCH .. '"; mkdir -p "' .. SCRATCH .. '"')
-    -- The generator reads arg[1] as its project folder, as when run by run.sh.
+    -- The generator, loaded as a library, takes this test's --dir (Issue 10-076).
     local gallery = require("generate-gallery-pages")
     local catalog = catalog_of(23)
     -- A stale page from a build that had more pages must not survive.
