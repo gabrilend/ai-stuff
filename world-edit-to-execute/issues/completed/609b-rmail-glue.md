@@ -24,6 +24,14 @@ repository, and `hook.connect()` is a stub.
   docs, and the glue follows what rmail really does.
 - The prompt on screen moves to 609c: it needs a screen to be checked.
 
+**After the editor-and-client split (2026-11-04).** Playing happens in
+the W client (issue 913), and using a list during a game, the lobby
+prompt included, is the W client's (its 1110), for "come check out my
+map", where the host's list comes with the join (609, "A list travels
+only with its map"). The rmail glue stays here, for "check out my map":
+the map and its list in one message, asked about once by the editor or
+launcher, then stored.
+
 ## Suggested Implementation Steps
 
 1. Read rmail's message, attachment and hook docs
@@ -162,3 +170,21 @@ beyond it, and rmail was not changed.
    hidden outbox or subjects routed to a folder of their own. Today share
    mail and its forms show in the inbox (and on the phone) until the game
    polls.
+
+### After the editor-and-client split (2026-11-04)
+
+Two things in these notes read differently under the owner's decisions
+of 2026-11-04 (609, "Where each part runs" and "A list travels only with
+its map"). The code is unchanged by this note.
+
+- **Who reads the notes, and when.** Decision 2 has "the game" poll the
+  hooks' notes. Playing is now the W client's, and the owner: "we only
+  send models and such when the map that includes them is shared ... so
+  we don't need to check the rmail inbox every 5 seconds." `C:poll` stays
+  as the call that reads what the hooks noted; what calls it here is the
+  editor or the launcher, not a game loop on a timer. When they call it is
+  still to be settled.
+- **The map travels with its list.** The glue sends a list that names its
+  map by hash. For "check out my map" the map file and the list go in one
+  message; adding the map file as an attachment of the list message is
+  not built yet.

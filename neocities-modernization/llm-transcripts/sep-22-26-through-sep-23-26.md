@@ -1,6 +1,6 @@
 # Conversation Summary: 878dd9fc-cb42-4066-a322-a6de153916d6
 
-Generated on: 2026-09-26 13:26:43
+Generated on: 2026-10-04 17:30:08
 Models: claude-opus-5-5
 
 ## Contents
@@ -269,7 +269,7 @@ follows:
     `format_single_poem_with_progress_and_color`
     (`src/flat-html-generator.lua:2209`), not the threaded worker. Evidence:
     - (a) A ` -> file: X` line sitting right above the top bar is only written by that function (`:2276`) and by the chronological page (`:3017`). The chronological page draws no centre "chronological" link (`:3024`, `chronological_link = nil`), but the samples show one.
-    - (b) The threaded worker (`generate_page`, `:4297`) writes `=== ANCHOR POEM ===` and `--- #N path ---` headers and never ` -> file:`. It has done so since commit 9a810132 (Jan 21).
+    - (b) The threaded worker (`generate_page`, `:4297`) writes `=== ANCHOR POEM ===` and `--- #N path ---` headers and never ` -> file:`. It has done so since commit b3d30b18 (Jan 21).
     - (c) The CW box in the fediverse/696 sample is wrapped. Only the main-thread `format_warning_box` (`:1702`) wraps; the worker never does.
     - (d) The bar lengths fit that formatter's formula exactly (see item 1).
   - **Where that formatter runs:** in the sequential branch (`:4549`). That
@@ -1347,6 +1347,8 @@ You can write the issue files for documentation sake, then let's implement them.
 
 > All mine; claiming the test file and committing.
 
+*[commit] 7efbdba70 - The mailbox name becomes a label; sending to yourself uses a word you pick*
+
 Both rmail changes are built, tested and committed, along with the contacts
 tidy-up and one older bug the tests turned up. The notes-project work from
 earlier is committed too.
@@ -1491,6 +1493,8 @@ sh /home/ritz/programs/r-mail/scripts/test-mailbox-selection.sh &gt; $S/sel.out
 
 > Everything passes. Committing the reversal.
 
+*[commit] 671d098b2 - Undo the separate self-address word: the mailbox name does both jobs again*
+
 I've reverted it: `name` both labels the mailbox and is the word for sending to
 yourself, as before. The self mark and the startup conversion are gone too. I
 kept three fixes: the home-network search change, the contacts tidy-up, and the
@@ -1595,6 +1599,8 @@ luac5.4 -p /home/ritz/programs/r-mail/rmail.lua || exit 1; sh
 
 ### Assistant Response 11 (continued)
 
+*[commit] 12861e4eb - Home-network search sends no names; a mailbox with no contacts keeps a timer*
+
 Both changes are built, tested (26 checks pass) and committed in rmail as
 `12861e4`. Restart both mail programs for them to take effect.
 
@@ -1656,6 +1662,8 @@ Then, let's get back to neocities-modernization work.
 
 > Handoff note and issue written; committing in both repos now.
 
+*[commit] d60041daf - Handoff note for the names-and-timers work; open question on mid-sync outbox saves*
+
 Both repos are committed and clean for my work, so you can push now.
 
 - **rmail** (`d60041d`): I wrote a handoff note at
@@ -1667,7 +1675,7 @@ Both repos are committed and clean for my work, so you can push now.
   may not survive your restart.
 - **Mid-sync saves:** I recorded the question about outbox changes saved during
   a sync as rmail issue 396. It isn't answered yet.
-- **neocities-modernization** (`75d927c23`, in the ai-stuff repo): the
+- **neocities-modernization** (`379c9f2a6`, in the ai-stuff repo): the
   notes-mailbox issue (10-068) now points to that rmail handoff for the
   name-clash notice. This session's transcript is in that commit.
 
@@ -1743,6 +1751,8 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 
 > Item 1 passes. Recording it in issue 11-009, then committing.
 
+*[commit] bbf13a67c - Pages tell phones they are already dark*
+
 > Still repairing that commit; retrying with the commit named by hash instead of
 > a relative count.
 
@@ -1765,7 +1775,9 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 > Committing item 2 and the gate, working around the other session's staged
 > files the same way as before.
 
-> Item 2 and the gate are committed (`2581237ed`), and the other session's
+*[commit] e08aaa92e - A pre-flight gate checks what a build can fail before any stage starts*
+
+> Item 2 and the gate are committed (`e08aaa92e`), and the other session's
 > staged files are back as they were. Next, item 3: the progress-bar range
 > check.
 
@@ -1774,7 +1786,9 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 
 > All pass. Recording item 3 in issue 8-045.
 
-> Item 3 committed (`94c62f1b8`). Starting item 4, the shared content-warning
+*[commit] e47da9072 - A progress bar refuses a percentage it cannot draw*
+
+> Item 3 committed (`e47da9072`). Starting item 4, the shared content-warning
 > box; reading how the current box is drawn so the new one matches it exactly.
 
 > Writing the shared box builder.
@@ -1784,7 +1798,9 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 
 > Tests pass (29). Committing item 4 the same careful way.
 
-> Item 4 committed (`82f8b5207`). Item 5 now: moving the single-threaded builder
+*[commit] aaf8ef5c8 - One content-warning box that always fits its frame*
+
+> Item 4 committed (`aaf8ef5c8`). Item 5 now: moving the single-threaded builder
 > onto the date-based bar position.
 
 > Checking how many poems have no usable date: the date reader's last resort
@@ -1829,17 +1845,19 @@ completion without anymore input from us. Other than that... Go get 'em tiger
 > Every test passes except `augment-embeddings-with-images.test.lua`. Checking
 > whether that one is mine.
 
+*[commit] e7731aa0d - Progress bars follow the dates everywhere; undated poems are caught up front*
+
 All five roadmap items and the checks-first gate are done, tested and committed.
 Tonight's build now runs every cheap check in its first few seconds and stops
 before any stage if one fails.
 
 | # | What changed | Commit |
 |---|---|---|
-| 1 | Pages tell phones they're already dark, so forced dark mode doesn't repaint the black background grey | `4efe1f8c0` |
-| 2 + gate | A new pre-flight gate runs right after the command-line values are checked. It lists every failure together and starts nothing if any fail. Asking for threads when the threading library won't load is now an error instead of a quiet switch to one thread. | `2581237ed` |
-| 3 | A progress bar refuses any percentage outside 0–100 and names the poem | `94c62f1b8` |
-| 4 | One shared content-warning box: breaks after dashes (the dash stays on the line), cuts over-long links at the edge, counts visible characters. Nothing uses it yet; switching the five places that draw the box waits for a run with a build to check. | `82f8b5207` |
-| 5 | The single-threaded page builder uses the date-based bar position and the old formula is deleted. A poem missing from the date map, or with no date at all, stops the build with its name. | `44baef269` |
+| 1 | Pages tell phones they're already dark, so forced dark mode doesn't repaint the black background grey | `bbf13a67c` |
+| 2 + gate | A new pre-flight gate runs right after the command-line values are checked. It lists every failure together and starts nothing if any fail. Asking for threads when the threading library won't load is now an error instead of a quiet switch to one thread. | `e08aaa92e` |
+| 3 | A progress bar refuses any percentage outside 0–100 and names the poem | `e47da9072` |
+| 4 | One shared content-warning box: breaks after dashes (the dash stays on the line), cuts over-long links at the edge, counts visible characters. Nothing uses it yet; switching the five places that draw the box waits for a run with a build to check. | `aaf8ef5c8` |
+| 5 | The single-threaded page builder uses the date-based bar position and the old formula is deleted. A poem missing from the date map, or with no date at all, stops the build with its name. | `e7731aa0d` |
 
 The gate has three checks:
 - **Threading library:** it loads, when pages are built with more than one
@@ -1927,6 +1945,8 @@ Sure sound great!
 
 > Item 1: the unreachable link fallback.
 
+*[commit] 1f6cc3b19 - Remove the chronological-link fallback nothing can reach any more*
+
 > Item 1 committed. Item 2: finding the issue numbers that are used twice.
 
 > Renames and code references done. Fixing the note in the font issue and the
@@ -1936,6 +1956,8 @@ Sure sound great!
 
 > Those four "foreign" files were my own renames. There's nothing to restore
 > after this commit, so I'm clearing the saved patch.
+
+*[commit] d6e0f32de - Give four doubly-used issue numbers their own*
 
 > I'll adjust the prep script so it only sets aside staged files outside this
 > project; my own staged renames stay put.
@@ -1961,6 +1983,8 @@ Sure sound great!
 > Only the pre-existing augmentation test fails. Everything in issue 10-025 is
 > now done, so I'm completing it.
 
+*[commit] 3d2f94c19 - The anchor poem appears once, and same-numbered poems stop disappearing*
+
 > Item 3 committed. Item 4: the "Next Page" links. Reading the page-navigation
 > code.
 
@@ -1983,6 +2007,8 @@ Sure sound great!
 
 > Page 2's links are drawn twice (header and footer), so it has four, not two.
 > Fixing the test to check which pages it links to.
+
+*[commit] 1c5d1c773 - Previous and Next only link to pages that were written*
 
 > Writing the worker that scans a share of pages.
 
@@ -2042,9 +2068,9 @@ $N/scripts/validate-output $N 2&gt;&amp;1 | head -30" completed (exit code 0)*
 > else's staged files, so I can drop my workaround scripts. Committing item 5
 > with it, limited to item 5's files.
 
-*[commit] 55b617d59 in ai-stuff - A character-counting check for every page of the built site*
+*[commit] 203cb5f40 in ai-stuff - A character-counting check for every page of the built site*
 
-> Item 5 committed (`55b617d59`). Item 6: wiring the rankings check into the
+> Item 5 committed (`203cb5f40`). Item 6: wiring the rankings check into the
 > pre-flight gate. Finding where `run.sh` works out the model's cache folder.
 
 > Adding test cases: rankings missing one poem must fail, and the real rankings
@@ -2052,7 +2078,7 @@ $N/scripts/validate-output $N 2&gt;&amp;1 | head -30" completed (exit code 0)*
 
 > Exactly item 6's files. Committing.
 
-*[commit] bcbacb24a in ai-stuff - The build checks that saved similarity lists fit today's poems before it starts*
+*[commit] 176593b6f in ai-stuff - The build checks that saved similarity lists fit today's poems before it starts*
 
 All six items are built, tested and committed. The most important thing for
 tonight: the build will end by failing on purpose. The new checker runs last and
@@ -2061,12 +2087,12 @@ written but the run will report failure.
 
 | # | What changed | Commit |
 |---|---|---|
-| 1 | Deleted the chronological-link fallback that nothing can reach any more | `d808745ce` |
-| 2 | Renumbered four issues that shared a number with another: 13-001→13-005, 16-010→16-011, 5-014→5-027, 8-014→8-060. References followed, and the checker now reports no shared numbers except two issues whose design notes are separate files on purpose. | `bf89f101d` |
-| 3 | The anchor poem appears once, and poems from another source that share its number are no longer hidden. Both page builders are fixed. The test covers only the single-threaded builder: the multi-threaded builder's code lives inside the worker, where a test can't reach it. | `6820e5a5f` |
-| 4 | Previous and Next only link to pages that were written. The page workers' `--pages all` now writes every page, and a list writes exactly the pages named. A `--pages` value that can't be read is refused before any stage starts. | `63a456ab8` |
-| 5 | `scripts/validate-output`: the whole-site line-width and link checker. It runs last in any run that includes stage 9 or 10. | `55b617d59` |
-| 6 | The pre-flight gate checks that the saved similarity rankings match the poem list, in about a second. Today's rankings pass: 9,191 entries for 8,531 poems and 660 images. | `bcbacb24a` |
+| 1 | Deleted the chronological-link fallback that nothing can reach any more | `1f6cc3b19` |
+| 2 | Renumbered four issues that shared a number with another: 13-001→13-005, 16-010→16-011, 5-014→5-027, 8-014→8-060. References followed, and the checker now reports no shared numbers except two issues whose design notes are separate files on purpose. | `d6e0f32de` |
+| 3 | The anchor poem appears once, and poems from another source that share its number are no longer hidden. Both page builders are fixed. The test covers only the single-threaded builder: the multi-threaded builder's code lives inside the worker, where a test can't reach it. | `3d2f94c19` |
+| 4 | Previous and Next only link to pages that were written. The page workers' `--pages all` now writes every page, and a list writes exactly the pages named. A `--pages` value that can't be read is refused before any stage starts. | `1c5d1c773` |
+| 5 | `scripts/validate-output`: the whole-site line-width and link checker. It runs last in any run that includes stage 9 or 10. | `203cb5f40` |
+| 6 | The pre-flight gate checks that the saved similarity rankings match the poem list, in about a second. Today's rankings pass: 9,191 entries for 8,531 poems and 660 images. | `176593b6f` |
 
 ## What the checker found in today's `output/`
 
@@ -2193,10 +2219,10 @@ $N/tmp/shared-memory/validate-output-report.txt" completed (exit code 0)*
 
 ### Assistant Response 17 (continued)
 
-*[commit] d32d2b582 in ai-stuff - The site checker also checks frame shapes; the old one-file checker retires*
+*[commit] b31ba7d8a in ai-stuff - The site checker also checks frame shapes; the old one-file checker retires*
 
 The old checker's frame rules are now part of the whole-site checker, and the
-old tool is retired (`d32d2b582`).
+old tool is retired (`b31ba7d8a`).
 
 - **What's checked now:** progress bars, bottom lines and the similar/different
   boxes must be exactly 83 wide (84 for golden poems), with the bottom line's
@@ -2269,7 +2295,7 @@ Great sounds good
 > Running the full test set, and checking whether the old byte-counting wrap
 > helper is now unused.
 
-*[commit] 4faf52ff1 in ai-stuff - Every content-warning box wraps inside its frame; word pages wrap like the rest*
+*[commit] d3fec844a in ai-stuff - Every content-warning box wraps inside its frame; word pages wrap like the rest*
 
 The scan step in that command won't work: `find` doesn't follow the symlink I
 pointed it at, so it'll check zero pages. When the rebuild finishes, I'll scan
@@ -2300,7 +2326,7 @@ failed with exit code 2 (failed)*
 > Tests pass. Tonight's build rewrites that page with the fix. Recording the
 > result in issue 9-011 and committing.
 
-*[commit] 1cef0676d in ai-stuff - Measure an escaped ampersand once, not twice*
+*[commit] aa37a2496 in ai-stuff - Measure an escaped ampersand once, not twice*
 
 All three items are done. Rebuilding every word page with the new code and
 re-scanning took the over-wide lines from 23,858 to 1, and that last one was a
@@ -2308,10 +2334,10 @@ real bug, now fixed.
 
 | # | What changed | Commit |
 |---|---|---|
-| 1 | All five places that draw a content-warning box use the shared builder. A long warning wraps after dashes and spaces and stays inside the frame; a short one keeps the small box pages always had. | `4faf52ff1` |
-| 2 | Word pages wrap poem text with the same wrapper as the other pages. Their own counted bytes, collapsed the author's spacing and never broke a long web address. | `4faf52ff1` |
+| 1 | All five places that draw a content-warning box use the shared builder. A long warning wraps after dashes and spaces and stays inside the frame; a short one keeps the small box pages always had. | `d3fec844a` |
+| 2 | Word pages wrap poem text with the same wrapper as the other pages. Their own counted bytes, collapsed the author's spacing and never broke a long web address. | `d3fec844a` |
 | 3 | The 123 over-wide golden-frame lines needed no separate fix; the new wrapper got rid of them. | — |
-| + | The width measurer read an escaped ampersand twice. A note quoting HTML source shows the text `&quot;` (six characters), and it was measured as one, so that line wrapped too late. Fixed, with two tests. | `1cef0676d` |
+| + | The width measurer read an escaped ampersand twice. A note quoting HTML source shows the text `&quot;` (six characters), and it was measured as one, so that line wrapped too late. Fixed, with two tests. | `aa37a2496` |
 
 ## Scan of all 7,290 word pages after the rebuild
 
@@ -2363,10 +2389,10 @@ to both the ctrl+v clipboard, and the middle mouse-click clipboard.
 > Correcting the function name in the issue: the prompt loop is
 > `menu.batch_pause`.
 
-*[commit] 52d680615 in ai-stuff - Issue for three run.sh menu problems: a missing glyph, a hang, the clipboard*
+*[commit] 98fd8e4bc in ai-stuff - Issue for three run.sh menu problems: a missing glyph, a hang, the clipboard*
 
 I wrote issue `10-070-run-sh-menu-glyphs-escape-hang-and-clipboard.md` and
-committed it (`52d680615`). Nothing is fixed yet.
+committed it (`98fd8e4bc`). Nothing is fixed yet.
 
 **Missing glyph:** each per-stage "Force regenerate" line starts with `↳`, a
 small down-then-right arrow your terminal font doesn't have. The menu library
@@ -2444,9 +2470,9 @@ me.
 > flag comes from how the diff lines up old and new lines. Claiming the file and
 > committing.
 
-*[commit] 6db0bf6c0 in ai-stuff - The menu's copy key no longer hangs the script behind it, and the copy survives*
+*[commit] a30892ccb in ai-stuff - The menu's copy key no longer hangs the script behind it, and the copy survives*
 
-Fixed and committed (`6db0bf6c0`). The hang and the missing copy turned out to
+Fixed and committed (`a30892ccb`). The hang and the missing copy turned out to
 be the same bug.
 
 **What was happening:** the copy key starts `xclip`, the program that holds the
@@ -2498,9 +2524,9 @@ registers.
 > and it should quit. Then the editing case, where Escape leaves editing mode
 > and a second Escape quits.
 
-*[commit] ec826079b in ai-stuff - Escape leaves the menu from the command line too*
+*[commit] 5f0b325a4 in ai-stuff - Escape leaves the menu from the command line too*
 
-Fixed and committed (`ec826079b`). Escape now quits from the command-preview
+Fixed and committed (`5f0b325a4`). Escape now quits from the command-preview
 line too, which is where the cursor sits after you copy. Before, Escape there
 only stepped out of editing mode and otherwise did nothing.
 
@@ -2564,9 +2590,9 @@ always because "force regenerate all stages" is enabled.
 > cut apart" check fails. With the new code all 4 pass. Recording the two fixes
 > in issue 10-070 and committing.
 
-*[commit] 7d596d6f7 in ai-stuff - Menu markers stay readable when highlighted or dimmed; settled options are skipped*
+*[commit] f9c56281d in ai-stuff - Menu markers stay readable when highlighted or dimmed; settled options are skipped*
 
-Both fixed and committed (`7d596d6f7`).
+Both fixed and committed (`f9c56281d`).
 
 **Garbled markers:** the menu's screen code stored one byte per screen cell, but
 `└` and `─` take three bytes each. Plain lines survived because the three
@@ -2629,9 +2655,9 @@ I'm currently running the pipeline now. We're in stage 6.
 > All 7 pass. Checking that the new radio checks fail on the previous menu code,
 > so they'd catch the bug coming back.
 
-*[commit] a93240de6 in ai-stuff - In a radio list with nothing chosen, L chooses the entry under the cursor*
+*[commit] f6afbdeb2 in ai-stuff - In a radio list with nothing chosen, L chooses the entry under the cursor*
 
-Fixed and committed (`a93240de6`).
+Fixed and committed (`f6afbdeb2`).
 
 - **Nothing chosen yet:** L chooses the entry the cursor is on, the way it ticks
   a checkbox. H does nothing, since a radio list has no "unchosen" to go back
@@ -2763,7 +2789,7 @@ scan through.
 > Committing the alignment and the two symbol swaps. `run.sh` stays out until
 > your run finishes.
 
-*[commit] 8a9f0fd88 in ai-stuff - Image statistics line up on their colons; a broom the terminal can't draw goes*
+*[commit] 76bc7bd5f in ai-stuff - Image statistics line up on their colons; a broom the terminal can't draw goes*
 
 I haven't found a bug in the golden-poem counter. The 1023 cluster fits a known
 limit of what the archive can show: posts typed to exactly 1024 that lost one
@@ -2809,7 +2835,7 @@ A question for you: when you wrote posts to exactly 1024, did you tend to end
 with a trailing space or newline, or leave extra blank lines between stanzas? If
 so, that is likely the whole story.
 
-**The other two, done** (`8a9f0fd88`):
+**The other two, done** (`76bc7bd5f`):
 - **Image statistics:** every section now lines up on its colons, and formats
   are listed most-common first.
 - **`🧹`:** replaced with `✂` (scissors) in the excluded-folder line and the
@@ -2831,10 +2857,10 @@ validate it.
 > Setting it aside. I'll record what we found in the golden-poem counting issue,
 > so the 1023 cluster and the way to verify it aren't lost if it comes up again.
 
-*[commit] 625a7ece6 in ai-stuff - Note the 1023-character cluster in the golden-poem counting issue*
+*[commit] 89f5cd051 in ai-stuff - Note the 1023-character cluster in the golden-poem counting issue*
 
 I've set it aside. The findings are recorded in the golden-poem counting issue
-(4-003) as a "set aside" note, and committed (`625a7ece6`). The note covers the
+(4-003) as a "set aside" note, and committed (`89f5cd051`). The note covers the
 44 poems at 1023 against 675 at 1024, the likely cause, and the one way to check
 it (Mastodon's API for the text as typed).
 
@@ -2878,9 +2904,9 @@ Shutting down inference server (PID 27606) that this run started...
 
 > 6 of 6 pass. Checking that the test fails on the code that crashed your run.
 
-*[commit] 8fef7d4ec in ai-stuff - Paginated chronological pages build again; a broom the terminal can't draw goes*
+*[commit] 8cb9e101e in ai-stuff - Paginated chronological pages build again; a broom the terminal can't draw goes*
 
-Fixed and committed (`8fef7d4ec`). The crash was the same `%` problem I fixed
+Fixed and committed (`8cb9e101e`). The crash was the same `%` problem I fixed
 earlier, in the one template that fix missed.
 
 - **Cause:** the paginated chronological pages are filled in two passes, page

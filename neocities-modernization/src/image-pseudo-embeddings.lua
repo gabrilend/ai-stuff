@@ -1,7 +1,10 @@
 -- image-pseudo-embeddings.lua
 --
 -- Issue 9-013 (redesign): give every image a "pseudo-embedding" so it can be
--- ranked on similar/different pages like a poem. An image carries no usable
+-- ranked on similar/different pages like a poem. Since 2026-10-25 pictures
+-- are placed by the vision model's vector of the picture itself
+-- (src/picture-embeddings.lua); this placement is kept only for picture-only
+-- posts whose media has no picture (a video, a sound), the owner's choice. An image carries no usable
 -- semantic vector of its own, so we synthesize one from WHERE it sits in time:
 -- the average of the embeddings of the poem immediately before it and the poem
 -- immediately after it chronologically. That places the image at the semantic

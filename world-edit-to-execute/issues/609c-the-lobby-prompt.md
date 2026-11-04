@@ -23,6 +23,16 @@ game's loop.
   the profile on yes (`P:attach(L)`), and reverts it after the game unless
   the player keeps it (`P:keep`).
 
+**After the editor-and-client split (2026-11-04).** Two items above are
+no longer this project's as written. The lobby prompt, for "come check
+out my map" where the host's list comes with the join, is the W client's
+(its 1110): playing happens there (issue 913), and it carries this
+issue's rules over as a design (609, "A list travels only with its
+map"). And no inbox is polled on a timer: the owner, "we don't need to
+check the rmail inbox every 5 seconds", since models travel only when
+their map is shared. What stays here is the one question the editor or
+launcher asks when a map is given to keep ("check out my map").
+
 ## Suggested Implementation Steps
 
 1. Connect and poll from the game's loop; show the setup lines when
