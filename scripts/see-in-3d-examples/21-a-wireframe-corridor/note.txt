@@ -1,0 +1,5 @@
+title: A first-person corridor drawn in cyan lines
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/21-a-wireframe-corridor/picture.png
+stage: 25
+---
+One of the clearest readings. The front view looks down the corridor much as the picture does; the right view shows the purple wall as a plain closed side; the top view shows the open left side, where the picture showed no wall and so none was drawn.

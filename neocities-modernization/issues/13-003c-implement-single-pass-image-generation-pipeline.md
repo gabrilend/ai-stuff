@@ -318,4 +318,4 @@ Consider:
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: Medium-High (pipeline orchestration)
 - **Dependencies**: 13-003a (prompts), 13-003b (SD API), 13-002d (audio manifest)
-- **Blocks**: 13-004
+- **Blocks**: 13-004, 13-003d, 13-004a

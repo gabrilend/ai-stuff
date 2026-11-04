@@ -65,6 +65,10 @@ void vkc_dispatch(VkComputeContext* ctx, VkPipeline pipeline,
 
 - 9-001a (Vulkan environment setup)
 
+## Blocks
+
+- 9-001c, 9-002, 9-002a, 9-002b, 9-004
+
 ## Implementation Summary
 
 Complete Vulkan compute wrapper implemented in `libs/vulkan-compute/src/vk_compute.c` (934 lines):

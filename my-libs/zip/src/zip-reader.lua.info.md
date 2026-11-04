@@ -1,7 +1,7 @@
 # zip-reader.lua
 
 Reads a received zip (my-libs issue 801; built for rao-chat issue 216e,
-shared with rmail #405): the whole structure checked before a
+shared with rmail #309): the whole structure checked before a
 byte is made, then each entry made through zip-inflate's meter into a private
 folder. Replaces the unzip program. Runs on LuaJIT and Lua 5.3/5.4.
 

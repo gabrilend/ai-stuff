@@ -1058,6 +1058,171 @@ local function test_the_folds_say_what_the_functions_take(t)
 end
 -- }}}
 
+-- {{{ test_another_kitchen(t)
+-- `415`: a kitchen in another house is a set of changes over the settings, and
+-- what a recipe needs is read out of the recipe itself.
+local function test_another_kitchen(t)
+  local runner = project.load("044-run-the-pictures")
+  local settings = project.settings()
+
+  t.ok(runner.for_kitchen(settings, nil) == settings,
+       "no kitchen named means the settings unchanged")
+  local far = runner.for_kitchen(settings, "across")
+  t.ok(far.kitchen.here == false and far.kitchen.url ~= settings.kitchen.url,
+       "a named kitchen lays its changes over the settings")
+  t.same(far.kitchen.least_free_vram, settings.kitchen.least_free_vram,
+         "and inherits everything it does not write")
+  t.ok(settings.kitchen.here == true,
+       "without writing into the shared settings")
+  local refused = pcall(runner.for_kitchen, settings, "nowhere")
+  t.ok(not refused, "a kitchen that is not there is an error, not a quiet " ..
+       "return to the local one")
+
+  local chroma = runner.for_kitchen(settings, "across_chroma")
+  t.same(chroma.kitchen.url, far.kitchen.url,
+         "a kitchen that inherits another stands in the same house")
+  t.ok(chroma.workflow.checkpoint ~= far.workflow.checkpoint and
+       chroma.workflow.width == far.workflow.width,
+       "with its own model on the shelf and everything else its parent's")
+
+  t.same(runner.rest_for(2.5), 2.5, "a rest of one number is that long")
+  local lengths, all_inside = {}, true
+  for _ = 1, 50 do
+    local seconds = runner.rest_for({ 3, 5 })
+    if seconds < 3 or seconds > 5 then all_inside = false end
+    lengths[string.format("%.2f", seconds)] = true
+  end
+  local distinct = 0
+  for _ in pairs(lengths) do distinct = distinct + 1 end
+  t.ok(all_inside, "a rest of a pair stays between its two ends")
+  t.ok(distinct > 10, "and is a different length each time")
+  t.ok(not pcall(runner.rest_for, { 5, 3 }),
+       "a pair written longest first is an error, not a guess")
+  t.ok(not pcall(runner.rest_for, "four"),
+       "and so is a rest that is not a length at all")
+
+  t.ok(runner.is_the_display_card({ total = 32, used = 0.1, free = 31.9 },
+                                  { kitchen = { shares_a_screen = false } }) == false,
+       "a far card's screen is what its settings declare, not what its memory suggests")
+
+  local boxes, models = runner.wanted_by(
+    '{"1":{"class_type":"CheckpointLoaderSimple","inputs":{"ckpt_name":"a.safetensors"}},' ..
+    '"2":{"class_type":"ControlNetLoader","inputs":{"control_net_name":"b.safetensors"}}}')
+  t.same(#boxes, 2, "a recipe's box types are read out of it")
+  t.same(#models, 2, "and so are the models it names")
+end
+-- }}}
+
+-- {{{ test_inside_and_outside(t)
+-- `416`: two mask routes, one scene, one seed -- and the outside route kept
+-- away from the machine's grading.
+local function test_inside_and_outside(t)
+  local runner = project.load("044-run-the-pictures")
+  local workflow = project.load("029-the-workflow-for-one-kanji")
+  local field_of = project.load("022-the-structure-field")
+  local words = project.load("025-the-words-the-machine-reads")
+  local pool = project.load("045-the-pool-that-remembers")
+  local grader = project.load("046-two-ways-of-saying-it-is-good")
+  local one = project.load("030-make-one-kanji")
+  local store = project.load("019-the-kanji-record").store()
+  local record = store.records["\228\188\145"]  -- 休
+  local far = runner.for_kitchen(project.settings(), "across")
+
+  local made = assert(words.prompts(record, store, far, {}))
+  t.ok(made.parts.background:sub(1, 10) == "background",
+       "the background sentence says background, first")
+  t.ok(not made.parts.subjects:find(made.scene.biome.register, 1, true),
+       "the inside of the strokes is not told about the world")
+  for _, role in ipairs(made.scene.named) do
+    t.ok(not made.parts.outside:find(role.phrase or role.object, 1, true),
+         "the outside route asks for nothing along the strokes: " ..
+         (role.phrase or role.object))
+  end
+
+  -- `416a`: one material for the strokes, the only one of its kind.
+  local grammar = project.load("024-the-scene-grammar")
+  local unfinished = {}
+  for _, biome in ipairs(grammar.biomes()) do
+    local m = biome.material
+    if not (m and m.stuff and m.cover and m.words and #m.words > 0) then
+      unfinished[#unfinished + 1] = biome.name
+    end
+  end
+  t.ok(#unfinished == 0, "every world has a material and a cover for its strokes",
+       #unfinished > 0 and table.concat(unfinished, ", ") or nil)
+  local tree = assert(words.prompts(store.records["\230\156\168"], store, far, {}))  -- 木
+  t.same(tree.scene.biome.name, "forest", "木 lands in the forest")
+  local lowered = tree.parts.background:lower()
+  t.ok(not lowered:find("trunk", 1, true) and not lowered:find("bark", 1, true),
+       "the forest background names no trunk and no bark")
+  t.ok(tree.parts.background:find(tree.scene.biome.material.cover, 1, true),
+       "but does name the leaves that hide where trunks would carry on")
+  t.ok(tree.background_negative:find("trunks", 1, true) and
+       not tree.negative:find("trunks", 1, true),
+       "the background pass refuses trunks; the strokes' pass does not")
+  t.ok(tree.parts.subjects:find("trunks", 1, true), "the strokes are trunks")
+  for _, role in ipairs(tree.scene.named) do
+    t.ok(not tree.parts.subjects:find(role.phrase or role.object, 1, true),
+         "and nothing else: " .. (role.phrase or role.object))
+  end
+  local writing = assert(words.prompts(store.records["\230\150\135"], store, far, {}))  -- 文
+  for _, subject in ipairs(writing.scene.subjects) do
+    t.ok(not writing.parts.outside:find(subject.depicts, 1, true),
+         "the outside route is not told about 文's pieces: " .. subject.depicts)
+  end
+
+  local mask = field_of.mask(record, far, far.routes.mask_width)
+  local only_in_or_out, inked = true, 0
+  for index = 1, mask.width * mask.height do
+    local value = mask.pixels[index]
+    if value ~= 0 and value ~= 1 then only_in_or_out = false end
+    inked = inked + value
+  end
+  t.ok(only_in_or_out, "a mask is in or out, nothing between")
+  t.ok(inked > 0 and inked < mask.width * mask.height / 2,
+       "and covers the strokes, not the frame")
+  local ink = field_of.ink(mask, 0.06, 0.5)
+  local exact = true
+  for index = 1, mask.width * mask.height do
+    local want = (mask.pixels[index] == 1) and 0.06 or 0.5
+    if ink.pixels[index] ~= want then exact = false break end
+  end
+  t.ok(exact, "the painted canvas is ink exactly where the mask is, paper elsewhere")
+
+  local out = project.scratch("test-routes")
+  local done = assert(one.make(record, store, far, { out = out }))
+  t.same(#done.workflows, 2, "one recipe per route this kitchen runs")
+  for _, recipe in ipairs(done.workflows) do
+    local boxes = runner.wanted_by(project.read_file(recipe.path))
+    local has_net = false
+    for _, kind in ipairs(boxes) do
+      if kind:find("ControlNet", 1, true) then has_net = true end
+    end
+    t.ok(not has_net, recipe.route .. " needs no control net")
+  end
+  local refused = pcall(workflow.build, record,
+                        { route = "illusion", style = "photographic" }, far)
+  t.ok(not refused, "the illusion route refuses a kitchen with no control net")
+
+  local seed = workflow.seed_for(record, "photographic")
+  local plain = pool.stem(record, seed, "photographic", nil)
+  t.same(pool.stem(record, seed, "photographic", nil, { route = "illusion" }),
+         plain, "a picture made the old way keeps the name it always had")
+  local inside = pool.stem(record, seed, "photographic", nil,
+                           { route = "inside", drawn_by = "juggernautxl" })
+  local outside = pool.stem(record, seed, "photographic", nil,
+                            { route = "outside", drawn_by = "juggernautxl" })
+  t.ok(inside ~= outside and inside ~= plain,
+       "two routes in one kitchen are two names, so neither replaces the other")
+
+  t.ok(grader.grades("inside") and grader.grades("illusion"),
+       "the machine grades the routes where its squint means something")
+  t.ok(not grader.grades("outside"),
+       "and never the outside route, whose picture contains the character by " ..
+       "construction (docs/007 Q13)")
+end
+-- }}}
+
 -- {{{ M.run(options)
 function M.run(options)
   local ink = project.load("020-test-the-ink")
@@ -1073,6 +1238,8 @@ function M.run(options)
     { "the dial", test_the_dial },
     { "the animation", test_the_animation },
     { "the two sites", test_the_two_sites },
+    { "another kitchen", test_another_kitchen },
+    { "inside and outside", test_inside_and_outside },
     { "the folds say what the functions take",
       test_the_folds_say_what_the_functions_take },
   }
