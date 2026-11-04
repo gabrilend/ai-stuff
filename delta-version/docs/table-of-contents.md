@@ -113,7 +113,7 @@
   - [Issue 040i: Continual Co-operation Bridge](../issues/040i-continual-cooperation-bridge.md) 📝
 
 ### Master Reference Issues
-- [Issue 001: Comprehensive Git Repository Setup](../issues/001-comprehensive-git-repository-setup.md) - Master reference
+- [Issue 068 (was 001-MASTER): Comprehensive Git Repository Setup](../issues/068-comprehensive-git-repository-setup.md) - Master reference
 - [Issue 002: Gitignore Unification Script](../issues/002-gitignore-unification-script.md) - Master reference
 - [Issue 003: Dynamic Ticket Distribution System](../issues/003-dynamic-ticket-distribution-system.md) - Master reference
 

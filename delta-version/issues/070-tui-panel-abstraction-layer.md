@@ -1,8 +1,8 @@
-# Issue 038: TUI Panel Abstraction Layer
+# Issue 070 (was 038): TUI Panel Abstraction Layer
 
 ## Current Behavior
 
-The `tui.lua` library now has hierarchical dirty tracking (Issue 037) with three levels:
+The `tui.lua` library now has hierarchical dirty tracking (Issue 069, formerly 037) with three levels:
 - **Full screen**: `dirty_full` flag, `invalidate()`
 - **Row level**: `dirty_rows[y]` table, `invalidate_row(y)`
 - **Cell level**: `dirty_cells[y][x]` tables, auto-marked by `set_cell()`
@@ -185,7 +185,7 @@ Should panels have built-in border drawing? For now, NO:
 ## Dependencies
 
 ### Blocked By
-- **Issue 037**: TUI Dirty Tracking Optimization (completed)
+- **Issue 069**: TUI Dirty Tracking Optimization (completed; it had the old TUI number, see What Happened)
   - Panels rely on `invalidate_row()` for efficient updates
 
 ### Related Issues
@@ -197,3 +197,18 @@ Should panels have built-in border drawing? For now, NO:
 - **Priority**: Medium (nice-to-have for code organization)
 - **Complexity**: Medium (coordinate translation is straightforward)
 - **Impact**: Improves TUI application code organization and maintainability
+
+---
+
+## What Happened
+
+**2026-11-02 — renumbered from 038 to 070.** Two different issues used
+the number 038: this one and `completed/038-dependency-visualization-tool.md`. The import that grafted
+delta-version's history gave both files the same first commit, but the
+issues' own dates settle it. *Dependency Visualization and Branch Topology Tool* is in the progress record and
+the TOC as 038, and it was finished before the TUI work began. The TUI
+work followed the commit history viewer (036) in January 2026. The newer
+issue, this one, took the next free number. A pointer is left at
+`moved-038-tui-panel-abstraction-layer.md`.
+
+**2026-11-04:** first renumbered to 067; by then main had given 065, 066 and 067 to other issues (the reading walk, fans that follow a signal, the project lifetime timeline), so this became 070.

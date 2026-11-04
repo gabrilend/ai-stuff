@@ -45,7 +45,7 @@ reading a number here:
 | 044 | Project directory tree generator | Ready; low urgency. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
 | 017–022 | Ticket distribution system | 016 (markup) is done; the chain after it is unbuilt. |
-| 038 | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
+| 070 (was 038) | TUI panel abstraction | One box ticked; the bash TUI libraries are being retired in favour of the Lua menu. |
 | 039 | Multi-location ai-stuff integration | Unstarted. |
 
 ## TIER 4: Aspirational
@@ -54,7 +54,7 @@ reading a number here:
 |-------|------|
 | 032 → 033 → 034 | Donation links, revenue sharing, bug bounties — product ideas rather than tooling. |
 | 002, 003 | Master/reference issues for gitignore unification and ticket distribution. |
-| 001-comprehensive-git-repository-setup | Master/reference issue for the repository layout. |
+| 068 (was 001-MASTER) | Master/reference issue for the repository layout. |
 
 ---
 

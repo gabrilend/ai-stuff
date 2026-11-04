@@ -343,7 +343,7 @@ Examples:
 ```
 
 ### Follow-on Optimization (2025-01-05)
-- **Issue 037**: TUI Dirty Tracking Optimization
+- **Issue 069** (numbered 037 until 2026-11-02): TUI Dirty Tracking Optimization
   - Added hierarchical dirty tracking to `scripts/libs/tui.lua`
   - `set_cell()` now auto-marks cells dirty, no explicit invalidation needed
   - `present()` skips unchanged cells entirely (iterates dirty flags only)
