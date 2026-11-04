@@ -1,0 +1,252 @@
+#!/usr/bin/env luajit
+-- write-info-notes
+--
+-- WHAT IT DOES (for a CEO): the house rule is that every program has a notes
+-- file beside it (name.info.md) saying what it is, how to run it, and what
+-- each of its usable functions takes and gives -- so a reader can learn a
+-- program without reading its code. Most programs already say all of that in
+-- their own comments. This writes the notes file from those comments: the
+-- header at the top of the file, and each function with the comment above
+-- it. It never overwrites a notes file that exists (one written by hand is
+-- better than one written by this); a file it wrote says so on its first
+-- line, and is refreshed by deleting it and running this again.
+--
+-- What counts as a function's comment: the comment lines directly above its
+-- definition, skipping the fold markers ("-- {{{ ...", "# {{{ ..."). Lua
+-- programs list their M.* functions as the ones others can use, and their
+-- local functions as the inside; shell scripts list their functions.
+--
+-- Usage:
+--   scripts/write-info-notes [--dir PATH] --file REL [--file REL]...
+--   scripts/write-info-notes [--dir PATH] --missing
+--     --dir PATH   the project folder (default below)
+--     --file REL   a program, relative to the project folder; repeatable
+--     --missing    every program scripts/check-folder-flags counts that has
+--                  no notes file yet, tests left out (the project's tests
+--                  have never had notes files; each test's header says what
+--                  it checks)
+--     --include-tests  with --missing, the tests too
+--   A word with no flag in front of it stops the script (Issue 10-076).
+-- Exit status: 0 when every requested file was written or already existed.
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+local here = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./")
+dofile(here .. "../libs/script-help.lua").handle(arg)
+local DIR, OWN_ARGS = dofile(here .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--file"] = true })
+
+-- {{{ arguments
+local FILES, MISSING, INCLUDE_TESTS = {}, false, false
+do
+    local i = 1
+    while i <= #OWN_ARGS do
+        local a = OWN_ARGS[i]
+        if a == "--file" then FILES[#FILES + 1] = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--missing" then MISSING = true
+        elseif a == "--include-tests" then INCLUDE_TESTS = true
+        else
+            io.stderr:write("write-info-notes: unknown option " .. a .. "\n")
+            os.exit(1)
+        end
+        i = i + 1
+    end
+end
+if #FILES == 0 and not MISSING then
+    io.stderr:write("write-info-notes: give --file REL (repeatable) or --missing\n")
+    os.exit(1)
+end
+-- }}}
+
+-- {{{ local function slurp()
+local function slurp(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local s = f:read("*a")
+    f:close()
+    return s
+end
+-- }}}
+
+-- {{{ local function notes_path()
+-- Where a program's notes live: name.info.md beside it, with .lua / .sh
+-- dropped first (the project's existing notes are named both ways; the
+-- shorter is checked too, so an existing one is always found).
+local function notes_path(rel)
+    local full = DIR .. "/" .. rel
+    local short = full:gsub("%.lua$", ""):gsub("%.sh$", "")
+    if slurp(full .. ".info.md") then return full .. ".info.md", true end
+    if slurp(short .. ".info.md") then return short .. ".info.md", true end
+    return short .. ".info.md", false
+end
+-- }}}
+
+-- {{{ local function is_shell()
+local function is_shell(rel, text)
+    if rel:match("%.sh$") then return true end
+    if rel:match("%.lua$") then return false end
+    local first = text:match("^[^\n]*") or ""
+    return first:match("bash") or first:match("/sh$") or first:match("/sh ") ~= nil
+end
+-- }}}
+
+-- {{{ local function header_of()
+-- The opening comment block, comment markers removed: everything from the
+-- top (after a "#!" line) until the first line that is neither a comment nor
+-- blank. Fold markers and the "--help" note line are left out.
+local function header_of(lines, mark)
+    local out, started = {}, false
+    for n, line in ipairs(lines) do
+        if n == 1 and line:match("^#!") then
+            -- skip
+        elseif line:match("^%s*" .. mark) then
+            local body = line:gsub("^%s*" .. mark .. " ?", "")
+            if not body:match("^%s*{{{") and not body:match("^%s*}}}") then
+                out[#out + 1] = body
+                started = true
+            end
+        elseif line:match("^%s*$") then
+            if started then out[#out + 1] = "" end
+        else
+            break
+        end
+    end
+    while out[#out] == "" do out[#out] = nil end
+    return out
+end
+-- }}}
+
+-- {{{ local function comment_above()
+-- The comment lines directly above line n, fold markers skipped, in order.
+local function comment_above(lines, n, mark)
+    local out = {}
+    local k = n - 1
+    while k >= 1 do
+        local line = lines[k]
+        if line:match("^%s*" .. mark .. "%s*{{{") or line:match("^%s*" .. mark .. "%s*}}}") then
+            -- a fold marker: not part of the comment, keep looking above it
+        elseif line:match("^%s*" .. mark) then
+            table.insert(out, 1, (line:gsub("^%s*" .. mark .. " ?", "")))
+        else
+            break
+        end
+        k = k - 1
+    end
+    return out
+end
+-- }}}
+
+-- {{{ local function functions_of()
+-- Each function definition: { name = "M.read(args, ...)", comment = {...},
+-- external = boolean }, in file order.
+local function functions_of(lines, shell)
+    local found = {}
+    for n, line in ipairs(lines) do
+        local name, external
+        if shell then
+            local f = line:match("^([%w_][%w_%-]*)%(%)%s*{") or line:match("^function%s+([%w_][%w_%-]*)")
+            if f then name, external = f .. "()", true end
+        else
+            local m = line:match("^function%s+(M[%.:][%w_]+%b())")
+            if m then name, external = m, true
+            else
+                local l = line:match("^local%s+function%s+([%w_]+%b())")
+                if l then name, external = l, false end
+            end
+        end
+        if name then
+            found[#found + 1] = { name = name, comment = comment_above(lines, n, shell and "#" or "%-%-"),
+                external = external }
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ local function render()
+local function render(rel, text, notes_name)
+    local shell = is_shell(rel, text)
+    local mark = shell and "#" or "%-%-"
+    local lines = {}
+    for line in (text .. "\n"):gmatch("(.-)\n") do lines[#lines + 1] = line end
+    local header = header_of(lines, mark)
+    local funcs = functions_of(lines, shell)
+    local out = {}
+    local function add(s) out[#out + 1] = s end
+    add("# " .. notes_name)
+    add("")
+    add("<!-- made by scripts/write-info-notes (Issue 10-076), from the comments in " .. rel
+        .. ": its header and the comment above each function. To refresh it, delete this file and run"
+        .. " the tool again; to write the notes by hand, replace this line. -->")
+    add("")
+    add("## What it is, and how to run it")
+    add("")
+    if #header == 0 then
+        add("(The file has no header comment.)")
+    else
+        add("```")
+        for _, h in ipairs(header) do add(h) end
+        add("```")
+    end
+    local external, inside = {}, {}
+    for _, f in ipairs(funcs) do
+        if f.external then external[#external + 1] = f else inside[#inside + 1] = f end
+    end
+    local function section(title, list)
+        if #list == 0 then return end
+        add("")
+        add("## " .. title)
+        for _, f in ipairs(list) do
+            add("")
+            add("### `" .. f.name .. "`")
+            if #f.comment == 0 then
+                add("(No comment above it in the source.)")
+            else
+                -- a code block, so the comment's aligned columns survive
+                add("")
+                add("```")
+                for _, c in ipairs(f.comment) do add(c) end
+                add("```")
+            end
+        end
+    end
+    if shell then
+        section("Functions", external)
+    else
+        section("External functions (what other programs can call)", external)
+        section("Inside (local to the file)", inside)
+    end
+    return table.concat(out, "\n") .. "\n"
+end
+-- }}}
+
+-- {{{ main
+if MISSING then
+    local p = assert(io.popen(string.format("%q --dir %q --list-programs", here .. "check-folder-flags", DIR)))
+    for rel in p:lines() do
+        local is_test = rel:match("%.test%.lua$") or rel:match("%-test%.lua$") or rel:match("%.test%.sh$")
+        if INCLUDE_TESTS or not is_test then FILES[#FILES + 1] = rel end
+    end
+    p:close()
+end
+local written, kept, failed = 0, 0, 0
+for _, rel in ipairs(FILES) do
+    local text = slurp(DIR .. "/" .. rel)
+    if not text then
+        io.stderr:write("write-info-notes: no such file: " .. rel .. "\n")
+        failed = failed + 1
+    else
+        local path, exists = notes_path(rel)
+        if exists then
+            kept = kept + 1
+        else
+            local f = assert(io.open(path, "wb"))
+            f:write(render(rel, text, path:match("([^/]+)$")))
+            f:close()
+            written = written + 1
+            print("wrote " .. path:sub(#DIR + 2))
+        end
+    end
+end
+print(string.format("write-info-notes: %d written, %d already had notes, %d not found", written, kept, failed))
+os.exit(failed == 0 and 0 or 1)
+-- }}}

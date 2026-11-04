@@ -7,7 +7,11 @@
 # -- that a FAILED stage records nothing while a successful one does.
 
 set -u
-DIR_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The project folder: --dir PATH, or the folder this test sits in; a stray
+# word stops it (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" "" "$@"
+DIR_HERE="$DIR"
 export STAGE_TIMINGS_FILE="$(mktemp)"
 # shellcheck source=/dev/null
 source "${DIR_HERE}/scripts/stage-timing.sh"

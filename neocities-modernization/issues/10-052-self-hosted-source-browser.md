@@ -45,7 +45,29 @@ code/doc files, and renders:
   current file's path opened, so every file is reachable from every other.
 
 The private `input/` corpus and `llm-transcripts/` are deliberately NOT published
-(allowlist), and every held-back directory is logged. Directory creation is
+(allowlist), and every held-back directory is logged.
+
+Symbolic links are published as the file they point at, under the link's
+name (owner, 2026-10-20: "What if we have something linked that we need?").
+`docs/delta-guide.md` is one: delta-version's maintainer guide, linked in.
+Such a document's relative links were written for its home folder, so one
+that names no file published here is drawn as plain text instead of a dead
+link (the guide's three further-reading entries); in this project's own
+documents the same case stays a link, so the site check still reports a
+real mistake. Git's file list gives each file's mode, which is how a link is
+known. The download zip packs linked files the same way.
+- Known gap: a linked document's relative link that happens to match a file
+  of THIS project lands there. The delta guide's "Roadmap" opens this
+  project's roadmap, not delta-version's.
+- No test yet: the page builders are local to the script, so nothing can
+  call them from a test file. Checked by regenerating and reading the page.
+
+Pages for files that are no longer published are NOT removed: the browser
+writes over `output/source/` without clearing it, so a page for a file that
+was deleted, renamed or newly held back stays and is deployed. (Found
+2026-10-20: the delta guide's page outlived its removal.) Issue 10-072, which
+moves the built site into RAM, makes every build after a logout start empty,
+but a build in the same session still keeps stale pages. Directory creation is
 quoted so paths with spaces (e.g. a saved-webpage folder) publish correctly, and
 write failures are surfaced rather than swallowed.
 
@@ -113,6 +135,9 @@ These shape the implementation and are worth confirming:
    of this browser.
 8. Add a small validator that confirms every published file is reachable from the
    TOC and that no `.gitignore`d path leaked in.
+9. Remove stale pages: build into a fresh folder and swap it in at the end, or
+   delete pages under `output/source/` that no published file accounts for.
+   The swap is simpler and never leaves a half-built browser visible.
 
 ## Related Documents / Tools
 

@@ -384,14 +384,14 @@ the owner decide.
 
 > Back to the baseline 61 findings (all older than this session). Committing.
 
-*[commit] a9dd52c18 in ai-stuff - Plan phase W: the WoW 3.3.5a client as map host, model source and test reference*
+*[commit] 2d2babcb3 in ai-stuff - Plan phase W: the WoW 3.3.5a client as map host, model source and test reference*
 
 > The two warnings come from my own `git mv`, which put the renames in the
 > shared staging area. The commit already includes them, so I'm clearing those
 > stale staging entries.
 
 I've written the next phase as **Phase W, the WoW Client Bridge**: seven issue
-files and five documents, committed as `a9dd52c18`. None of the issues are
+files and five documents, committed as `2d2babcb3`. None of the issues are
 started, and each one has open questions that need your answers before it counts
 as done.
 
@@ -827,14 +827,14 @@ we should commit as we go. Better to be up-to-date I think.
 
 *[commit] fee452ee6 in custom-client - Rewrite the client as the W client: one open client for the WoW world and WC3 maps*
 
-*[commit] c138cf1c3 in ai-stuff - Phase W follows the merge into the W client, and every borrowed asset is measured*
+*[commit] 8603863dd in ai-stuff - Phase W follows the merge into the W client, and every borrowed asset is measured*
 
 > Rules decision and licence doc are recorded. Now writing the clean-room loop
 > (W05d), including your size-fit-and-fix cycle.
 
 *[commit] 1a124636e in custom-client - AzerothCore runs converted WC3 maps' rules; every replacement is clean-room by default*
 
-*[commit] b8b88599f in ai-stuff - Record the licence map, the server as WC3 rules engine, and the clean-room loop*
+*[commit] 55eff2735 in ai-stuff - Record the licence map, the server as WC3 rules engine, and the clean-room loop*
 
 **Yes, the licences are compatible today.**
 
@@ -897,7 +897,7 @@ steer back toward the original and become a copying machine. So:
 
 **Commits:** from now on I commit as I go.
 - custom-client: `fee452ee6`, `1a124636e`
-- ai-stuff: `c138cf1c3`, `b8b88599f`
+- ai-stuff: `8603863dd`, `55eff2735`
 
 Another session's uncommitted `tmp/` edits in the custom-client's docs were left
 untouched.
@@ -1013,14 +1013,14 @@ wc3
 
 > Now the map finder issue (1001) and the body-structure fit check (W05e).
 
-*[commit] e686be4e1 in ai-stuff - The server's Lua engine is ALE; maps are found, not bundled; replacement bodies are checked against their skeletons*
+*[commit] 9b83aaf51 in ai-stuff - The server's Lua engine is ALE; maps are found, not bundled; replacement bodies are checked against their skeletons*
 
 *[commit] 696959b48 in custom-client - Gameplay reads the shared criteria set, never a player's installed art*
 
 > The commit swept in lines another session wrote. Checking exactly what those
 > were.
 
-Everything is committed: `e686be4e1` (ai-stuff) and `696959b48` (custom-client).
+Everything is committed: `9b83aaf51` (ai-stuff) and `696959b48` (custom-client).
 One commit took more than I meant it to; that's explained at the end.
 
 **ALE:** it's licensed GPL v3, not AGPL. It's a fork of Eluna that has replaced
@@ -1077,7 +1077,7 @@ builder, never pictures.
    hit timing all come from the criteria and the map file, never from mesh sizes
    or animation lengths. I wrote that rule into both projects.
 
-**The slip:** `e686be4e1` also carried three lines another session wrote. They
+**The slip:** `9b83aaf51` also carried three lines another session wrote. They
 are cross-links from `W01`, `W03` and `W04` to the wow-chat-2026 project's issue
 159. Earlier I had claimed those issue files as entirely mine, and the commit
 tool kept treating any later line in them as mine too. The lines are correct and
@@ -1183,11 +1183,11 @@ should be easy and automatically applied if the user selects it.
 > Updating the map browser issue with your consent policy, then writing the
 > shared model list issue.
 
-*[commit] 088dab37e in ai-stuff - Plan a path to an all-RGPL stack, keep the world database empty, and let players choose whose art they see*
+*[commit] 13d51c5e2 in ai-stuff - Plan a path to an all-RGPL stack, keep the world database empty, and let players choose whose art they see*
 
 *[commit] a28e2f52e in custom-client - The client runs without Blizzard's data tables: table rows are assets too*
 
-Everything is committed and the working tree is clean: `088dab37e` (ai-stuff)
+Everything is committed and the working tree is clean: `13d51c5e2` (ai-stuff)
 and `a28e2f52e` (custom-client).
 
 **RGPL and the server:** you're right. The RGPL draft can't be combined with GPL
@@ -1332,15 +1332,15 @@ sane design over correctness.
 
 *[commit] a79d2be87 in custom-client - WC3 map mode builds its data tables from the map files and nothing else*
 
-*[commit] 2165a903e in ai-stuff - Converted maps' table rows come from the maps' own object data, generated at load*
+*[commit] a3028efcd in ai-stuff - Converted maps' table rows come from the maps' own object data, generated at load*
 
 > Change 1 is committed. Change 2: moving file transfers onto rmail.
 
-*[commit] e2093920c in ai-stuff - Asset files move over rmail, the one transfer protocol the owner trusts*
+*[commit] 910be54cb in ai-stuff - Asset files move over rmail, the one transfer protocol the owner trusts*
 
 > Change 2 is committed. Change 3: the frame-stamped timing rule.
 
-*[commit] b82cd988d in ai-stuff - Timed messages carry the frame they take effect on; comparison rules are hand-written*
+*[commit] 20863a5b4 in ai-stuff - Timed messages carry the frame they take effect on; comparison rules are hand-written*
 
 *[commit] bc9fbaa3d in custom-client - The client schedules timed messages by frame and fast-forwards late ones*
 
@@ -1348,9 +1348,9 @@ Yes. This round I committed after each change, six commits in all:
 
 | Change | ai-stuff | custom-client |
 |---|---|---|
-| 1. Table rows from the map files | `2165a903e` | `a79d2be87` |
-| 2. File transfers over rmail | `e2093920c` | — |
-| 3. Frame-stamped timing | `b82cd988d` | `bc9fbaa3d` |
+| 1. Table rows from the map files | `a3028efcd` | `a79d2be87` |
+| 2. File transfers over rmail | `910be54cb` | — |
+| 3. Frame-stamped timing | `20863a5b4` | `bc9fbaa3d` |
 
 1. **Rows come from the map files.** When a converted map loads, its units,
    abilities, items, buffs and upgrades are turned into the table rows the
@@ -1417,12 +1417,12 @@ require the exact defaults.
 
 ### Assistant Response 10
 
-*[commit] b57f1dad7 in ai-stuff - Weigh where the stock values under custom WC3 objects should come from*
+*[commit] 6f117679b in ai-stuff - Weigh where the stock values under custom WC3 objects should come from*
 
 I agree clean-room can't work here: when the values have to match exactly, every
 route ends at the same numbers. I'd advise against writing the wiki page
 ourselves, though. I put the reasoning into W02's open question 7 and committed
-it (`b57f1dad7`).
+it (`6f117679b`).
 
 **Why not our own page:**
 - **It adds no distance.** The numbers would still come from Blizzard's stock
@@ -1506,9 +1506,9 @@ yeah okay sounds good... for now...
 
 ### Assistant Response 11
 
-*[commit] 842d2da0b in ai-stuff - Stock values come from the player's own Warcraft III install, for now*
+*[commit] 28fe4a443 in ai-stuff - Stock values come from the player's own Warcraft III install, for now*
 
-I've recorded the decision in W02 and committed it (`842d2da0b`).
+I've recorded the decision in W02 and committed it (`28fe4a443`).
 
 **Now:** when a map loads, the unchanged fields of its copied-and-modified
 objects are read from your own Warcraft III install. They're counted as
@@ -1574,10 +1574,10 @@ want to be able to support both Reign of Chaos maps, and Frozen Throne maps.
 > Committing the issue and the links' README. First checking that `.gitignore`
 > holds only my lines, since I claimed the whole file.
 
-*[commit] 22a14c7b3 in ai-stuff - Plan reading the stock object tables two ways and cross-checking them*
+*[commit] 645bb3801 in ai-stuff - Plan reading the stock object tables two ways and cross-checking them*
 
 The Frozen Throne installer is open on your screen and waiting for you.
-Everything around it is ready and committed (`22a14c7b3`).
+Everything around it is ready and committed (`645bb3801`).
 
 **What's set up:**
 - **A separate Frozen Throne prefix.** I copied the wine prefix to
@@ -1746,7 +1746,7 @@ is that related to the license agreements and such?
 > Writing the two sub-issues first (the StormLib build, and per-map game-version
 > layers), then the build script.
 
-*[commit] 1f33a5e06 in ai-stuff - Plan StormLib as a built-from-source tool, and game versions as layers chosen per map*
+*[commit] 6e32853f8 in ai-stuff - Plan StormLib as a built-from-source tool, and game versions as layers chosen per map*
 
 > Issues committed. Now the build script.
 
@@ -1757,14 +1757,14 @@ is that related to the license agreements and such?
 > My size check was wrong, not the layout: 1024 is already a multiple of 8, so
 > there's no padding before the pointer. Fixing the check.
 
-*[commit] ac2586823 in ai-stuff - Build StormLib from a pinned release and read patch programs with it*
+*[commit] 33e733c5e in ai-stuff - Build StormLib from a pinned release and read patch programs with it*
 
 **Why I stopped:** both ways forward were new work you hadn't asked for. One was
 guessing at wine internals after two identical crashes; the other was writing
 new reader code. I treated that as your call. Given your answer, I went ahead
 with the second, and it's working.
 
-**StormLib, built and committed** (`ac2586823`):
+**StormLib, built and committed** (`33e733c5e`):
 - **What it is:** the standard open-source library for Blizzard's MPQ archives,
   written by Ladislav Zezula. It reads and writes every MPQ version and
   compression method Blizzard used.
@@ -1865,17 +1865,17 @@ elaborate on the legal details.
 
 > Updating `.gitignore` for the new layout, then the issue text.
 
-*[commit] b8d84a956 in ai-stuff - Third-party libraries build through one dependency script into a project-local folder*
+*[commit] ec15c428b in ai-stuff - Third-party libraries build through one dependency script into a project-local folder*
 
-> The dependency script is committed (`b8d84a956`). Now writing the legal
+> The dependency script is committed (`ec15c428b`). Now writing the legal
 > details into the licensing doc, so the answer lives with the project and not
 > only in chat.
 
-*[commit] 51b5e6a56 in ai-stuff - Explain copyright, licence agreements and enforcement in the licence map*
+*[commit] 3dc9f6566 in ai-stuff - Explain copyright, licence agreements and enforcement in the licence map*
 
 Both changes are committed. The build now lives in
-`scripts/build-dependencies.sh` (`b8d84a956`), and the legal details below are
-also written into `docs/licensing-and-boundaries.md` (`51b5e6a56`).
+`scripts/build-dependencies.sh` (`ec15c428b`), and the legal details below are
+also written into `docs/licensing-and-boundaries.md` (`3dc9f6566`).
 
 **The dependency script**, on r-mail's installer pattern:
 - It checks the toolchain, then walks each library in order: fetch it at its
@@ -2024,10 +2024,10 @@ them, and link to it from the readme?
 
 ### Assistant Response 15
 
-*[commit] abdaa0109 in ai-stuff - Explain the project's legal position to readers, linked from a new README*
+*[commit] 02844bc39 in ai-stuff - Explain the project's legal position to readers, linked from a new README*
 
 I wrote `docs/legal-implications.md` and linked it from a new `README.md`,
-committed as `abdaa0109`. The project had no README of its own, and the
+committed as `02844bc39`. The project had no README of its own, and the
 monorepo's README is generated and currently being edited by another session, so
 I left that one alone.
 
@@ -2496,9 +2496,9 @@ let's start working on this project then.
 > `/mnt/mtwo/games/azeroth-core/client/`, with its game files in
 > `client-files/`.
 
-*[commit] 27d666472 in ai-stuff - Record which WoW client folder is the live one*
+*[commit] 3c556a1b6 in ai-stuff - Record which WoW client folder is the live one*
 
-> Answer recorded (`27d666472`). Starting on 112a's remaining work, first by
+> Answer recorded (`3c556a1b6`). Starting on 112a's remaining work, first by
 > reading how the existing command-line tools and tests are written.
 
 > Writing the comparison test: every file in the DAoW maps, extracted by
@@ -2524,13 +2524,13 @@ let's start working on this project then.
 > Updating the format doc with what the comparison taught us, then committing
 > the fixes.
 
-*[commit] d8c12a6fd in ai-stuff - The map reader now reads protected maps the way the game does*
+*[commit] b5142d283 in ai-stuff - The map reader now reads protected maps the way the game does*
 
-> Committed (`d8c12a6fd`). The last gap is Huffman decompression. Checking which
+> Committed (`b5142d283`). The last gap is Huffman decompression. Checking which
 > of MPQ's compression methods our reader still lacks, since they share one
 > missing piece of code.
 
-*[commit] 784a23292 in ai-stuff - Plan the MPQ compression methods the project's reader still lacks*
+*[commit] 055ebcf25 in ai-stuff - Plan the MPQ compression methods the project's reader still lacks*
 
 > While that choice waits for you, I'll finish the rest of 112a: the
 > `mpq-extract` command, the `.info.md` files, and the licence entries.
@@ -2545,11 +2545,11 @@ let's start working on this project then.
 > extracted by name where the first try found none. Writing the `.info.md` files
 > and licence entries next.
 
-*[commit] ac7204f96 in ai-stuff - Add an MPQ list-and-extract command that finds protected maps' files by name*
+*[commit] 57f77785d in ai-stuff - Add an MPQ list-and-extract command that finds protected maps' files by name*
 
 The StormLib work is done except for one gap, and the new comparison test found
 and fixed three real bugs in our own map reader. Everything is committed
-(`d8c12a6fd`, `784a23292`, `ac7204f96`).
+(`b5142d283`, `055ebcf25`, `57f77785d`).
 
 **The comparison test** reads every file of every test map with both our reader
 and StormLib and requires identical bytes: 369 files across 16 maps. It caught
@@ -2647,9 +2647,9 @@ Let's do (a)
 
 > References fixed, and both key tests still pass. Previewing and committing.
 
-*[commit] 7084be474 in ai-stuff - The map reader decodes every compression Warcraft III uses, without Python*
+*[commit] de939222b in ai-stuff - The map reader decodes every compression Warcraft III uses, without Python*
 
-Done and committed (`7084be474`). Our own map reader now decodes every
+Done and committed (`de939222b`). Our own map reader now decodes every
 compression method Warcraft III uses, and the StormLib and compression issues
 are both complete and moved to `completed/`.
 
@@ -2700,7 +2700,7 @@ repository when we're done today.
 > `patch.lst`, `patch.cmd`, `delete.lst` and `revert.lst` files, and the header
 > in front of each diff.
 
-*[commit] dbe03ebf4 in ai-stuff - Apply Warcraft III patch diffs without running Blizzard's patcher*
+*[commit] b6017bb80 in ai-stuff - Apply Warcraft III patch diffs without running Blizzard's patcher*
 
 > Now the layer builder. It reads the patch program, resolves each entry's base
 > (the archive chain for data, the install folder for loose files), applies it,
@@ -2712,7 +2712,7 @@ repository when we're done today.
 > It's just an end-of-list marker, followed by a blank line. Treating `*` as the
 > end of the list in both files.
 
-*[commit] 83888d974 in ai-stuff - Build a stored layer for each Warcraft III patch, without running the patcher*
+*[commit] 8d101a59e in ai-stuff - Build a stored layer for each Warcraft III patch, without running the patcher*
 
 > 16 of 17 pass. The only failure is the `Game.dll` check, which probably can't
 > find the file under that exact capitalization. Checking the layer's install
@@ -2732,20 +2732,20 @@ repository when we're done today.
 > claims patch 1.21b and `War3Patch.mpq` are installed, which isn't true. Fixing
 > both.
 
-*[commit] 3f5890fbf in ai-stuff - Each map reads game data through its own chain of installs, patch layer and data set*
+*[commit] 3a2befc92 in ai-stuff - Each map reads game data through its own chain of installs, patch layer and data set*
 
-*[commit] 6368b2e92 in ai-stuff - Plan Route A: stock rows merged with each map's custom objects*
+*[commit] f62b47935 in ai-stuff - Plan Route A: stock rows merged with each map's custom objects*
 
-> Committed (`6368b2e92`). Now the two parsers: SLK spreadsheets and the
+> Committed (`f62b47935`). Now the two parsers: SLK spreadsheets and the
 > INI-style profile text files.
 
 > All 17 pass on the real 1.21b data too: Storm Bolt reads 3 levels and a
 > 9-second cooldown, and the metadata maps `acdn` to the `Cool` column. Adding
 > the `.info.md` notes and committing.
 
-*[commit] f7d1af3a5 in ai-stuff - Parse the stock object spreadsheets and profile text files*
+*[commit] 9c9816e87 in ai-stuff - Parse the stock object spreadsheets and profile text files*
 
-> Committed (`f7d1af3a5`). Now the metadata join. Looking at real rows to learn
+> Committed (`9c9816e87`). Now the metadata join. Looking at real rows to learn
 > how `index`, `repeat` and `data` combine into column names, and which `type`
 > values exist.
 
@@ -2761,9 +2761,9 @@ repository when we're done today.
 > All 12 pass. Writing the notes for the two new modules, updating 112c's
 > current state with its open questions, then committing.
 
-*[commit] 4a32d179f in ai-stuff - Merge every map object over its stock parent, keeping only functional fields*
+*[commit] 5f54ba38a in ai-stuff - Merge every map object over its stock parent, keeping only functional fields*
 
-> Committed (`4a32d179f`). Running the full suite once more before reporting.
+> Committed (`5f54ba38a`). Running the full suite once more before reporting.
 
 The patch layers work, the first half of the stock-table work (reading the
 values from your own install) is built, and every step is committed.
@@ -2858,10 +2858,10 @@ I dunno, take ownership I guess. Find out what it's about.
 > conversation's transcript, which keeps growing as we talk. Committing it now
 > so the repository is clean at this point.
 
-*[commit] 94ba9d306 in ai-stuff - Bring this session's transcript up to date*
+*[commit] 85e1e4830 in ai-stuff - Bring this session's transcript up to date*
 
 Both repositories are clean. The last commits were custom-client `a512e0b22` and
-ai-stuff `94ba9d306`.
+ai-stuff `85e1e4830`.
 
 **The other session's edits:** its change said the project's `tmp/` link points
 into `/dev/shm`. It doesn't:
@@ -3143,7 +3143,7 @@ Summary:
    - Full suite: 108/109 test files pass. `test_frames` was already failing
      (pathfinding constants), was reported, and was not touched.
    - Pending commits: none. world-edit-to-execute and custom-client were both
-     clean after commits a512e0b22 and 94ba9d306.
+     clean after commits a512e0b22 and 85e1e4830.
 
 6. **All user messages** (condensed, key content preserved)
    - **Initial request.**
@@ -3223,7 +3223,7 @@ Summary:
    - Report the custom-client finding:
      - The other session's edits wrongly said `tmp/` → `/dev/shm`.
      - The real layout is two tiers: `tmp/` → `/tmp/azc-custom-client`, and `tmp/shared-memory` → `/dev/shm/custom-client`.
-     - Docs corrected; tiers rebuilt; committed a512e0b22. Both repos are clean (transcript committed as 94ba9d306).
+     - Docs corrected; tiers rebuilt; committed a512e0b22. Both repos are clean (transcript committed as 85e1e4830).
    - Remaining open questions, to be asked one at a time:
      - 112c: the dropped-types review; the `Crs\0` code; ignoring orphan change sets.
      - 112b: which other patches to build layers for; the editor-version → patch table evidence; confirming the Custom_V0/V1 data-set choice.
@@ -3243,7 +3243,7 @@ Summary:
      `/tmp/azc-custom-client/{tmp, shared-memory -> /dev/shm/custom-client}`.
    - Rewrote the doc lines to describe both tiers and committed:
      - custom-client a512e0b22 ("Describe the scratch folders as they really are: two RAM tiers behind one link").
-     - ai-stuff 94ba9d306 (transcript).
+     - ai-stuff 85e1e4830 (transcript).
    - Both repos were clean at that point.
    - The text reply explaining "dropped types" and reporting this finding hasn't
      been written yet.
@@ -3316,11 +3316,11 @@ rural I think?
 
 > Fixed; all 16 checks pass. Now the docs and issues.
 
-*[commit] d017844c6 in ai-stuff - Copy every stock field into a map's objects, each labelled by whose it is*
+*[commit] f358334e1 in ai-stuff - Copy every stock field into a map's objects, each labelled by whose it is*
 
 Done: converted objects now carry every stock field, including names, tooltips,
 icon, model and sound paths. Tests pass (16 checks), and the change is committed
-as `d017844c6`. The repository is clean.
+as `f358334e1`. The repository is clean.
 
 **How it works now.** Nothing is dropped. Each copied field gets a label saying
 whose it is:
@@ -3397,7 +3397,7 @@ um, I guess? Do the triggers create new abilities that use those IDs maybe?
 > Now the test: each map gets its own chain with the map on top. The stray
 > changes should drop to zero.
 
-*[commit] 2d6e99994 in ai-stuff - Read a map's own archive first, so maps that carry their own object tables merge whole*
+*[commit] 523de9799 in ai-stuff - Read a map's own archive first, so maps that carry their own object tables merge whole*
 
 You were close, and it led to a real fix. Those weren't leftovers.
 
@@ -3417,7 +3417,7 @@ You were close, and it led to a real fix. Those weren't leftovers.
 - Our chain of game data never looked inside the map, so the changes seemed to
   point at nothing.
 
-**What changed** (committed as `2d6e99994`):
+**What changed** (committed as `523de9799`):
 - The map's own archive now sits on top of the chain, ahead of everything else.
   The stock copy underneath can still be read when needed.
 - All 369 blocks of changes now apply. The stray count is zero.
@@ -3487,7 +3487,7 @@ we should try and support as many as we can.
 > Rewriting the steps to name what was actually built, then moving the issue to
 > completed.
 
-*[commit] 0bbb9cdf1 in ai-stuff - Match three-letter field codes, and close Route A with every test map merging cleanly*
+*[commit] 59f3ee28f in ai-stuff - Match three-letter field codes, and close Route A with every test map merging cleanly*
 
 > The warning came from my own move: `git mv` left an older copy of the issue in
 > the staging area. Clearing that stale entry so it matches the commit.
@@ -3499,7 +3499,7 @@ we should try and support as many as we can.
 
 > Checking the test-map column against the real editor builds before committing.
 
-*[commit] a42a767c6 in ai-stuff - Plan the patch stack: every version in order, built layer on layer, read at any height*
+*[commit] a21843e9b in ai-stuff - Plan the patch stack: every version in order, built layer on layer, read at any height*
 
 Both findings are fixed and committed, and the patch plan is written into the
 patch-layer issue. The repository is clean.
@@ -3512,8 +3512,8 @@ patch-layer issue. The repository is clean.
   now trims the padding.
 - I had also called the parent Carrion Swarm; it's the creep version of Curse.
 - Result: every object in all 16 test maps now merges with zero problems. The
-  stock-rows work is complete and moved to completed. Commits `0bbb9cdf1` and
-  `a42a767c6`.
+  stock-rows work is complete and moved to completed. Commits `59f3ee28f` and
+  `a21843e9b`.
 
 **The patch stack** (the plan; none of it is built yet):
 - **Stored side by side:** each version becomes its own stored layer, built on
@@ -3660,10 +3660,10 @@ sure.
 
 > Committing the patch stack.
 
-*[commit] a9533608c in ai-stuff - Build every Warcraft III patch as an ordered stack of layers, and give each map its own version*
+*[commit] 1262246de in ai-stuff - Build every Warcraft III patch as an ordered stack of layers, and give each map its own version*
 
 The downloads are done and the patch stack is built and committed as
-`a9533608c`. The repository is clean.
+`1262246de`. The repository is clean.
 
 **Was one patch enough?** No, and the stack shows why:
 - Every patch program found is a "full" patch. Each one diffs straight against
@@ -3758,9 +3758,9 @@ check the dates on the threads, then the release dates of the patches.
 > change and the transcript. Now writing the cutoff finding into the patch-layer
 > issue.
 
-*[commit] 577c698d3 in ai-stuff - Put this project's scratch space in RAM, and set the patch cutoff from the dates*
+*[commit] 44cf9c4bc in ai-stuff - Put this project's scratch space in RAM, and set the patch cutoff from the dates*
 
-Both are done and committed as `577c698d3`. The repository is clean.
+Both are done and committed as `44cf9c4bc`. The repository is clean.
 
 **The cutoff, by the dates:**
 
@@ -3886,21 +3886,21 @@ so, then we can transition to just using Stormlib.
 > Committing the switch. The renames went through `git mv`, so I'm claiming them
 > explicitly.
 
-*[commit] 637ab69c5 in ai-stuff - Read maps through StormLib, and retire the project's own MPQ reader*
+*[commit] 97d2ce13e in ai-stuff - Read maps through StormLib, and retire the project's own MPQ reader*
 
-> Committed as `637ab69c5`, and the staging area is clean. Now the second step:
+> Committed as `97d2ce13e`, and the staging area is clean. Now the second step:
 > remove the `-done` files and close the issue.
 
 > Removed. Closing the issue: its state rewritten as built, moved to completed,
 > and the progress table updated.
 
-*[commit] 1bbdc6c73 in ai-stuff - Remove the retired MPQ reader, and close the StormLib switch*
+*[commit] b3ba52246 in ai-stuff - Remove the retired MPQ reader, and close the StormLib switch*
 
 > The same leftover as before: my own `git mv` left a stale copy in the staging
 > area. Clearing it.
 
 Yes: StormLib extracts everything the maps store, and the project now uses it
-alone. Two commits (`637ab69c5` and `1bbdc6c73`), and the repository is clean.
+alone. Two commits (`97d2ce13e` and `b3ba52246`), and the repository is clean.
 
 **The evidence:**
 - Across the 16 test maps, StormLib read all 2,786 stored files.
@@ -3957,9 +3957,9 @@ sure.
 > Unrelated: a network message code, and 505 only matched on "0xF0" elsewhere.
 > Committing the fix.
 
-*[commit] 65a71a18a in ai-stuff - Bring the frame-direction test and docs in line with the direction spec*
+*[commit] e8b10ae3f in ai-stuff - Bring the frame-direction test and docs in line with the direction spec*
 
-> `test_frames` is fixed (commit `65a71a18a`), so the whole suite now passes.
+> `test_frames` is fixed (commit `e8b10ae3f`), so the whole suite now passes.
 > Next, the missing patch programs: 1.22 (for Daow6.2) and 1.29 (for DaoW 7.5).
 
 > Fetched. Inserting it into the stack: 1.22a sits between 1.21b and 1.23a, so
@@ -3977,9 +3977,9 @@ sure.
 
 > The whole suite passes with no failures, and all four demos run. Committing.
 
-*[commit] ed250e8bf in ai-stuff - Add the 1.22a layer, and let each map choose its data set as the editor does*
+*[commit] 365317b7b in ai-stuff - Add the 1.22a layer, and let each map choose its data set as the editor does*
 
-I worked through both. Everything is committed (`65a71a18a` and `ed250e8bf`),
+I worked through both. Everything is committed (`e8b10ae3f` and `365317b7b`),
 the repository is clean, and **the whole test suite now passes with no
 failures**.
 
@@ -4213,10 +4213,10 @@ Okay, sounds good.
 > Suite and demos all pass. Fixing a garbled sentence in the chain notes, then
 > committing.
 
-*[commit] 707e06db7 in ai-stuff - Give 1.29.2 a layer from its own archives, and stop guessing a map's version*
+*[commit] a66763e18 in ai-stuff - Give 1.29.2 a layer from its own archives, and stop guessing a map's version*
 
 Every test map now loads the game version it was made for, and nothing is
-guessed. Committed as `707e06db7`. The whole suite passes, the phase demos run,
+guessed. Committed as `a66763e18`. The whole suite passes, the phase demos run,
 and the repository is clean.
 
 **1.29.2:**
@@ -4385,10 +4385,10 @@ completed (exit code 0)*
 
 > The whole suite passes. Committing.
 
-*[commit] f79f0c269 in ai-stuff - Gather every English patch found, build 1.21a through 1.29.2, and fix a crash in the diff reader*
+*[commit] 7df9e39a9 in ai-stuff - Gather every English patch found, build 1.21a through 1.29.2, and fix a crash in the diff reader*
 
 I found English patch programs back to 1.01 for both games, but only 1.21a and
-later can be built so far. Committed as `f79f0c269`; the whole suite passes and
+later can be built so far. Committed as `7df9e39a9`; the whole suite passes and
 the repository is clean.
 
 **Downloaded:**
@@ -4463,17 +4463,17 @@ Good morning! Please continue.
 > Just a filename case slip in my test (the disc has `War3xlocal.mpq`). Fixing
 > it.
 
-*[commit] f3cdf59de in ai-stuff - Read the 1.19a-1.20e patches: their diffs count runs from 32, not 1*
+*[commit] 95ef4fab5 in ai-stuff - Read the 1.19a-1.20e patches: their diffs count runs from 32, not 1*
 
-> Committed as `f3cdf59de`. Next shape: 1.14b, with three nested archives.
+> Committed as `95ef4fab5`. Next shape: 1.14b, with three nested archives.
 > Reading its lists.
 
 > Nothing public documents it. I'm writing up what's known in the sub-issue so
 > the next attempt starts from here, then committing.
 
-*[commit] 3ff5a063d in ai-stuff - Record what's known of the oldest patch diff format*
+*[commit] 821f53720 in ai-stuff - Record what's known of the oldest patch diff format*
 
-**The 1.19a–1.20e patches now build** (commit `f3cdf59de`). Their diffs use
+**The 1.19a–1.20e patches now build** (commit `95ef4fab5`). Their diffs use
 the same format as later patches, but the old packer counts every run from 32
 instead of from 1.
 
@@ -4498,7 +4498,7 @@ that isn't bsdiff:
 - I haven't worked out how the copy offsets and lengths are packed, and no
   public documentation exists.
 - The sub-issue has the structure and a worked example with anchor points, so
-  the next attempt starts there (commit `3ff5a063d`).
+  the next attempt starts there (commit `821f53720`).
 
 Next, in order of value:
 1. **The Reign of Chaos stack from 1.18a on.** It's readable with today's
@@ -4531,7 +4531,7 @@ Then, let's continue with the patches that we do intend to support.
 
 > I'll write the document first, then carry on with the Reign of Chaos stack.
 
-*[commit] 5ba442e2c in ai-stuff - Write down what supporting the later versions would take, and why we won't*
+*[commit] 248b2fefa in ai-stuff - Write down what supporting the later versions would take, and why we won't*
 
 > The Frozen Throne stack reports all 18 layers present. Reign of Chaos reports
 > only 13 of its 14, so one layer rebuilt on the second run. Checking which one,
@@ -4539,9 +4539,9 @@ Then, let's continue with the patches that we do intend to support.
 
 > 49 of 49. Updating the notes and issues, then the full suite and a commit.
 
-*[commit] c854abd29 in ai-stuff - Build the Reign of Chaos stack, and map editor builds to ranges of versions*
+*[commit] bded6b67d in ai-stuff - Build the Reign of Chaos stack, and map editor builds to ranges of versions*
 
-Both pieces are done, committed as `5ba442e2c` and `c854abd29`. The whole suite
+Both pieces are done, committed as `248b2fefa` and `bded6b67d`. The whole suite
 passes and the repository is clean.
 
 **The document:** `docs/versions-we-leave-alone.md`, linked from the legal
@@ -4597,10 +4597,10 @@ sounds great.
 > game-data tables (`.slk` files and the `*Func.txt` profile files). First, the
 > German program.
 
-*[commit] 76d8e305e in ai-stuff - Record that the balance tables don't depend on the patch's language*
+*[commit] ab50863eb in ai-stuff - Record that the balance tables don't depend on the patch's language*
 
 The balance tables turned out not to depend on language, but that doesn't unlock
-any missing version yet. It's recorded in the sub-issue (commit `76d8e305e`),
+any missing version yet. It's recorded in the sub-issue (commit `ab50863eb`),
 and the repository is clean.
 
 What that means for the remaining gaps:
@@ -4681,10 +4681,10 @@ Yes please!
 > 56 of 56. Updating the module notes and the two issues, then the full suite
 > and a commit.
 
-*[commit] 9f1bc9f29 in ai-stuff - Decode the oldest patch diff format, and build every version back to 1.01b*
+*[commit] 8f1e883fd in ai-stuff - Decode the oldest patch diff format, and build every version back to 1.01b*
 
 **The oldest diff format is decoded, and both stacks now reach back as far as
-the fetched patches go**, committed as `9f1bc9f29`. The whole suite passes and
+the fetched patches go**, committed as `8f1e883fd`. The whole suite passes and
 the repository is clean.
 
 **How:** 110 files that a 1.14b diff produced and no later patch changed served
@@ -4822,7 +4822,7 @@ you'd like!
 > the smaller unwrapped `Storm.dll` decodes fine. Recording it in the sub-issue
 > for when we come back.
 
-*[commit] 8b8f3c9d0 in ai-stuff - hook           pre-commit passed*
+*[commit] f115138bc in ai-stuff - hook           pre-commit passed*
 
 > Number 115. Writing the issue.
 
@@ -4848,9 +4848,9 @@ you'd like!
 > The issue file was never committed at its old path, so a plain move was right.
 > Running the full suite and committing.
 
-*[commit] 4ee30cb64 in ai-stuff - hook           pre-commit passed*
+*[commit] e76419224 in ai-stuff - hook           pre-commit passed*
 
-The **Balance History** explorer is built and committed as `4ee30cb64`. The
+The **Balance History** explorer is built and committed as `e76419224`. The
 whole suite passes and the repository is clean.
 
 To open it:
@@ -4957,9 +4957,9 @@ the UI.
 > Now the viewer: a version menu in the header, clickable heat-map columns, and
 > the patch view itself.
 
-*[commit] 1d6dc40ee in ai-stuff - hook           pre-commit passed*
+*[commit] 345e49896 in ai-stuff - hook           pre-commit passed*
 
-The patch view is committed as `1d6dc40ee`. Refresh the page (or run
+The patch view is committed as `345e49896`. Refresh the page (or run
 `scripts/balance-history.sh --open`) and pick "what 1.22a changed" from the new
 menu.
 
@@ -5016,9 +5016,9 @@ let's be sure not to "abuse" their tools.
 
 > Whole suite passes. Committing.
 
-*[commit] c93364ba0 in ai-stuff - hook           pre-commit passed*
+*[commit] 43e1997e2 in ai-stuff - hook           pre-commit passed*
 
-Done, committed as `c93364ba0`. The suite passes and the repository is clean.
+Done, committed as `43e1997e2`. The suite passes and the repository is clean.
 Refresh the page, or run:
 
 ```
@@ -5709,7 +5709,7 @@ completed (exit code 0)*
 
 > Issue validates cleanly. Commit preview:
 
-*[commit] 2ed7738ae in ai-stuff - Check every stock number against the values Liquipedia published (Route B)*
+*[commit] 1ceacb9eb in ai-stuff - Check every stock number against the values Liquipedia published (Route B)*
 
 The published-values cross-check is built and committed, and none of the
 differences between the wiki and the game's tables is left unexplained. The
@@ -5767,7 +5767,7 @@ to something else for now.
 > Now the issue: your decision goes into the open question, and the item stays
 > unchecked.
 
-*[commit] 134c02030 in ai-stuff - Label the later pages' numbers as not yet checked, and keep Route B open*
+*[commit] 0a873f03f in ai-stuff - Label the later pages' numbers as not yet checked, and keep Route B open*
 
 > Committed. Next on the earlier plan was the phase 1 demo refresh, if phase 1
 > is complete. Checking:
@@ -5822,7 +5822,7 @@ We can't do Love2d because it's, well, 2d. of course.
 > The project is already on raylib. I'll check how the Lua side reaches it and
 > what's open next:
 
-*[commit] 4535a8845 in ai-stuff - Correct the architecture document: raylib draws through OpenGL only*
+*[commit] 27e24da37 in ai-stuff - Correct the architecture document: raylib draws through OpenGL only*
 
 The engine is already built on raylib, so your preference and the code agree.
 Rendering is C, in `src/render/`, and the game logic is Lua. (I also corrected
@@ -6633,7 +6633,7 @@ Okay yeah let's keep working.
 
 > Committing the issues and the benchmark as they stand:
 
-*[commit] 53c16668a in ai-stuff - Plan the renderer on the ceramic engine, and measure what its tasks cost*
+*[commit] 2a5408e5e in ai-stuff - Plan the renderer on the ceramic engine, and measure what its tasks cost*
 
 The benchmark ran and produced the first numbers. It also found a real bug in
 the ceramic engine. The issue and its six parts are written, and everything is
@@ -6746,7 +6746,7 @@ to map to original image.]
 
 > Now the issue's Current Behavior, rewritten to what the analysis found:
 
-*[commit] d8b7462f2 in ai-stuff - Measure the ceramic engine under a renderer's load, and draw what it shows*
+*[commit] 7415543b1 in ai-stuff - Measure the ceramic engine under a renderer's load, and draw what it shows*
 
 The analysis is published as a page with charts: **[Ceramic Frame
 Budget](https://claude.ai/artifact/GTydauTFB1n6CsQxhRPrdc)**. It measures the
@@ -6905,7 +6905,7 @@ to map to original image.]
 
 > And the page changes in this project:
 
-*[commit] df98e8deb in ai-stuff - Give the ceramic analysis page its background and one colour per approach*
+*[commit] 6514abc5e in ai-stuff - Give the ceramic analysis page its background and one colour per approach*
 
 Both copies are done and committed: [the
 page](https://claude.ai/artifact/GTydauTFB1n6CsQxhRPrdc) (version 2) and a
@@ -7065,7 +7065,7 @@ use-case so we can see if it's a pattern worth being made permanent.
 > commit the untouched copy first, so every change after it shows as a readable
 > diff:
 
-*[commit] 8639d7077 in ai-stuff - Keep a copy of the ceramic engine, unchanged, to experiment on*
+*[commit] 0f2b7051e in ai-stuff - Keep a copy of the ceramic engine, unchanged, to experiment on*
 
 > Now the changes. I need the pool section's opening (its constants and the
 > design notes above the struct) before rewriting it:
@@ -7246,7 +7246,7 @@ to map to original image.]
 > All the 515 links are two-sided now. Committing: the engine copy's changes,
 > its tests, the widened harness, the page, and the completed issues:
 
-*[commit] d1f2560ac in ai-stuff - Take the lock out of the ceramic engine's task queue, in a kept copy*
+*[commit] a6a468a2b in ai-stuff - Take the lock out of the ceramic engine's task queue, in a kept copy*
 
 > The two warnings are from my own `git mv` (my staging entries, not someone
 > else's). Checking what the commit recorded for the moved files, and clearing
@@ -7464,7 +7464,7 @@ to map to original image.]
 
 > Both are published. Committing the split before building the frame test:
 
-*[commit] 0b1378546 in ai-stuff - Split the ceramic findings into separate reports, and plan a frame as a graph*
+*[commit] 153f479d8 in ai-stuff - Split the ceramic findings into separate reports, and plan a frame as a graph*
 
 > Now the boxes. They get appended to the pose box file, whose value types are
 > spliced in as before, so the pose lanes use the real pose math:
@@ -7509,7 +7509,7 @@ to map to original image.]
 > All claimed. Now 515h: rewritten as the blueprint of what was built, then
 > completed:
 
-*[commit] 1322361e5 in ai-stuff - Measure the ceramic engine on a frame that isn't uniform work*
+*[commit] b18c3aa61 in ai-stuff - Measure the ceramic engine on a frame that isn't uniform work*
 
 The three reports are done and published. Each is also committed to the soramech
 repository, and the frame issue is complete.
@@ -7709,12 +7709,12 @@ to map to original image.]
 
 > Delivered to soramech. Completing 515i and committing this project's side:
 
-*[commit] 61bb775ed in ai-stuff - Give the ceramic engine copy several task queues, and a lane for the frame*
+*[commit] bde303486 in ai-stuff - Give the ceramic engine copy several task queues, and a lane for the frame*
 
 > The move failed because the issue file hadn't been committed yet, so it went
 > in at its old path. Moving it now that it's tracked:
 
-*[commit] 315b59f23 in ai-stuff - Move the finished several-queues issue to the completed folder*
+*[commit] 570cc1a1a in ai-stuff - Move the finished several-queues issue to the completed folder*
 
 The priority queues are built. I added them to the existing frame report rather
 than a fourth artifact, since it's the same frame measured before and after:
@@ -7875,9 +7875,9 @@ to map to original image.]
 > Now completing the issue, and adding the job-system result to soramech's case
 > study:
 
-*[commit] cc96fbc68 in ai-stuff - Pit the ceramic graph against a hand-built job system*
+*[commit] 859c7af0c in ai-stuff - Pit the ceramic graph against a hand-built job system*
 
-*[commit] caf954b45 in ai-stuff - Move the finished stronger-opponents issue to the completed folder*
+*[commit] 6e626cc49 in ai-stuff - Move the finished stronger-opponents issue to the completed folder*
 
 *[commit] 54fb7a038 in minimal-soramech - Measure the frame case study against a hand-built job system*
 
@@ -7952,7 +7952,7 @@ Okay yeah let's work on that then. Great reports!
 > 2,048 units matched the direct computation, with about 114 µs from hand-in to
 > landed. The picture:
 
-*[commit] d875013c3 in ai-stuff - Draw the first frame whose units the ceramic engine places*
+*[commit] 1e5e8cb11 in ai-stuff - Draw the first frame whose units the ceramic engine places*
 
 The first real frame drawn from the ceramic engine is working and committed.
 Here is its picture:
@@ -8329,7 +8329,7 @@ on that then." The 515b issue was rewritten concretely, then implemented in
   (RenderTexture): 2048 cubes on a grid, overlay "hand-in to landed: 152 us,
   drawing 1306 us, 472 fps".
 
-It was committed (d875013c3, "Draw the first frame whose units the ceramic
+It was committed (1e5e8cb11, "Draw the first frame whose units the ceramic
 engine places").
 
 The 515 parent issue was updated with "The first real frame (515b)" and "Against
@@ -8382,7 +8382,7 @@ The demo looks delightful, I can't wait to see more. :)
 > Marking the host loop issue done now that you've seen the window, then
 > starting the mailbox.
 
-*[commit] 1df558d95 in ai-stuff - Close the first ceramic render frame: the owner watched it run*
+*[commit] 7cf4b0bf6 in ai-stuff - Close the first ceramic render frame: the owner watched it run*
 
 > Wrote the mailbox issue's blueprint; now writing the mailbox itself and its
 > tests.
@@ -8472,7 +8472,7 @@ something we should work on next?
 
 ### Assistant Response 81
 
-*[commit] 69539e5e7 in ai-stuff - Hand each finished frame state to the drawing thread through a mailbox*
+*[commit] 60ab899e6 in ai-stuff - Hand each finished frame state to the drawing thread through a mailbox*
 
 > Mailbox issue closed and committed. Now surveying what the project's
 > networking plans actually say.
@@ -9054,7 +9054,7 @@ let's commit as we go, just-incase the power goes out.
 
 ### Assistant Response 86
 
-*[commit] b14d70ea9 in ai-stuff - Settle the multiplayer model: one server holds the truth, no lockstep*
+*[commit] 54f62d4ba in ai-stuff - Settle the multiplayer model: one server holds the truth, no lockstep*
 
 All three decisions are recorded and committed. From now on I'll commit as I go,
 for power-outage safety, instead of waiting for each issue to finish.
@@ -9121,17 +9121,17 @@ then, let's start a builder round. :)
 > Recording your three answers in the networking issue, then building its first
 > piece: the message encodings.
 
-*[commit] 1fbf64e64 in ai-stuff - *
+*[commit] 90d0866ee in ai-stuff - *
 
 > Writing the message encoder: each message is described once as a list of
 > fields, and one routine encodes or decodes any of them from that description.
 
-*[commit] c2d61d57a in ai-stuff - *
+*[commit] d7facecf4 in ai-stuff - *
 
 > Messages are done, with 33 passing tests, and committed. Now the server's
 > rules: ticks, orders, the pause, the sliders and the vote.
 
-*[commit] 240db0a12 in ai-stuff - *
+*[commit] 8f628c0ab in ai-stuff - *
 
 > Step 3: the server on its own thread, joined to the client by in-memory
 > queues, with a switch that adds delay, jitter, loss or silence.
@@ -9146,7 +9146,7 @@ then, let's start a builder round. :)
 > millisecond, and the waiting message sent them as whole numbers. Fixing it,
 > with a test.
 
-*[commit] 6842801c2 in ai-stuff - *
+*[commit] 099e5a2cb in ai-stuff - *
 
 The builder round got through three of the networking issue's five steps. All 81
 tests pass, and each step is committed.
@@ -9299,13 +9299,13 @@ it paths around.
 > Both answers recorded. Before building, I'm writing the issues: one for units
 > that path around units, and one for the demo.
 
-*[commit] 91b8313e8 in ai-stuff - *
+*[commit] 33d4551b3 in ai-stuff - *
 
 > Writing the crowd: its own small planner (the existing one lets diagonal steps
 > cut wall corners, which a round unit can't), a spatial hash, and the blocked,
 > wait, re-plan and give-up rules.
 
-*[commit] a75b9cdc2 in ai-stuff - *
+*[commit] 151242e1a in ai-stuff - *
 
 > Now the demo itself. First, a "paths" message (for drawing only) and a way for
 > a game to send extra messages.
@@ -9322,7 +9322,7 @@ it paths around.
 > C unpacker: 25/25, every value read back exactly and floats bit-for-bit.
 > Committing this piece.
 
-*[commit] 420d102e4 in ai-stuff - *
+*[commit] f238a8f70 in ai-stuff - *
 
 > Now the renderer. First checking how the threading library links, since it
 > will load inside a C program.
@@ -9334,7 +9334,7 @@ it paths around.
 > voting opens in 27 s, and both sliders show with yours in force. Writing the
 > notes and committing.
 
-*[commit] 8d814d56d in ai-stuff - *
+*[commit] edd913f8a in ai-stuff - *
 
 The demo is built, checked and committed. It's a raylib window in which two
 armies of 40 swap sides through a gap in a wall. Every unit routes around every
@@ -9426,12 +9426,12 @@ waypoints are displaced correctly.
 > now; the rest of the cost is the crowd itself, which is about to be rebuilt
 > anyway.
 
-*[commit] 516cf2fab in ai-stuff - *
+*[commit] ada7d5782 in ai-stuff - *
 
 > Now the movement rebuild. First writing your description into the crowd issue
 > as its new blueprint, word for word, followed by the design:
 
-*[commit] 3984e778a in ai-stuff - *
+*[commit] 18e52a0cc in ai-stuff - *
 
 > Blueprint committed. Now rewriting the crowd from cells to circles. This is
 > the big piece.
@@ -9468,7 +9468,7 @@ waypoints are displaced correctly.
 > armies mixing mid-field while a few go round the pillars. Two units still give
 > up during the crossing. Finding out why:
 
-*[commit] f9c7c3308 in ai-stuff - *
+*[commit] 914f3e8f9 in ai-stuff - *
 
 I've rebuilt the movement around your description and fixed the fans; it's ready
 for you to watch again. All tests pass and it's committed.
@@ -9574,7 +9574,7 @@ should have gifs. :)
 
 > All 26 pass. Rebuilding the renderer, then updating the notes and committing:
 
-*[commit] 0762611b8 in ai-stuff - *
+*[commit] c22a3e663 in ai-stuff - *
 
 > Committed. Now the benchmark. Checking what's available for making GIFs:
 
@@ -9645,7 +9645,7 @@ ceramic core engine's performance metrics against a valid comparison target.
 > Now the benchmark's blueprint: a new sub-issue under the render-graph work,
 > next to the fabricated frame and its hand-written opponents.
 
-*[commit] 23fdc8588 in ai-stuff - *
+*[commit] 71e77fc88 in ai-stuff - *
 
 > That last edit was wrong: it cleared the requests before running them.
 > Restructuring the settle step cleanly:
@@ -9668,7 +9668,7 @@ ceramic core engine's performance metrics against a valid comparison target.
 
 > All pass. Writing it up and committing the two-phase tick:
 
-*[commit] bf5a9f4cd in ai-stuff - *
+*[commit] 461c27311 in ai-stuff - *
 
 > Now the scene. The benchmark needs the crossing at several sizes, so the
 > map-builder takes the army size as a parameter. At 40 units per army it must
@@ -9686,7 +9686,7 @@ ceramic core engine's performance metrics against a valid comparison target.
 > It wasn't: the clean-up stopped the shell before my edit ran. Applying the two
 > changes again:
 
-*[commit] e9ab78602 in ai-stuff - *
+*[commit] 55cd4931b in ai-stuff - *
 
 > The C crowd is next: a straight port of the Lua, keeping every visiting order
 > and tie-break identical so the two can be compared number for number.
@@ -9702,7 +9702,7 @@ ceramic core engine's performance metrics against a valid comparison target.
 > faster than LuaJIT. Adding this comparison as a permanent test, writing the
 > notes, and committing:
 
-*[commit] 70c9cbb6b in ai-stuff - *
+*[commit] 062c0ff51 in ai-stuff - *
 
 > The C crowd is committed. Now the designs. Reusing the barrier and job-system
 > code from the fabricated-frame benchmark; reading it first:
@@ -9721,7 +9721,7 @@ ceramic core engine's performance metrics against a valid comparison target.
 > Built. The engine refused one thing: delivering an array already hands it in
 > as one batch, so my extra batch around it was one too many. Removing it:
 
-*[commit] 49e375273 in ai-stuff - *
+*[commit] 6630dc0ab in ai-stuff - *
 
 Both film programs are written. Next the script that builds and runs them and
 assembles the GIFs; it runs after the benchmark finishes. Checking the

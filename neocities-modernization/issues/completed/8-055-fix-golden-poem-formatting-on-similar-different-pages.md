@@ -193,6 +193,7 @@ All `│` right walls at the same column. `╧` directly under `┐`. `┴` dire
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium
 - **Dependencies**: None
+- **Blocks**: 8-056
 - **Affects**: All golden poems on all page types (chronological, similar, different)
 
 ## Completion Notes

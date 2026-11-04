@@ -1,0 +1,6 @@
+title: The hub at noon, from a low camera
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/04-the-hub-at-noon/picture.png
+stage: 8
+group: One world, two cameras
+---
+The reading has the right parts and the wrong sizes. In the picture the console fills the bottom of the frame because it is close to the camera; the scene made it large and stood it on the field, so the top view shows a console half as wide as the world, and the figures, true to their spacing, come out as matchsticks. The white rings marking the field are missing altogether.

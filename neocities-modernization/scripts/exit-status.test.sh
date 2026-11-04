@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # exit-status.test.sh -- exercises scripts/exit-status.sh.
-# Run: bash scripts/exit-status.test.sh [project-dir]
+# Run: bash scripts/exit-status.test.sh [--dir PATH]
 #
 # Why this exists. A full embedding run died at 85% and the pipeline reported
 # only "GENERATION FAILED". The log ended mid-sentence with no error in it, and
@@ -14,14 +14,10 @@
 
 set -u
 
-# {{{ setup_dir_path()
-setup_dir_path() {
-    if [ "$#" -gt 0 ] && [ -n "$1" ]; then echo "$1"; return; fi
-    cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
-}
-# }}}
-
-DIR="$(setup_dir_path "${1:-}")"
+# The project folder: --dir PATH, or the folder this test sits in; a stray
+# word stops it (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" "" "$@"
 # shellcheck source=/dev/null
 source "${DIR}/scripts/exit-status.sh"
 

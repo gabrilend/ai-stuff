@@ -4,7 +4,8 @@
  * only, one at a time:
  *
  *   GET  /v1/models             200, an empty model list (the "is it up?" check)
- *   POST /tokenize              the request body's word count, as tokens
+ *   POST /tokenize              one token per word of the request body, in
+ *                               llama.cpp's {"tokens":[...]} shape
  *   POST /v1/chat/completions   the body is handed to a "brain" program on its
  *                               standard input; whatever JSON it prints is the
  *                               reply
@@ -150,9 +151,20 @@ static void serve(int fd, const char *brain) {
         const char *reply = "{\"data\":[]}";
         send_reply(fd, 200, reply, strlen(reply));
     } else if (strncmp(request, "POST /tokenize ", 15) == 0) {
-        char reply[64];
-        int n = snprintf(reply, sizeof reply, "{\"count\":%d}", count_words(body, body_length));
-        send_reply(fd, 200, reply, (size_t)n);
+        /* llama.cpp answers {"tokens":[id,...]}; the client counts the
+         * array, so one 0 per word stands in for the token ids. */
+        int words = count_words(body, body_length);
+        size_t size = 16 + (size_t)words * 2;
+        char *reply = malloc(size);
+        if (!reply) { send_reply(fd, 500, "{}", 2); return; }
+        size_t n = (size_t)snprintf(reply, size, "{\"tokens\":[");
+        for (int i = 0; i < words; i++) {
+            if (i > 0) reply[n++] = ',';
+            reply[n++] = '0';
+        }
+        reply[n++] = ']'; reply[n++] = '}';
+        send_reply(fd, 200, reply, n);
+        free(reply);
     } else if (strncmp(request, "POST /v1/chat/completions ", 26) == 0) {
         size_t out_length = 0;
         char *out = ask_brain(brain, body, body_length, &out_length);
