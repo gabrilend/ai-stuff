@@ -7,7 +7,7 @@ Part of 701. Depends on: 701a. Blocks: 701d.
 A shape scene is a Lua table returned by an ordinary Lua file: meshes,
 about ten motion kinds, spin, pulse, morph, parts, blobs, trails, reactions,
 ground, strokes, beams, a track, streaks, lights, fluid, framing and
-clearance promises, and a camera with seven motions (`src/039-shape-films.info.md`,
+clearance promises, and a camera with seven motions (`src/049-shape-films.info.md`,
 from "Scene file" to "Tests"). It runs as real code: `input/shapes/blob-lava-lamp.lua` builds
 its blobs with a loop and `math.cos`, and `input/shapes/wizard-beam.lua` loads a
 part with `dofile`. A mistake stops the run at the first one found.
@@ -53,11 +53,11 @@ Built in stages on the branch `claude/701c-the-3d-vocabulary`.
 
 ### Stage A, 2026-10-30: scenes are data
 
-- `src/045-scene-file.lua` reads a scene in an empty sandbox (no `math`,
+- `src/055-scene-file.lua` reads a scene in an empty sandbox (no `math`,
   no `ipairs`, no `dofile`) and refuses a scene that reaches for anything,
   naming the way out: a generator. It also writes a scene table as
   canonical text, numbers written so they read back as the same double.
-- `src/046-make-shapes.lua` and `./make-shapes` run every program in
+- `src/056-make-shapes.lua` and `./make-shapes` run every program in
   `input/shapes/generators/` and write what each returns as the plain
   scene beside the others, under a line saying where it came from.
   `./make-shapes --check` writes nothing and fails on any generated scene
@@ -76,7 +76,7 @@ Built in stages on the branch `claude/701c-the-3d-vocabulary`.
 
 ### Stage B, 2026-10-30: the closed tables and the wall
 
-- `src/048-shape-words.lua` lists every word legal in each of 36 places
+- `src/058-shape-words.lua` lists every word legal in each of 36 places
   (the scene, a shape, a spin, a track's ties, a fluid's tilt, ...), in
   each kind of shape motion and camera motion, and in each cabinet
   shape's proportions, with the kind of value it takes and one line of
@@ -85,15 +85,15 @@ Built in stages on the branch `claude/701c-the-3d-vocabulary`.
   takes them from the modules, through `choreography.vocabulary()`,
   `meshes.names()` and the hue table, and refuses loudly if the motion
   kinds or shapes in the lists and in the code ever differ.
-- `src/049-shape-wall.lua` walks a scene and reports every unknown word,
+- `src/059-shape-wall.lua` walks a scene and reports every unknown word,
   hue, shape, style, motion, effect, solid and tag at once, each with
   where it is and the nearest legal word. `choreography.load` calls it
   first, so every film and every test that loads a scene is behind it.
 - The nearest-word measure moved out of `024-compile.lua` into
-  `src/047-nearest.lua`, which both walls share (the 2D tests are
+  `src/057-nearest.lua`, which both walls share (the 2D tests are
   unchanged: score 12 of 12, compile 19 of 19).
 - `docs/shape-format.md` is printed from the lists by
-  `src/051-shape-docs.lua`; `--check` fails when it is stale.
+  `src/061-shape-docs.lua`; `--check` fails when it is stale.
 - Words found in scenes but not in the old documentation are now listed:
   `jobs`, `flock` and `role` (labels the twin-reef test counts by),
   `shard_distance`, and each shape's proportions.
@@ -125,7 +125,7 @@ Built in stages on the branch `claude/701c-the-3d-vocabulary`.
   again as a missing word.
 - Proof: `tests/shape-films/broken-numbers.lua` (twelve broken rules,
   every word spelled right) gets all twelve in one pass and films
-  nothing; every refusal the stage test (`042`) and the runner made
+  nothing; every refusal the stage test (`052`) and the runner made
   before still refuses; all 34 scenes pass and re-film byte-identical;
   `./test-shape-films` is 240 of 240.
 

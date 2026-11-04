@@ -27,7 +27,7 @@ holds two painters and one canvas:
 Both are closed languages. A score or scene declares and never computes,
 and a wall checks every word before anything is drawn. One encoder, one
 palette and one reader serve both (`src/004-gif.lua`, `src/002-palette.lua`,
-`src/040-gif-decode.lua`). Every film gets a card beside it, and a person
+`src/050-gif-decode.lua`). Every film gets a card beside it, and a person
 rates films on five tiers.
 
 The contracts are the law; this file is the tour:
@@ -38,7 +38,7 @@ The contracts are the law; this file is the tour:
 | every 3D word (printed from the wall's own lists) | `docs/shape-format.md` |
 | the card beside every film | `docs/card-format.md` |
 | the 2D wall | `src/024-compile.lua` |
-| the 3D wall and its word lists | `src/049-shape-wall.lua`, `src/048-shape-words.lua` |
+| the 3D wall and its word lists | `src/059-shape-wall.lua`, `src/058-shape-words.lua` |
 
 Read the contract for the words you use before writing. Never write a word
 from memory of an older version.
@@ -179,7 +179,7 @@ What to do:
 cd /mnt/mtwo/programming/ai-stuff/gif-generator
 ./run NAME              # input/NAME.lua → output/NAME.gif
 ./run                   # every score in input/
-luajit src/039-shape-films.lua . NAME --out=FOLDER   # one shape scene
+luajit src/049-shape-films.lua . NAME --out=FOLDER   # one shape scene
 ./render-all-shapes     # every shape scene, four at a time, into RAM
 ./render-all-shapes --library   # every shape scene into her library
 ```
@@ -244,10 +244,10 @@ not a film, not a card, not a low rating.
   use the hard-coded path above.
 - Source files are numbered from `.file-index-counter`, and each has a
   sibling `.info.md` describing its usable surface.
-- `docs/shape-format.md` is printed: edit `src/048-shape-words.lua`, then
-  run `luajit src/051-shape-docs.lua .`.
+- `docs/shape-format.md` is printed: edit `src/058-shape-words.lua`, then
+  run `luajit src/061-shape-docs.lua .`.
 - `./test-shape-films` checks the whole studio, and every example in this
-  file (`src/057-skill-examples-test.lua`).
+  file (`src/067-skill-examples-test.lua`).
 
 ## Building a studio of your own
 

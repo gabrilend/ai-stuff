@@ -6,7 +6,7 @@ Every film the studio makes keeps a card beside it: `NAME.gif` and
 the card comes with the film. Nothing is deleted: not a film, not a card,
 not a low rating.
 
-The film tool (`src/039-shape-films.lua`) and the runner
+The film tool (`src/049-shape-films.lua`) and the runner
 (`src/026-render-main.lua`) write a card when they make a film. The viewer
 appends ratings to it. They share no code: this page is what they agree on.
 
@@ -78,7 +78,7 @@ line. Made again with the same bytes, the card is left as it is.
 
 ## Tools
 
-- `count-films [FOLDER]` (or `luajit src/055-cards.lua DIR --counts FOLDER`):
+- `count-films [FOLDER]` (or `luajit src/065-cards.lua DIR --counts FOLDER`):
   how many films sit at each tier, by kind, read from the cards alone.
 - `count-films [FOLDER] --write`: first, a card beside every film that has
   none, from the score of the same name.

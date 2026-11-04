@@ -27,6 +27,6 @@ if [ ! -d "$FOLDER" ]; then
 fi
 
 if [ "${1:-}" = "--write" ]; then
-    luajit "$DIR/src/055-cards.lua" "$DIR" --write "$FOLDER" || exit 1
+    luajit "$DIR/src/065-cards.lua" "$DIR" --write "$FOLDER" || exit 1
 fi
-exec luajit "$DIR/src/055-cards.lua" "$DIR" --counts "$FOLDER"
+exec luajit "$DIR/src/065-cards.lua" "$DIR" --counts "$FOLDER"

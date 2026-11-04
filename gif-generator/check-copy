@@ -20,7 +20,7 @@ if [ -z "$TARGET" ] || [ ! -d "$TARGET" ]; then
 fi
 
 # The one map from studio file to copy name; install-into holds the same.
-PAIRS="004-gif.lua:gif-encoder.lua 002-palette.lua:gif-palette.lua 040-gif-decode.lua:gif-decoder.lua 038-png.lua:png-writer.lua"
+PAIRS="004-gif.lua:gif-encoder.lua 002-palette.lua:gif-palette.lua 050-gif-decode.lua:gif-decoder.lua 048-png.lua:png-writer.lua"
 status=0
 for pair in $PAIRS; do
     source_file="$DIR/src/${pair%%:*}"
