@@ -75,10 +75,12 @@ function R:f32()
 end
 function R:u16()
     local b, p = self.buf, self.pos
+    if p + 2 > self.n then error("MDX: read past the end") end
     self.pos = p + 2
     return b[p] + b[p + 1] * 256
 end
 function R:u8()
+    if self.pos + 1 > self.n then error("MDX: read past the end") end
     local v = self.buf[self.pos]
     self.pos = self.pos + 1
     return v
@@ -101,6 +103,18 @@ function R:floats(count)
 end
 function R:extent()
     return { radius = self:f32(), min = self:floats(3), max = self:floats(3) }
+end
+-- A record that starts with its own byte size (the size counts itself):
+-- its start and end. A size under 4 can't move the reading on (a size of
+-- 0 used to read the same record forever), and one past its chunk's end
+-- isn't its own; both stop the reading, as the C twin's record() does
+-- (Issue 118)
+function R:record(stop, what)
+    local start = self.pos
+    local size = self:u32()
+    if size < 4 then error("MDX: a record in " .. what .. " of " .. size .. " bytes, too short to move on") end
+    if start + size > stop then error("MDX: a record in " .. what .. " of " .. size .. " bytes, past its chunk's end") end
+    return start, start + size
 end
 -- }}}
 
@@ -241,15 +255,13 @@ end
 function chunk.MTLS(r, m, stop)
     m.materials = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local _, finish = r:record(stop, "the materials")
         local mat = { priority_plane = r:i32(), flags = r:u32(), layers = {} }
         if m.version and m.version > 800 then mat.shader = r:str(80) end
         if r:tag() ~= "LAYS" then error("MDX: material without LAYS") end
         local count = r:u32()
         for i = 1, count do
-            local ls = r.pos
-            local lsize = r:u32()
+            local _, lend = r:record(finish, "a material's layers")
             local layer = { filter_mode = r:u32(), shading = r:u32(), texture = r:u32(),
                             texture_animation = r:i32(), coord = r:u32(), alpha = r:f32(), tracks = {} }
             if m.version and m.version > 800 then
@@ -259,10 +271,10 @@ function chunk.MTLS(r, m, stop)
                 layer.fresnel_team = r:f32()
             end
             layer.filter = mdx.FILTER[layer.filter_mode] or "none"
-            read_tracks(r, ls + lsize, layer.tracks)
+            read_tracks(r, lend, layer.tracks)
             mat.layers[i] = layer
         end
-        r.pos = start + size
+        r.pos = finish
         m.materials[#m.materials + 1] = mat
     end
 end
@@ -279,8 +291,7 @@ end
 function chunk.GEOS(r, m, stop)
     m.geosets = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local _, finish = r:record(stop, "the geosets")
         local g = {}
         g.vertices = counted(r, "VRTX", 3, R.f32)
         g.normals = counted(r, "NRMS", 3, R.f32)
@@ -302,7 +313,7 @@ function chunk.GEOS(r, m, stop)
         g.sequence_extents = {}
         for i = 1, nextents do g.sequence_extents[i] = r:extent() end
         -- (reforged models add tangents and skin weights here)
-        while r.pos < start + size and (r:peek_tag() == "TANG" or r:peek_tag() == "SKIN") do
+        while r.pos < finish and (r:peek_tag() == "TANG" or r:peek_tag() == "SKIN") do
             local tag = r:tag()
             local count = r:u32()
             r.pos = r.pos + count * (tag == "TANG" and 16 or 1)
@@ -312,7 +323,7 @@ function chunk.GEOS(r, m, stop)
         local sets = r:u32()
         g.uvs = {}
         for i = 1, sets do g.uvs[i] = counted(r, "UVBS", 2, R.f32) end
-        r.pos = start + size
+        r.pos = finish
         m.geosets[#m.geosets + 1] = g
     end
 end
@@ -320,26 +331,24 @@ end
 function chunk.GEOA(r, m, stop)
     m.geoset_animations = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local _, finish = r:record(stop, "the geoset animations")
         local a = { alpha = r:f32(), flags = r:u32(), color = r:floats(3), geoset = r:u32(), tracks = {} }
-        read_tracks(r, start + size, a.tracks)
+        read_tracks(r, finish, a.tracks)
         m.geoset_animations[#m.geoset_animations + 1] = a
     end
 end
 
-local function read_node(r)
-    local start = r.pos
-    local size = r:u32()
+local function read_node(r, stop)
+    local _, finish = r:record(stop, "a node")
     local node = { name = r:str(80), id = r:i32(), parent = r:i32(), flags = r:u32(), tracks = {} }
-    read_tracks(r, start + size, node.tracks)
+    read_tracks(r, finish, node.tracks)
     return node
 end
 
 function chunk.BONE(r, m, stop)
     m.bones = {}
     while r.pos < stop do
-        local node = read_node(r)
+        local node = read_node(r, stop)
         node.geoset, node.geoset_animation = r:i32(), r:i32()
         m.bones[#m.bones + 1] = node
     end
@@ -347,7 +356,7 @@ end
 
 function chunk.HELP(r, m, stop)
     m.helpers = {}
-    while r.pos < stop do m.helpers[#m.helpers + 1] = read_node(r) end
+    while r.pos < stop do m.helpers[#m.helpers + 1] = read_node(r, stop) end
 end
 
 -- Records that are a node plus fields this reader keeps raw (particle
@@ -357,12 +366,11 @@ local function node_records(field, extra)
     return function(r, m, stop)
         m[field] = {}
         while r.pos < stop do
-            local start = r.pos
-            local size = r:u32()
-            local node = read_node(r)
-            if extra then extra(r, node, start + size) end
-            node.raw = r.data:sub(r.pos + 1, start + size)
-            r.pos = start + size
+            local _, finish = r:record(stop, "the nodes")
+            local node = read_node(r, finish)
+            if extra then extra(r, node, finish) end
+            node.raw = r.data:sub(r.pos + 1, finish)
+            r.pos = finish
             m[field][#m[field] + 1] = node
         end
     end
@@ -382,7 +390,7 @@ end)
 function chunk.EVTS(r, m, stop)
     m.events = {}
     while r.pos < stop do
-        local node = read_node(r)
+        local node = read_node(r, stop)
         if r.pos < stop and r:peek_tag() == "KEVT" then
             r:tag()
             local count = r:u32()
@@ -399,7 +407,7 @@ end
 function chunk.CLID(r, m, stop)
     m.collision = {}
     while r.pos < stop do
-        local node = read_node(r)
+        local node = read_node(r, stop)
         node.shape = r:u32()
         local n = (node.shape == 2) and 1 or 2
         node.points = {}
@@ -424,10 +432,9 @@ end
 function chunk.TXAN(r, m, stop)
     m.texture_animations = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local _, finish = r:record(stop, "the texture animations")
         local t = { tracks = {} }
-        read_tracks(r, start + size, t.tracks)
+        read_tracks(r, finish, t.tracks)
         m.texture_animations[#m.texture_animations + 1] = t
     end
 end

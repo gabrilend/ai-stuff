@@ -143,13 +143,19 @@ local function geoset_arrays(g)
         verts[o + 6] = uv[i * 2 + 1] or 0
         verts[o + 7] = uv[i * 2 + 2] or 0
     end
-    -- triangles only (face type 4); WC3 models use nothing else
+    -- triangles only (face type 4); WC3 models use nothing else. A corner
+    -- numbered past the geoset's points becomes its first point, as the
+    -- M2 reader and the W client's C twin (061-mdx.c) do, rather than a
+    -- read past the mesh on the card (Issue 118)
     local tris = {}
     local at = 1
     for k, kind in ipairs(g.face_types) do
         local count = g.face_counts[k] or 0
         if kind == 4 then
-            for i = 0, count - 1 do tris[#tris + 1] = g.faces[at + i] end
+            for i = 0, count - 1 do
+                local c = g.faces[at + i]
+                if c then tris[#tris + 1] = c < nv and c or 0 end
+            end
         end
         at = at + count
     end
