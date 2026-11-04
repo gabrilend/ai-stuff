@@ -15,9 +15,18 @@ built so far, stages 2 and 3:
                faction per WC3 force, written as SQL (wowbuild.creatures);
                the map's own imported models, which travel with it (W02b)
 
-Still to come, each adding to convert() below: the map's table rows and
-patch-W.MPQ (W02c), the server's extracted data (W02d), triggers on the
-server (W02e), the rest of the empty world database (W02h).
+  registration the map's ids (wowbuild.registration: a slot a map, every id
+               a block of it), its rows in Map, AreaTable, LoadingScreens,
+               CreatureDisplayInfo, CreatureModelData, FactionTemplate and
+               Faction (wowbuild.dbc writes the tables), its loading screen
+               picture (wowbuild.loadscreen), and every form they are read
+               in (wowbuild.output): the overlay's tables, map.lua and the
+               creature list for the W client, the server's copies, and
+               patch-W.MPQ for the stock client and the extractors (W02c)
+
+Still to come, each adding to convert() below: the server's extracted data
+(W02d), triggers on the server (W02e), the rest of the empty world
+database (W02h).
 
 The build folder is a loose overlay as the W client reads one (its issue
 105a): files at the paths the client's archives use, so
@@ -25,11 +34,24 @@ The build folder is a loose overlay as the W client reads one (its issue
   <build>/World/Maps/<dir>/<dir>.wdt
   <build>/World/Maps/<dir>/<dir>.wdl
   <build>/World/Maps/<dir>/<dir>_<tx>_<ty>.adt    tx west to east, ty north to south
+  <build>/World/Maps/<dir>/<dir>_loading.blp      its loading screen (W02c)
+  <build>/World/Maps/<dir>/registration.lua       its slot, ids and table rows (data, W02c)
+  <build>/DBFilesClient/<Table>.dbc               the rows of every map in the build folder,
+                                                  nothing else (the W client's overlay, W02c)
+  <build>/map.lua                                 the map Test Map opens: id, directory,
+                                                  start, the WC3 -> WoW transform (data, W02c)
+  <build>/world/creatures-<map id>.tsv            the spawns for the W client's --world (W02c)
   <build>/<the map's own file path>               its imported models and their textures
                                                   (war3mapImported\X.mdx ...), at their
                                                   own names, so a model finds its textures
   <build>/server/world.sql                        the creatures, for AzerothCore (W02h:
                                                   only what the map uses)
+  <build>/server/dbc.sql                          the tables' rows for the server's <table>_dbc (W02c)
+  <build>/server/dbc/<Table>.dbc                  the stock tables plus these rows (W02c; only
+                                                  when the stock tables are given)
+  <build>/patch-W.MPQ                             the ground, loading screens and (with the stock
+                                                  tables) the merged tables, for the stock client
+                                                  and AzerothCore's extractors (W02c)
   <build>/placements.lua                          every doodad, unit and start location,
                                                   what became of it; the display ids and
                                                   factions W02c writes into client tables (data)
@@ -37,9 +59,12 @@ The build folder is a loose overlay as the W client reads one (its issue
 
 <dir> is the map's directory name, "WC3_" and the map file's name with
 everything but letters and digits made "_" (DAoW-2.1.w3x -> WC3_DAoW_2_1),
-or opts.name. Nothing of Blizzard's is written: the ADTs name WoW's textures
-and models by path; those files stay in the owner's client (or come from
-the baseline model set). The only files copied are the map's own imports.
+or opts.name. Nothing of Blizzard's is written from this repository: the
+ADTs name WoW's textures and models by path; those files stay in the
+owner's client (or come from the baseline model set). The only files
+copied are the map's own imports, and, when the owner's own stock tables
+are given (opts.stock_dbc), their rows in the merged tables that the stock
+client and the server need whole (server/dbc/, patch-W.MPQ).
 
     local wowbuild = require("wowbuild")
     local report = wowbuild.convert("assets/DAoW-2.1.w3x", "tmp/test-map/build", { strict = false })
@@ -57,14 +82,18 @@ local wterrain = require("wowbuild.terrain")
 local adt = require("wowbuild.adt")
 local placements = require("wowbuild.placements")
 local creatures = require("wowbuild.creatures")
+local registration = require("wowbuild.registration")
+local loadscreen = require("wowbuild.loadscreen")
+local output = require("wowbuild.output")
+local wcoords = require("wowbuild.coords")
 
 local wowbuild = {}
 
 wowbuild.REPORT = "conversion-report.lua"
 wowbuild.PLACEMENTS = "placements.lua"
 wowbuild.SQL = "server/world.sql"
+wowbuild.MAP_FILE = output.MAP_FILE
 wowbuild.STAGES_NOT_BUILT = {
-    "W02c map registration and patch-W.MPQ",
     "W02d server data for new maps",
     "W02e triggers on the server",
     "W02h empty world database",
@@ -130,7 +159,8 @@ function wowbuild.read_terrain(map_path)
     local f = io.open(map_path, "rb")
     if not f then error("no map file " .. tostring(map_path), 0) end
     f:close()
-    local archive = mpq.open(map_path)
+    local archive, why = mpq.open(map_path)
+    if not archive then error("can't open " .. map_path .. ": " .. tostring(why), 0) end
     local ok, data = pcall(function() return archive:extract("war3map.w3e") end)
     archive:close()
     if not ok or not data then error(map_path .. " holds no war3map.w3e (its terrain): " .. tostring(data), 0) end
@@ -241,10 +271,48 @@ local function placement_list(P, C)
 end
 -- }}}
 
+-- {{{ the map Test Map opens, and its creatures for the W client (W02c)
+-- The first start location of a human player (else the first), in WoW yards
+local function start_of(info, C)
+    local slots = {}
+    for _, p in ipairs(info and info.players or {}) do slots[p.number] = p end
+    local pick
+    for _, sl in ipairs(C.start_locations) do
+        local p = slots[sl.player]
+        if p and p.type == "human" then pick = sl break end
+    end
+    pick = pick or C.start_locations[1]
+    if not pick then return nil end
+    return { x = pick.world[1], y = pick.world[2], z = pick.world[3], player = pick.player, wc3 = pick.wc3 }
+end
+
+-- WoW world x = x0 + scale * WC3 y; y = y0 - scale * WC3 x (both linear: wowbuild.coords)
+local function transform(L)
+    local x0, y0 = L:to_wow(0, 0)
+    return { scale = wcoords.YARDS_PER_UNIT, x0 = x0, y0 = y0,
+             rule = "wow_x = x0 + scale * wc3_y; wow_y = y0 - scale * wc3_x; wow_z = scale * wc3_z (yards; WC3 units)" }
+end
+
+local function creature_list(C, ids)
+    local lines = { "# W02c: the spawns of map " .. ids.map .. " for the W client's --world folder (src/wowbuild)",
+                    "# guid\tentry\tdisplay\tsize\tx\ty\tz\tfacing\tname" }
+    for _, s in ipairs(C.spawns) do
+        local name = tostring(s.template.name):gsub("[%c\t]", " "):sub(1, 63)
+        lines[#lines + 1] = string.format("%d\t%d\t%d\t1\t%.3f\t%.3f\t%.3f\t%.4f\t%s", s.guid, s.template.entry,
+            s.template.display.id, s.world[1], s.world[2], s.world[3], s.orientation, name)
+    end
+    return table.concat(lines, "\n") .. "\n"
+end
+-- }}}
+
 -- {{{ wowbuild.convert
 -- opts: strict (a texture fold stops the build), name (map directory),
 -- textures (another ground table's path), models (another model table's
--- path), map_id (the server's map id until W02c picks one), terrain (a
+-- path), slot (the map's slot in W02c's id scheme, 0-99; default: the one
+-- it held in this build folder, else the lowest free), map_id (the same,
+-- as its map id 900-999), stock_dbc (a folder of the client's stock .dbc
+-- files to merge with; default the owner's AzerothCore dbc folder when it
+-- is there; false: none), patch (false: no patch-W.MPQ), terrain (a
 -- parsed terrain, for tests: map_path is then only a label), map (the
 -- parts wowbuild.read_map gives, for tests; without terrain and map the
 -- map file is read)
@@ -253,6 +321,17 @@ function wowbuild.convert(map_path, build_dir, opts)
     assert(type(build_dir) == "string" and build_dir ~= "", "convert: no build folder")
     local name = opts.name or wowbuild.map_directory(map_path)
     if not wowbuild.valid_name(name) then error("map directory name " .. tostring(name) .. ": letters, digits and _ only, 1-48 long", 0) end
+    local wanted = opts.slot
+    if opts.map_id then
+        local s = registration.slot_of_map(opts.map_id)
+        if not s then error(string.format("map id %s: W02c's map ids are %d-%d (a slot each)", tostring(opts.map_id),
+            registration.SCHEME.map.base, registration.SCHEME.map.base + registration.SLOTS - 1), 0) end
+        if wanted and wanted ~= s then error("both a slot and a map id given, and they differ", 0) end
+        wanted = s
+    end
+    local slot, why = registration.choose_slot(build_dir, name, wanted)
+    if not slot then error(why, 0) end
+    local ids = registration.ids(slot)
     local terrain = opts.terrain or wowbuild.read_terrain(map_path)
     local map = opts.map or (opts.terrain and {}) or wowbuild.read_map(map_path)
     local started = os.clock()
@@ -260,7 +339,24 @@ function wowbuild.convert(map_path, build_dir, opts)
     local job = wterrain.prepare(terrain, { strict = opts.strict, textures = opts.textures })
     local models, models_path = placements.load_models(opts.models)
     local P = placements.prepare(map, job.layout, models)
-    local C = creatures.prepare(map, job.layout, job, models, { map_id = opts.map_id })
+    local C = creatures.prepare(map, job.layout, job, models, { map_id = ids.map, entry_base = ids.entry,
+        guid_base = ids.guid, display_base = ids.display, faction_base = ids.faction })
+
+    -- the area bit: the slot's own unless the stock table or another map of
+    -- the folder uses it; then the highest free one
+    local warnings = {}
+    local stock_dir = output.stock_dir(opts.stock_dbc)
+    local used = (stock_dir and output.stock_area_bits(stock_dir)) or {}
+    for dir, r in pairs(registration.in_build(build_dir)) do
+        if dir ~= name and r.ids and r.ids.area_bit then used[r.ids.area_bit] = true end
+    end
+    if used[ids.area_bit] then
+        local was = ids.area_bit
+        ids.area_bit = nil
+        for b = registration.AREA_BIT_TOP, 0, -1 do if not used[b] then ids.area_bit = b break end end
+        if not ids.area_bit then error("no free AreaBit under 4096", 0) end
+        warnings[#warnings + 1] = string.format("AreaBit %d is taken; the map's zone uses %d", was, ids.area_bit)
+    end
 
     -- this map's folder, emptied first: the converter owns the build folder
     local rel = "World/Maps/" .. name
@@ -274,7 +370,7 @@ function wowbuild.convert(map_path, build_dir, opts)
     for _, t in ipairs(tiles) do
         local tile = job:tile(t)
         local file = string.format("%s/%s_%d_%d.adt", rel, name, t.tx, t.ty)
-        local bytes = adt.tile_bytes(tile, P.tiles[t.ty * 64 + t.tx])
+        local bytes = adt.tile_bytes(tile, P.tiles[t.ty * 64 + t.tx], ids.area)
         write_file(build_dir .. "/" .. file, bytes)
         files[#files + 1] = { path = file, bytes = #bytes }
     end
@@ -284,6 +380,13 @@ function wowbuild.convert(map_path, build_dir, opts)
     local wdl = adt.wdl_bytes(job)
     write_file(out .. "/" .. name .. ".wdl", wdl)
     table.insert(files, 2, { path = rel .. "/" .. name .. ".wdl", bytes = #wdl })
+
+    -- the loading screen, from the map's preview or its ground
+    local picture, picture_from = loadscreen.picture(map, job)
+    local blp = loadscreen.blp2(picture)
+    local picture_file = name .. "_loading.blp"
+    write_file(out .. "/" .. picture_file, blp)
+    files[#files + 1] = { path = rel .. "/" .. picture_file, bytes = #blp }
 
     -- the map's own models (and their textures), the creatures' SQL, the placement list
     local own = {}
@@ -300,7 +403,42 @@ function wowbuild.convert(map_path, build_dir, opts)
     write_file(build_dir .. "/" .. wowbuild.PLACEMENTS, list)
     files[#files + 1] = { path = wowbuild.PLACEMENTS, bytes = #list }
 
+    -- registration: this map's rows (kept in its folder), then every form
+    -- of the folder's tables (wowbuild.output)
+    local rows = registration.rows(map.info, C, ids, { directory = name, strings = map.strings,
+        picture = "World\\Maps\\" .. name .. "\\" .. picture_file })
+    local start = start_of(map.info, C)
     local L = job.layout
+    local reg = { format = 1, directory = name, slot = slot, ids = ids, rows = rows, start = start,
+                  map_name = rows.Map[1].MapName, written = os.date("!%Y-%m-%dT%H:%M:%SZ") }
+    local reg_text = "-- W02c: this map's registration (src/wowbuild/registration.lua): data only\nreturn " .. serialize(reg) .. "\n"
+    write_file(out .. "/" .. registration.FILE, reg_text)
+    files[#files + 1] = { path = rel .. "/" .. registration.FILE, bytes = #reg_text }
+    local tsv = creature_list(C, ids)
+    local tsv_rel = string.format("world/creatures-%d.tsv", ids.map)
+    os.execute("mkdir -p " .. quote(build_dir .. "/world"))
+    write_file(build_dir .. "/" .. tsv_rel, tsv)
+    files[#files + 1] = { path = tsv_rel, bytes = #tsv }
+    local forms, all = output.write(build_dir, { stock_dbc = opts.stock_dbc, patch = opts.patch, files = files })
+    for _, w in ipairs(forms.warnings) do warnings[#warnings + 1] = w end
+    local maps_listed = {}
+    for _, r in ipairs(all) do
+        maps_listed[#maps_listed + 1] = { id = r.ids.map, directory = r.directory, name = r.map_name, slot = r.slot }
+    end
+    local mapfile = {
+        format = 1,
+        map = { id = ids.map, directory = name, name = rows.Map[1].MapName, slot = slot, area = ids.area,
+                loading_screen = ids.loading_screen },
+        start = start,
+        wc3_to_wow = transform(L),
+        tiles = { first = { L.tx0, L.ty0 }, across = L.ntx, down = L.nty },
+        creatures = tsv_rel,
+        maps = maps_listed,
+    }
+    local map_text = "-- W02c: the map the W client's Test Map opens (src/wowbuild): data only\nreturn " .. serialize(mapfile) .. "\n"
+    write_file(build_dir .. "/" .. wowbuild.MAP_FILE, map_text)
+    files[#files + 1] = { path = wowbuild.MAP_FILE, bytes = #map_text }
+
     local report = {
         format = 1,
         map = tostring(map_path),
@@ -318,9 +456,14 @@ function wowbuild.convert(map_path, build_dir, opts)
         doodads = pc,
         units = C:counts(),
         model_table = models_path,
+        registration = {
+            slot = slot, ids = ids, map_name = rows.Map[1].MapName, loading_screen = picture_from,
+            maps_in_build = forms.maps, tables = forms.tables, stock = forms.stock, patch = forms.patch,
+            warnings = warnings, notes = forms.notes, start = start,
+        },
         not_built = wowbuild.STAGES_NOT_BUILT,
     }
-    report.warnings = report.terrain.warnings + pc.unmapped_ids + #report.units.unmapped_ids
+    report.warnings = report.terrain.warnings + pc.unmapped_ids + #report.units.unmapped_ids + #warnings
     write_file(build_dir .. "/" .. wowbuild.REPORT,
         "-- W02's conversion report (src/wowbuild): data only\nreturn " .. serialize(report) .. "\n")
     return report, job, P, C
@@ -371,6 +514,18 @@ function wowbuild.summary(report)
         lines[#lines + 1] = string.format("    left out: %d start-location units, %d items, %d random, %d outside; unmapped types %d%s",
             u.sloc_units, u.items_left_out, u.random_left_out, u.outside, #u.unmapped_ids,
             #u.unmapped_ids > 0 and (" (" .. table.concat(u.unmapped_ids, " ", 1, math.min(8, #u.unmapped_ids)) .. (#u.unmapped_ids > 8 and " ..." or "") .. ")") or "")
+    end
+    local g = report.registration
+    if g then
+        lines[#lines + 1] = string.format("  registration: map %d (slot %d) \"%s\", zone %d (AreaBit %d), loading screen %d from the %s; %d looks, %d factions",
+            g.ids.map, g.slot, g.map_name, g.ids.area, g.ids.area_bit, g.ids.loading_screen, g.loading_screen,
+            g.tables.CreatureDisplayInfo.rows, g.tables.FactionTemplate.rows)
+        lines[#lines + 1] = string.format("    tables for %d map%s in the build folder: DBFilesClient/ (theirs only), server/dbc.sql%s; %s",
+            #g.maps_in_build, #g.maps_in_build == 1 and "" or "s",
+            g.stock and (", server/dbc/ (merged with " .. g.stock.folder .. ")") or "",
+            g.patch and (output.PATCH .. " (" .. #g.patch.files .. " files" .. (g.patch.tables and ", merged tables" or ", no tables") .. ")") or "no patch")
+        for _, w in ipairs(g.warnings) do lines[#lines + 1] = "    warning: " .. w end
+        for _, w in ipairs(g.notes or {}) do lines[#lines + 1] = "    note: " .. w end
     end
     lines[#lines + 1] = "  not built yet: " .. table.concat(report.not_built, "; ")
     return table.concat(lines, "\n")
