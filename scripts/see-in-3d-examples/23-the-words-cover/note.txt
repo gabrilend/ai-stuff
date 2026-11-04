@@ -1,0 +1,5 @@
+title: A cover of scattered strokes, given depth
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/23-the-words-cover/picture.png
+stage: 25
+---
+The strokes were lifted off the page at different depths, and the top view shows the spread plainly. That depth is an invention; the picture is flat. The views make an invented depth as visible as a real one, which is how it can be caught.

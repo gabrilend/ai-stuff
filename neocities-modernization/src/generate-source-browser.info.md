@@ -10,7 +10,7 @@ This is a standalone script, not a `require`d module — run it; it writes files
 
 ## How to run
 
-- `luajit src/generate-source-browser.lua [DIR]` — `DIR` defaults to the
+- `luajit src/generate-source-browser.lua [--dir PATH]` — `DIR` defaults to the
   hard-coded project root, overridable as the first argument. Also runs as the
   final step of `run.sh`'s HTML stage.
 

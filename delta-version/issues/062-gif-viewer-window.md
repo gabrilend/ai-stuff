@@ -23,6 +23,13 @@ makes the gifs)
   picture of each view.
 - **Found while building:** LÖVE's built-in font has no arrow symbols, so
   the key hints are written in words.
+- **Watching one file (2026-10-21, for gif-generator issue 604):**
+  `view-gifs --watch=FILE` shows that one gif and reloads it whenever the
+  file's modification time or size changes (checked every quarter second),
+  showing "waiting for the first picture" until the file exists. The
+  writer replaces the file whole, by rename, so a change is always a
+  complete gif. `test-gif-viewer.sh` now also opens a watched file and
+  passes; the reload itself is not yet tested automatically.
 - **The owner's report** that the gifs "can't load" in their viewer was
   checked:
   - feh (`feh -l`), ImageMagick and ffmpeg all read every file, with no

@@ -170,6 +170,34 @@ Two guards ride along with every export:
   name — is retired, keyed by the header. The warning is a printed line,
   not a UUID filename.
 
+## Renames and git
+
+When a conversation crosses into a new day its transcript is re-placed under
+its new span name. Git stores no renames; it infers one whenever the staging
+list (or a commit) loses one path and gains a similar one. A plain move and
+delete left `git status` showing the old name deleted and the new name
+untracked until the next commit. So when the transcript folder is inside a git
+repository and git was following the old name, the rename is written into the
+staging list as one update, and `git status` shows `renamed` at once.
+
+Afterwards, each rewrite of the renamed file re-stages it. This happens only
+while the last commit doesn't hold the new name yet and the staged copy is the
+one this tool put there. That keeps the staged copy equal to what
+`commit-own-changes` will commit, so its tidy-up step afterwards has nothing to
+warn about. Everything else is left exactly as it was:
+
+| situation | what the staging list gets |
+|---|---|
+| folder not in git, or the new name is ignored | nothing |
+| renamed, git never knew the old name | nothing; the new name is untracked, as the old one was |
+| brand-new conversation | nothing; untracked, as always |
+| rewritten in place, the last commit holds it | nothing; an ordinary unstaged change |
+| rewritten in place, someone else staged their own copy | nothing; theirs is kept |
+
+The staging list is shared by everyone working in the repository, and git
+guards it with a lock file. While someone else holds the lock, this tool waits
+for up to two seconds, then fails loudly rather than skipping the update.
+
 ## Patches
 
 Every rendering passes through `transcript-patches apply` before it is
@@ -384,6 +412,7 @@ Sourcing the file defines these, and runs nothing:
 
 - Lua (LuaJIT-compatible) — the JSONL reading and markdown rendering both live in `libs/conversation-parser.lua`.
 - `jq` (reads the Stop hook's input), `flock` (the per-project lock), `md5sum`.
+- `git` and `awk` (telling git about renames; see *Renames and git*).
 
 A missing tool is an error that names the tool, not a skipped backup.
 
@@ -394,6 +423,10 @@ A missing tool is an error that names the tool, not a skipped backup.
   and every failure path.
 - `tests/test-transcript-export-guards.sh` — the race guard, husks, and both
   kinds of idempotency.
+- `tests/test-transcript-rename-in-git.sh` — a day-crossing rename shows in
+  git as a rename and stays staged and current. The real `commit-own-changes`
+  then commits it as a rename, with no warning and a clean `git status`.
+  Untracked files and other people's staged copies are left alone.
 - `tests/test-transcript-wrapping.sh` and `tests/test_conversation-parser-*.lua`
   — the transcript format.
 
