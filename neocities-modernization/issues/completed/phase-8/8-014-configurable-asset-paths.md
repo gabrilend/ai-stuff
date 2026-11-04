@@ -1,6 +1,10 @@
 # 8-014: Configurable Asset Storage Paths
 
 ## Status: COMPLETED
+
+> **Later (Issue 10-076, 2026-11-03):** the assets flag below is now
+> `--assets PATH` in every program; `--dir` is run.sh's project folder, and a
+> child program given `--dir` stops. The design here is otherwise unchanged.
 ## Priority: HIGH
 ## Created: 2025-12-21
 

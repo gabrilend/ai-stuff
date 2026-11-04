@@ -8,9 +8,15 @@
 -- scripts/validate-output runs many of these at once, one per processor, and
 -- merges what they found.  (Issue 9-006.)
 --
+-- project-dir: none -- an internal worker: scripts/validate-output hands it a
+-- width, a findings file and a batch of page paths through xargs, so its
+-- words are its data (a list thousands long), and it reads no project folder.
+--
 -- Usage: luajit scripts/validate-output-worker.lua MAX_WIDTH FINDINGS_FILE PAGE...
 --   MAX_WIDTH      widest allowed line inside a poem column, in visible
---                  characters (84: the golden frame, the widest one drawn)
+--                  characters: the frame's width (84: a wall, a space, 80
+--                  characters of text, a space, a wall), which every frame
+--                  piece, regular or golden, must be exactly
 --   FINDINGS_FILE  where this worker writes its findings, one per line:
 --                  wide <TAB> page <TAB> line number <TAB> width <TAB> cause
 --                       <TAB> excerpt
@@ -24,6 +30,9 @@
 --                  with its similar pages missing has millions of broken
 --                  links, and one row each filled 4 GB of RAM.
 --   PAGE...        the HTML files to check
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 local MAX_WIDTH = tonumber(arg[1])
 local FINDINGS_FILE = arg[2]
@@ -39,14 +48,19 @@ assert(MAX_WIDTH and FINDINGS_FILE and arg[3],
 local POEM_FOLDERS = { similar = true, different = true, chronological = true, wordcloud = true }
 -- }}}
 
+-- the drawer's own column counting (libs/text-formatter.lua), so the check
+-- and the pages agree on how wide an emoji is
+package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
+local display_columns = require("text-formatter").display_columns
+
 -- {{{ local function visible_width
 -- Width as a reader sees it: tags removed, each entity (&amp; &#39;) one
--- character, each UTF-8 character one column.
+-- character, each UTF-8 character one column, an emoji two (as the drawer
+-- counts and draws it).
 local function visible_width(text)
     local plain = text:gsub("<[^>]*>", "")
     plain = plain:gsub("&#?%w+;", "x")
-    local without_continuation_bytes = plain:gsub("[\128-\191]", "")
-    return #without_continuation_bytes, plain
+    return display_columns(plain), plain
 end
 -- }}}
 
@@ -73,8 +87,8 @@ end
 -- them: a bar one column short shears the frame just as badly.  Each row is a
 -- piece a line can be recognised as, the exact width it must have, and -- for
 -- the bottom lines -- the columns (0-based) where its junctions must sit.
--- Regular frames are 83 wide, golden (1024-character) poems 84; the shapes
--- come from src/poem-bars.lua, which draws them.  (Folded in 2026-09-23 from
+-- Every frame is MAX_WIDTH wide (84), regular and golden; the shapes come
+-- from src/poem-bars.lua, which draws them.  (Folded in 2026-09-23 from
 -- the retired one-file checker, scripts/validate-poem-box-format.)
 --
 -- Patterns are written over a one-letter spelling of the line (BOX_LETTERS),
@@ -100,18 +114,24 @@ local function P(spelling)
         return assert(map[letter], "no stand-in for @" .. letter)
     end))
 end
+-- Every frame is the same width (the owner's rule, 2026-10-25): MAX_WIDTH.
+-- The junctions sit under the similar box's right wall (column 10) and the
+-- different box's left wall (13 columns from the right edge), as
+-- src/poem-bars.lua draws them.
+local W = MAX_WIDTH
+local RIGHT_JUNCTION = W - 13
 local FRAME_SHAPES = {
-    { name = "bar",             pattern = P("^[@H@h]+$"),               width = 83 },
-    { name = "golden bar",      pattern = P("^@N[@H@h]+@r$"),           width = 84 },
-    { name = "bottom",          pattern = P("^@L[@H@h@J@j]+@R$"),       width = 83,
-      junctions = { [10] = P("[@J@j]"), [70] = P("[@J@j]") } },
-    { name = "golden bottom",   pattern = P("^@M[@H@h@K@k@J@j]+@R$"),   width = 84,
-      junctions = { [10] = P("[@K@k@j]"), [71] = P("[@J@j]") } },
-    { name = "nav top",         pattern = P("^@O@h+@r +@O@h+@r$"),      width = 83 },
-    { name = "nav bottom",      pattern = P("^@U@h+@R +@U@h+@R$"),      width = 83 },
-    { name = "golden nav top",  pattern = P("^@T@H+@Q +@O@h+@t$"),      width = 84 },
-    { name = "nav line",        pattern = P("^@V similar @V.*@V different @V$"), width = 83 },
-    { name = "golden nav line", pattern = P("^@W similar @W.*@V different @V$"), width = 84 },
+    { name = "bar",             pattern = P("^[@H@h]+$"),               width = W },
+    { name = "golden bar",      pattern = P("^@N[@H@h]+@r$"),           width = W },
+    { name = "bottom",          pattern = P("^@L[@H@h@J@j]+@R$"),       width = W,
+      junctions = { [10] = P("[@J@j]"), [RIGHT_JUNCTION] = P("[@J@j]") } },
+    { name = "golden bottom",   pattern = P("^@M[@H@h@K@k@J@j]+@R$"),   width = W,
+      junctions = { [10] = P("[@K@k@j]"), [RIGHT_JUNCTION] = P("[@J@j]") } },
+    { name = "nav top",         pattern = P("^@O@h+@r +@O@h+@r$"),      width = W },
+    { name = "nav bottom",      pattern = P("^@U@h+@R +@U@h+@R$"),      width = W },
+    { name = "golden nav top",  pattern = P("^@T@H+@Q +@O@h+@t$"),      width = W },
+    { name = "nav line",        pattern = P("^@V similar @V.*@V different @V$"), width = W },
+    { name = "golden nav line", pattern = P("^@W similar @W.*@V different @V$"), width = W },
 }
 -- }}}
 
@@ -223,29 +243,49 @@ for i = 3, #arg do
         record_missing_link(page, 0, "(unreadable page) " .. page)
     else
         local inside_pre = false
+        -- true while a tag opened on an earlier line has not closed yet
+        local inside_tag = false
         local line_number = 0
         for line in handle:lines() do
             line_number = line_number + 1
 
-            -- Links: every href and src on the line.
-            for attr_value in line:gmatch('href="([^"]*)"') do
-                local target = resolve(page_dir, attr_value)
-                if target and not file_exists(target) then
-                    record_missing_link(page, line_number, attr_value)
+            -- Links: every href and src INSIDE A REAL TAG on the line. A page
+            -- that shows code (the source browser) writes it escaped --
+            -- "&lt;a href="%s"&gt;" -- so a reader sees the text, not a link.
+            -- Matching href="..." anywhere reported those as broken links (276
+            -- of them, all false). A real tag is the only place a literal "<"
+            -- appears; a tag still open at the end of the line counts too, since
+            -- a long tag can continue on the next line.
+            -- inside_tag carries over from the previous line: when it ended in
+            -- an unclosed tag, this line begins mid-tag, so a "<" is put back
+            -- in front for the scan.
+            local scan = inside_tag and ("<" .. line) or line
+            for tag in (scan .. "\n"):gmatch("<[^<>]*[>\n]") do
+                for attr_value in tag:gmatch('href="([^"]*)"') do
+                    local target = resolve(page_dir, attr_value)
+                    if target and not file_exists(target) then
+                        record_missing_link(page, line_number, attr_value)
+                    end
+                end
+                for attr_value in tag:gmatch("href='([^']*)'") do
+                    local target = resolve(page_dir, attr_value)
+                    if target and not file_exists(target) then
+                        record_missing_link(page, line_number, attr_value)
+                    end
+                end
+                for attr_value in tag:gmatch('src="([^"]*)"') do
+                    local target = resolve(page_dir, attr_value)
+                    if target and not file_exists(target) then
+                        record_missing_link(page, line_number, attr_value)
+                    end
                 end
             end
-            for attr_value in line:gmatch("href='([^']*)'") do
-                local target = resolve(page_dir, attr_value)
-                if target and not file_exists(target) then
-                    record_missing_link(page, line_number, attr_value)
-                end
-            end
-            for attr_value in line:gmatch('src="([^"]*)"') do
-                local target = resolve(page_dir, attr_value)
-                if target and not file_exists(target) then
-                    record_missing_link(page, line_number, attr_value)
-                end
-            end
+            -- Does this line end inside a tag? Yes when its last "<" comes after
+            -- its last ">" (a tag opened and not closed), or when it began
+            -- mid-tag and holds no ">" at all.
+            local last_lt = scan:match(".*()<")
+            local last_gt = scan:match(".*()>")
+            inside_tag = (last_lt ~= nil and (last_gt == nil or last_lt > last_gt))
 
             -- Widths: only the part of the line inside a <pre> poem column.
             local measured = nil
@@ -260,7 +300,14 @@ for i = 3, #arg do
             end
             if measured and holds_poems then
                 local width, plain = visible_width(measured)
-                if width > MAX_WIDTH then
+                -- A line drawn with box characters (a frame piece, a golden
+                -- poem's walled line, a boost, a warning box) may fill the
+                -- frame's width. A line with none is a regular poem's text:
+                -- its 2-column indent and at most 80 characters, so two
+                -- columns less (the owner's rule, 2026-10-25: text at most
+                -- 80, the frame wall-space-text-space-wall).
+                local allowed = plain:find("[\226][\148-\149]") and MAX_WIDTH or (MAX_WIDTH - 2)
+                if width > allowed then
                     record("wide", page, line_number, width, cause_of(plain), plain)
                 end
                 -- A frame piece must be exactly its frame's width, junctions

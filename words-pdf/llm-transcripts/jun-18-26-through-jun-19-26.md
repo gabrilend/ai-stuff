@@ -2314,7 +2314,7 @@ Updating `.gitignore` first, then staging only my session work.
 Clean staging. Now committing.
 
 
-Committed cleanly as `4257a241`. Working tree shows only your untracked input
+Committed cleanly as `f9ea35cf`. Working tree shows only your untracked input
 content (`compiled.txt` and `notes/*`) — none of my changes left dangling. Not
 pushed.
 
@@ -2667,7 +2667,7 @@ yes please
 Clean three-file commit. Making it now.
 
 
-Committed as `be72c0f2`. Three files: the renamed issue (now in `completed/`),
+Committed as `5b38f927`. Three files: the renamed issue (now in `completed/`),
 the new params config, and the consolidated changes to `compile-pdf-ai.lua`.
 Working tree shows only your untracked input content. Not pushed.
 
