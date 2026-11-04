@@ -235,4 +235,5 @@ own and that every asset is there through a loader over that pack. Its
 check that the list was gone "after the game" was taken out with the code
 it covered, which lives on in the W client's issue 1110. The other checks
 (only the missing files come over, nothing comes over the second time)
-are unchanged; on the combined tree the count is 37 checks.
+are unchanged. The combined tree above should now count 37 checks, one
+fewer than before (not run again for this change).
