@@ -1,25 +1,26 @@
 --[[
-Shared List Applied for One Game (Issue 609)
+A Received Shared List, Checked and Kept (Issue 609)
 
-The receiver's side of a shared map-and-model list (share/list.lua): the
-files are checked against their hashes, stored once (assets/dedup.lua),
-and linked into a profile folder that the loader puts above every pack for
-that game (L:push_layer). After the game it is taken off again, unless the
-player keeps it as an asset pack of their own.
+The receiver's side of a shared map-and-model list (share/list.lua), in
+the editor: every file is checked against its hash, stored once
+(assets/dedup.lua), and kept as one of the player's own asset packs.
 
     local profile = require("share.profile")
-    local P, problems = profile.apply(l, { data = folder, bundle = dir, name = "game-1" })
-    P:attach(L)              -- the loader serves the list's files first
-    P.types                  -- { hfoo = "units/knight/knight.mdx" }: a unit type's model
-    P:revert(L)              -- after the game: as it was
-    P:keep("Ana's models", L) -- or: an asset pack of the player's own
+    local problems = profile.verify(l, store, bundle)   -- {} when every file is there and right
+    local pack, problems = profile.keep(l, { data = folder, bundle = dir, name = "Ana's models" })
+    -- pack: <data>/asset-packs/Ana's models, a pack like any other
 
     local trust = profile.trust(folder)
     trust:decide("Ana", l)   -- "apply" (always from Ana, or always for this map) or "ask"
     trust:always_from("Ana", true)   trust:always_for_map(l.map.hash, true)
 
-Nothing is applied when any file is missing or doesn't match its hash:
-the list is refused whole, and each problem is named.
+Nothing is kept when any file is missing or doesn't match its hash: the
+list is refused whole, and each problem is named.
+
+Using a list for one game (a layer in front of the player's packs, taken
+off afterwards) is the W client's, its issue 1110, since the
+editor-and-client split of 2026-11-04; it was worked out here first (see
+issue 609, "After the editor-and-client split").
 ]]
 
 local dedup = require("assets.dedup")
@@ -59,9 +60,6 @@ local function write_file(path, text)
 end
 -- }}}
 
-local P = {}
-P.__index = P
-
 -- {{{ function profile.verify
 -- Every file L needs, checked: in the store already, or in BUNDLE named by
 -- its hash's hex and holding exactly those bytes. Gives the list of
@@ -85,75 +83,43 @@ function profile.verify(l, store, bundle)
 end
 -- }}}
 
--- {{{ function profile.apply
+-- {{{ function profile.keep
 -- opts: data (the player data folder), store (default its blobs/), bundle
--- (the folder the sent files arrived in), name (this game's profile).
--- Gives the profile; or nil and the problems (nothing is applied then).
-function profile.apply(l, opts)
+-- (the folder the sent files arrived in; nil when the store has them
+-- all), name (the asset pack to make). Every file is checked first; then
+-- each is stored once and linked into <data>/asset-packs/<name>/ under
+-- its path. Gives the pack's folder; or nil and the problems (nothing is
+-- stored or kept then).
+function profile.keep(l, opts)
     list.check(l)
     check_name(opts.name)
     local data = opts.data
     local store = opts.store or dedup.open(data .. "/blobs")
     local problems = profile.verify(l, store, opts.bundle)
     if #problems > 0 then return nil, problems end
-    local dir = data .. "/profiles/" .. opts.name
-    if exists(dir) then error("profile: " .. opts.name .. " is already applied", 2) end
+    local pack = data .. "/asset-packs/" .. opts.name
+    if exists(pack) then error("profile: there is already an asset pack named " .. opts.name, 2) end
     for _, e in ipairs(l.entries) do
         if not store:exists(e.hash) then
             local hash = store:store_file(opts.bundle .. "/" .. e.hash:sub(#list.PREFIX + 1))
             assert(hash == e.hash, "profile: a sent file changed while it was stored")
         end
     end
-    local self = setmetatable({ name = opts.name, dir = dir, data = data, store = store, list = l,
-                                types = {}, files = {} }, P)
+    local linked = {}
     for _, e in ipairs(l.entries) do
         local path = list.key_of(e.path or e.key)
-        if e.path then self.types[e.key] = path end
-        if not self.files[path] then
-            store:link(e.hash, dir .. "/" .. path)
-            self.files[path] = e.hash
+        if not linked[path] then
+            store:link(e.hash, pack .. "/" .. path)
+            linked[path] = true
         end
     end
-    write_file(data .. "/profiles/" .. opts.name .. ".list.lua", list.encode(l))
-    return self
-end
--- }}}
-
--- {{{ function P:attach / P:revert / P:keep
-function P:attach(L)
-    return L:push_layer("share:" .. self.name, self.dir)
-end
-
-local function remove(self, L)
-    if L then L:pop_layer("share:" .. self.name) end
-    for path in pairs(self.files) do self.store:release(self.dir .. "/" .. path) end
-    -- the folder holds only the links released above, and their folders
-    assert(self.dir:find("/profiles/", 1, true))
-    os.execute("rm -rf " .. sh(self.dir))
-    os.remove(self.data .. "/profiles/" .. self.name .. ".list.lua")
-    self.files = {}
-end
-
--- Takes the list off (L: the loader it was attached to) and removes the
--- profile; the stored files go at the next gc unless something else uses
--- them.
-function P:revert(L)
-    remove(self, L)
-end
-
--- Makes the list an asset pack of the player's own, named NAME, and takes
--- the profile off. Gives the pack's folder.
-function P:keep(name, L)
-    check_name(name)
-    local pack = self.data .. "/asset-packs/" .. name
-    if exists(pack) then error("profile: there is already an asset pack named " .. name, 2) end
-    for path, hash in pairs(self.files) do self.store:link(hash, pack .. "/" .. path) end
-    remove(self, L)
     return pack
 end
 -- }}}
 
 -- {{{ trust: "always from this player", "always for this map"
+-- The remembered answers to the one question asked when a map and its
+-- list are given to keep ("check out my map").
 local T = {}
 T.__index = T
 
@@ -173,7 +139,7 @@ end
 
 function T:save()
     os.execute("mkdir -p " .. sh(self.path:match("^(.*)/[^/]*$")))
-    write_file(self.path, "-- Shared lists applied without asking (issue 609)\n"
+    write_file(self.path, "-- Shared lists kept without asking (issue 609)\n"
         .. list.serialize({ players = self.players, maps = self.maps }))
 end
 
@@ -188,7 +154,8 @@ function T:always_for_map(hash, on)
 end
 
 -- "apply" when the player said always for this sender or this map; "ask"
--- otherwise (the one prompt: use SENDER's models for this game?).
+-- otherwise (the one question, asked when a map and its list are given
+-- to keep: keep SENDER's models for this map?).
 function T:decide(sender, l)
     if self.players[sender] or self.maps[l.map.hash] then return "apply" end
     return "ask"

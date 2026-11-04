@@ -38,12 +38,6 @@ scale_for, so gpu.lua and ground.lua draw the player's packs first.
     local L = loader.new({ assets = A })     -- A: assets.open(map)
     gpu.new(render, L)   ground.apply(render, L, scene)   L:model_for("unit", "hfoo", nil, od)
 
-A layer for one game, above every pack (a shared map-and-model list,
-share/profile.lua, issue 609), and taken off again after:
-
-    L:push_layer("game-2026-11-02", dir)   -- its files come first; source "layer:NAME"
-    L:pop_layer("game-2026-11-02")         -- gone; what it served is read again from the packs
-
 Paths match without regard to case or slash direction, as the game's do:
 "Textures\Footman.blp" finds a pack's textures/footman.blp.
 
@@ -179,7 +173,7 @@ function L:read(path)
         local real = pack.index[key]
         if real then
             local data = read_file(real)
-            if data then return data, pack.source or ("pack:" .. pack.name) end
+            if data then return data, "pack:" .. pack.name end
         end
     end
     if self.assets then
@@ -390,42 +384,6 @@ end
 
 function L:scale_for(kind, id, object_data)
     return borrowed(self, "scale_for")(self, kind, id, object_data)
-end
--- }}}
-
--- {{{ function L:push_layer / L:pop_layer
--- A folder whose files come before every pack's, until it is popped (a
--- shared list applied for one game). What it holds that was loaded or
--- missed is read again on the next get. Returns how many files it has.
-function L:push_layer(name, dir)
-    if type(name) ~= "string" or name == "" then error("loader: a layer needs a name", 2) end
-    for _, pack in ipairs(self.packs) do
-        if pack.layer and pack.name == name then error("loader: a layer named " .. name .. " is already on", 2) end
-    end
-    local index, count = index_pack(dir)
-    table.insert(self.packs, 1, { name = name, dir = dir, index = index, files = count,
-                                  layer = true, source = "layer:" .. name })
-    for key in pairs(index) do
-        self.cache:remove(key)
-        self.missing[key], self.failed[key] = nil, nil
-    end
-    return count
-end
-
--- Takes the layer off; everything it served is read again from the packs,
--- the map or the install on the next get. True when it was on.
-function L:pop_layer(name)
-    for i, pack in ipairs(self.packs) do
-        if pack.layer and pack.name == name then
-            table.remove(self.packs, i)
-            for key in pairs(pack.index) do
-                self.cache:remove(key)
-                self.missing[key], self.failed[key] = nil, nil
-            end
-            return true
-        end
-    end
-    return false
 end
 -- }}}
 

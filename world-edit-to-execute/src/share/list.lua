@@ -3,8 +3,9 @@ Shared Map-and-Model List: the File (Issue 609)
 
 A player who wants a playmate to see their models for a map publishes a
 list: the map (its hash and name), and for each asset they replaced, its
-key, hash, size and where else it can be had. The receiver applies it for
-one game (share/profile.lua) only if they choose to.
+key, hash, size and where else it can be had. The receiver keeps it as
+one of their asset packs (share/profile.lua) only if they choose to; the
+W client uses one for a single game (its issue 1110).
 
     local list = require("share.list")
     local l = list.build({ map = "maps/x.w3x", map_name = "Castle Fight",
