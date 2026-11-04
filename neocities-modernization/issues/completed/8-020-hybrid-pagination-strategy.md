@@ -1,0 +1,293 @@
+# Issue 8-020: Hybrid Pagination Strategy
+
+## Critical Constraints
+
+1. **Storage limit**: 45 GB maximum
+2. **Design requirement**: Full chronological.html must contain ALL 7,793 poems
+3. **Practical requirement**: Similar/different pages can be paginated with storage-based limits
+
+### The Resolution
+
+| Component | Approach | Rationale |
+|-----------|----------|-----------|
+| chronological.html | **Full corpus** (~12 MB) | Preserves archive integrity |
+| similar/XXX-NN.html | **Paginated** (N pages) | Storage-constrained, top-N most useful |
+| different/XXX-NN.html | **Paginated** (N pages) | Storage-constrained, top-N most useful |
+| maze/XXX.html | **Single page** (~4 KB) | Reserved budget for Phase 11 |
+
+---
+
+## Background
+
+Issue 8-012 implemented a pagination system for all pages. This issue refines that approach based on:
+
+1. **45 GB storage constraint** - Cannot fit full corpus on every page
+2. **Design philosophy** - The chronological view represents the complete archive
+3. **UX reality** - For similarity/diversity, top-N is actually more useful than full corpus
+4. **Future planning** - Must reserve space for Phase 11 maze generation
+
+## Current Behavior
+
+**Built and checked (2026-10-25).** Similar and different pages are written
+up to a per-poem page ceiling worked out each build from the storage limit
+(config.lua `storage.limit_gb`, 45 GB, less the reserves) and the measured
+size of the last build's pages (the log line "storage ceiling: 263 pages,
+45GB"); `--pages all` stops there (`src/ranked-page.test.lua`: '"all" stops
+at the storage cap'), and the pages link only to pages actually written
+(10-036). The chronological view took a different road from the one below:
+it is paginated (`chronological/01.html` ... by `--chrono-per-page`), and the
+whole archive in one file is `chronological.txt`; every poem is on a
+chronological page (`scripts/validate-poem-representation`, run in every
+build: 8,667 of 8,667 on the 2026-10-23 build). The text below is the state
+of 2026-09-22, kept for the record.
+
+Similar / different pages are paginated, but on 2026-09-22 a known defect in
+the page set was found: the single-threaded page builder writes "Next Page ▶"
+and "Last Page" links based on how many pages a poem's list *could* fill, while
+only the requested pages (by default page 1) are actually written. So page 1
+links to a page 02 that does not exist, and the reader gets page-not-found. The
+threaded worker also treats `--pages all` as one page. The fix (navigation
+computed from the pages actually written) is tracked in 10-036, which is where
+the owner's report was sorted; whichever page limit this issue settles on must
+reach the navigation builder as the list of written pages.
+
+## Intended Behavior
+
+### Chronological Index (FULL)
+```
+chronological.html   → All 7,793 poems in chronological order (~12 MB)
+```
+
+This is the master archive. It must remain complete and unpaginated.
+
+### Similar/Different Pages (PAGINATED)
+```
+similar/0001-01.html  → Poems 1-100 most similar to poem 1
+similar/0001-02.html  → Poems 101-200 most similar to poem 1
+...
+similar/0001-NN.html  → Last generated page (storage-constrained)
+
+different/0001-01.html → Poems 1-100 most different from poem 1
+...
+```
+
+Where NN is calculated based on storage budget.
+
+---
+
+## Storage Budget Calculation
+
+### Fixed Costs
+| Component | Size | Notes |
+|-----------|------|-------|
+| chronological.html | ~12 MB | Full corpus (non-negotiable) |
+| Images | ~639 MB | 532 files in media_attachments |
+| Index pages | ~25 MB | Navigation pages |
+| Centroid pages | ~11 MB | 5 moods × 2 directions |
+| TXT exports | ~2 GB | Full text archives |
+| **Maze pages (reserved)** | ~31 MB | 7,793 × 4KB (Phase 11) |
+| **Headroom** | ~5 GB | Future expansion, safety margin |
+| **Subtotal Fixed** | **~7.7 GB** | |
+
+### Budget for Paginated Pages
+```
+Available: 45 GB - 7.7 GB = ~37.3 GB
+```
+
+### Pages Per Poem Calculation
+```
+Poem indexes: 15,586 (7,793 similar + 7,793 different)
+Page size: ~134 KB (100 poems per page)
+Pages available: 37.3 GB ÷ (15,586 × 134 KB) = ~17.9 pages
+
+Recommended: 15 pages per poem (safety margin)
+            = 1,500 poems shown per direction
+            = Top 19% of corpus by similarity/diversity
+```
+
+### Final Budget
+| Component | Files | Size | Notes |
+|-----------|-------|------|-------|
+| Similar pages | 116,895 | ~15.3 GB | 7,793 poems × 15 pages |
+| Different pages | 116,895 | ~15.3 GB | 7,793 poems × 15 pages |
+| Chronological | 1 | ~12 MB | Full corpus |
+| Other fixed | - | ~7.7 GB | See above |
+| **Total** | **~234K** | **~38.3 GB** | Under 45 GB limit |
+
+---
+
+## Configuration Changes
+
+Update `config/input-sources.json`:
+
+```json
+{
+    "pagination": {
+        "poems_per_page": 100,
+        "max_pages_per_poem": 15,
+        "page_number_padding": 2,
+        "generate_txt_exports": true,
+        "generate_html_archives": false,
+        "chronological_paginated": false
+    },
+    "storage": {
+        "limit_gb": 45,
+        "reserved_for_maze_gb": 0.031,
+        "reserved_headroom_gb": 5
+    }
+}
+```
+
+Key settings:
+- `max_pages_per_poem`: Limits pages generated (storage constraint)
+- `chronological_paginated`: **false** - chronological stays full
+- `generate_html_archives`: **false** - don't duplicate full corpus
+
+---
+
+## Implementation Changes to 8-012
+
+Issue 8-012's pagination implementation remains valid, with these modifications:
+
+1. **Add `max_pages_per_poem` config** - Caps page generation
+2. **Skip chronological pagination** - Keep single full file
+3. **Add storage-based calculation** - Auto-calculate max pages from budget
+4. **Update navigation** - Show "Page X of Y (showing top Z poems)"
+
+### Navigation Update
+```
+╔════════════════════════════════════════════════════════════════════════════════╗
+║ Similar to Poem 68                                                             ║
+║ Page 5 of 15 │ Showing poems 401-500 of top 1,500                              ║
+╠════════════════════════════════════════════════════════════════════════════════╣
+║ [◀ Previous Page]                                           [Next Page ▶]     ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+```
+
+Last page shows:
+```
+║ Page 15 of 15 │ Showing poems 1401-1500 of top 1,500                           ║
+║ (Remaining 6,293 poems omitted for storage constraints)                        ║
+```
+
+---
+
+## Suggested Implementation Steps
+
+### Step 1: Update Configuration
+- [x] Document hybrid approach (this issue)
+- [x] Add `max_pages_per_poem` to config/input-sources.json
+- [x] Add `chronological_paginated: false` setting
+- [x] Add `storage` section with budget info
+
+### Step 2: Modify flat-html-generator.lua
+- [x] Respect `max_pages_per_poem` limit in `generate_all_paginated_pages_for_poem()`
+- [x] Skip chronological pagination when `chronological_paginated: false` (already default)
+- [x] Update page navigation to show storage context on last page
+
+### Step 3: Update generate-html-parallel
+- [ ] Add page limit logic (future: when switching to paginated output)
+- [ ] Progress reporting shows "Page X of max Y"
+
+### Step 4: Preserve Full Chronological
+- [x] Ensure chronological.html generates as single file (verified: already default)
+- [ ] Verify it contains all 7,793 poems (pending full generation)
+
+### Step 5: Update Related Issues
+- [x] Update 8-012 to reference this issue's constraints
+- [x] Update 8-016 validation scope (validate up to max_pages only)
+
+---
+
+## Rationale for Hybrid Approach
+
+### Why Full Chronological?
+The chronological index is the **canonical archive**. Every poem must be accessible from one continuous scroll. This preserves the "massive page with everything" vision.
+
+### Why Paginated Similar/Different?
+1. **Storage constraints** - Can't fit 95 GB in 45 GB
+2. **UX reality** - Nobody scrolls past the first few hundred similar poems
+3. **Practical utility** - Top 1,500 covers 99% of discovery use cases
+4. **Future features** - Reserves space for maze exploration (Phase 11)
+
+### Why Not Truncation?
+Truncation would mean similar/0068.html only shows 500 poems, period. Pagination means:
+- Pages 1-15 exist and can be browsed
+- Users see "Page 15 of 15 (top 1,500 poems)"
+- Clear messaging about storage constraints
+- Can expand later with more storage
+
+---
+
+## Decision Log
+
+**2025-12-25**: Initial issue created proposing removal of pagination.
+
+**2025-12-25 (Update 1)**: Discovered 45GB storage constraint. Proposed truncation to top 500.
+
+**2025-12-25 (Update 2)**: User clarified "showing all poems is a design constraint." Conflict identified.
+
+**2025-12-25 (Update 3)**: Hybrid approach agreed:
+- Full chronological.html (preserves design constraint for archive)
+- Paginated similar/different (practical storage constraint)
+- Reserved budget for Phase 11 maze features
+
+**2025-12-25 (Implementation)**: Core implementation completed:
+- Updated `config/input-sources.json` with new settings
+- Updated `src/flat-html-generator.lua`:
+  - Added `STORAGE_CONFIG` for budget tracking
+  - Updated `load_pagination_config()` to load storage settings
+  - Modified `generate_prev_next_navigation()` to show storage context on last page
+  - Modified `generate_all_paginated_pages_for_poem()` to respect `max_pages_per_poem` limit
+  - Modified `generate_paginated_poem_page_html()` to pass corpus size for context
+  - Added `M.get_storage_config()` for external access
+- Test verified: Config loads correctly with 15 max pages, 45GB limit
+
+---
+
+## Affected Files
+
+- `config/input-sources.json` - Add new settings
+- `src/flat-html-generator.lua` - Respect max_pages, skip chrono pagination
+- `scripts/generate-html-parallel` - Page limit logic
+- `issues/8-012-*.md` - Reference this issue
+- `issues/8-016-*.md` - Update validation scope
+- `issues/8-progress.md` - Document decision
+
+## Related Issues
+
+- **8-012**: Pagination implementation (modified by this issue)
+- **8-016**: Pagination validation (scope reduced)
+- **8-001**: Pipeline integration
+- **8-002**: Multi-threaded generation
+- **11-002c**: Maze HTML generation (reserved storage)
+
+---
+
+**Phase**: 8 (Website Completion)
+
+**Priority**: High (design decision affects all generation)
+
+**Created**: 2025-12-25
+
+**Status**: Completed (2026-10-25)
+
+### 2026-01-28: Implementation Status Verified
+
+**Implementation confirmed complete:**
+- `PAGINATION_CONFIG.max_pages_per_poem = 15` (storage constraint)
+- `PAGINATION_CONFIG.chronological_paginated = false` (full archive)
+- `STORAGE_CONFIG.limit_gb = 45` (Neocities limit)
+
+**Current output state:**
+- 7,844 similar pages (one per poem)
+- 7,843 different pages (one per poem)
+- 8 chronological pages + index redirect (~500 poems each)
+- Total: ~11 GB
+
+**Validated (2026-10-25):**
+- Regenerate HTML after boost formatting (8-057) implementation -- every build since
+- Verify all poems have anchors in chronological pages -- 8,667 of 8,667 (`scripts/validate-poem-representation`)
+- Verify max_pages_per_poem limit is respected when generating all pages -- `src/ranked-page.test.lua`
+
+**Modifies**: 8-012

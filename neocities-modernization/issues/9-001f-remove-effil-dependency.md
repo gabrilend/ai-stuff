@@ -20,8 +20,15 @@ from the entire SIMILARITY path:
 STILL USING effil (the remaining work, all HTML-generation threading -- this issue's
 Step 3):
 - `src/flat-html-generator.lua` - the parallel HTML orchestrator (effil workers).
-- `scripts/generate-html-parallel` - the standalone parallel HTML script.
 - `run.sh` - the effil `package.cpath` setup for the above.
+
+Removed 2026-10-04: `scripts/generate-html-parallel` (the stand-alone effil HTML
+script; only `src/main.lua`'s own menu and the phase-demo picker called it, and
+it read a model folder that no longer exists) and the sub-issue 9-001f1's
+`scripts/generate-html-pthreads` with its C library (never called). 9-001f1 is
+superseded. Note for whoever picks this up: since Issue 10-034's coordinator
+design, effil is no longer slow here, so the remaining reason to remove it is
+one dependency fewer, not speed.
 
 So `grep -r effil src/ scripts/` still returns results; the QA criterion is not yet met.
 
@@ -43,7 +50,7 @@ So `grep -r effil src/ scripts/` still returns results; the QA criterion is not 
 |------|-------|------------|
 | `src/flat-html-generator.lua` | 41-48, 3153-4203 | Parallel HTML generation |
 | `src/similarity-engine-parallel.lua` | 24-57, 165-681 | Parallel validation/processing |
-| `scripts/generate-html-parallel` | 64-1614 | Full parallel HTML script |
+| `scripts/generate-html-parallel` | 64-1614 | Full parallel HTML script (removed 2026-10-04) |
 | `run.sh` | 970 | cpath setup |
 
 **Documentation/Install Files (keep for reference):**
@@ -60,7 +67,7 @@ So `grep -r effil src/ scripts/` still returns results; the QA criterion is not 
 ### Step 3: Replace HTML Generation Threading
 - [ ] Convert to process-based parallelism (fork + merge)
 - [ ] Or single-threaded with progress (HTML gen is I/O-bound, not compute-bound)
-- [ ] Update `scripts/generate-html-parallel`
+- [x] ~~Update `scripts/generate-html-parallel`~~ -- removed instead (2026-10-04)
 
 ### Step 4: Remove effil References
 - [ ] Remove `package.cpath` additions for effil
@@ -76,7 +83,7 @@ So `grep -r effil src/ scripts/` still returns results; the QA criterion is not 
 
 | File | Current Usage | Replacement |
 |------|---------------|-------------|
-| `scripts/generate-html-parallel` | effil.thread for page generation | Process-based or single-threaded |
+| `src/flat-html-generator.lua` | effil workers under one coordinator (10-034) | Process-based or single-threaded |
 | `scripts/precompute-diversity-sequences` | effil.thread + effil.table | Vulkan compute |
 
 ## Quality Assurance Criteria

@@ -148,6 +148,15 @@ void vkc_progress_update_ex(const char* label, uint64_t current, uint64_t total,
                             const char* suffix);
 void vkc_progress_finish(void);
 int  vkc_progress_mode(void);
+/* A line to the terminal and to the run's log (Issue 10-075): printed like
+ * printf (to stdout, or to stderr when to_stderr is nonzero), then appended,
+ * stamped with the time, to the file named in NEOCITIES_RUN_LOG when run.sh
+ * set it. The progress bar does not use it: its redraws stay terminal-only.
+ * A log that cannot be written stops the program (a log that silently stops
+ * is worse than none). */
+void vkc_say(int to_stderr, const char* fmt, ...);
+#define VKC_SAY(...)     vkc_say(0, __VA_ARGS__)
+#define VKC_SAY_ERR(...) vkc_say(1, __VA_ARGS__)
 /* }}} */
 
 #ifdef __cplusplus

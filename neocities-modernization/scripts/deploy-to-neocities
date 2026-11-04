@@ -16,7 +16,7 @@
 -- build and the real key.
 --
 -- Usage:
---   scripts/deploy-to-neocities [DIR] [--dry-run] [--yes] [--prune] [--only PREFIX]
+--   scripts/deploy-to-neocities [--dir PATH] [--dry-run] [--yes] [--prune] [--only PREFIX]
 --     --dry-run     list + diff only; change nothing
 --     --yes         skip the confirmation prompts
 --     --prune       after uploading, DELETE remote files under similar-different/
@@ -30,19 +30,32 @@
 --                   similar-different/gallery) -- for testing on a small slice
 -- }}}
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- script before it touches the network (libs/project-dir.lua, Issue 10-076).
+-- It used to be any bare word.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--only"] = true })
 local dry_run, assume_yes, only_prefix, prune = false, false, nil, false
 
 -- {{{ parse args
 do
     local i = 1
-    while i <= #arg do
-        local a = arg[i]
+    while i <= #OWN_ARGS do
+        local a = OWN_ARGS[i]
         if a == "--dry-run" then dry_run = true
         elseif a == "--yes" then assume_yes = true
         elseif a == "--prune" then prune = true
-        elseif a == "--only" then only_prefix = arg[i + 1]; i = i + 1
-        elseif a ~= "" and a:sub(1, 2) ~= "--" then DIR = a end
+        elseif a == "--only" then only_prefix = OWN_ARGS[i + 1]; i = i + 1
+        else
+            -- an option this script does not know stops it before it touches
+            -- the network (an unknown option used to be skipped, and the
+            -- deploy went ahead without it)
+            io.stderr:write("deploy-to-neocities: unknown option " .. a .. " (see --help)\n")
+            os.exit(2)
+        end
         i = i + 1
     end
 end
@@ -51,6 +64,20 @@ local dkjson = require("dkjson")
 local api = require("neocities-api")
 local sync = require("neocities-sync")
 local socket = require("socket")           -- for socket.sleep (politeness/backoff)
+-- {{{ local function pacing()
+-- The request pacing for one kind of call, from config.lua deploy (Issue
+-- 10-071); a missing number is an error naming it.
+local function pacing(kind)
+    local deploy = require("config-loader").load().deploy or error("config.lua has no deploy section")
+    local p = deploy[kind] or error("config.lua deploy." .. kind .. " is missing")
+    local out = {}
+    for _, name in ipairs({ "budget", "max_count", "floor", "grow", "grow_after", "max_budget", "max_retries" }) do
+        out[name] = p[name] or error("config.lua deploy." .. kind .. "." .. name .. " is missing")
+    end
+    out.base_delay = p.pause_seconds or error("config.lua deploy." .. kind .. ".pause_seconds is missing")
+    return out
+end
+-- }}}
 local REMOTE_DIR = "similar-different"
 -- }}}
 
@@ -72,8 +99,34 @@ end
 -- stale pages, not just missing ones). bytes/cost are the same value (diff_upload
 -- sorts by .bytes; the adaptive loop batches by .cost).
 local function local_files()
+    -- output/ itself is a link into RAM (Issue 10-072, scripts/ensure-site-in-ram),
+    -- and RAM is emptied at logout. A missing site must stop the deploy: an
+    -- empty listing diffed against the live site reads as "every live file is
+    -- stale", and --prune would then delete the whole live site.
+    local site_probe = io.open(DIR .. "/output/.", "r")
+    if not site_probe then
+        error("there is no built site at " .. DIR .. "/output (it lives in RAM, "
+            .. "which is emptied at logout); rebuild before deploying")
+    end
+    site_probe:close()
+
+    -- Links inside the site are followed too (find -L): the pictures folder
+    -- links back to disk, and without following, its files were skipped and
+    -- --prune would have DELETED them live. A link whose target is gone is
+    -- refused here, because skipping it would do the same damage. The trailing
+    -- "/" makes find go through output/ even though output/ is itself a link.
+    local dead = io.popen(string.format("find %q/output/ -xtype l", DIR))
+    local dead_links = {}
+    for line in dead:lines() do dead_links[#dead_links + 1] = line end
+    dead:close()
+    if #dead_links > 0 then
+        error("these files in output/ are links to something that no longer exists "
+            .. "(RAM is emptied at logout; rebuild before deploying):\n  "
+            .. table.concat(dead_links, "\n  "))
+    end
+
     local size_of = {}
-    local h = io.popen(string.format("find %q/output -type f -printf '%%s\\t%%P\\n' 2>/dev/null", DIR))
+    local h = io.popen(string.format("find -L %q/output -type f -printf '%%s\\t%%P\\n' 2>/dev/null", DIR))
     for line in h:lines() do
         local s, rel = line:match("^(%d+)\t(.+)$")
         if rel then size_of[rel] = tonumber(s) end
@@ -83,7 +136,7 @@ local function local_files()
     local items = {}
     -- one xargs sha1sum pass over relative paths (reads the build once to hash it)
     local g = io.popen(string.format(
-        "cd %q/output && find . -type f -print0 | xargs -0 sha1sum 2>/dev/null", DIR))
+        "cd %q/output && find -L . -type f -print0 | xargs -0 sha1sum 2>/dev/null", DIR))
     for line in g:lines() do
         local sha, rel = line:match("^(%x+)%s+%./(.+)$")
         if rel and not rel:match("^debug%-logs/") and rel ~= "diversity-cache-gpu-batch.bin" then
@@ -96,6 +149,11 @@ local function local_files()
         end
     end
     g:close()
+    -- A site folder that exists but holds nothing (a build that never wrote,
+    -- or a fresh RAM folder) is the same danger as a missing one.
+    if #items == 0 then
+        error("the built site at " .. DIR .. "/output holds no files; rebuild before deploying")
+    end
     return items
 end
 -- }}}
@@ -132,8 +190,10 @@ end
 -- }}}
 
 io.write("Hashing the local build and listing the live site ...\n")
-local remote = remote_sha()
+-- The local build first: if it is missing or empty (RAM emptied at logout),
+-- local_files() stops the run before anything is asked of the live site.
 local locals = local_files()
+local remote = remote_sha()
 
 -- content diff (upload set): files absent OR whose sha1 differs from the live copy.
 local need = sync.diff_upload(locals, remote)
@@ -187,7 +247,8 @@ if #todo > 0 then
     math.randomseed(os.time())
     for k = #todo, 2, -1 do local j = math.random(k); todo[k], todo[j] = todo[j], todo[k] end
 
-    local opts = { budget = 8 * 1024 * 1024, max_count = 60, base_delay = 0.2, sleep = socket.sleep }
+    local opts = pacing("uploads")
+    opts.sleep = socket.sleep
     local use_bars = (require("progress-display").mode() == 1)   -- animated only on a TTY
 
     if use_bars then
@@ -296,14 +357,14 @@ if prune then
         end
         local del_items = {}
         for _, p in ipairs(stale) do del_items[#del_items + 1] = { path = p, cost = 1 } end
+        local del_opts = pacing("deletions")                 -- count-based; deletes per request
+        del_opts.sleep = socket.sleep
+        del_opts.log = function(m) io.write("  [adapt] " .. m .. "\n") end
         local dstats, derr = sync.run_adaptive(del_items, function(batch)
             local paths = {}
             for _, it in ipairs(batch) do paths[#paths + 1] = it.path end
             return api.delete_batch(paths)
-        end, {
-            budget = 50, max_count = 50, base_delay = 0.2,   -- count-based; deletes per request
-            sleep = socket.sleep, log = function(m) io.write("  [adapt] " .. m .. "\n") end,
-        })
+        end, del_opts)
         io.write("\n")
         if not dstats then
             io.write("PRUNE STOPPED: " .. tostring(derr) .. "\nRe-run --prune to continue (already-deleted files are gone).\n")

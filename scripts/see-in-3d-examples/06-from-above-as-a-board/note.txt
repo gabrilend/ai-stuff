@@ -1,0 +1,6 @@
+title: A view from straight above, read as a flat board
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/06-from-above-as-a-board/picture.png
+stage: 8
+group: One picture from above, read two ways
+---
+The top view matches the picture closely: four dark quarters, a metal centre, capsules in rings. The front and right views show a sheet of paper with sprinkles on it. The square corners of the board are an invention: the picture's corners are black, and its world is round.

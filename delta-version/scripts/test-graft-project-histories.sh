@@ -100,6 +100,11 @@ unit_tests() {
       local back2 = q.rewrite(out2 .. " sha abababab", { before = after, lookup = function(n) return rev[n] or n end,
          out_len = function(t) return st2.restore_len[t] or #t end })
       check("reverse restores lengthened and 8-digit ids", back2 == "at eeeeeee ok sha 87654321")
+      -- A commit added twice (a file of old ids, then rev-list) is one
+      -- commit, not two: it once made every prefix read as ambiguous.
+      local twice = q.new_universe()
+      q.universe_add(twice, A); q.universe_add(twice, A)
+      check("an id added twice is one match", #q.matches(twice, "aaaaaaa1") == 1)
       check("sound map has no problems", #q.map_problems({ [A] = A2, [C] = C }) == 0)
       check("shared twin detected", #q.map_problems({ [A] = A2, [B] = A2 }) == 1)
       check("short id in map detected", #q.map_problems({ [A] = "abc" }) == 1)

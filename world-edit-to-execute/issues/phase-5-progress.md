@@ -90,6 +90,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 513 | [Threading Architecture Demo](./completed/513-threading-architecture-demo.md) | completed | 512f |
 | 514 | [3D Rotation Frames](./514-3d-rotation-frames.md) | open | 409, 508 |
 | 515 | [The Render Graph on the Ceramic Engine](./515-render-graph-on-the-ceramic-engine.md) | open | 508, 512 |
+| 515 | [Threaded Demo Crashes on Its First Frame](./completed/515-threaded-demo-crashes-on-first-frame.md) | completed | 513 |
 | 515a | [Copy-Cost Benchmark](./completed/515a-copy-cost-benchmark.md) | completed | — |
 | 515b | [Ceramic Host Loop](./completed/515b-ceramic-host-loop.md) | completed | 515a, 515g |
 | 515c | [Mailbox Triple Buffer](./completed/515c-mailbox-triple-buffer.md) | completed | 515b |
@@ -102,7 +103,35 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 515j | [Stronger Hand-Written Opponents](./completed/515j-stronger-hand-written-opponents.md) | completed | 515h, 515i |
 | 515k | [A Crowd on Every Design](./515k-a-crowd-on-every-design.md) | open | 405f, 515h, 515j |
 | 516 | [Draw WC3 Models in the Engine](./516-draw-wc3-models-in-engine.md) | open | 116, 117, 503b |
+| 516 | [Geometry Painting and WC3-Style Behaviours (the Fort)](./completed/516-geometry-painting-and-wc3-behaviours.md) | completed | 508c, 508d, 404 |
+| 516d | [Measure WC3 Movement and Camera Numbers on a Real Install](./516d-measure-wc3-movement-and-camera.md) | open | 516 |
+| 517 | [WC3 Maps Drawn With Geometry Designs](./completed/517-wc3-maps-drawn-with-geometry-designs.md) | completed | 516, 103, 110, 206 |
+| 518 | [The WC3 Interface](./completed/518-wc3-interface.md) | completed | 517, 516c |
+| 519 | [Units That Find Their Way and Fight](./completed/519-pathing-and-combat.md) | completed | 518, 517a, B01 |
+| 520 | [A Map's Own Script Runs](./completed/520-map-scripts-run.md) | completed | 309, 518, 519 |
+| 521 | [Computer Players, the AI Editor's Way](./completed/521-computer-players.md) | completed | 519, 520 |
+| 522 | [WC3's Art, Decoded and Drawn](./completed/522-art-decoders-and-model-renderer.md) | completed | 517, 518, 112b |
+| 523 | [Models Play Their Own Animations](./completed/523-models-play-their-animations.md) | completed | 522, 519 |
+| 524 | [Fog of War](./completed/524-fog-of-war.md) | completed | 519, 520, 502d |
+| 525 | [Units' Real Stats, From the Stock Tables](./completed/525-real-unit-stats.md) | completed | 519, 112c, 112b |
+| 526 | [Ground Textures](./completed/526-ground-textures.md) | completed | 517b, 522, 502a |
+| 527 | [Economy and Player State](./completed/527-economy-and-player-state.md) | completed | 521a, 520, 525 |
+| 528 | [Heroes](./completed/528-heroes.md) | completed | 527, 521a, 520 |
+| 529 | [Abilities and Buffs](./completed/529-abilities-and-buffs.md) | completed | 527, 528, 520 |
+| 530 | [Spell Art, Effects and Targeting](./completed/530-spell-art-and-targeting.md) | completed | 529, 522, 523 |
+| 531 | [Construction](./completed/531-construction.md) | completed | 527, 528, 521a, 523 |
+| 532 | [Items and Inventories](./completed/532-items-and-inventories.md) | completed | 529, 528, 527 |
+| 533 | [Taverns and Shops](./completed/533-taverns-and-shops.md) | completed | 532, 528, 527 |
+| 534 | [Wisps and Picking Up Items](./completed/534-wisps-and-item-pickup.md) | completed | 531, 532 |
+| 535 | [Repair, Helping a Building Up, and Building Upgrades](./completed/535-repair-helping-and-upgrades.md) | completed | 531, 527 |
+| 536 | [Building Footprints](./completed/536-building-footprints.md) | completed | 531 |
+| 537 | [Item Drops and Moving Items](./completed/537-item-drops-and-moving-items.md) | completed | 532 |
+| 538 | [Attachment Points That Follow the Animation, and Lightning](./completed/538-animated-attachments-and-lightning.md) | completed | 523, 530 |
+| 539 | [Choosing Which Unit Buys at a Shop](./completed/539-choosing-the-buyer.md) | completed | 533 |
+| 540 | [Computer Players Build, Buy and Cast](./completed/540-computer-players-build-buy-and-cast.md) | completed | 521, 531, 535, 533, 539, 528, 529, 532 |
+| 541 | [Buildings Block Movement](./completed/541-buildings-block-movement.md) | completed | 519a, 536 |
+| 542 | [Research](./completed/542-research.md) | completed | 521a, 524, 535 |
 
-Completed 32, open 40, retired 15, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 60, open 41, retired 15, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

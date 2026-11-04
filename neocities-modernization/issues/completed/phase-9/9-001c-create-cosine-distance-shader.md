@@ -88,6 +88,10 @@ void main() {
 
 - 9-001b (Vulkan wrapper)
 
+## Blocks
+
+- 9-001d, 9-002, 9-002b, 9-004
+
 ## Implementation Summary
 
 Cosine distance shader implemented in `shaders/cosine_distance.comp` (75 lines).

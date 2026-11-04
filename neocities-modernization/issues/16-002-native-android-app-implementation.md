@@ -320,3 +320,4 @@ The native app's primary role is HTTPS serving. Torrent seeding can be added lat
 - **Phase**: 16 (Network Media)
 - **Estimated Complexity**: High
 - **Dependencies**: NanoHTTPD, Android SDK 26+
+- **Blocks**: 16-003

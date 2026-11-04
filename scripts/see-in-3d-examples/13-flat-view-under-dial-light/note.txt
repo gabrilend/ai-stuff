@@ -1,0 +1,5 @@
+title: The flat view under dial light, with a pit at the centre
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/13-flat-view-under-dial-light/picture.png
+stage: 25
+---
+The black pit at the centre is missing from every view. It was drawn as a dark tube sunk below the field, and the field's top covers it exactly; the paintbrush has no way to cut a hole, so a pit cannot be drawn. The wedge lines and three glowing rings read clearly from above.
