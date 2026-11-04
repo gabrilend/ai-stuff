@@ -1,4 +1,4 @@
-# Issue 066 (was 037): TUI Dirty Tracking Optimization
+# Issue 069 (was 037): TUI Dirty Tracking Optimization
 
 ## Current Behavior (Before)
 The tui.lua library compared every cell in back_buffer with front_buffer on each present() call, performing O(rows * cols) comparisons even when only a few cells changed. This was wasteful for operations like scrolling or updating headers where we know exactly what regions changed.
@@ -38,7 +38,7 @@ The optimization trades memory (dirty flags) for CPU cycles (cell comparisons).
 
 ## Related Issues
 - 036-commit-history-viewer.md (motivation for this optimization)
-- **Blocks**: Issue 067 (TUI panel abstraction layer)
+- **Blocks**: Issue 070 (TUI panel abstraction layer)
 
 ## Completion Notes
 Implemented hierarchical dirty tracking in `/mnt/mtwo/programming/ai-stuff/scripts/libs/tui.lua`.
@@ -49,7 +49,7 @@ entries multiplied by their dirty flag (conceptually: 0 if clean, 1 if dirty).
 
 ## What Happened
 
-**2026-11-02 — renumbered from 037 to 066.** Two different issues used
+**2026-11-02 — renumbered from 037 to 069.** Two different issues used
 the number 037: this one and `completed/037-project-history-narrative-generator.md`. The import that grafted
 delta-version's history gave both files the same first commit, but the
 issues' own dates settle it. *Project History Narrative Generator* is in the progress record and
@@ -57,3 +57,5 @@ the TOC as 037, and it was finished before the TUI work began. The TUI
 work followed the commit history viewer (036) in January 2026. The newer
 issue, this one, took the next free number. A pointer is left at
 `moved-037-tui-dirty-tracking-optimization.md`.
+
+**2026-11-04:** first renumbered to 066; by then main had given 065, 066 and 067 to other issues (the reading walk, fans that follow a signal, the project lifetime timeline), so this became 069.

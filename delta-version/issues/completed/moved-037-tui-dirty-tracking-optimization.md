@@ -1,8 +1,8 @@
 # Issue 037 has moved: TUI Dirty Tracking Optimization
 
-This issue was renumbered 037 → 066, because the number 037 also belongs
+This issue was renumbered 037 → 069, because the number 037 also belongs
 to *Project History Narrative Generator* (`037-project-history-narrative-generator.md`). It is now
-[`066-tui-dirty-tracking-optimization.md`](066-tui-dirty-tracking-optimization.md).
+[`069-tui-dirty-tracking-optimization.md`](069-tui-dirty-tracking-optimization.md).
 
 ## What Happened
 

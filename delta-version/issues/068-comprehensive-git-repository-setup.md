@@ -1,4 +1,4 @@
-# Issue 065 (was 001-MASTER): Comprehensive Git Repository Setup (BROKEN DOWN)
+# Issue 068 (was 001-MASTER): Comprehensive Git Repository Setup (BROKEN DOWN)
 
 ## Current Behavior
 
@@ -88,7 +88,7 @@ Create a unified git repository system where:
 
 ## What Happened
 
-**2026-11-02 — renumbered from 001 to 065.** Two different issues used the
+**2026-11-02 — renumbered from 001 to 068.** Two different issues used the
 number 001: this master issue and `completed/001-prepare-repository-structure.md`.
 The import that grafted delta-version's history onto the monorepo gave both
 files the same first commit, so git cannot say which is newer. The number
@@ -98,3 +98,5 @@ called itself "001-MASTER". Renumbering this one changed three references;
 renumbering the other would have changed more, and the old "Issue 001" commit
 messages would have pointed at the wrong issue. A pointer is left at
 `moved-001-comprehensive-git-repository-setup.md`.
+
+**2026-11-04:** first renumbered to 065; by then main had given 065, 066 and 067 to other issues (the reading walk, fans that follow a signal, the project lifetime timeline), so this became 068.
