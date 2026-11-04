@@ -66,6 +66,8 @@ The system should integrate with the existing words-pdf project located at `/hom
 
 ## Related Documents
 
+- Design document: `/docs/hope-card-pdf-export-design.md`
+- Phase 1 completion report: `/docs/hope-card-pdf-export-phase-1-report.md`
 - Project vision: `/notes/vision` (mentions words-pdf integration)
 - words-pdf project: `/home/ritz/programming/ai-stuff/words-pdf`
 - HTML generator: `/src/flat-html-generator.lua`

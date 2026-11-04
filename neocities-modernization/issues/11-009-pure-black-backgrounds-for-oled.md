@@ -4,7 +4,8 @@
 - **Phase**: 11 (Advanced Exploration / Presentation)
 - **Priority**: Medium
 - **Type**: Bug / consistency audit
-- **Status**: OPEN — audited, not fixed
+- **Status**: In progress — the site is pure black (2026-10-25); four
+  questions for the owner remain, below
 - **Created**: 2026-08-08
 - **Sorted from**: `new-issue-please-sort`; extended 2026-09-22 from
   `next-issue-please-sort` (item 5)
@@ -22,6 +23,36 @@ wrong, and it is wrong in the worst possible way: it sets no background at all,
 so it renders in the browser default, which is white.
 
 ## Current Behavior
+
+**Fixed 2026-10-25 (steps 1, 3 and 5).** Measured on the built site:
+
+| Page family | Pages | Missing `bgcolor="#000000"` |
+|---|---|---|
+| `chronological/` | 175 | 0 |
+| `similar/`, `different/` | 8,667 each | 0 |
+| `gallery/` | 7 | 0 |
+| `wordcloud/` | 2,000 | 0 |
+| the menu and explore pages | 3 | 0 |
+| `source/` (every page, in every subfolder) | 602 | 0 |
+
+The source browser (`src/generate-source-browser.lua`) now opens with
+`<body bgcolor="#000000">`, declares itself dark (the `color-scheme` meta
+tag and property, as the shared page head does), and its own palette is
+black: `--ink`, `--ink-2` and `--panel` are `#000000`, its sidebar is plain
+black, and the two coloured glows and the grain texture over the whole page
+are gone (on OLED they lit pixels everywhere). Code boxes and the sidebar
+are told apart by their existing border lines. The only source pages
+without the dark declaration are the 11 word-cloud records under
+`source/archive/`, published exactly as they were written (records are
+never edited); they carry the black body already.
+
+Found on the way: the source browser never removed a page whose file had
+been deleted, so 36 pages of retired code (the validation suite, old tests,
+the triangular-matrix module) were still published, in the old theme. It
+now empties `output/source/` before writing (the only folder it owns; it
+refuses any other), so the folder holds exactly the files published today.
+
+The audit below is the state before, kept for the record.
 
 Measured 2026-08-08 against the build then in `output/`. Reproduce with:
 
@@ -146,6 +177,20 @@ new page type correct by default rather than correct by remembering.
   palette is centralised
 
 ## Open Questions
+
+Answered by the owner, 2026-10-25:
+- Q1, one place for the colours: "yes." `src/page-theme.lua` reads
+  config.lua `html_theme` once per Lua state and writes every page's body
+  tag (chronological, similar/different, word pages, the menu, the explore
+  pages, the gallery); the source browser takes its background shades from
+  it too.
+- Q2, the diagnostic pages: "I don't think we need this report anymore."
+  The model-comparison report is to be retired (its tool and its pages).
+- Q3, text colour: "sure let's soften them." `html_theme.text` is now
+  `#E0E0E0` (was `#FFFFFF`).
+- Q4, link colours: "yeah, for now." `#6699FF` / `#9966FF` stay.
+
+The questions, as asked:
 
 1. **Should the palette be centralised?** Every generator currently spells out
    its own colours. Putting them in `config.lua` would make drift impossible and

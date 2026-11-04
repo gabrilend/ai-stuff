@@ -29,6 +29,11 @@
 --              matched by B naming A among its blockers, and the reverse.
 --              Links written in retired (superseded, declined) files are
 --              ignored: that plan was abandoned.
+--   other      a link may name another project's issues: that project's
+--   projects   folder name, then its numbers ("wow-chat-2026 916d"). A
+--              folder beside this project's, with an issues/ inside, is
+--              such a project. Within one bullet the numbers after its
+--              name are looked up there; each must have a file there.
 --
 -- Pointer files. An issue renumbered to a free id leaves a short file at its
 -- old path so that old links still lead somewhere: its title says it moved
@@ -159,9 +164,11 @@ local function extract_links(content)
     local open_heading = nil
     for line in (content .. "\n"):gmatch("([^\n]*)\n") do
         local heading = line:match("^#")
-        -- inside a link heading's body: collect until the next heading
+        -- inside a link heading's body: collect until the next heading.
+        -- Line breaks are kept so each bullet can later be read as its own
+        -- item (another project's name applies only within its bullet).
         if open_heading and not heading then
-            open_heading.text = open_heading.text .. " " .. line
+            open_heading.text = open_heading.text .. "\n" .. line
         else
             open_heading = nil
             local label = heading and heading_label(line)
@@ -211,6 +218,81 @@ local function ids_in_text(text, context)
         end
     end
     return found
+end
+-- }}}
+
+-- {{{ local function sibling_projects
+-- The projects another project's issues can be named from: every folder
+-- beside this project's folder that holds an issues/ folder of its own.
+-- Returns name -> path. The project itself is left out.
+local function sibling_projects(project_dir)
+    local dir = project_dir:gsub("/+$", "")
+    local parent, own = dir:match("^(.*)/([^/]+)$")
+    local found = {}
+    -- a glob tests each <folder>/issues by name, so a folder this user can't
+    -- read (a disk's lost+found) is simply not a project, rather than an
+    -- error from searching inside it
+    local handle = io.popen("for d in '" .. parent:gsub("'", "'\\''")
+        .. "'/*/issues; do [ -d \"$d\" ] && echo \"$d\"; done")
+    for line in handle:lines() do
+        local name = line:match("/([^/]+)/issues$")
+        -- every folder holding issues/ is a project, except this one
+        if name and name ~= own then
+            found[name] = line:gsub("/issues$", "")
+        end
+    end
+    handle:close()
+    return found
+end
+-- }}}
+
+-- {{{ local function split_items
+-- Cuts a link field's text into items: each line that starts with a "-" or
+-- "*" bullet begins a new item, and other lines continue the item above. An
+-- inline field (one line) is one item.
+local function split_items(text)
+    local items = {}
+    for line in (text .. "\n"):gmatch("([^\n]*)\n") do
+        -- a bullet starts a new item; anything else continues the last one
+        if line:match("^%s*[-*]%s") or #items == 0 then
+            items[#items + 1] = line
+        else
+            items[#items] = items[#items] .. " " .. line
+        end
+    end
+    return items
+end
+-- }}}
+
+-- {{{ local function cut_at_project_names
+-- Cuts one item at every place another project is named. Returns a list of
+-- { project = name or nil, text = ... }: the first piece (project nil) is
+-- this project's; each later piece belongs to the project named just before
+-- it. A name counts only as a whole word: not inside a longer name.
+local function cut_at_project_names(item, siblings)
+    local marks = {}
+    for name in pairs(siblings) do
+        local from = 1
+        while true do
+            local s, e = item:find(name, from, true)
+            if not s then break end
+            local before = s == 1 and "" or item:sub(s - 1, s - 1)
+            local after = item:sub(e + 1, e + 1)
+            -- a whole word: no name characters touching either end
+            if not before:match("[%w%-_]") and not after:match("[%w%-_]") then
+                marks[#marks + 1] = { at = s, stop = e, project = name }
+            end
+            from = e + 1
+        end
+    end
+    table.sort(marks, function(a, b) return a.at < b.at end)
+    local pieces, cursor, owner = {}, 1, nil
+    for _, mark in ipairs(marks) do
+        pieces[#pieces + 1] = { project = owner, text = item:sub(cursor, mark.at - 1) }
+        owner, cursor = mark.project, mark.stop + 1
+    end
+    pieces[#pieces + 1] = { project = owner, text = item:sub(cursor) }
+    return pieces
 end
 -- }}}
 
@@ -424,6 +506,28 @@ local function main()
     -- links: collect every edge as "blocker -> blocked", remembering which file
     -- asserted it and in which direction
     local context = { phases_with_issues = phases_with_issues, width = report.width }
+    local siblings = sibling_projects(options.project_dir)
+    -- another project's ids and phases, read once on first mention
+    local sibling_index = {}
+    local function sibling_lookup(name)
+        if not sibling_index[name] then
+            local ok, others, other_report = pcall(issue_names.scan, siblings[name])
+            -- a sibling whose issues can't be read is reported, not skipped
+            if not ok then
+                io.stderr:write("cannot read " .. name .. "'s issues: " .. tostring(others) .. "\n")
+                os.exit(2)
+            end
+            local index = { ids = {}, context = { phases_with_issues = {}, width = other_report.width } }
+            for _, other in ipairs(others) do
+                index.ids[other.id] = true
+                if other.phase then
+                    index.context.phases_with_issues[other.phase] = true
+                end
+            end
+            sibling_index[name] = index
+        end
+        return sibling_index[name]
+    end
     local edges, says_after, says_before = {}, {}, {}
     local uses = { after = false, before = false }
     for _, issue in ipairs(issues) do
@@ -434,7 +538,29 @@ local function main()
         for _, field in ipairs(fields) do
             local direction = link_labels[field.label]
             uses[direction] = true
-            for _, other in ipairs(ids_in_text(field.text, context)) do
+            -- pieces of the field that belong to this project, gathered
+            -- while another project's pieces are checked against it
+            local own_text = {}
+            for _, item in ipairs(split_items(field.text)) do
+                for _, piece in ipairs(cut_at_project_names(item, siblings)) do
+                    -- this project's piece: read as before, below
+                    if not piece.project then
+                        own_text[#own_text + 1] = piece.text
+                    -- another project's piece: each id must have a file
+                    -- there; it makes no edge, since that project keeps
+                    -- its own record of what waits on what
+                    else
+                        local index = sibling_lookup(piece.project)
+                        for _, other in ipairs(ids_in_text(piece.text, index.context)) do
+                            if not index.ids[other] and in_scope(issue) then
+                                add(issue.rel, field.label .. " names " .. piece.project .. " "
+                                    .. other .. ", which has no file there")
+                            end
+                        end
+                    end
+                end
+            end
+            for _, other in ipairs(ids_in_text(table.concat(own_text, " "), context)) do
                 -- an id with no file is dangling, whichever way it points; it
                 -- makes no edge (reported only when the file is in scope)
                 if not by_id[other] then
