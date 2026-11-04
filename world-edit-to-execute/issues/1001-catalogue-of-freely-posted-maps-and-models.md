@@ -142,9 +142,14 @@ One page serves all three; what differs is only who draws it.
    the live model box) are JavaScript, and this replaces answer 4's Lua.
    One page: an ordinary web browser opens it as it is, and inside the W
    client a web browser addon opens it (W client issue 710).
-6. **How does the launcher show the page?** Asked 2026-11-04, still open:
-   by opening it in the user's own web browser, or with a page engine of
-   its own (the same one the W client's browser addon uses)?
+6. ~~**How does the launcher show the page?**~~ Answered 2026-11-04, the
+   owner: "the user could visit the page on their browser, or view it in
+   their client / launcher. the client / launcher don't open the
+   browser." So the launcher shows the page itself, with a full browser
+   engine (the owner, same day: "full browser engine"), the same one the
+   W client's browser addon (its 710) uses. The question as asked: by
+   opening it in the user's own web browser, or with a page engine of its
+   own?
 
 ## Related Documents
 
