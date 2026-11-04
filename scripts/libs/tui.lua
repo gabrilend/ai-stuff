@@ -862,7 +862,7 @@ end
 -- time.  Panels are thin: every write goes through tui.set_cell, so the
 -- dirty tracking above sees panel writes exactly as it sees any other.
 --
--- Rules (issue 048, from delta-version issue 067):
+-- Rules (issue 048, from delta-version issue 070):
 --   * Anything outside the panel is dropped, so a long string stops at the
 --     panel's right edge and row 10 of a 3-row panel writes nothing.
 --     Anything outside the screen is dropped too, so a panel that hangs off
@@ -998,7 +998,7 @@ end
 -- }}}
 
 -- {{{ Panel style
--- The style is global (delta-version 067's option 1); these are the same
+-- The style is global (delta-version 070's option 1); these are the same
 -- calls as tui.set_fg and the rest, kept on the panel so code that holds a
 -- panel need not reach for tui as well.
 function Panel:set_fg(fg) tui.set_fg(fg) end
