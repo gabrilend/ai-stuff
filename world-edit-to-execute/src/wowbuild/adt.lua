@@ -12,22 +12,37 @@ ADT (<map>_<tx>_<ty>.adt; tx west to east, ty north to south), in order:
         MODF MFBO(0) MH2O(0 when the tile has no water) MTXF(0), 4 unused
   MCIN  256 x 16: each MCNK's file offset and size (with its 8-byte head)
   MTEX  the tile's texture paths, each ended by a zero byte
-  MMDX MMID MWMO MWID MDDF MODF   empty (doodads and buildings: W02b)
+  MMDX  the models placed on the tile (M2 paths), each ended by a zero byte
+  MMID  where each MMDX name starts (u32 each)
+  MWMO  the buildings placed on the tile (WMO paths), the same way
+  MWID  where each MWMO name starts
+  MDDF  36 bytes a model placement: name number (into MMID), unique id,
+        position (3 floats), rotation (3 floats, degrees), scale (u16,
+        1024 = 1.0), flags (u16, 0)
+  MODF  64 bytes a building placement: name number (into MWID), unique id,
+        position, rotation, bounding box (lowest corner, then highest, 6
+        floats), flags (u16, 0), doodad set (u16, 0), name set (u16, 0),
+        unused (u16)
+        Positions are in placement space, measured from the map's
+        north-west corner: (17066.67 - world y, world z, 17066.67 - world x).
+        All six are empty on a tile with nothing placed (W02b: placements)
   MH2O  water, when any chunk has some
   MCNK x 256, row by row (index y north to south, index x west to east)
 
 MCNK: a 128-byte header, then MCVT (145 heights), MCNR (145 x 3 normal
 bytes and 13 bytes of padding, counted in its size, as Noggit writes it),
 MCLY (16 bytes a layer: texture number, flags 0x100 for a layer with a
-blend map, its offset in MCAL, ground effect 0), MCRF (empty), MCAL (one
+blend map, its offset in MCAL, ground effect 0), MCRF (which of the tile's
+MDDF entries, then which MODF entries, stand in this chunk: u32 numbers,
+counted at header offsets 16 and 56), MCAL (one
 4096-byte map a layer above the first, uncompressed: the WDT says 8-bit
 maps), MCSE (empty), MCLQ (empty; 3.3.5a keeps water in MH2O). Header
 offsets count from the MCNK tag; MCAL's and MCLQ's sizes there count their
 8-byte heads, as the original's files do. Header fields written:
   0 flags 0x8000 (the blend maps' last row and column are real)
-  4 index x   8 index y   12 layers   16 doodad refs 0
+  4 index x   8 index y   12 layers   16 model references (MCRF)
   20 MCVT  24 MCNR  28 MCLY  32 MCRF  36 MCAL  40 MCAL size  44 MCSH 0  48 0
-  52 area 0 (an AreaTable row is W02c's)   56 building refs 0   60 holes 0
+  52 area 0 (an AreaTable row is W02c's)   56 building references (MCRF)   60 holes 0
   64 the low-quality texture map (8 x 8 cells, 2 bits each: the layer
      covering most of the cell; row by row, lowest bits first)
   80 0  84 0  88 MCSE  92 0  96 MCLQ  100 8
@@ -53,7 +68,8 @@ then 16 x 16 chunk-centre heights, signed 16-bit yards, rows south and
 columns east) and MAHO (16 rows of 16 hole bits, all 0).
 
     local adt = require("wowbuild.adt")
-    local bytes = adt.tile_bytes(tile)          -- tile: wowbuild.terrain's Job:tile
+    local bytes = adt.tile_bytes(tile, placed)  -- tile: wowbuild.terrain's Job:tile;
+                                                -- placed: wowbuild.placements' tile, or nil
     local wdt = adt.wdt_bytes({ { tx = 32, ty = 32 }, ... })
     local wdl = adt.wdl_bytes(job)              -- job: wowbuild.terrain's
 ]]
@@ -76,7 +92,8 @@ adt.block = block
 -- }}}
 
 -- {{{ mcnk
-local function mcnk(c)
+-- c: the chunk; refs: its MCRF references { d = {MDDF numbers}, w = {MODF numbers} }, or nil
+local function mcnk(c, refs)
     local n = #c.layers
     local B = bw.new()
     for i = 1, 145 do B:f32(c.heights[i]) end
@@ -88,7 +105,13 @@ local function mcnk(c)
         B:u32(layer.tex):u32(l > 1 and adt.MCLY_USE_ALPHA or 0):u32(l > 1 and (l - 2) * 4096 or 0):u32(0)
     end
     local mcly = block("MCLY", B:done())
-    local mcrf = block("MCRF", "")
+    local nd, nw = refs and #refs.d or 0, refs and #refs.w or 0
+    B = bw.new()
+    if refs then
+        for _, n in ipairs(refs.d) do B:u32(n) end
+        for _, n in ipairs(refs.w) do B:u32(n) end
+    end
+    local mcrf = block("MCRF", B:done())
     local alphas = {}
     for l = 2, n do alphas[#alphas + 1] = c.layers[l].alpha end
     local mcal = block("MCAL", table.concat(alphas))
@@ -103,10 +126,10 @@ local function mcnk(c)
         at = at + #part[2]
     end
     local H = bw.new()
-    H:u32(adt.MCNK_NO_FIX_ALPHA):u32(c.ix):u32(c.iy):u32(n):u32(0)
+    H:u32(adt.MCNK_NO_FIX_ALPHA):u32(c.ix):u32(c.iy):u32(n):u32(nd)
     H:u32(o.mcvt):u32(o.mcnr):u32(o.mcly):u32(o.mcrf):u32(o.mcal):u32(#mcal)
     H:u32(0):u32(0)                 -- no shadow map
-    H:u32(0):u32(0)                 -- area, building refs
+    H:u32(0):u32(nw)                -- area, building refs
     H:u16(0):u16(0)                 -- holes, padding
     H:str(c.lowres)
     H:u32(0):u32(0)                 -- predTex, noEffectDoodad
@@ -181,16 +204,57 @@ local function mh2o(tile)
 end
 -- }}}
 
+-- {{{ placement blocks: names (MMDX/MWMO) and where each starts (MMID/MWID)
+local function name_blocks(text_tag, id_tag, names)
+    local parts, I, at = {}, bw.new(), 0
+    for _, p in ipairs(names or {}) do
+        I:u32(at)
+        parts[#parts + 1] = p .. "\0"
+        at = at + #p + 1
+    end
+    return block(text_tag, table.concat(parts)), block(id_tag, I:done())
+end
+
+local function mddf(list)
+    local B = bw.new()
+    for _, d in ipairs(list or {}) do
+        B:u32(d.name):u32(d.uid)
+        B:f32(d.pos[1]):f32(d.pos[2]):f32(d.pos[3])
+        B:f32(d.rot[1]):f32(d.rot[2]):f32(d.rot[3])
+        B:u16(d.scale):u16(d.flags or 0)
+    end
+    return block("MDDF", B:done())
+end
+
+local function modf(list)
+    local B = bw.new()
+    for _, w in ipairs(list or {}) do
+        B:u32(w.name):u32(w.uid)
+        B:f32(w.pos[1]):f32(w.pos[2]):f32(w.pos[3])
+        B:f32(w.rot[1]):f32(w.rot[2]):f32(w.rot[3])
+        B:f32(w.lo[1]):f32(w.lo[2]):f32(w.lo[3])
+        B:f32(w.hi[1]):f32(w.hi[2]):f32(w.hi[3])
+        B:u16(w.flags or 0):u16(w.doodad_set or 0):u16(w.name_set or 0):u16(0)
+    end
+    return block("MODF", B:done())
+end
+-- }}}
+
 -- {{{ adt.tile_bytes
-function adt.tile_bytes(tile)
+-- tile: wowbuild.terrain's; placed: wowbuild.placements' tile (models,
+-- doodads, buildings, places, refs[chunk]), or nil for a bare tile
+function adt.tile_bytes(tile, placed)
     local mver = block("MVER", bw.new():u32(adt.VERSION):done())
     local names = {}
     for _, p in ipairs(tile.textures) do names[#names + 1] = p .. "\0" end
     local mtex = block("MTEX", table.concat(names))
-    local empties = { block("MMDX"), block("MMID"), block("MWMO"), block("MWID"), block("MDDF"), block("MODF") }
+    placed = placed or {}
+    local mmdx, mmid = name_blocks("MMDX", "MMID", placed.models)
+    local mwmo, mwid = name_blocks("MWMO", "MWID", placed.buildings)
+    local empties = { mmdx, mmid, mwmo, mwid, mddf(placed.doodads), modf(placed.places) }
     local water = mh2o(tile)
     local chunks = {}
-    for k = 0, 255 do chunks[k + 1] = mcnk(tile.chunks[k]) end
+    for k = 0, 255 do chunks[k + 1] = mcnk(tile.chunks[k], placed.refs and placed.refs[k]) end
 
     local HDR_DATA = #mver + 8                     -- where MHDR's data starts
     local at = #mver + 8 + 64                      -- after MHDR

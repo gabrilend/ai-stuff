@@ -44,7 +44,7 @@ Update this file when any W02 sub-issue changes the flow.
 |---|-------|--------------|---------------|----------|
 | 1 | Parse | `.w3x` path (string) | Map object: terrain grid, doodad table, unit table, regions, cameras, triggers (Lua tables) | Phases 1-3 (done) |
 | 2 | Terrain | terrain grid: tilepoints (W+1)×(H+1), each with height (float, WC3 units), ground texture index (uint 0-15), cliff level (uint), water flag + level (float) | one WDT (which ADT tiles exist, 64×64 flag grid), one WDL (far-off heights) + up to 16 ADTs, each 256 chunks of 145 height floats, ≤4 texture layers with 64×64 alpha maps (uint8), liquid blocks (MH2O); `conversion-report.lua` with fold and unmapped counts | W02a (built) |
-| 3 | Placements | doodad table (type id 4-char string, x/y/z float, facing radians, scale xyz); unit table (type id, owner player uint, position, facing) | doodads: M2/WMO placement records inside the ADT (`MDDF`/`MODF` blocks: file index, unique id uint32, position 3×float, rotation 3×float degrees, scale uint16 where 1024 = 1.0). Units: SQL rows for creature templates and spawns | W02b |
+| 3 | Placements | doodad table (type id 4-char string, x/y/z float, facing radians, scale xyz); unit table (type id, owner player uint, position, facing) | doodads: M2/WMO placement records inside the ADT (`MDDF`/`MODF` blocks: file index, unique id uint32, position 3×float, rotation 3×float degrees, scale uint16 where 1024 = 1.0). Units: SQL rows for creature templates and spawns (`server/world.sql`); every doodad, unit and start location in `placements.lua` | W02b (built) |
 | 4 | Registration | map name, size, WC3 tileset | a new row in `Map.dbc` (map id uint32, directory string = folder under `World\Maps\`), rows for `AreaTable.dbc` and `LoadingScreens.dbc` | W02c |
 | 5 | Scripts | JASS AST → Lua (phase 3 transpiler) | a Lua file per map for the server's ALE engine plus a shim that implements JASS natives (`CreateUnit`, `TriggerRegisterTimerEvent`, …) with ALE calls | W02e |
 | 6 | Pack | files from 2-4 | `patch-W.MPQ` (an MPQ archive the client loads after its own patches, so its files win) | W02c |
@@ -78,6 +78,35 @@ The command: `luajit src/cli/wow-convert.lua [--strict] [--name N] <map.w3x> <bu
 (exit 0 built, 1 failed, 2 bad options); the editor's Test Map calls it as
 issue 913 describes. Each later stage adds its part to the same command.
 Decisions and what is unchecked: `issues/W02a-terrain-to-adt-writer.md`.
+
+## Stage 3 as built (W02b)
+
+```
+ war3map.doo ──▶ parsers/doo.lua ──────┐                      ┌──▶ ADTs: MMDX/MMID + MDDF (models),
+ war3mapUnits.doo ▶ parsers/unitsdoo.lua│  wowbuild/placements │    MWMO/MWID + MODF (buildings),
+ war3map.w3i ──▶ parsers/w3i.lua ──────┼──▶ (doodads) ────────┤    each chunk's MCRF
+ war3map.wts ──▶ parsers/wts.lua ──────┤  wowbuild/creatures  ├──▶ <build>/server/world.sql
+ war3map.w3u/w3b/w3d ▶ parsers/objectdata│  (units, factions)   ├──▶ <build>/placements.lua
+                                        │                      └──▶ <build>/<the map's own models>
+       wowbuild/models.lua (WC3 type → WoW model path, data) ─┘
+```
+
+A doodad's model is found in this order: the map's own imported model
+(which travels with the map into the build), the stock WC3 model a custom
+type points at, the type id (or the stock id a custom type copies), the
+doodad's category and tileset letters; else it is counted as unmapped and
+left out of the ADT. The paths are logical names the W client's resolver
+looks up (the player's own packs, the server's files, the player's Blizzard
+install, the baseline model set, a wire-frame), so a player without
+Blizzard's files sees the baseline set's models under the same names.
+
+Units become one creature template per WC3 type and faction (AzerothCore
+keeps a creature's faction in its template), one faction per WC3 force plus
+Neutral Hostile and Neutral Passive, one display id per model and size, and
+one spawn per placed unit. The SQL writes only what the map uses (W02h) and
+can be run again; its ids sit behind `@MAP`, `@ENTRY` and `@GUID` until
+W02c picks map ids. Decisions and what is unchecked:
+`issues/W02b-doodads-and-units-to-placements.md`.
 
 ## Correction to earlier research
 

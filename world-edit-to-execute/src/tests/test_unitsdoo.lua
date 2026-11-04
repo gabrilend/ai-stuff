@@ -117,6 +117,17 @@ local function make_float32(f)
     end
 end
 -- }}}
+
+-- {{{ Fixed parts of an entry (issue W02b: the file's real layout)
+-- After the item drops every Frozen Throne entry holds gold and target
+-- acquisition; then a hero section (level 1 and nothing else for a unit
+-- that is no hero); then the abilities; then the random section (flag 0 and
+-- four filler bytes for a unit that isn't random); then a custom colour.
+local GOLD_ACQ = make_int32(12500) .. make_float32(-1.0)   -- gold, target acquisition
+local NO_HERO = make_int32(1) .. make_int32(0) .. make_int32(0) .. make_int32(0) .. make_int32(0)
+local NOT_RANDOM = make_int32(0) .. string.char(255, 255, 255, 0)
+local NO_COLOR = make_int32(-1)
+-- }}}
 -- }}}
 
 -- {{{ Test: is_hero function
@@ -203,11 +214,13 @@ do
         -- Item drops section (empty)
         .. make_int32(-1)              -- Item table pointer
         .. make_int32(0)               -- Num item sets
+        .. GOLD_ACQ                    -- Gold, target acquisition
+        .. NO_HERO                     -- Hero section of a unit that is no hero
         -- Abilities section (empty)
         .. make_int32(0)               -- Num abilities
-        -- No hero data (not a hero)
         -- Random unit section
-        .. make_int32(0)               -- Not random
+        .. NOT_RANDOM                  -- Not random
+        .. NO_COLOR                    -- Custom colour (none)
         -- Waygate and creation number
         .. make_int32(-1)              -- Waygate dest (inactive)
         .. make_int32(1)               -- Creation number
@@ -263,16 +276,18 @@ do
         -- Item drops section (empty)
         .. make_int32(-1)              -- Item table pointer
         .. make_int32(0)               -- Num item sets
-        -- Abilities section (empty)
-        .. make_int32(0)               -- Num abilities
-        -- Hero data section (required for heroes)
+        .. GOLD_ACQ                    -- Gold, target acquisition
+        -- Hero data section
         .. make_int32(1)               -- Hero level = 1
         .. make_int32(0)               -- Strength bonus
         .. make_int32(0)               -- Agility bonus
         .. make_int32(0)               -- Intelligence bonus
         .. make_int32(0)               -- No inventory items
+        -- Abilities section (empty)
+        .. make_int32(0)               -- Num abilities
         -- Random unit section
-        .. make_int32(0)               -- Not random
+        .. NOT_RANDOM                  -- Not random
+        .. NO_COLOR                    -- Custom colour (none)
         -- Waygate and creation number
         .. make_int32(-1)              -- Waygate dest
         .. make_int32(2)               -- Creation number
@@ -325,11 +340,13 @@ do
         -- Set 2: 1 item
         .. make_int32(1)               -- 1 item in set
         .. "afac" .. make_int32(100)   -- Item: 100% chance
+        .. GOLD_ACQ                    -- Gold, target acquisition
+        .. NO_HERO                     -- Hero section of a unit that is no hero
         -- Abilities section (empty)
         .. make_int32(0)               -- Num abilities
-        -- No hero data
         -- Random unit section
-        .. make_int32(0)               -- Not random
+        .. NOT_RANDOM                  -- Not random
+        .. NO_COLOR                    -- Custom colour (none)
         -- Waygate and creation number
         .. make_int32(-1)
         .. make_int32(3)
@@ -382,14 +399,16 @@ do
         -- Item drops section (empty)
         .. make_int32(-1)
         .. make_int32(0)
+        .. GOLD_ACQ                    -- Gold, target acquisition
+        .. NO_HERO                     -- Hero section of a unit that is no hero
         -- Abilities section (3 abilities)
         .. make_int32(3)               -- 3 abilities
         .. "AHhb" .. make_int32(1) .. make_int32(1)  -- Holy Light, autocast, level 1
         .. "AHds" .. make_int32(0) .. make_int32(2)  -- Divine Shield, no autocast, level 2
         .. "AHad" .. make_int32(1) .. make_int32(3)  -- Devotion Aura, autocast, level 3
-        -- No hero data
         -- Random unit section
-        .. make_int32(0)
+        .. NOT_RANDOM
+        .. NO_COLOR
         -- Waygate and creation number
         .. make_int32(-1)
         .. make_int32(4)
@@ -439,10 +458,12 @@ do
         .. string.char(0, 0)
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)  -- No items
+        .. GOLD_ACQ .. NO_HERO
         .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 1, random from level)
-        .. make_int32(1)               -- Flag = random from level
-        .. "YYU5"                      -- "YYU" + level char '5'
+        -- Random unit section (file flag 0: random from level; the id names the level)
+        .. make_int32(0)               -- Flag = random from level
+        .. string.char(5, 0, 0, 0)     -- Level 5 (three bytes), item class 0
+        .. NO_COLOR
         .. make_int32(-1)              -- Waygate inactive
         .. make_int32(100)             -- Creation number
 
@@ -457,11 +478,13 @@ do
         .. string.char(0, 0)
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)  -- No items
+        .. GOLD_ACQ .. NO_HERO
         .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 2, random from group)
-        .. make_int32(2)               -- Flag = random from group
+        -- Random unit section (file flag 1: random from group)
+        .. make_int32(1)               -- Flag = random from group
         .. make_int32(3)               -- Group index
         .. make_int32(1)               -- Position in group
+        .. NO_COLOR
         .. make_int32(-1)              -- Waygate inactive
         .. make_int32(101)             -- Creation number
 
@@ -476,10 +499,12 @@ do
         .. string.char(0, 0)
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)  -- No items
+        .. GOLD_ACQ .. NO_HERO
         .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 1, random item from level)
-        .. make_int32(1)               -- Flag = random from level
-        .. "YYI3"                      -- "YYI" + level char '3'
+        -- Random unit section (file flag 0: random item from level)
+        .. make_int32(0)               -- Flag = random from level
+        .. string.char(3, 0, 0, 0)     -- Level 3, item class 0 (any)
+        .. NO_COLOR
         .. make_int32(-1)              -- Waygate inactive
         .. make_int32(102)             -- Creation number
 
@@ -494,9 +519,11 @@ do
         .. string.char(0, 0)
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)  -- No items
+        .. GOLD_ACQ .. NO_HERO
         .. make_int32(0)                    -- No abilities
         -- Random unit section (flag = 0, not random)
-        .. make_int32(0)               -- Not random
+        .. NOT_RANDOM                  -- Not random
+        .. NO_COLOR
         .. make_int32(42)              -- Waygate destination = region 42
         .. make_int32(103)             -- Creation number
 
@@ -580,8 +607,9 @@ do
         .. string.char(0, 0)
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)
+        .. GOLD_ACQ .. NO_HERO
         .. make_int32(0)
-        .. make_int32(0)
+        .. NOT_RANDOM .. NO_COLOR
         .. make_int32(-1)
         .. make_int32(10)
 
@@ -595,8 +623,9 @@ do
         .. string.char(0, 0)
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)
+        .. GOLD_ACQ .. NO_HERO
         .. make_int32(0)
-        .. make_int32(0)
+        .. NOT_RANDOM .. NO_COLOR
         .. make_int32(-1)
         .. make_int32(11)
 
@@ -656,11 +685,12 @@ do
         .. string.char(0, 0)
         .. make_int32(-1) .. make_int32(-1)
         .. make_int32(-1) .. make_int32(0)
-        .. make_int32(0)
+        .. GOLD_ACQ
         -- Hero data
         .. make_int32(1) .. make_int32(0) .. make_int32(0) .. make_int32(0)
         .. make_int32(0)
-        .. make_int32(0)
+        .. make_int32(0)                    -- No abilities
+        .. NOT_RANDOM .. NO_COLOR
         .. make_int32(-1)
         .. make_int32(1)
 
@@ -697,8 +727,7 @@ do
         -- Item drops section (empty)
         .. make_int32(-1)              -- Item table pointer
         .. make_int32(0)               -- Num item sets
-        -- Abilities section (empty)
-        .. make_int32(0)               -- Num abilities
+        .. GOLD_ACQ                    -- Gold, target acquisition
         -- Hero data section
         .. make_int32(5)               -- Hero level = 5
         .. make_int32(2)               -- Strength bonus = 2 (from tomes)
@@ -711,8 +740,11 @@ do
         -- Inventory item 2: Ring of Protection in slot 2
         .. make_int32(2)               -- Slot 2
         .. "rin1"                      -- Item ID (Ring of Protection +1)
+        -- Abilities section (empty)
+        .. make_int32(0)               -- Num abilities
         -- Random unit section
-        .. make_int32(0)               -- Not random
+        .. NOT_RANDOM                  -- Not random
+        .. NO_COLOR                    -- Custom colour (none)
         -- Waygate and creation number
         .. make_int32(-1)
         .. make_int32(100)
@@ -764,11 +796,13 @@ do
         .. make_int32(-1) .. make_int32(-1)
         -- Item drops section (empty)
         .. make_int32(-1) .. make_int32(0)
+        .. GOLD_ACQ
+        -- The hero section every entry has (level 1, nothing else): not kept as hero_data
+        .. NO_HERO
         -- Abilities section (empty)
         .. make_int32(0)
-        -- NO hero data section (not a hero)
         -- Random unit section
-        .. make_int32(0)
+        .. NOT_RANDOM .. NO_COLOR
         -- Waygate and creation number
         .. make_int32(-1)
         .. make_int32(101)
@@ -804,8 +838,7 @@ do
         .. make_int32(-1) .. make_int32(-1)
         -- Item drops (empty)
         .. make_int32(-1) .. make_int32(0)
-        -- Abilities (empty)
-        .. make_int32(0)
+        .. GOLD_ACQ
         -- Hero data
         .. make_int32(10)              -- Level 10
         .. make_int32(5)               -- STR+5
@@ -813,8 +846,10 @@ do
         .. make_int32(7)               -- INT+7
         .. make_int32(1)               -- 1 inventory item
         .. make_int32(0) .. "phea"     -- Healing Potion in slot 0
-        -- Random
+        -- Abilities (empty)
         .. make_int32(0)
+        -- Random
+        .. NOT_RANDOM .. NO_COLOR
         -- Waygate and creation
         .. make_int32(-1)
         .. make_int32(200)
