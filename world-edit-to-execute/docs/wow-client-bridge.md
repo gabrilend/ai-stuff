@@ -452,12 +452,17 @@ issue that holds it can be called complete.
     does a player without WC3 get a default Blizzard map's converted
     ground with wire-frames standing on it, or is the map not offered to
     them at all? (The map file's own part of this is question 17.)
-17. **A Blizzard map's own file.** Asked 2026-11-04. The baseline set
-    covers a default map's models, but the map itself (its ground,
-    placements, triggers) is Blizzard's file too. Is a default Blizzard
-    map played only from the player's own copy, or does the project make
-    its own maps standing in for them, the way the baseline set stands in
-    for the models?
+17. ~~**A Blizzard map's own file.**~~ Answered 2026-11-04, the owner:
+    "we don't place any limitations on what maps players host for each
+    other." So the project ships no Blizzard file, and it doesn't check or
+    block which map a player hosts: a host serves the map they chose, and
+    the other players' clients draw its stock models from their own packs,
+    their Blizzard install, or the baseline set. The question as asked:
+    the baseline set covers a default map's models, but the map itself
+    (its ground, placements, triggers) is Blizzard's file too. Is a
+    default Blizzard map played only from the player's own copy, or does
+    the project make its own maps standing in for them, the way the
+    baseline set stands in for the models?
 
 ---
 

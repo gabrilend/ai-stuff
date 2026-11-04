@@ -134,6 +134,13 @@ One page serves all three; what differs is only who draws it.
    three), or does the web browser get the separate JavaScript viewer
    answer 4 left for later? And does the launcher draw the page itself
    (it would need an HTML engine) or open it in the user's web browser?
+   Partly answered the same day, the owner: "no to fengari." Still open:
+   the scripts meant are the page's moving parts (the search that narrows
+   as one types, download progress, the live model box), which answer 4
+   wrote in Lua for the W client; an ordinary web browser runs only
+   JavaScript, so without Fengari the web page's moving parts are
+   JavaScript, or the web page goes without them. Which, and how does the
+   launcher show the page?
 
 ## Related Documents
 
