@@ -16,7 +16,7 @@ called readme-gallery for that first purpose, and lived in
     render-all-shapes [DIR] [--still]     every scene, four at a time (at most 4 processes)
     render-all-shapes --library           every scene into the owner's library:
                                           /home/ritz/pictures/shape-gifs/, stills in stills/
-    test-shape-films [DIR]                the proofs (186 checks)
+    test-shape-films [DIR]                the proofs (193 checks)
 
 `DIR` is the gif-generator project; the parts are `src/044-meshes.lua`,
 `045-choreography.lua`, `046-raster.lua`, `047-fluid.lua` and `048-png.lua`,
@@ -332,8 +332,9 @@ fewer cycles), so the camera's motion is the one the eye follows.
 
 ## Tests
 
-`test-shape-films` films `tests/shape-films/tiny.lua` into RAM. `tests/shape-films/gif-facts.lua`,
-a block-walker that shares no code with the encoder, confirms:
+`test-shape-films` films `tests/shape-films/tiny.lua` into RAM. The
+studio's one reader (`050-gif-decode.lua --facts`), which shares no code
+with the encoder, confirms:
 - the GIF89a signature, the size, the loop-forever block, the frame count
   and the trailer;
 - that the still is a PNG;
@@ -391,3 +392,7 @@ broken fourth-round scenes are refused:
 - a stroke drifting half a wave;
 - a trail with no copies;
 - a bezier with three points.
+
+Last, `src/054-round-trip-test.lua` takes each approved film apart with the
+studio's reader and puts it back together with its encoder, and requires
+the same bytes (issue 701b).
