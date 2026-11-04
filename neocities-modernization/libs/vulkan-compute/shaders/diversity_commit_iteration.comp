@@ -51,6 +51,10 @@ layout(push_constant) uniform Constants {
     uint slot;          // output sequence slot to write the winner into
 } constants;
 
+// The winner and count for this iteration, read once by thread 0 (see main).
+shared uint s_selected;
+shared uint s_count;
+
 void main() {
     uint workgroup_id = gl_WorkGroupID.x;
     uint thread_id    = gl_LocalInvocationID.x;
@@ -61,9 +65,18 @@ void main() {
     uint output_base   = workgroup_id * constants.num_poems;
     uint num_pairs_per_poem = constants.embedding_dim / 2u;
 
-    // All threads read the same winner from storage (broadcast on most
-    // GPUs because the same address is read by all threads in a warp).
-    uint  selected_poem = running_max_index[workgroup_id];
+    // Thread 0 reads the winner and the count once, into shared memory, and
+    // every thread waits for it. Each thread reading storage itself was a race:
+    // thread 0 resets the winner and bumps the count at the end of this
+    // shader, and a warp scheduled late could read those values after the
+    // reset -- seeing "no winner" and skipping its share of the centroid, or
+    // averaging with the wrong count.
+    if (thread_id == 0u) {
+        s_selected = running_max_index[workgroup_id];
+        s_count    = counts[workgroup_id];
+    }
+    barrier();
+    uint  selected_poem = s_selected;
 
     if (selected_poem == 0xFFFFFFFFu || selected_poem >= constants.num_poems) {
         // No valid poem found — write sentinel, reset, return.
@@ -79,7 +92,7 @@ void main() {
     // per iteration, matching the FP16-packed embedding layout. The new
     // value is (old * count + new) / (count + 1).
     uint  selected_pair_base = selected_poem * num_pairs_per_poem;
-    float count_f            = float(counts[workgroup_id]);
+    float count_f            = float(s_count);
     float new_count_f        = count_f + 1.0;
 
     for (uint p = thread_id; p < num_pairs_per_poem; p += num_threads) {
@@ -97,7 +110,7 @@ void main() {
     // max reset that prepares the next iteration's first scan dispatch.
     if (thread_id == 0u) {
         masks[mask_base + selected_poem] = 0u;
-        counts[workgroup_id]             = counts[workgroup_id] + 1u;
+        counts[workgroup_id]             = s_count + 1u;
         output_sequences[output_base + constants.slot] = selected_poem;
         running_max_distance[workgroup_id] = -1e9;
         running_max_index[workgroup_id]    = 0xFFFFFFFFu;

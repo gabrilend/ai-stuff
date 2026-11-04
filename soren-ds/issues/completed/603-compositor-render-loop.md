@@ -138,4 +138,4 @@ takes about 0.1 ms per frame on the laptop.
 
 ## Blocks
 
-604, 606, every later phase 6 issue.
+604, 606, 612, every later phase 6 issue.

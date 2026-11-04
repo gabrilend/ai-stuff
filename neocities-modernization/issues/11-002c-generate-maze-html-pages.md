@@ -164,6 +164,10 @@ output/
 - `assets/poems.json`
 - Box-drawing utilities from `flat-html-generator.lua`
 
+## Blocks
+
+- 11-002d, 11-003
+
 ## Related Issues
 
 - **11-002b**: Provides exits data

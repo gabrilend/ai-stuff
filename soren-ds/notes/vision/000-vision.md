@@ -1,5 +1,12 @@
 anbernic RG DS operating system.
 
+> **Not for sale.** Soren DS is a design and a prototype only. It will
+> not be sold, shipped or installed on any consumer device until every
+> layer of code beneath it can be read, built and replaced by us. On
+> the RG DS, closed Rockchip firmware runs below the kernel, and part
+> of it stays resident at a higher privilege level. See
+> `notes/safety/001-not-for-sale.md`.
+
 four main applications. paint is the last one built — and pictochat
 isn't done until paint is, because pictochat sends images to peers
 and the images come from paint.

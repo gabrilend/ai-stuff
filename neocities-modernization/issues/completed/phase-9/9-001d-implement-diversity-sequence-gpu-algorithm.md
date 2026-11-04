@@ -125,6 +125,10 @@ void compute_diversity_sequence(VkComputeContext* ctx,
 
 - 9-001c (Cosine distance shader)
 
+## Blocks
+
+- 9-001e
+
 ## Implementation Summary
 
 Diversity sequence GPU algorithm implemented in `libs/vulkan-compute/src/vk_diversity.c` (563 lines).
