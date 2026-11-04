@@ -38,12 +38,11 @@ reading a number here:
 Each issue below held a recommendation with its options. Ritz asked that
 open questions be answered without waiting on him, so each recommendation
 is now the decision; see the issue files. These rows supersede the Tier 3
-notes for 052 and 070.
+notes for 070. (052 has since closed as superseded.)
 
 | Issue | What | Decided |
 |-------|------|-------------|
 | **056** (056b–d) | Recursive transcript summarisation | 056a is done. Build 056b (summariser) against the stand-in model next. Then build 056c *without* renaming files: a blurb plus a table of contents. Turn renames on only after the owner has read some model-written titles. |
-| **052** | Ollama connection configuration | Close as superseded. The stack moved to llama.cpp. A read-only search found 47 files in 11 projects that still mention Ollama, and each project should move on its own. |
 | **039** | Multi-location ai-stuff integration | Do not scan the whole filesystem. List each extra root in a config file. A project outside the main root is pushed only when it is listed as publishable. No symlinks. |
 | **070** (was 038) | TUI panel abstraction | Build it in the shared `scripts/libs/tui.lua`, owned by the scripts project. The Lua menu is its biggest user and gains as much as the history viewer. Then move delta-version's history viewer onto it. |
 

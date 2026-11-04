@@ -1,7 +1,7 @@
 # Issue 052: Update Ollama Connection Configuration
 
 **Phase**: 0 - Tooling
-**Status**: Open (REQUIRES VERBOSE CONFIRMATION; recommendation 2026-11-02 below, nothing changed)
+**Status**: Closed as superseded (2026-11-02). No configuration was changed.
 **Priority**: Standard
 **Created**: 2026-02-17
 **Type**: Cross-Project Configuration Update
@@ -172,3 +172,24 @@ can decide its own move. A cross-project sweep from delta-version is the kind
 of change this issue's protocol was written to stop. If any Ollama user still
 runs daily (neocities-modernization's embeddings are the likeliest), B for that
 one project is the next step.
+
+---
+
+## What Happened
+
+**2026-11-02 — closed as superseded by llama.cpp.** The confirmation protocol
+above existed to stop an unreviewed sweep across projects, and closing the
+issue keeps to it: nothing outside delta-version was edited.
+
+- **Why it is superseded.** The inference stack this issue configured is no
+  longer the stack. delta-version's model tools talk to a llama.cpp server
+  through `scripts/libs/llama-chat-client.lua` (issue 056a, closed), and the
+  server is started by `words-pdf/scripts/start-llamacpp-server.sh`.
+- **The other projects.** The read-only search above found 47 files in 11
+  projects that still name Ollama. Some are live settings and some are
+  history. They are left exactly as they are. Each project moves to
+  llama.cpp, or keeps Ollama, under its own issues, when it next needs a
+  model. neocities-modernization, which keeps both launchers, is the
+  likeliest first.
+- **Issue 053d** named this issue as its dependency. Its note now points to
+  the llama.cpp client instead.
