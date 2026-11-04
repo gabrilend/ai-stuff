@@ -256,6 +256,53 @@ check("a word no saying knows is still named",
       and odd[1]:find("(also: trail)", 1, true) ~= nil)
 -- }}}
 
+-- {{{ the live door (601's last mile): llama.cpp's /completion
+local body = porch.llama_body({ prompt = "THE LANGUAGE", grammar = "root ::= x",
+                                prose = "curve the ball", errors = "no word 'cycels'" }, 7)
+check("the request body carries the prompt, the sentence and the wall's words",
+      body.prompt:find("THE LANGUAGE", 1, true) == 1
+      and body.prompt:find("THE PERSON SAYS:\n\ncurve the ball", 1, true) ~= nil
+      and body.prompt:find("no word 'cycels'", 1, true) ~= nil
+      and body.grammar == "root ::= x" and body.seed == 7)
+local asked = {}
+-- {{{ local function fake_curl()
+-- Stands in for the shell: answers /completion as llama.cpp's server
+-- does, the first time with a misspelled word, and /health with ok.
+local function fake_curl(command)
+    asked[#asked + 1] = command
+    if command:find("/health", 1, true) then return '{"status":"ok"}', true end
+    local file = command:match("@'([^']+)'")
+    local f = io.open(file, "r")
+    local sent = f:read("*a")
+    f:close()
+    asked.grammar = asked.grammar or sent:find('"grammar"', 1, true) ~= nil
+    local reply = both_spaces(#asked == 1 and "cycels" or "cycles")
+    local escaped = reply:gsub('\\', '\\\\'):gsub('"', '\\"'):gsub("\n", "\\n")
+    return '{"content":"' .. escaped .. '","stop":true}', true
+end
+-- }}}
+local door = { name = "mind", host = "10.0.0.7", port = 8080 }
+local live_text, _, live_heard = porch.translate(DIR, "curve the ball around the circle",
+                                                 porch.door_transport(door, fake_curl))
+check("a door's server is asked at /completion, grammar and all",
+      asked[1]:find("http://10.0.0.7:8080/completion", 1, true) ~= nil and asked.grammar)
+check("through a door, the misspelling is mended on the second asking",
+      live_text ~= nil and #asked == 2 and live_heard[4]:find("^ball: a violet") ~= nil)
+check("a door's health is asked at /health",
+      porch.door_health(door, fake_curl) == true
+      and asked[#asked]:find("/health", 1, true) ~= nil)
+local silent = porch.door_transport(door, function() return "curl: (7) Failed to connect", false end)
+local ok_silent, why_silent = pcall(silent, { prompt = "", grammar = "", prose = "x" })
+check("a door that doesn't answer is a sentence naming it",
+      not ok_silent and why_silent:find("door 'mind'", 1, true) ~= nil
+      and why_silent:find("Failed to connect", 1, true) ~= nil)
+local babble, babble_errors = porch.translate(DIR, "x", function() return "I think you want a ball" end)
+check("a reply with no tool-calls fails the reading, not the porch",
+      babble == nil and babble_errors:find("no tool-calls", 1, true) ~= nil)
+check("a host that could break the command line is refused",
+      not pcall(porch.door_transport, { name = "odd", host = "x';rm", port = 1 }))
+-- }}}
+
 -- the cluster roster: doors parse purely; comments and blanks pass
 local doors = porch.cluster_doors(
     "# the little cluster\nalpha 10.0.0.1 8080\n\n"
