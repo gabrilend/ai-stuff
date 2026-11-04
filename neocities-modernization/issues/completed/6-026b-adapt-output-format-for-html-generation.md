@@ -203,6 +203,10 @@ end
 - **Integration**: Existing HTML generation system in flat-html-generator.lua
 - **Data Sources**: ActivityPub JSON from fediverse archives
 
+## Blocks
+
+- 6-026c, 6-026d
+
 ## Related Issues
 
 - **Parent**: Issue 6-026 (Scripts Directory Integration)

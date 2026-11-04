@@ -1,6 +1,6 @@
 === WC3 Engine - Interactive Threaded Demo ===
 Architecture: Updater -> Workers -> Sync -> Draw
-Workers: 2  Slot System: 508b  Lua Bridge: 508c
+Workers: 4  Slot System: 508b  Lua Bridge: 508c
 
 Controls:
   Left-click chunk:  Cycle color (blue/green/red)
@@ -8,23 +8,37 @@ Controls:
   Sliders: Adjust speeds and orbit radius
 
 [main] Created mesh with 1331 chunks
-[main] Created slot array with 1024 max slots
+[main] Created slot array with 4096 max slots
 [main] Allocated demo slot at index 0
 [lua] Lua state created and render module registered
-[lua] render module loaded, MAX_SLOTS = 1024
-[lua] Created entity 100 at slot 1
-[lua] Created entity 101 at slot 2
-[lua] Created entity 102 at slot 3
-[lua] Created entity 103 at slot 4
-[lua] Slots: 5/1024 active
+[lua] render module loaded, MAX_SLOTS = 4096
+[lua] Created 4 demo entities
+[lua] Found test map: /mnt/mtwo/programming/ai-stuff/world-edit-to-execute/assets/DAoW-5.4b-PUBLIC-TEST.w3x
+[lua] Loading map...
+[lua] Map: TRIGSTR_001
+[lua] Size: 480x480
+[lua] Terrain: 481x481
+[map_renderer] Loading map: Dark Ages of Warcraft v5.4
+[terrain] Created 481x481 grid, tile_size=1.00, 694083 bytes
+[map_renderer] Loaded terrain: 481x481 tiles
+[map_renderer] Loaded 4091 doodads
+[map_renderer] Map load complete: 481x481 terrain, 4091 doodads, 0 units
+[lua] Map rendered successfully!
 [lua] Bridge test complete: 4 entities created via Lua
-[threading] Creating pool with 2 workers
+[threading] Creating pool with 4 workers
 [threading] Worker 0 spawned
-[threading] Worker 1 spawned
 [worker 0] Starting
+[threading] Worker 1 spawned
 [worker 1] Starting
-[sync] Starting custom sync loop
+[threading] Worker 2 spawned
+[worker 2] Starting
+[threading] Worker 3 spawned
+[worker 3] Starting
+[threading] Sync thread spawned
+[updater] Primary updater started on worker 0 (active: 1)
+[main] v2 updater task started
 [main] Initializing window...
+[sync] Starting
 INFO: Initializing raylib 5.1-dev
 INFO: Platform backend: DESKTOP (GLFW)
 INFO: Supported raylib modules:
@@ -35,7 +49,6 @@ INFO:     > rtextures:. loaded (optional)
 INFO:     > rtext:..... loaded (optional)
 INFO:     > rmodels:... loaded (optional)
 INFO:     > raudio:.... loaded (optional)
-[updater] Starting custom updater loop
 INFO: DISPLAY: Device initialized successfully
 INFO:     > Display size: 2560 x 1440
 INFO:     > Screen size:  800 x 600
@@ -46,7 +59,7 @@ INFO: GL: Supported extensions count: 390
 INFO: GL: OpenGL device information:
 INFO:     > Vendor:   NVIDIA Corporation
 INFO:     > Renderer: NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2
-INFO:     > Version:  3.3.0 NVIDIA 580.95.05
+INFO:     > Version:  3.3.0 NVIDIA 580.119.02
 INFO:     > GLSL:     3.30 NVIDIA via Cg compiler
 INFO: GL: VAO extension detected, VAO functions loaded successfully
 INFO: GL: NPOT textures extension detected, full NPOT textures supported
@@ -65,17 +78,3 @@ INFO: RLGL: Default OpenGL state initialized successfully
 INFO: TEXTURE: [ID 2] Texture loaded successfully (128x128 | GRAY_ALPHA | 1 mipmaps)
 INFO: FONT: Default font loaded successfully (224 glyphs)
 INFO: TIMER: Target time per frame: 16.667 milliseconds
-[main] Entering render loop...
-
-
-[main] Shutting down...
-[updater] Exiting
-[sync] Exiting
-[lua] Lua state closed
-[threading] Destroying pool...
-[worker 1] Exiting
-[worker 0] Exiting
-[threading] Worker 0 joined
-[threading] Worker 1 joined
-[threading] Pool destroyed
-INFO: TEXTURE: [ID 2] Unloaded texture data from VRAM (GPU)

@@ -1,0 +1,66 @@
+#!/bin/bash
+# test-scene-mode -- checks that the game refuses a scene it cannot read,
+# before it ever opens a window.
+#
+# In general terms: scene mode exists to film one exact moment, so a scene
+# file with a line the game does not understand, a scene with no balls, or
+# an unknown option must stop the game with a message naming the problem,
+# never run a half-understood scene. These cases are checked here; they need
+# no screen because the game stops before opening its window. The case where
+# a scene does run is checked by scripts/film-a-scene, which needs a screen
+# and fails unless the game writes a fresh goodbye.
+#
+# Usage: scripts/test-scene-mode [/path/to/physics-sim]
+
+set -u
+
+DIR="/mnt/mtwo/programming/ai-stuff/games/physics-sim"
+if [ -n "${1:-}" ]; then
+    DIR="$1"
+fi
+GAME="${DIR}/bin/physics-sim"
+SCRATCH="/dev/shm/physics-sim/test-scene-mode"
+mkdir -p "${SCRATCH}"
+PASSED=0
+FAILED=0
+
+# {{{ expect_refusal NAME EXPECTED-TEXT SCENE-CONTENTS [OPTIONS...]
+expect_refusal() {
+    local name="$1"
+    local expected="$2"
+    local contents="$3"
+    shift 3
+    printf '%s\n' "${contents}" > "${SCRATCH}/${name}.scene"
+    local output
+    output=$(env -C "${DIR}" "${GAME}" --scene "${SCRATCH}/${name}.scene" "$@" 2>&1)
+    local status=$?
+    if [ ${status} -ne 0 ] && printf '%s' "${output}" | grep -q -- "${expected}"; then
+        echo "  ok    ${name}"
+        PASSED=$((PASSED + 1))
+    else
+        echo "  FAIL  ${name} (status ${status}): ${output}"
+        FAILED=$((FAILED + 1))
+    fi
+}
+# }}}
+
+echo "scene mode tests"
+expect_refusal "unknown-line" "unknown-line.scene:3: a scene line the game does not understand" \
+"board empty
+ball player 10 10 0 0
+wobble 1 2 3"
+expect_refusal "bad-owner" "bad-owner.scene:2: a scene line" \
+"board empty
+ball nobody 10 10 0 0"
+expect_refusal "no-balls" "a scene with no balls films nothing" \
+"board empty"
+expect_refusal "bad-board" "bad-board.scene:1: a scene line" \
+"board sideways
+ball player 10 10 0 0"
+expect_refusal "unknown-option" "unknown option --wobble" \
+"ball player 10 10 0 0" --wobble 3
+expect_refusal "bad-frames" "--frames needs a positive number" \
+"ball player 10 10 0 0" --frames 0
+
+echo "${PASSED} passed, ${FAILED} failed"
+[ ${FAILED} -eq 0 ]

@@ -73,6 +73,25 @@ side by side for the person to pick. The chosen score enters through
 the front door like any other. The pipeline never knows a model was
 involved. (datapath: prose translation)
 
+## Say it and see it (the porch, with Claude at the door)
+
+`./say` is the porch made interactive. A person types into a box in the
+terminal. Every word the studio does not know (not in the score
+vocabulary, not plain English, no word file) is handed to its own
+headless Claude Code session, all of them at once; each writes exactly one
+file, `words/<word>.lua`, teaching the studio that word as a **pattern**
+(a recipe that expands into ordinary strokes) or a **plain** word (how to
+say it with the existing vocabulary). The words taught are added to the
+tracker issue (605) in one pass. Then a **director** session reads the
+prose, every word file and the score format, and writes a score; the
+wall checks it and sends refusals back until it passes; the gif renders
+and opens in the LÖVE viewer, which reloads as each new draft lands.
+After that the terminal is a chat with the director, which may change
+the score, the word files or the studio's code. `/done` keeps everything
+in `output/say/<run>/`. Score files may now say `pattern{...}`; the
+reader expands it before the wall, so the pipeline still only ever sees
+strokes. (Issue 604; the word files are `src/034-words.lua`.)
+
 ## Design decisions, and why
 
 - **One language, one runtime (LuaJIT).** The simulation logic and the

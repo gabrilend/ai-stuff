@@ -1,0 +1,6 @@
+title: The slant view, mid-turn
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/17-slant-view-mid-turn/picture.png
+stage: 25
+group: Three pictures, one object
+---
+Compare this sheet with the next two: three pictures that differ in turn, blur and time read to one object, and the four views of each are nearly the same. What changed between those pictures was the camera and the moment, and neither is part of the object.
