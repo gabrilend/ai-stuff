@@ -12,9 +12,17 @@
 -- (scripts/sync-page-templates; input/ is ignored by git) and writes pages to a
 -- scratch folder.
 --
--- Run directly:  luajit src/flat-html-generator.splash.test.lua [project-dir]
+-- Run directly:  luajit src/flat-html-generator.splash.test.lua [--dir PATH]
 
-local DIR = arg and arg[1] or nil
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- folder above src/ is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local DIR = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir:sub(-1) == "/" and dir or (dir .. "/")
+end)()
 
 -- {{{ local function setup_path()
 local function setup_path()
@@ -29,6 +37,12 @@ end
 
 local PROJECT = setup_path()
 local generator = require("flat-html-generator")
+-- The model the page names. config.lua names no default model (owner,
+-- 2026-10-21), so the test names the one config.lua testing uses, as the
+-- other page tests do.
+local testing = require("config-loader").load().testing
+require("inference-server-config").set_selected_server(testing.server)
+require("inference-server-config").set_selected_model(testing.model)
 
 local SCRATCH = "/tmp/neocities-modernization/tmp/splash-test"
 
@@ -69,7 +83,7 @@ local poems_data = { poems = {
     { poem_index = 3, id = 3, category = "notes", content = "third", creation_date = "2024-12-31T10:00:00Z" },
 } }
 
-local synced = os.execute('"' .. PROJECT .. 'scripts/sync-page-templates" "' .. PROJECT .. '" >/dev/null')
+local synced = os.execute('"' .. PROJECT .. 'scripts/sync-page-templates" --dir "' .. PROJECT .. '" >/dev/null')
 check("the page templates are synced into input/pages (the splash template included)",
     (synced == 0 or synced == true) and read_file(PROJECT .. "input/pages/wordcloud-splash.txt") ~= nil)
 
@@ -186,10 +200,12 @@ do
     write(probe, string.format([[
 package.path = %q
 local g = require("flat-html-generator")
+require("inference-server-config").set_selected_server(%q)
+require("inference-server-config").set_selected_model(%q)
 g.generate_splash_page(%q, nil, { enabled = true, output_file = "index.html",
     fallback_file = "splash.html", template = "wordcloud-splash.txt" })
-]], package.path, SCRATCH))
-    local pipe = io.popen('cd "' .. PROJECT .. '" && luajit "' .. probe .. '" "' .. PROJECT .. '" 2>&1')
+]], package.path, testing.server, testing.model, SCRATCH))
+    local pipe = io.popen('cd "' .. PROJECT .. '" && luajit "' .. probe .. '" --dir "' .. PROJECT .. '" 2>&1')
     local said = pipe:read("*a")
     pipe:close()
     check("a clear warning names both files", said:find("[WARN]", 1, true) ~= nil
