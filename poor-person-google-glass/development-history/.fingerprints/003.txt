@@ -1,0 +1,17 @@
+commit 3e389566b
+picture 36f64acc8c1869fde95de0a1a8633246322ec028
+c48c16a8c3af9769402e6810a785cae7816d5199  libs/dkjson.lua
+ee03f75376149b1909b0877a312d0f80ce6e34cb  src/001-the-shape-record.lua
+5e86239e2a6578434f32eec944c41a9cabf3b29f  src/002-the-test-shapes.lua
+e48f1d5aff92ad935c2005bb7fb6d571190e84de  src/003-stl.lua
+15b0fe92e95c24a83ae0a1baffd7c4fb1226209a  src/004-obj.lua
+88bdf9b16e455b7070f07fb6c62ab7f50a83c30a  src/005-gltf.lua
+a846703d6707941d33c12d7017a0d1584b9ed470  src/006-read-any-cad-file.lua
+3048b4c49486d2b0535fa97ba8c53d887cdb59b4  src/007-read-the-input.lua
+290796f7936c889a364a7c7b65f8bb2a5171830b  src/008-say-goodbye.lua
+f69dfbc46b261da9f43a1e6a366e07da7ab5b4be  src/009-the-orbit-camera.lua
+885b1ee87cd3890d7e23f0ea812ac907d145e025  src/010-the-viewer.lua
+9c0e277f1bfad276a2b4f416f3bcd68a8e990dbd  src/011-the-tests.test.lua
+d1364830044e5ba216307a13ce94566e4bef002d  src/conf.lua
+0cd1146ce4d491c69819a8e70fc6f085118ad2e6  src/main.lua
+35a8516c260ab3e16aca5dd3f505ad74b7b78e6c  input/viewer-settings.lua

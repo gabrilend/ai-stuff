@@ -125,6 +125,21 @@ function M.grade(settings, picture_path, field_path)
 end
 -- }}}
 
+-- {{{ M.grades(route)
+-- Whether the machine's squint means anything for a picture made by this route.
+--
+-- Not for the outside route (`416`), whose picture has the character painted
+-- into it: it matches the field by construction, so its score would be the
+-- highest in the pool and say nothing -- the failure `docs/007` Q13 describes,
+-- built in on purpose. Left unrated by the machine, it never enters the
+-- machine's scores, the calibration, or the agreement with a person; a person
+-- may still rate it, and the dial counts that like any other rating.
+local UNGRADED_ROUTES = { outside = true }
+function M.grades(route)
+  return not UNGRADED_ROUTES[route or "illusion"]
+end
+-- }}}
+
 -- {{{ M.rate_on_arrival(settings, companion_path, picture_path, field_path)
 -- Every picture gets a tier the moment it exists.
 --

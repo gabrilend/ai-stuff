@@ -19,6 +19,25 @@ When creating a new blank map, there's nothing to show.
 
 ## Intended Behavior
 
+**Where wire-frames are drawn (2026-11-04).** In two places, each with its
+own renderer. This issue is the **editor's**: world-edit-to-execute's Lua
+renderer, which the editor keeps (the owner: "the lua renderer is only for
+the editor, not the client"). The **player's** wire-frames are the W
+client's, in C, as the last step of its asset lookup (its issue 105a, step
+4). The owner: "The wire-frame rendering should be in the custom-client for
+when we don't have a model, but that should be only for when the map
+doesn't provide one, or when the map provides one that's from a
+proprietary source and the viewer/player doesn't have access to it."
+Asked whether the editor draws them too: "Wire-frame too."
+
+Both follow the same lookup order: the user's own packs, the map's own
+files, the user's Blizzard install if they plugged it in, the project's
+baseline model set (made by the asset forge, W05-W06), then the wire-frame.
+So a wire-frame means nothing at all matched. Playing a map is the W
+client's (issue 913), so this project's map viewer, where play happened
+until now, needs no wire-frames of its own once it retires; the editor
+does.
+
 A wire-frame/debug rendering mode that:
 1. Displays geometric shapes with placeholder colors when assets are missing
 2. Shows grid lines for terrain when no terrain textures exist
@@ -126,11 +145,17 @@ fallback.force_wireframe(true)    -- Useful for debugging
 
 Checked by `src/tests/test_fallback.lua` as shapes, colours and calls;
 **not yet seen on a screen** (raylib isn't built where this was made).
-Using it in the map viewer and the editor is 602a.
+Using it in the editor is 602a. (Written 2026-11-02 as "the map viewer
+and the editor"; since 2026-11-04 playing is the W client's, so the map
+viewer needs none of its own, as this issue's "Where wire-frames are
+drawn" says.)
 
 ## Related Documents
 
 - Issue 601 - Asset loader (triggers fallback)
+- `docs/wow-client-bridge.md` ("Who sees a wire-frame", "Our own models are the default")
+- W client: `/mnt/mtwo/games/azeroth-core/custom-client/issues/105a-loose-overlays-and-asset-resolver.md` (the player's wire-frames, step 4)
+- Issue 913 - Test map opens the W client (where playing happens now)
 - `docs/render-architecture.md` - Render primitives
 - Phase 5 issues - Render interface
 
@@ -188,3 +213,16 @@ Using it in the map viewer and the editor is 602a.
 8. **The map viewer and editor aren't switched over here** (602a): their
    scenes draw units through the model renderer with 503's placeholder
    shapes; replacing those is a visual change to check on a screen.
+
+**After the editor-and-client split (2026-11-04).** What is built here is
+the editor's half of "Where wire-frames are drawn", in the Lua renderer
+the editor keeps. Two things in these notes read differently now:
+
+- **The lookup before a wire-frame.** The loader (601) gives packs, the
+  map, then the install; `F:model` and `F:texture` draw a placeholder when
+  that comes back empty. The owner's order adds the project's baseline
+  model set between the install and the wire-frame, so once that set
+  exists a wire-frame means none of the four matched. Nothing here
+  changes for it: the fallback draws whatever the loader couldn't find.
+- **The map viewer** (decision 8, 602a) retires with play moving to the W
+  client (913); the editor is where these shapes are drawn.
