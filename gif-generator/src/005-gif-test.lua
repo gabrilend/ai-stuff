@@ -3,12 +3,12 @@
 --
 -- What this is, generally: the encoder is proven by decoding what it
 -- encoded and comparing every byte. The decoder is the studio's one
--- reader (040-gif-decode.lua), which was written for the viewer and
+-- reader (050-gif-decode.lua), which was written for the viewer and
 -- shares no code with the encoder; until 701b this file kept a small
 -- private decoder of its own. Honesty note: if encoder and decoder
 -- shared a mirrored off-by-one they could agree while browsers glitch —
 -- which is why the phase demo (a human watching the loop in a real
--- browser) remains part of the proof, and why 041 checks the reader
+-- browser) remains part of the proof, and why 051 checks the reader
 -- against ImageMagick.
 -- Run directly: luajit src/005-gif-test.lua
 
@@ -18,7 +18,7 @@ package.path = DIR .. "/src/?.lua;" .. package.path
 
 local ffi = require("ffi")
 local gif = require("004-gif")
-local reader = dofile(DIR .. "/src/040-gif-decode.lua")
+local reader = dofile(DIR .. "/src/050-gif-decode.lua")
 
 local passed, failed = 0, 0
 
@@ -35,7 +35,7 @@ end
 
 -- {{{ local function walk_gif()
 -- The offset ruler, now asked of the studio's one reader
--- (040-gif-decode.lua, written for the viewer and sharing no code with
+-- (050-gif-decode.lua, written for the viewer and sharing no code with
 -- the encoder): every block parsed, every frame's raw indices handed
 -- back, and anything the encoder never writes refused, as the private
 -- walker that lived here used to (701b).

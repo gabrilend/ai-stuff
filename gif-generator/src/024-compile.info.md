@@ -2,7 +2,7 @@
 
 Raw score in, ready timeline out — or every mistake at once, each
 naming its stroke and field, each miss teaching the nearest legal
-word by edit distance (`047-nearest.lua`, shared with the 3D wall)
+word by edit distance (`057-nearest.lua`, shared with the 3D wall)
 against the same vocabulary tables the runtime trusts. After the wall, every name becomes a number: clock words to
 angles, hues to palette seats (in order of first use, in play
 order), easing and fade names to functions, tip borrowings to
@@ -20,7 +20,7 @@ history), circular borrowings refused.
 
 A score with a second space (issue 701d) — shapes, panes besides
 the front one, or a background — is judged by the 3D wall
-(`049-shape-wall.lua`) in the same pass, its lines said in the
+(`059-shape-wall.lua`) in the same pass, its lines said in the
 score's terms (`shape #2 (tag).hue`, `camera`, `world`), and compiles
 to `studio`: one timeline per pane (each its own random stream; the
 front pane keeps the canvas's seed), the loaded world, the background

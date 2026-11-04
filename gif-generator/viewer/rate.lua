@@ -3,7 +3,7 @@
 --
 -- In general terms: every film has a card beside it (NAME.gif.card, issue
 -- 701e) with its ratings appended one per line. Pressing 1 to 5 in the
--- viewer adds a line. The maker (src/055-cards.lua) and the viewer share no
+-- viewer adds a line. The maker (src/065-cards.lua) and the viewer share no
 -- code; what they agree on is the card's text, in docs/card-format.md. Plain
 -- Lua, no LÖVE, so the tests can run it on its own.
 

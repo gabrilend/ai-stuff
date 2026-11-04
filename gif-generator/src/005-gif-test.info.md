@@ -2,7 +2,7 @@
 
 Runnable directly (`luajit src/005-gif-test.lua [project-dir]`).
 Reads what the encoder wrote with the studio's one reader
-(`040-gif-decode.lua`, which shares no code with the encoder), asking it
+(`050-gif-decode.lua`, which shares no code with the encoder), asking it
 for every frame's raw indices and the file's structure, and refuses
 anything the encoder never writes (an offset frame, a local table, an odd
 code size, a short stream). Proves: patterned frames, noise (which forces
