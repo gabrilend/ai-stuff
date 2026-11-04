@@ -40,7 +40,7 @@ reading a number here:
 | Issues | What | Note |
 |--------|------|------|
 | 051, 051a–g | Documentation generated from git history | First slice built: `scripts/history-kernel.lua` (051a: first-commit facts from git, and a model-drafted vision that never replaces an existing one). 051b–g remain. |
-| 053, 053a–f | Cross-project roadmap coordinator | First slice built: `scripts/todone.lua` (components several projects plan, named by the model, matched by spelling and a synonym list). Fuzzy tiers, the shared roadmap and outputs remain (see 053's status note). |
+| 053, 053a–f | Cross-project roadmap coordinator | First slices built: `scripts/todone.lua` (components several projects plan, named by the model, matched by spelling and a synonym list) and `scripts/todone-roadmap.lua` (053c: their build order, from hand-written needs, with effort saved). Fuzzy tiers, the model's refinement of the roadmap, and outputs remain (see 053's status note). |
 | 049, 049a–d | Transcript viewer at several levels of detail | First slice built: `scripts/transcript-detail.lua` (049a, model-classed detail levels 1–5, verbatim). Abstraction levels, chapters and the batch pipeline remain (see 049's status note). Overlaps the transcript tooling in double-diaper-dungeon. |
 | 040, 040a–i | Self-revising CLAUDE.md | First slice built: `scripts/claudemd-revise.lua` (events, model-worded proposals, approve with backup, rollback, audit). The rest is listed in 040's status note. Overlaps Claude Code's own memory handling. |
 | 044 | Project directory tree generator | Ready; low urgency. |
