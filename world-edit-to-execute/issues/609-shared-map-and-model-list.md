@@ -56,6 +56,24 @@ selects it."
 - Assets with a public source URL may be fetched from there instead, when the
   receiver prefers; the sharer never has to host anything.
 
+**Where each part runs (2026-11-04).** The owner: "The custom model
+sharing capability should be for the editor, but we can have a small
+'launcher style' system that users can open to view and browse and such.
+They could also be viewed and browsed through the browser." So:
+
+- **This project (the editor's side):** building a list from the user's
+  packs and a map, sending it over rmail, receiving one, checking every
+  file's hash, storing it, and keeping it as one of the user's packs.
+- **The launcher and the web page (issue 1001):** browsing lists beside
+  the maps and models they belong to.
+- **The W client (the game's side):** using a list while a game runs: the
+  prompt, the layer in front of the player's packs for that one game, and
+  taking it off afterwards or keeping it. Playing happens there (issue
+  913), so the parts of this design that say "for that game" are built in
+  the W client, through its asset lookup (its 105a). It reuses this
+  project's list format and rmail road rather than a second copy (W
+  client docs/012, answer 6).
+
 List format (a Lua table):
 
 | Field | Type | Meaning |
@@ -84,7 +102,7 @@ List format (a Lua table):
 ## Open Questions
 
 1. Should a list also be able to carry replacement *data tables* (for maps that ship their own spells or units), or only art?
-2. Where are lists published besides direct sharing in a lobby: next to a map in the map browser (1001)?
+2. ~~Where are lists published besides direct sharing in a lobby: next to a map in the map browser (1001)?~~ Answered 2026-11-04: in the launcher and in an ordinary web browser, both issue 1001's (the owner: "a small 'launcher style' system that users can open to view and browse and such. They could also be viewed and browsed through the browser").
 
 ## Related Documents
 
@@ -92,3 +110,5 @@ List format (a Lua table):
 - `issues/603-fetch-maps-and-models-from-public-sites.md` (fetching from public sites; its earlier transfer design, replaced by rmail, is kept at its end), `issues/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
 - `issues/W05d-clean-room-describe-build-check-loop.md` (the criteria set: gameplay never reads art)
 - `/mnt/mtwo/games/azeroth-core/custom-client/issues/105a-loose-overlays-and-asset-resolver.md`
+- `issues/1001-catalogue-of-freely-posted-maps-and-models.md` (the launcher and web page where lists are browsed), `issues/913-test-map-opens-the-w-client.md` (where playing happens)
+- `docs/wow-client-bridge.md` ("2026-11-04: the editor keeps its own renderer")

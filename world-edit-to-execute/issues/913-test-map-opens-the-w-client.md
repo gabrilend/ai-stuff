@@ -60,7 +60,13 @@ closes, and restarts it when the next Test Map needs a new build.
 
 ## Open Questions
 
-1. **The old in-editor play.** Does F5's current run in this project's own
+1. ~~**The old in-editor play.**~~ Answered 2026-11-04: they are one
+   thing. The owner: "I think these are the same?" F5 has always meant
+   "test the map"; only where it plays changes. So there is one F5, and it
+   opens the W client; the run in this project's own viewer is what this
+   issue replaces, not a second mode kept beside it. The Lua simulation
+   itself stays, as the reference AzerothCore's rules are checked against.
+   The question as asked: does F5's current run in this project's own
    viewer stay as an offline quick preview (no server needed), or retire
    once Test Map works?
 
