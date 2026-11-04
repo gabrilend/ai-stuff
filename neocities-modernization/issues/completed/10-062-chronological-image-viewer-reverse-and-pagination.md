@@ -79,9 +79,10 @@ The chronological image gallery is now paginated both ways.
   (`1   2   3 ...`, three spaces apart, the current page bold and unlinked) and
   an "oldest first | newest first" toggle. Each page says which pictures it holds
   ("this page: 22 to 23") and its title says "page N of P".
-- **Which page a picture is on** -- `src/gallery-pages.lua` (new, dependency-free
-  so effil workers can load it). The gallery's pictures (`STANDALONE_SOURCES`,
-  moved here from the generator) are sorted by time, ties broken by hash then
+- **Which page a picture is on** -- `src/gallery-pages.lua` (new, light enough
+  for effil workers to load). The gallery's pictures (`standalone_sources()`:
+  every config.lua `sources.images` directory with a `gallery` entry, the same
+  rule the generator uses) are sorted by time, ties broken by hash then
   path; `page_size = ceil(total / pages)`; a picture at 0-based position `i` is on
   page `floor(i / page_size) + 1`.
 - **Links from poem pages** -- `image-render.lua` gains `load_gallery_index`
@@ -120,8 +121,8 @@ The chronological image gallery is now paginated both ways.
    picture of the gallery, and the jump bar under it leads on.
 8. **A jump bar at the bottom too**, so reaching the end of a page does not mean
    scrolling back up to go on. Otherwise the pages look as before.
-9. **A picture the gallery does not show** (a source outside
-   `STANDALONE_SOURCES`, which the augment stage can still rank) keeps a plain,
+9. **A picture the gallery does not show** (a source without a
+   `gallery` entry in config.lua, which the augment stage can still rank) keeps a plain,
    unlinked title instead of a link to a spot that does not exist. With no
    catalog at all, nothing is linked. Drawing a gallery picture before the index
    is loaded is a wiring mistake and stops the build.

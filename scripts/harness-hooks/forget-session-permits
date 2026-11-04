@@ -1,0 +1,37 @@
+#!/usr/bin/env luajit
+--
+-- forget-session-permits
+--
+-- A hook that runs when a Claude Code session ends and removes the
+-- permissions the person gave that session alone: the folders answered
+-- "This session" and any "Yes" grants it never spent.
+--
+-- In plain terms: when the write gate asks the person whether a session may
+-- write outside its folder, "This session" means exactly that -- until the
+-- session ends. The permission is kept in RAM under the session's id
+-- (libs/outside-write-permits.lua), and this hook is what makes "until it
+-- ends" true. A session killed without ending never runs it, so its
+-- permissions stay until a reboot empties RAM, or until that session is
+-- resumed and ends properly. Issue 043, step 10.
+--
+-- Talking to Claude Code (SessionEnd): input is JSON on standard input;
+-- only `session_id` is read. Prints nothing.
+--
+-- Usage: forget-session-permits [scripts-directory]
+
+local DIR = arg[1] or "/home/ritz/programming/ai-stuff/scripts"
+local HOOK_NAME = "forget-session-permits"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+local permits = require("outside-write-permits")
+
+-- {{{ local function main()
+local function main()
+    local input = gate.read_input(HOOK_NAME, DIR)
+    permits.forget_session(input.session_id)
+    os.exit(0)
+end
+-- }}}
+
+main()

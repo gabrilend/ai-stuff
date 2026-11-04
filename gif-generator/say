@@ -1,0 +1,28 @@
+#!/bin/bash
+# say — type what you want to see, and the studio draws it as a gif.
+#
+# In general terms: opens a box in the terminal. Words the studio does not
+# know are each taught by their own Claude Code session, all at once, and
+# recorded in the tracker issue; then a director session draws the whole
+# thing, and the gif opens in a viewer. After that the terminal is a chat
+# with the director until the gif is right; /done keeps the result in
+# output/say/<run>/. (Issue 604.)
+#
+# Usage:
+#   ./say                       -- from anywhere
+#   ./say /path/to/gif-generator
+
+DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
+if [ -n "${1:-}" ] && [ -d "$1" ]; then
+    DIR="$1"
+fi
+
+"${DIR}/bootstrap" "${DIR}" > /dev/null || exit 1
+
+# one run: its working files in RAM, its result kept in output/say/
+RUN="$(date '+%Y-%m-%d-%H%M%S')"
+RUN_DIR="${DIR}/tmp/shared-memory/say/${RUN}"
+KEEP_DIR="${DIR}/output/say/${RUN}"
+mkdir -p "${RUN_DIR}" "${KEEP_DIR}"
+
+exec luajit "${DIR}/src/042-say.lua" "${DIR}" "${RUN_DIR}" "${KEEP_DIR}"

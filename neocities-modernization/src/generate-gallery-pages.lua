@@ -5,7 +5,7 @@
 -- Creates gallery index and per-source gallery pages from image-catalog.json
 --
 -- Usage:
---   luajit src/generate-gallery-pages.lua [DIR]
+--   luajit src/generate-gallery-pages.lua [--dir PATH]
 --
 -- Output:
 --   output/gallery/index.html - Gallery index listing all sources
@@ -18,46 +18,18 @@
 -- Note: fediverse-media is excluded as those images are inline with poems
 -- }}}
 
--- {{{ setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ parse_args
-local function parse_args(args)
-    local dir = nil
-    local i = 1
-    while i <= #(args or {}) do
-        local a = args[i]
-        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
-        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
-        -- it must still swallow it: the branch below claims any token that does
-        -- not start with "-" as the positional project directory, so an
-        -- unconsumed PATH would silently REPLACE the project root -- and since
-        -- package.path is built from that root, the program would then fail to
-        -- find its own libraries. Skipping a flag is not the same as skipping a
-        -- flag and its argument.
-        if a == "--dir" then
-            i = i + 2
-        elseif not a:match("^%-") then
-            dir = a
-            i = i + 1
-        else
-            -- Skip unknown flags (value-less ones; a flag that TAKES a value
-            -- needs its own branch above, or its value lands in `dir`).
-            i = i + 1
-        end
-    end
-    return dir
-end
--- }}}
-
-local provided_dir = parse_args(arg)
-local DIR = setup_dir_path(provided_dir)
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). It used to be any bare
+-- word, which is why its old parser had to swallow --assets' value by hand
+-- (Issue 10-065): an unswallowed folder became the project root. --assets is
+-- declared as taking a value, so the reader does that now. The assets folder
+-- itself is read by utils.init_assets_root.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2),
+        "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--assets"] = true })
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
@@ -77,35 +49,28 @@ local config = config_loader.load()
 local M = {}
 
 -- {{{ Configuration
--- Sources to include in gallery (exclude fediverse-media which is inline with poems).
--- Issue 10-062: the list lives in gallery-pages.lua, because the poem-page
--- renderer must count exactly the same pictures to know which page one is on.
-local STANDALONE_SOURCES = gallery_pages.STANDALONE_SOURCES
-
--- Map source names to URL-friendly slugs
-local SOURCE_SLUGS = {
-    ["my-art"] = "my-art",
-    ["things-I-almost-posted"] = "things-i-almost-posted",
-    ["poem-pictures"] = "poem-pictures",
-    ["dnd-pictures-from-the-internet"] = "dnd-pictures",
-    ["fediverse-stars"] = "fediverse-stars"
-}
-
--- Map source names to display titles
-local SOURCE_TITLES = {
-    ["my-art"] = "My Art",
-    ["things-I-almost-posted"] = "Things I Almost Posted",
-    ["poem-pictures"] = "Poem Pictures",
-    -- Keep the full source name so it is clear these were found, not authored
-    ["dnd-pictures-from-the-internet"] = "dnd-pictures-from-the-internet",
-    ["fediverse-stars"] = "Fediverse Stars"
-}
-
--- Grid layout
-local COLUMNS = 4
-local THUMBNAIL_WIDTH = 200
-local MASONRY_GAP = 16   -- px between COLUMNS (horizontal)
-local MASONRY_VGAP = 8   -- px between stacked images WITHIN a column (vertical) -- tight pack
+-- The gallery's sources, their page names and titles, and the grid, all
+-- from config.lua (sources.images): a source with a `gallery` entry is on
+-- the gallery, in the order config lists it. (Issue 10-062: gallery-pages.lua
+-- applies the same rule, standalone_sources(), so the poem-page renderer
+-- counts exactly the same pictures to know which page one is on.)
+local images_config = config.sources and config.sources.images
+    or error("config.lua has no sources.images section")
+local STANDALONE_SOURCES, SOURCE_SLUGS, SOURCE_TITLES = {}, {}, {}
+for _, source in ipairs(images_config.directories or {}) do
+    if source.gallery then
+        STANDALONE_SOURCES[#STANDALONE_SOURCES + 1] = source.name
+        SOURCE_SLUGS[source.name] = source.gallery.slug
+            or error("config.lua: gallery source " .. source.name .. " has no slug")
+        SOURCE_TITLES[source.name] = source.gallery.title
+            or error("config.lua: gallery source " .. source.name .. " has no title")
+    end
+end
+local layout = images_config.gallery_layout or error("config.lua has no sources.images.gallery_layout")
+local COLUMNS = layout.columns or error("gallery_layout.columns missing")
+local THUMBNAIL_WIDTH = layout.thumbnail_width or error("gallery_layout.thumbnail_width missing")
+local MASONRY_GAP = layout.column_gap or error("gallery_layout.column_gap missing")     -- px between columns
+local MASONRY_VGAP = layout.picture_gap or error("gallery_layout.picture_gap missing")  -- px between stacked pictures
 -- }}}
 
 -- {{{ load_image_catalog
@@ -113,7 +78,7 @@ local function load_image_catalog()
     local catalog_path = DIR .. "/assets/image-catalog.json"
     local file = io.open(catalog_path, "r")
     if not file then
-        print("Error: Could not open " .. catalog_path)
+        require("output").print("Error: Could not open " .. catalog_path)
         return nil
     end
 
@@ -122,7 +87,7 @@ local function load_image_catalog()
 
     local data, pos, err = dkjson.decode(content)
     if err then
-        print("Error parsing image catalog: " .. tostring(err))
+        require("output").print("Error parsing image catalog: " .. tostring(err))
         return nil
     end
 
@@ -215,11 +180,9 @@ end
 
 -- {{{ generate_html_header
 local function generate_html_header(title)
-    local theme = config.html_theme or {}
-    local bg = theme.background or "#000000"
-    local text = theme.text or "#FFFFFF"
-    local link = theme.link or "#6699FF"
-    local vlink = theme.vlink or "#9966FF"
+    -- every colour from config.lua html_theme, through the shared theme (one place)
+    local theme = require("page-theme").colours()
+    local bg, text, link, vlink = theme.background, theme.text, theme.link, theme.vlink
 
     return string.format([[<!DOCTYPE html>
 <html>
@@ -292,8 +255,8 @@ end
 -- {{{ generate_source_gallery
 -- Generate a gallery page for a specific source
 local function generate_source_gallery(source_name, images)
-    local slug = SOURCE_SLUGS[source_name] or source_name:lower():gsub("%s+", "-")
-    local title = SOURCE_TITLES[source_name] or source_name
+    local slug = SOURCE_SLUGS[source_name]
+    local title = SOURCE_TITLES[source_name]
 
     local html = {}
     table.insert(html, generate_html_header("Gallery: " .. title))
@@ -352,8 +315,8 @@ local function generate_gallery_index(grouped_images)
     for _, source_name in ipairs(STANDALONE_SOURCES) do
         local images = grouped_images[source_name]
         if images and #images > 0 then
-            local slug = SOURCE_SLUGS[source_name] or source_name:lower():gsub("%s+", "-")
-            local title = SOURCE_TITLES[source_name] or source_name
+            local slug = SOURCE_SLUGS[source_name]
+            local title = SOURCE_TITLES[source_name]
 
             -- Pick a representative image (first one)
             local rep_img = images[1]
@@ -457,7 +420,7 @@ local function generate_gallery_chronological_page(view, page, index, direction)
     table.insert(html, generate_html_header(title))
     table.insert(html, '<center>')
     table.insert(html, '<h1>' .. heading .. '</h1>')
-    table.insert(html, '<p><a href="index.html">Gallery Index</a> &#9474; <a href="../index.html">Menu</a></p>')
+    table.insert(html, '<p><a href="index.html">Gallery Index</a> &#9474; <a href="../wordcloud.html">Menu</a></p>')  -- the site's menu, as on the other gallery pages
     table.insert(html, direction_toggle(direction))
     table.insert(html, jump_bar(page, index.pages, direction))
     table.insert(html, '<hr>')
@@ -547,67 +510,70 @@ end
 -- }}}
 
 -- {{{ M.generate
-function M.generate()
-    print("Loading image catalog...")
+-- output_dir: where the pages go (default the site's gallery/; another
+-- folder for a trial)
+function M.generate(output_dir)
+    require("output").print("Loading image catalog...")
     local catalog = load_image_catalog()
     if not catalog then
         return false
     end
 
-    print("Filtering standalone images...")
+    require("output").print("Filtering standalone images...")
     local standalone = filter_standalone_images(catalog)
-    print("Found " .. #standalone .. " standalone images")
+    require("output").print("Found " .. #standalone .. " standalone images")
 
-    print("Grouping by source...")
+    require("output").print("Grouping by source...")
     local grouped = group_by_source(standalone)
 
     -- Create output directory
-    local output_dir = DIR .. "/output/gallery"
+    output_dir = output_dir or (DIR .. "/output/gallery")
     os.execute("mkdir -p " .. output_dir)
 
     -- Generate index page
-    print("Generating gallery index...")
+    require("output").print("Generating gallery index...")
     local index_html = generate_gallery_index(grouped)
     local index_file = io.open(output_dir .. "/index.html", "w")
     if index_file then
         index_file:write(index_html)
         index_file:close()
-        print("  Created: output/gallery/index.html")
+        require("output").print("  Created: output/gallery/index.html")
     end
 
     -- Issue 10-042d: chronological images pages (all sources, by time).
     -- Issue 10-062: split into pages, oldest first and newest first.
-    print("Generating chronological images pages...")
+    require("output").print("Generating chronological images pages...")
     local page_count = config.pagination and config.pagination.gallery_chronological_pages
     local written, index = M.write_chronological_pages(output_dir, catalog, page_count)
-    print(string.format("  Created: %d chronological pages (%d per direction, %d images each) "
+    require("output").print(string.format("  Created: %d chronological pages (%d per direction, %d images each) "
         .. "and output/gallery/chronological.html", #written - 1, index.pages, index.page_size))
 
     -- Generate per-source gallery pages
     for _, source_name in ipairs(STANDALONE_SOURCES) do
         local images = grouped[source_name]
         if images and #images > 0 then
-            print("Generating gallery for " .. source_name .. " (" .. #images .. " images)...")
+            require("output").print("Generating gallery for " .. source_name .. " (" .. #images .. " images)...")
             local page_html, filename = generate_source_gallery(source_name, images)
             local page_file = io.open(output_dir .. "/" .. filename, "w")
             if page_file then
                 page_file:write(page_html)
                 page_file:close()
-                print("  Created: output/gallery/" .. filename)
+                require("output").print("  Created: output/gallery/" .. filename)
             end
         else
-            print("Skipping " .. source_name .. " (no images)")
+            require("output").print("Skipping " .. source_name .. " (no images)")
         end
     end
 
-    print("Gallery generation complete!")
+    require("output").print("Gallery generation complete!")
     return true
 end
 -- }}}
 
 -- Run if executed directly
 if arg and arg[0]:match("generate%-gallery%-pages%.lua$") then
-    M.generate()
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("generate-gallery-pages.lua", M.generate)
 end
 
 return M

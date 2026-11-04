@@ -18,26 +18,39 @@
 -- (With few pictures this can give fewer than page_count pages -- 25 pictures
 -- in pages of 3 fill 9 -- never more.)
 --
--- Dependency-free on purpose: it is also required inside the HTML generator's
--- effil worker threads, each with its own fresh Lua state.
+-- Light on purpose: it is also required inside the HTML generator's effil
+-- worker threads, each with its own fresh Lua state. Its one dependency is
+-- libs/config-loader.lua (pure Lua), for the list of gallery sources.
 
 local M = {}
 
--- The image sources the gallery shows. fediverse-media is left out: those
--- pictures are poem attachments and appear inline with their poems.
-M.STANDALONE_SOURCES = {
-    "my-art",
-    "things-I-almost-posted",
-    "poem-pictures",
-    "dnd-pictures-from-the-internet",
-    "fediverse-stars",
-}
+-- {{{ function M.standalone_sources()
+-- The image sources the gallery shows: every directory in config.lua
+-- sources.images that has a `gallery` entry, in the order config lists them --
+-- the same rule src/generate-gallery-pages.lua uses for its pages, so the
+-- gallery and the poem pages' links count the same pictures. (fediverse-media
+-- has none: those pictures are poem attachments, drawn inline with their
+-- poems.) Read once per Lua state; a missing section is an error.
+local sources_cache = nil
+function M.standalone_sources()
+    if sources_cache then return sources_cache end
+    local cfg = require("config-loader").load()
+    local images = cfg.sources and cfg.sources.images
+        or error("gallery pages: config.lua has no sources.images section")
+    local list = {}
+    for _, directory in ipairs(images.directories or {}) do
+        if directory.gallery then list[#list + 1] = directory.name end
+    end
+    sources_cache = list
+    return list
+end
+-- }}}
 
 -- {{{ function M.standalone_images()
 -- The catalog's pictures that the gallery shows, in catalog order.
 function M.standalone_images(catalog)
     local wanted = {}
-    for _, source in ipairs(M.STANDALONE_SOURCES) do wanted[source] = true end
+    for _, source in ipairs(M.standalone_sources()) do wanted[source] = true end
     local images = {}
     for _, img in ipairs((catalog and catalog.images) or {}) do
         if wanted[img.source_name] then images[#images + 1] = img end

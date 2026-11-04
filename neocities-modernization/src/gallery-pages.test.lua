@@ -62,7 +62,7 @@ end
 -- do, spread over the five gallery sources, plus pictures the gallery leaves
 -- out (fediverse-media) that must not shift any page.
 local function catalog_of(n)
-    local sources = G.STANDALONE_SOURCES
+    local sources = G.standalone_sources()
     local images = {}
     for i = n, 1, -1 do
         local source = sources[(i - 1) % #sources + 1]
