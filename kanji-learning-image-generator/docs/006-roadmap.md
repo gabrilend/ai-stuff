@@ -83,6 +83,8 @@ is building**, where the ones that miss get sorted out and re-argued.
 | `406` | Two ways of saying it is good — a machine that squints, a person who clicks, and the agreement between them |
 | `407` | The quality dial — a floor per world, and the variety it costs said out loud first |
 | `408` | What a higher tier buys — a stroke-order animation for the ones somebody liked |
+| `415` | A kitchen in another house — a ComfyUI on another machine, inputs by upload, an inventory asked before posting |
+| `416` | Inside and outside — the character painted and the scene around it, or the scene placed only where the strokes are |
 
 `405` is what the last three stand on. `404` is the only thing in this project
 that cannot be finished on the machine it was written on.
@@ -98,3 +100,19 @@ still an HTTP request.
 is the specification and it does not become an assertion by being written down
 harder. `304` exists to make the squinting cheap, and `docs/007` holds the open
 question about whether any of it can be measured.
+
+## Phase 5 — The Museum
+
+*A scene in the manner of a place where things are shown.*
+
+The character is built out of exhibits — bones, specimens, crystals, plants,
+fish, working models, orbs in a dark planetarium — chosen from a hall, or from
+the halls one named museum has, and drawn through both routes of `416`.
+
+| | |
+|---|---|
+| `501` | A museum is a place you can name — a record in words, read into a style |
+| `502` | What a vitrine holds — halls as biomes whose things are exhibits |
+| `503` | The case under the light — words first, drawn only if the pictures demand it |
+| `504` | The pictures teach the look — photographs as conditioning, once there are any |
+| `505` | A visit to the museum — the phase demo |

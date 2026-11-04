@@ -13,6 +13,7 @@ commands instead of text. Used by `refuse-directory-change`,
 | --- | --- | --- |
 | `words` | list of strings | the command's words, quotes removed, redirect targets dropped, keywords in front (`if then do ! { time`…) dropped |
 | `heredocs` | list of `{ body = string, delimiter = string }` | heredoc bodies, set aside from the words |
+| `redirects` | list of `{ op = string, target = string }` | every redirection with a target word, in order: `op` as typed (`>`, `>>`, `>\|`, `<>`, `>&`, `&>`, `&>>`, `<`, `<&`), `target` with quotes removed (`2>&1` is `>&` `1`); here-strings and heredocs are not redirects |
 | `depth` | integer | 0 for the line itself, +1 for each nesting (substitution, eval, `bash -c`, shell heredoc) |
 
 **invocation** — a git command split up by `git_invocation`.

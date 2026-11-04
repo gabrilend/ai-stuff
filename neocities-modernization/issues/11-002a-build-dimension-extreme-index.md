@@ -144,6 +144,10 @@ Total: ~48 MB (can be compressed to ~10 MB with gzip)
 - `libs/dkjson.lua`
 - `libs/utils.lua`
 
+## Blocks
+
+- 11-002b, 11-003, 9-004
+
 ## Related Issues
 
 - **11-002**: Parent maze system issue

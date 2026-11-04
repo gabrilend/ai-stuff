@@ -1,0 +1,6 @@
+title: Walking on the sphere, half a second later
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/19-walking-half-a-second-later/picture.png
+stage: 25
+group: Three pictures, one object
+---
+Half a second later the figures have moved a step; in the views that step is invisible among the scatter. A pair of pictures half a second apart describes motion, and a scene has no time in it.

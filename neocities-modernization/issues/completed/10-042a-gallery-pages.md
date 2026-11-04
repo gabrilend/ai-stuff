@@ -103,6 +103,10 @@ Add gallery generation option to CLI menu.
 
 - Issue 6-017: Image integration system (provides image-catalog.json)
 
+## Blocks
+
+- 10-042b
+
 ## Status
 
 **COMPLETED** - 2026-04-06

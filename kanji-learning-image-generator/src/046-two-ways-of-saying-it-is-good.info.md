@@ -26,6 +26,7 @@ luajit src/046-two-ways-of-saying-it-is-good.lua --rate <file>=<tier> ...
 | `M.squint(picture, field, settings)` | How much of the character survived into the picture, from zero to one. |
 | `M.tier_for(agreement, settings)` | One number, as one of the five steps. |
 | `M.grade(settings, picture_path, field_path)` | One picture, looked at. Returns the tier and the number behind it. |
+| `M.grades(route)` | Whether the machine's squint means anything for a picture made by this route. |
 | `M.rate_on_arrival(settings, companion_path, picture_path, field_path)` | Every picture gets a tier the moment it exists. |
 | `M.apply_ratings(settings, given)` | A batch of ratings from a person, applied. |
 | `M.anchored(settings)` | Whether a person's ratings are still frequent enough to mean anything. |
@@ -44,6 +45,12 @@ A negative correlation means the picture came out inverted with respect to the f
 One number, as one of the five steps.
 
 The cuts are in settings and are a starting position rather than a finding -- `--calibrate` is the thing that measures where they should be, kept for the reason `strategems/037` gives.
+
+### `M.grades(route)`
+
+Whether the machine's squint means anything for a picture made by this route.
+
+Not for the outside route (`416`), whose picture has the character painted into it: it matches the field by construction, so its score would be the highest in the pool and say nothing -- the failure `docs/007` Q13 describes, built in on purpose. Left unrated by the machine, it never enters the machine's scores, the calibration, or the agreement with a person; a person may still rate it, and the dial counts that like any other rating.
 
 ### `M.rate_on_arrival(settings, companion_path, picture_path, field_path)`
 

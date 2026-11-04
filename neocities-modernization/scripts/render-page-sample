@@ -1,0 +1,240 @@
+#!/usr/bin/env luajit
+-- render-page-sample
+--
+-- WHAT IT DOES (for a CEO): before changing how poems are drawn, you want a
+-- picture of every page as it is, so that after the change you can say exactly
+-- what moved and prove nothing else did. This builds that picture: every
+-- chronological page, plus the similar and different pages of a fixed sample
+-- of poems chosen to include each hard case (golden poems, boosts, content
+-- warnings, emphasis, 80-wide lines, pictures), written into a folder of its
+-- own. Run it once with the old code and once with the new, then compare the
+-- two folders line by line (diff -r). The real site is never touched.
+-- (Issue 8-058, step 7.)
+--
+-- Usage:
+--   scripts/render-page-sample [--dir PATH] --out FOLDER --model NAME --server NAME --threads N --poems-per-page N --pages N
+--
+--   --dir PATH project directory (default below)
+--   --out     where the pages go; made fresh, must not exist yet
+--   --model   embedding model whose caches the pages are built from
+--   --server  inference server entry naming that model (config.lua)
+--   --threads worker threads for the similar/different pages
+--   --poems-per-page  poems on each similar/different page (the builds use 33)
+--   --pages   pages per poem, a count or "all" (as run.sh --pages)
+--   --anchor  a poem number (as on the site: poem-N); may be given more than
+--             once. Given, only these poems get similar/different pages,
+--             instead of the fixed sample -- the way to look at one poem's
+--             pages without a build.
+--   --copy-pictures
+--             copy the pictures into FOLDER/media instead of linking the
+--             site's (assets/site-media); for when no build has filled that
+--             yet. Give FOLDER in RAM (tmp/shared-memory/): about 1.5 GB.
+--   --words N --poems-per-word-page M
+--             also draw the word pages of the first N words of the word
+--             cloud, M poems each (the word embeddings and word colours must
+--             exist, from a build's word-cloud stage)
+--
+-- The sample is chosen from poems.json by a fixed rule (no randomness), so two
+-- runs over the same poems pick the same anchors. One page per anchor per
+-- list.
+-- The pictures folder is linked, not copied: the page builder skips a picture
+-- that already exists, so the sample costs no picture copies.
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
+-- {{{ arguments
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076). It used to be any bare word.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", {
+        ["--out"] = true, ["--model"] = true, ["--server"] = true, ["--threads"] = true,
+        ["--poems-per-page"] = true, ["--pages"] = true, ["--words"] = true,
+        ["--poems-per-word-page"] = true, ["--anchor"] = true,
+    })
+local OUT, MODEL, SERVER, THREADS, PER_PAGE, PAGES
+local ANCHORS = {}
+local WORDS, PER_WORD_PAGE
+local COPY_PICTURES = false
+do
+    local i = 1
+    while i <= #OWN_ARGS do
+        local a = OWN_ARGS[i]
+        if a == "--out" then OUT = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--model" then MODEL = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--server" then SERVER = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--threads" then THREADS = tonumber(OWN_ARGS[i + 1]); i = i + 1
+        elseif a == "--poems-per-page" then PER_PAGE = tonumber(OWN_ARGS[i + 1]); i = i + 1
+        elseif a == "--pages" then PAGES = OWN_ARGS[i + 1]; i = i + 1
+        elseif a == "--copy-pictures" then COPY_PICTURES = true
+        elseif a == "--words" then WORDS = tonumber(OWN_ARGS[i + 1]); i = i + 1
+        elseif a == "--poems-per-word-page" then PER_WORD_PAGE = tonumber(OWN_ARGS[i + 1]); i = i + 1
+        elseif a == "--anchor" then
+            ANCHORS[#ANCHORS + 1] = tonumber(OWN_ARGS[i + 1])
+                or error("render-page-sample: --anchor takes a poem number, not " .. tostring(OWN_ARGS[i + 1]))
+            i = i + 1
+        else error("render-page-sample: unknown option " .. a) end
+        i = i + 1
+    end
+end
+if not (OUT and MODEL and SERVER and THREADS and PER_PAGE and PAGES) then
+    error("render-page-sample: --out, --model, --server, --threads, --poems-per-page and --pages are all required")
+end
+if (WORDS == nil) ~= (PER_WORD_PAGE == nil) then
+    error("render-page-sample: --words and --poems-per-word-page go together")
+end
+-- }}}
+
+package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
+local utils = require("utils")
+local inference_config = require("inference-server-config")
+inference_config.set_project_root(DIR)
+inference_config.set_selected_server(SERVER)
+inference_config.set_selected_model(MODEL)
+utils.init_assets_root({ DIR })
+-- The page builder reads the project folder from the script's first
+-- command-line argument when it is loaded, so it is given one that is just
+-- the folder; this script's own options are already read above.
+arg = { DIR }
+local generator = require("flat-html-generator")
+
+-- {{{ local function run()
+-- A shell command that must succeed. LuaJIT reports success as 0, or as true
+-- when built with Lua 5.2 compatibility; both mean "exited 0".
+local function run(cmd)
+    local result = os.execute(cmd)
+    if result ~= 0 and result ~= true then
+        error("render-page-sample: command failed: " .. cmd)
+    end
+end
+-- }}}
+
+-- {{{ local function fresh_out()
+-- Makes OUT and links its pictures folder to the site's, so nothing is
+-- copied. The site's pictures live on disk in assets/site-media (the site in
+-- RAM links its media folder there; scripts/ensure-site-in-ram), filled by a
+-- build. Without it the page builder would try to copy every picture into a
+-- link that leads nowhere and warn once per picture, so it is an error here.
+-- --copy-pictures: OUT/media is a plain folder, and the page builder copies
+-- the pictures into it as a build would into the site's.
+local function fresh_out()
+    local probe = io.open(OUT .. "/.", "r")
+    if probe then
+        probe:close()
+        error("render-page-sample: " .. OUT .. " already exists; give a new folder")
+    end
+    if COPY_PICTURES then
+        run(string.format("mkdir -p %q", OUT .. "/media"))
+        require("output").print("render-page-sample: copying the pictures into " .. OUT .. "/media (--copy-pictures)")
+        return
+    end
+    local media = DIR .. "/assets/site-media"
+    local pictures = io.open(media .. "/.", "r")
+    if not pictures then
+        error("render-page-sample: no pictures folder at " .. media
+            .. "; a build fills it (./run.sh). Build the site once, or give --copy-pictures")
+    end
+    pictures:close()
+    run(string.format("mkdir -p %q", OUT))
+    run(string.format("ln -s %q %q", media, OUT .. "/media"))
+end
+-- }}}
+
+-- {{{ local function pick_sample()
+-- A fixed, rule-based sample: for each hard case, the first poems (in
+-- poems.json order) that show it, so every kind of entry is drawn as an
+-- anchor; their ranked lists then bring many more cases in.
+local function pick_sample(poems)
+    local cases = {
+        golden   = function(p) return p.metadata and p.metadata.is_golden_poem end,
+        boost    = function(p) return p.metadata and p.metadata.is_boost end,
+        cw_field = function(p) return p.content_warning and p.content_warning ~= "" end,
+        emphasis = function(p) return (p.content or ""):find("%*[^%s%*][^%*\n]-%*") ~= nil end,
+        pictures = function(p) return p.attachments and #p.attachments > 0 end,
+        cw_later = function(p)
+            local n = 0
+            for line in ((p.content or "") .. "\n"):gmatch("(.-)\n") do
+                n = n + 1
+                if n > 1 and line:lower():match("^%s*cw%s*:") then return true end
+            end
+            return false
+        end,
+        wide80 = function(p)
+            for line in ((p.content or "") .. "\n"):gmatch("(.-)\n") do
+                if #line == 80 then return true end
+            end
+            return false
+        end,
+    }
+    local per_case = 25
+    local chosen, seen = {}, {}
+    for _, name in ipairs({ "golden", "boost", "cw_field", "emphasis", "pictures", "cw_later", "wide80" }) do
+        local got = 0
+        for _, p in ipairs(poems) do
+            if got >= per_case then break end
+            if p.poem_index and not seen[p.poem_index] and cases[name](p) then
+                seen[p.poem_index] = true
+                chosen[#chosen + 1] = p
+                got = got + 1
+            end
+        end
+    end
+    -- plus every 200th poem, for ordinary ones
+    for i = 1, #poems, 200 do
+        local p = poems[i]
+        if p.poem_index and not seen[p.poem_index] then
+            seen[p.poem_index] = true
+            chosen[#chosen + 1] = p
+        end
+    end
+    return chosen
+end
+-- }}}
+
+-- {{{ local function named_anchors()
+-- The poems --anchor named, by poem number; a number no poem has is an error.
+local function named_anchors(poems)
+    local by_index = {}
+    for _, p in ipairs(poems) do
+        if p.poem_index then by_index[p.poem_index] = p end
+    end
+    local chosen = {}
+    for i, n in ipairs(ANCHORS) do
+        chosen[i] = by_index[n] or error("render-page-sample: no poem is numbered " .. n)
+    end
+    return chosen
+end
+-- }}}
+
+local poems_data = assert(utils.read_json_file(utils.asset_path("poems.json")), "poems.json did not load")
+-- the anchors are chosen first, so a poem number no poem has stops the run
+-- before anything is drawn. --anchor given: those poems; otherwise the fixed
+-- sample.
+local sample = #ANCHORS > 0 and named_anchors(poems_data.poems) or pick_sample(poems_data.poems)
+local anchors = {}
+for i, p in ipairs(sample) do anchors[i] = p.poem_index end
+fresh_out()
+local chrono_per_page = generator.get_pagination_config().chronological_poems_per_page
+-- the chronological pages: all of them, from every poem
+assert(generator.generate_chronological_index_with_navigation(poems_data, OUT, chrono_per_page, THREADS),
+    "chronological pages failed")
+-- the similar/different pages: only the anchors get pages; every poem keeps
+-- its place on the timeline and in the ranked lists
+assert(generator.generate_complete_flat_html_collection(
+    poems_data, nil, nil, OUT, PAGES, PER_PAGE, THREADS, chrono_per_page, anchors),
+    "similar/different pages failed")
+require("output").print(string.format("render-page-sample: %d anchors; pages under %s", #sample, OUT))
+
+-- {{{ word pages (--words)
+-- The word-page builder reads its settings from the command line when it is
+-- loaded, as the page builder does, so it is loaded with the ones this
+-- sample uses (the same as run.sh passes it).
+if WORDS then
+    arg = { DIR, "--html-only", "--words", tostring(WORDS), "--poems-per-page", tostring(PER_WORD_PAGE),
+        "--chrono-per-page", tostring(chrono_per_page), "--model", MODEL, "--server", SERVER,
+        "--threads", tostring(THREADS) }
+    local word_pages = require("generate-word-pages")
+    assert(word_pages.generate_word_html({ output_dir = OUT }), "word pages failed")
+    require("output").print(string.format("render-page-sample: word pages for %d words under %s/wordcloud", WORDS, OUT))
+end
+-- }}}

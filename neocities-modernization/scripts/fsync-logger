@@ -19,16 +19,34 @@
 # the log directory), so there is no project-relative ${DIR} to hard-code here.
 #
 # Usage:
-#   producer | fsync-logger /abs/path/to.log          # tee mode: disk + terminal
-#   producer | fsync-logger --quiet /abs/path/to.log  # disk only (background producers)
+#   producer | fsync-logger --log /abs/path/to.log          # tee mode: disk + terminal
+#   producer | fsync-logger --quiet --log /abs/path/to.log  # disk only (background producers)
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 # {{{ argument parsing
+# The log file is named by --log FILE; a stray word stops the script
+# (libs/project-dir.sh, Issue 10-076). It writes only the file it is given,
+# so the project folder (--dir) it accepts is not used. The log file used to
+# be the first bare word.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "--log" "$@"
+set -- "${PROJECT_ARGS[@]}"
 QUIET=0
-if [ "${1:-}" = "--quiet" ]; then
-    QUIET=1
-    shift
+TARGET=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --quiet) QUIET=1; shift ;;
+        --log)   TARGET="${2:-}"; shift 2 ;;
+        *)       echo "fsync-logger: unknown option $1" >&2; exit 1 ;;
+    esac
+done
+if [ -z "$TARGET" ]; then
+    echo "usage: fsync-logger [--quiet] --log FILE" >&2
+    exit 1
 fi
-TARGET="${1:?usage: fsync-logger [--quiet] TARGET_LOG}"
 # }}}
 
 # {{{ main loop

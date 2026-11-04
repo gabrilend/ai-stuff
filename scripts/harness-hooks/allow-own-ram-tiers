@@ -1,0 +1,112 @@
+#!/usr/bin/env luajit
+--
+-- allow-own-ram-tiers
+--
+-- A hook that sits in front of Claude Code's file tools and lets a session
+-- reach its own project's scratch space in RAM without being asked about it.
+--
+-- In plain terms: every project keeps its throwaway files (logs, builds,
+-- things to run) in memory, behind a `tmp` link in the project folder that
+-- leads to /tmp/<name>, and a `shared-memory` link inside that which leads to
+-- /dev/shm/<name> (issue 033, libs/ensure-ram-tiers). Claude Code only lets
+-- its file tools work inside the folders it was started with, and both RAM
+-- rooms are outside them, so reading the project's own log stopped for a
+-- question every single time -- while the standing instructions say logs must
+-- live exactly there. This hook answers "yes" for those two rooms, and only
+-- for the rooms belonging to the project the session is in. For every other
+-- path it says nothing, and Claude Code's own boundary decides as before.
+--
+-- HOW IT FINDS THE ROOMS
+--
+-- Only from the folder the session is in: its own `tmp` link, and nothing
+-- above it. A session started in a subfolder of a project, or in a folder
+-- with no link, gets no exception, and Claude Code asks the person as usual.
+-- (A walk upward, as restore-ram-tiers does, was built first and removed on
+-- the owner's word, 2026-10-20: "that symlinked one must be in the root of
+-- where the agent is running otherwise it needs to ask the user." A session
+-- started at the monorepo root would otherwise have been handed whichever
+-- project's rooms happened to sit above it, a bug waiting to happen.)
+-- The rooms are where the link, and the `shared-memory` link inside it,
+-- really lead, every link followed, and nothing else: only those two. A room counts only when it
+-- sits under the RAM root it belongs to (/tmp for the exec room, /dev/shm for
+-- the artifact room): a `tmp` link aimed at a disk folder, or at a root
+-- itself, would otherwise turn this hook into a key for that whole place.
+--
+-- HOW IT JUDGES A PATH
+--
+-- By where the path really is (`realpath -m`: links followed for every part
+-- that exists, the rest taken as written), so `<project>/tmp/x`,
+-- `/tmp/<name>/x` and any other link leading into a room give the same
+-- answer, and a file about to be created is judged by its folder. Inside
+-- means "the room itself or below it", compared up to a `/`, so
+-- /tmp/<name>-other is not inside /tmp/<name>.
+--
+-- WHAT THIS IS NOT
+--
+-- A widening, never a narrowing. It cannot refuse anything; a deny rule in
+-- settings still beats its "allow". When it cannot read its input it tells
+-- the person (as every hook here does) and gives no answer, which leaves
+-- Claude Code's own boundary in charge -- the safe direction for a hook whose
+-- only power is to let more through.
+--
+-- Usage: allow-own-ram-tiers [unused] [scripts-directory]
+-- (The first argument is kept for the token path the gates take, so the test
+-- runner can call every hook the same way; this hook has no token.)
+
+local DIR = arg[2] or "/home/ritz/programming/ai-stuff/scripts"
+local HOOK_NAME = "allow-own-ram-tiers"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+local tiers = require("own-ram-tiers")
+
+-- Which field of each tool's input holds the path it will touch. A tool not
+-- listed here (or one called without its path, like Glob or Grep searching
+-- the session's own folder) gets no answer from this hook.
+local PATH_FIELD_OF_TOOL = {
+    Read         = "file_path",
+    Edit         = "file_path",
+    Write        = "file_path",
+    MultiEdit    = "file_path",
+    NotebookEdit = "notebook_path",
+    Glob         = "path",
+    Grep         = "path",
+}
+
+-- {{{ local function main()
+local function main()
+    local input, json = gate.read_input(HOOK_NAME, DIR)
+
+    local field = PATH_FIELD_OF_TOOL[input.tool_name]
+    -- a tool this hook does not judge: no answer
+    if not field then os.exit(0) end
+    local tool_input = type(input.tool_input) == "table" and input.tool_input or {}
+    local asked = tool_input[field]
+    -- called without a path (Glob/Grep in the session's own folder): no answer
+    if type(asked) ~= "string" or asked == "" then os.exit(0) end
+
+    local cwd = input.cwd
+    if type(cwd) ~= "string" or cwd:sub(1, 1) ~= "/" then
+        gate.warn_and_allow(HOOK_NAME, "hook input has no absolute cwd, so the session's project cannot be found; Claude Code's own folder boundary decides")
+    end
+
+    -- a relative path is read from the session's folder, as the tool would
+    if asked:sub(1, 1) ~= "/" then asked = cwd .. "/" .. asked end
+    local place = tiers.real_place(asked, false)
+    -- the path cannot be placed at all: no answer
+    if not place then os.exit(0) end
+
+    local rooms = tiers.rooms_of(cwd)
+    local project = cwd:gsub("/+$", "")
+    for _, room in ipairs(rooms) do
+        -- inside one of the project's own rooms: allow without asking
+        if tiers.is_inside(place, room) then
+            gate.allow(json, HOOK_NAME .. ": " .. place .. " is in " .. room .. ", the RAM scratch space of " .. project .. " (reached through its tmp link).")
+        end
+    end
+    -- anywhere else: say nothing, and Claude Code's own boundary decides
+    os.exit(0)
+end
+-- }}}
+
+main()
