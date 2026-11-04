@@ -82,6 +82,32 @@ check("bad description found", out:find("not lower-case words", 1, true) ~= nil)
 check("missing extension found", out:find("no .md extension", 1, true) ~= nil)
 check("completed issue sections not checked", out:find("completed/102-again.md: missing", 1, true) == nil)
 
+-- a pointer left at a renumbered issue's old path claims nothing (the 023 rule)
+local moved = SCRATCH .. "/moved"
+write(moved, "phase-1-progress.md", "")
+write(moved, "completed/103-third.md", "# Third\n" .. full)
+write(moved, "completed/103-renumbered.md", "# Moved: Issue 103 is now Issue 105\n\n"
+    .. "It is now [Issue 105](105-renumbered.md).\n\nThis file only points there.\n")
+write(moved, "completed/105-renumbered.md", "**Blocks:** 106\n" .. full)
+write(moved, "106-open.md", "**Blocked by:** 105\n" .. full)
+write(moved, "106a-measure.md", "# Issue 106a has moved: Measure\n\n"
+    .. "The record is [106b](106b-measure.md).\n\n## What Happened\n\nRenumbered.\n")
+write(moved, "106b-measure.md", "# Measure\n" .. full)
+out, status = run(moved)
+check("pointer files: no duplicate, no missing sections", status == 0 and out:find("claimed by", 1, true) == nil
+    and out:find("missing section", 1, true) == nil)
+check("a pointer still holds its id (next free is 107)", out:find("1→107", 1, true) ~= nil)
+-- a long file, or one with an issue's sections, is not a pointer even if its title says moved
+write(moved, "completed/105-renumbered-copy.md", "# Moved: but still a whole issue\n\n[x](x.md)\n" .. full)
+out = run(moved)
+check("a 'moved' file with an issue's sections still counts as a duplicate",
+    out:find("id 105: claimed by 2 files", 1, true) ~= nil)
+os.remove(moved .. "/issues/completed/105-renumbered-copy.md")
+write(moved, "107-moved-no-link.md", "# Moved somewhere\n\nNo link here.\n")
+write(moved, "completed/107-done.md", "# Done\n" .. full)
+out = run(moved)
+check("a 'moved' file that links nowhere is not a pointer", out:find("id 107: claimed by 2 files", 1, true) ~= nil)
+
 -- --file narrows to one file
 out = run(messy .. " --file " .. messy .. "/issues/105-Bad_Name.md")
 check("--file reports only that file", out:find("105-Bad_Name", 1, true) ~= nil
