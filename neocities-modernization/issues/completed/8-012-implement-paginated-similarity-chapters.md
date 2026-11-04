@@ -462,3 +462,7 @@ lua src/main.lua . --html-only --pages=1
 
 **Remaining Work:**
 - [ ] Phase E: Integration (entry points, testing, max_pages enforcement)
+
+## Blocks
+
+- 8-016

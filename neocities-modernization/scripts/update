@@ -3,6 +3,10 @@
 # Automatically detects ZIP archives and extracts JSON data for poem processing pipeline
 # Implements freshness checking to skip extraction when outputs are up to date
 
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
 set -euo pipefail
 
 # {{{ setup_dir_path
@@ -77,9 +81,14 @@ is_extraction_fresh() {
 # }}}
 
 # Parse command line arguments for project directory and options
-SCRIPT_DIR=""
 FORCE_EXTRACT=false
 INCLUDE_BOOSTS=false
+# The project folder: --dir PATH, or the path in setup_dir_path; a stray word
+# stops the script (libs/project-dir.sh, Issue 10-076). It used to be any bare
+# word. What is left is this script's own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$(setup_dir_path "")" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force|-f)
@@ -99,19 +108,12 @@ while [[ $# -gt 0 ]]; do
             INCLUDE_BOOSTS=false
             shift
             ;;
-        -*)
+        *)
             echo "Unknown option: $1" >&2
             exit 1
             ;;
-        *)
-            SCRIPT_DIR="$1"
-            shift
-            ;;
     esac
 done
-
-# Set up project directory
-DIR=$(setup_dir_path "$SCRIPT_DIR")
 
 # Check if extraction is needed (freshness check)
 if [ "$FORCE_EXTRACT" = false ] && is_extraction_fresh "$DIR"; then
@@ -128,7 +130,7 @@ echo "🔄 Starting content extraction with ZIP archive support..."
 # Guarantee the tmpfs-backed tmp/ symlink exists before any working directory
 # is created underneath it. Issue 8-059 unified the previous split between
 # temp/ and tmp/ into a single tmpfs path.
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}"
 
 # Create temporary extraction directory
 TEMP_EXTRACT_DIR="${DIR}/tmp/shared-memory/extract-$(date +%s)"
@@ -136,7 +138,7 @@ mkdir -p "${TEMP_EXTRACT_DIR}"
 
 # Extract ZIP archives to temporary locations
 echo "📦 Extracting ZIP archives..."
-lua "${DIR}/scripts/zip-extractor.lua" "${DIR}" "${TEMP_EXTRACT_DIR}" || {
+lua "${DIR}/scripts/zip-extractor.lua" --dir "${DIR}" --temp "${TEMP_EXTRACT_DIR}" || {
     echo "Error: ZIP extraction failed" >&2
     rm -rf "${TEMP_EXTRACT_DIR}"
     exit 1
@@ -150,21 +152,37 @@ if [ ! -f "${EXTRACTION_SUMMARY}" ]; then
     exit 1
 fi
 
+# {{{ stop_extraction
+# stop_extraction <what failed>
+# One extractor failing stops the whole update. These used to print a warning
+# and carry on, so a build went ahead without that source's poems -- every
+# later stage (embeddings, similarity, diversity, pages: the better part of an
+# hour) then ran on a corpus missing a whole source, and the site was rebuilt
+# wrong before anyone read the warning. Stopping here costs seconds; the owner
+# would rather fix it now than finish a doomed run (2026-10-04).
+stop_extraction() {
+    echo "Error: $1 failed; stopping before the rest of the build runs on incomplete input." >&2
+    rm -rf "${TEMP_EXTRACT_DIR}"
+    exit 1
+}
+# }}}
+
 # Extract content from temporary ZIP extractions
 echo "📱 Processing extracted archives..."
 
 # Check for fediverse data
 if [ -f "${TEMP_EXTRACT_DIR}/fediverse/extract/outbox.json" ]; then
     echo "📱 Extracting fediverse content..."
-    # Issue 8-011: Pass boost inclusion flag if enabled
-    BOOST_FLAG=""
+    # Issue 8-011: pass the boost choice either way. "No" used to be passed as
+    # nothing, which only worked because the extractor quietly fell back to
+    # config.lua; since Issue 10-065a a missing choice is asked for, or is an
+    # error when run.sh started the build, so "no" is said out loud.
+    BOOST_FLAG="--no-boosts"
     if $INCLUDE_BOOSTS; then
         BOOST_FLAG="--include-boosts"
         echo "   📤 Including fediverse boosts in extraction"
     fi
-    lua "${DIR}/scripts/extract-fediverse.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/fediverse" $BOOST_FLAG || {
-        echo "Warning: Fediverse extraction failed" >&2
-    }
+    lua "${DIR}/scripts/extract-fediverse.lua" --dir "${DIR}" --source "${TEMP_EXTRACT_DIR}/fediverse" $BOOST_FLAG || stop_extraction "fediverse extraction"
 else
     echo "ℹ️  No fediverse data found in archives"
 fi
@@ -172,9 +190,7 @@ fi
 # Check for messages data
 if [ -f "${TEMP_EXTRACT_DIR}/messages/extract/export.json" ]; then
     echo "💬 Extracting messages content..."
-    lua "${DIR}/scripts/extract-messages.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/messages" || {
-        echo "Warning: Messages extraction failed" >&2
-    }
+    lua "${DIR}/scripts/extract-messages.lua" --dir "${DIR}" --source "${TEMP_EXTRACT_DIR}/messages" || stop_extraction "messages extraction"
 else
     echo "ℹ️  No messages data found in archives"
 fi
@@ -182,9 +198,7 @@ fi
 # Check for notes data
 if [ -d "${TEMP_EXTRACT_DIR}/notes/extract" ] && [ "$(find "${TEMP_EXTRACT_DIR}/notes/extract" -type f | head -1)" ]; then
     echo "📝 Extracting notes content..."
-    lua "${DIR}/scripts/extract-notes.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/notes" || {
-        echo "Warning: Notes extraction failed" >&2
-    }
+    lua "${DIR}/scripts/extract-notes.lua" --dir "${DIR}" --source "${TEMP_EXTRACT_DIR}/notes" || stop_extraction "notes extraction"
 else
     echo "ℹ️  No notes data found in archives"
 fi
@@ -192,9 +206,7 @@ fi
 # Also process notes from main directory if not from ZIP
 if [ -d "${DIR}/input/notes" ] && [ "$(find "${DIR}/input/notes" -type f -not -name '.*' | head -1)" ]; then
     echo "📝 Processing notes from main directory..."
-    bash "${DIR}/scripts/run-notes" "${DIR}" || {
-        echo "Warning: Main notes processing failed" >&2
-    }
+    bash "${DIR}/scripts/run-notes" --dir "${DIR}" || stop_extraction "main notes processing"
 fi
 
 # Check for Bluesky CAR files (find newest by mtime, not specific filenames)
@@ -202,9 +214,7 @@ fi
 CAR_FILE=$(find "${DIR}/input/bluesky" -name "*.car" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
 if [ -n "$CAR_FILE" ]; then
     echo "🦋 Extracting Bluesky content from $(basename "$CAR_FILE")..."
-    "${DIR}/scripts/extract-bluesky-data" "$CAR_FILE" "${DIR}/input/bluesky/files/poems.json" || {
-        echo "Warning: Bluesky extraction failed" >&2
-    }
+    "${DIR}/scripts/extract-bluesky-data" --dir "${DIR}" --car "$CAR_FILE" --output "${DIR}/input/bluesky/files/poems.json" || stop_extraction "Bluesky extraction"
 else
     echo "ℹ️  No Bluesky CAR files found in input/bluesky/"
 fi
@@ -214,8 +224,16 @@ echo "🖼️  Preserving media attachments..."
 MEDIA_DEST="${DIR}/input/media_attachments"
 if [ -d "${TEMP_EXTRACT_DIR}/fediverse/extract/media_attachments" ]; then
     mkdir -p "${MEDIA_DEST}"
-    cp -rn "${TEMP_EXTRACT_DIR}/fediverse/extract/media_attachments/"* "${MEDIA_DEST}/" 2>/dev/null || true
-    MEDIA_COUNT=$(find "${MEDIA_DEST}" -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.webp" \) 2>/dev/null | wc -l)
+    # This line used to end "2>/dev/null || true", discarding every error,
+    # because two ordinary situations made cp fail: an empty folder (with
+    # "/*") and a file already preserved by an earlier run (with -n, which in
+    # coreutils 9 exits 1 for each file it does not replace). Discarding those
+    # also discarded real failures -- a full disk, a permission problem.
+    # "/." copies the contents and copies nothing, successfully, from an empty
+    # folder; --update=none skips files already there and still exits 0. So
+    # any failure left is a real one, and stops the update.
+    cp -r --update=none "${TEMP_EXTRACT_DIR}/fediverse/extract/media_attachments/." "${MEDIA_DEST}/" || stop_extraction "preserving media attachments"
+    MEDIA_COUNT=$(find "${MEDIA_DEST}" -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.webp" \) | wc -l)
     echo "   📷 Preserved ${MEDIA_COUNT} media files to ./${MEDIA_DEST#${DIR}/}"
 fi
 
