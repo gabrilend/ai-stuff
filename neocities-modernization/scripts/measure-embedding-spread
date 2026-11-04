@@ -31,18 +31,22 @@
 --   [4] Which poems does this model have no embedding for?
 -- }}}
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076). It used to be any bare word.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", { ["--model"] = true })
 local forced_model = nil
 do
     local i = 1
-    while i <= #arg do
-        local a = arg[i]
+    while i <= #OWN_ARGS do
+        local a = OWN_ARGS[i]
         if a == "--model" then
-            forced_model = arg[i + 1]; i = i + 2
+            forced_model = OWN_ARGS[i + 1]; i = i + 2
         elseif a:match("^%-%-model=") then
             forced_model = a:match("^%-%-model=(.+)$"); i = i + 1
-        elseif a:sub(1, 1) ~= "-" then
-            DIR = a; i = i + 1
         else
             i = i + 1
         end
@@ -60,11 +64,11 @@ local base = forced_model
     and (DIR .. "/assets/embeddings/" .. forced_model)
     or utils.embeddings_dir()
 
-print("model directory: " .. base)
+require("output").print("model directory: " .. base)
 if not forced_model then
-    print("  (resolved through the project's model selection, not typed by hand)")
+    require("output").print("  (resolved through the project's model selection, not typed by hand)")
 end
-print("")
+require("output").print("")
 
 local ffi = require("ffi")
 
@@ -149,12 +153,12 @@ local pavg = 0
 for _, v in ipairs(pvecs) do pavg = pavg + norm(v, D) end
 pavg = pavg / #pvecs
 
-print("[1] SHARED DIRECTION")
-print(string.format("  poems: %d vectors, %d dims", #pvecs, D))
-print(string.format("  mean vector length %.4f / average vector length %.4f = %.3f",
+require("output").print("[1] SHARED DIRECTION")
+require("output").print(string.format("  poems: %d vectors, %d dims", #pvecs, D))
+require("output").print(string.format("  mean vector length %.4f / average vector length %.4f = %.3f",
     norm(pmean, D), pavg, norm(pmean, D) / pavg))
-print("  (a ratio near 1.0 means every vector points essentially the same way,")
-print("   and cosine similarity is mostly measuring that rather than meaning)")
+require("output").print("  (a ratio near 1.0 means every vector points essentially the same way,")
+require("output").print("   and cosine similarity is mostly measuring that rather than meaning)")
 
 -- Single words: a different population of text entirely. If they share the same
 -- direction, the habit belongs to the model and not to the poems.
@@ -182,25 +186,25 @@ do
             local wavg = 0
             for _, v in ipairs(wvecs) do wavg = wavg + norm(v, D) end
             wavg = wavg / #wvecs
-            print(string.format("  single words (%d sampled): %.4f / %.4f = %.3f",
+            require("output").print(string.format("  single words (%d sampled): %.4f / %.4f = %.3f",
                 #wvecs, norm(wmean, D), wavg, norm(wmean, D) / wavg))
-            print(string.format("  poem-mean vs word-mean: cos = %.4f", cosine(pmean, wmean, D)))
-            print("  (words carrying MORE shared direction than poems is why the")
-            print("   word pages centre before comparing and the poem-to-poem pages do not)")
+            require("output").print(string.format("  poem-mean vs word-mean: cos = %.4f", cosine(pmean, wmean, D)))
+            require("output").print("  (words carrying MORE shared direction than poems is why the")
+            require("output").print("   word pages centre before comparing and the poem-to-poem pages do not)")
         end
     else
-        print("  word_embeddings.json absent -- word-vs-poem comparison skipped")
+        require("output").print("  word_embeddings.json absent -- word-vs-poem comparison skipped")
     end
 end
 
-print("")
-print("[2] COLOUR ANCHORS -- genericness vs raw win share")
+require("output").print("")
+require("output").print("[2] COLOUR ANCHORS -- genericness vs raw win share")
 local COLORS = unified_config.color_names
     or {"red", "blue", "green", "purple", "orange", "yellow", "gray"}
 do
     local cf = io.open(base .. "/color_embeddings.json", "rb")
     if not cf then
-        print("  color_embeddings.json absent -- skipped")
+        require("output").print("  color_embeddings.json absent -- skipped")
     else
         local raw = cf:read("*a"); cf:close()
         local cvec = {}
@@ -235,45 +239,45 @@ do
             end
         end
         table.sort(rows, function(a, b) return a.north > b.north end)
-        print("  colour    cos-to-average-poem   raw-nearest wins")
+        require("output").print("  colour    cos-to-average-poem   raw-nearest wins")
         for _, r in ipairs(rows) do
-            print(string.format("  %-9s %.4f %17d (%.1f%%)",
+            require("output").print(string.format("  %-9s %.4f %17d (%.1f%%)",
                 r.c, r.north, r.w, 100 * r.w / #pvecs))
         end
-        print("  (if these two columns rank the same way, raw nearest-cosine is")
-        print("   choosing by genericness, not by meaning -- which is why the")
-        print("   stored verdict is z-scored before a colour is assigned)")
+        require("output").print("  (if these two columns rank the same way, raw nearest-cosine is")
+        require("output").print("   choosing by genericness, not by meaning -- which is why the")
+        require("output").print("   stored verdict is z-scored before a colour is assigned)")
     end
 end
 
-print("")
-print("[3] STORED (z-scored) COLOUR DISTRIBUTION")
+require("output").print("")
+require("output").print("[3] STORED (z-scored) COLOUR DISTRIBUTION")
 do
     local sf = io.open(base .. "/poem_colors.json", "rb")
     if not sf then
-        print("  poem_colors.json absent -- skipped")
+        require("output").print("  poem_colors.json absent -- skipped")
     else
         local raw = sf:read("*a"); sf:close()
         local dist, total = {}, 0
         for c in raw:gmatch('"color":"(%a+)"') do
             dist[c] = (dist[c] or 0) + 1; total = total + 1
         end
-        print(string.format("  %d entries", total))
+        require("output").print(string.format("  %d entries", total))
         for _, c in ipairs(COLORS) do
             local n = dist[c] or 0
-            print(string.format("  %-9s %6d (%.1f%%)", c, n, total > 0 and 100 * n / total or 0))
+            require("output").print(string.format("  %-9s %6d (%.1f%%)", c, n, total > 0 and 100 * n / total or 0))
         end
-        print("  (an even spread here is the z-score doing its job; a colour")
-        print("   taking a third or more means the correction is not being applied)")
+        require("output").print("  (an even spread here is the z-score doing its job; a colour")
+        require("output").print("   taking a third or more means the correction is not being applied)")
     end
 end
 
-print("")
-print("[4] CORPUS COVERAGE")
+require("output").print("")
+require("output").print("[4] CORPUS COVERAGE")
 do
     local poems = utils.read_json_file(utils.asset_path("poems.json"))
     if not poems or not poems.poems then
-        print("  poems.json unreadable -- skipped")
+        require("output").print("  poems.json unreadable -- skipped")
     else
         local have = {}
         local maxi = 0
@@ -289,26 +293,26 @@ do
                 missing_total = missing_total + 1
             end
         end
-        print(string.format("  poems in collection: %d", #poems.poems))
-        print(string.format("  poems with an embedding: %d", #pidxs))
-        print(string.format("  highest embedded poem_index: %d", maxi))
+        require("output").print(string.format("  poems in collection: %d", #poems.poems))
+        require("output").print(string.format("  poems with an embedding: %d", #pidxs))
+        require("output").print(string.format("  highest embedded poem_index: %d", maxi))
         if meta.unparsed then
-            print(string.format("  WARNING: %d of %d embedding arrays could not be paired with a",
+            require("output").print(string.format("  WARNING: %d of %d embedding arrays could not be paired with a",
                 meta.unparsed, meta.present))
-            print("           poem_index by this tool's reader -- the counts below may")
-            print("           overstate the gap by that many. Inspect embeddings.json.")
+            require("output").print("           poem_index by this tool's reader -- the counts below may")
+            require("output").print("           overstate the gap by that many. Inspect embeddings.json.")
         end
         if missing_total == 0 then
-            print("  every poem is embedded")
+            require("output").print("  every poem is embedded")
         else
-            print(string.format("  NOT EMBEDDED: %d -- these can never appear on any page", missing_total))
+            require("output").print(string.format("  NOT EMBEDDED: %d -- these can never appear on any page", missing_total))
             local names = {}
             for c in pairs(missing_by_cat) do names[#names + 1] = c end
             table.sort(names)
             for _, c in ipairs(names) do
-                print(string.format("    %-18s %d", c, missing_by_cat[c]))
+                require("output").print(string.format("    %-18s %d", c, missing_by_cat[c]))
             end
-            print("  (regenerate embeddings to close this gap)")
+            require("output").print("  (regenerate embeddings to close this gap)")
         end
     end
 end

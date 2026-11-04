@@ -188,4 +188,5 @@ contain poems with no image attachments.
 - **Phase**: 8 (Website Completion / HTML Generation)
 - **Estimated Complexity**: Low-Medium (function exists, needs to be called in right places)
 - **Dependencies**: None
+- **Blocks**: 8-048, 9-013
 - **Affects**: All similar/*.html and different/*.html pages
