@@ -24,9 +24,8 @@ limit (`cache.lua`).
 
 ### The renderer's calls (issue 606a)
 
-The same calls `assets.open`'s handle answers, so `gpu.lua`, `ground.lua`,
-the map viewer and the editor can be handed a loader and draw the
-player's packs first.
+The same calls `assets.open`'s handle answers, so `gpu.lua`, `ground.lua`
+and the editor can be handed a loader and draw the player's packs first.
 
 | Function | Takes | Gives |
 |----------|-------|-------|

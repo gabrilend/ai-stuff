@@ -333,8 +333,8 @@ end
 
 -- {{{ the renderer's calls: L:texture / L:model / L:table / L:model_for / L:scale_for
 -- As assets.open's handle answers them (assets/init.lua), so the renderer
--- (gpu.lua, ground.lua, the map viewer and the editor) can be handed a
--- loader instead and draw the player's packs first (issue 606a).
+-- (gpu.lua, ground.lua and the editor) can be handed a loader instead and
+-- draw the player's packs first (issue 606a).
 
 -- A decoded texture, or nil. Like A:texture, a path with no extension, or
 -- a .tga that isn't there, is tried again as .blp.
