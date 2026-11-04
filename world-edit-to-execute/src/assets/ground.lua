@@ -38,6 +38,13 @@ their blight colour; slopes, however steep, are textured.
     local ground = require("assets.ground")
     local report = ground.apply(render, A, scene)   -- after render.land_build
     report.real, report.standin                      -- tilesets by source
+
+A may be an assets.loader (issue 606a), so the player's packs come first.
+A tileset saved again can go into its texture without a restart, once
+render.tex_update is in (606a):
+
+    local ids, ext, r = ground.textures(render, L, scene.terrain)
+    H = hotreload.new(L, { on_reload = ground.on_reload(render, ids, scene.terrain, r) })
 ]]
 
 local ffi = require("ffi")
@@ -218,6 +225,29 @@ function ground.textures(render, A, t, opts)
         extended[k - 1] = img.width > img.height
     end
     return ids, extended, report
+end
+
+-- An on_reload for assets/hotreload.lua (issue 606a): a tileset's texture
+-- saved again goes into the texture ground.textures made for it. IDS, T
+-- and REPORT are what ground.textures took and gave. Needs
+-- render.tex_update (render/models.c doesn't have it yet); gives whether
+-- a texture was swapped. A tileset whose new picture changes shape
+-- (extended or not) keeps the old layout until the ground is laid again.
+function ground.on_reload(render, ids, t, report)
+    local function norm(p) return (p:gsub("\\", "/"):gsub("^/+", ""):lower()) end
+    return function(path, value)
+        if type(path) ~= "string" or type(value) ~= "table" or not value.rgba then return false end
+        if type(render.tex_update) ~= "function" then return false end
+        local want, hit = norm(path), false
+        for k, id in ipairs(t.ground_tilesets) do
+            local p = report.paths[id]
+            if p and ids[k] and norm(p) == want then
+                render.tex_update(ids[k], value.width, value.height, value.rgba)
+                hit = true
+            end
+        end
+        return hit
+    end
 end
 
 -- the textured cells over the landscape built last (render.land_build)
