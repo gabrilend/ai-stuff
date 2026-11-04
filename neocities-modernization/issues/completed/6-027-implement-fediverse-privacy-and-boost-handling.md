@@ -45,6 +45,10 @@
 - Current ZIP extraction and ActivityPub processing pipeline
 - Existing golden poem identification system
 
+## Blocks
+
+- 6-027a, 6-027b, 6-029, 6-030
+
 ## Quality Assurance Criteria
 - Privacy: Default mode contains no identifiable usernames or server locations
 - Accuracy: Golden poem counts remain consistent regardless of privacy mode

@@ -110,6 +110,10 @@ end
 - Parent Issue 6-027: Fediverse privacy and boost handling
 - Issue 4-003: Golden poem character counting methodology
 
+## Blocks
+
+- 6-027b, 6-029, 6-030
+
 ## Implementation Results
 
 ### Privacy-Aware Anonymization Successfully Implemented ✅

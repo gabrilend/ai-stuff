@@ -12,9 +12,19 @@
 -- over the edge. Escaped ampersands (&amp;, five bytes for one column) and any
 -- non-ASCII punctuation (an em dash, three bytes for one column) do the same.
 --
--- Run directly:  luajit libs/text-formatter-test.lua [project-dir]
+-- Run directly:  luajit libs/text-formatter-test.lua [--dir PATH]
 
 -- {{{ local function setup_dir_path()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup_dir_path(provided)
     if provided then return provided end
     local this = debug.getinfo(1, "S").source:sub(2)
@@ -23,7 +33,7 @@ local function setup_dir_path(provided)
 end
 -- }}}
 
-local DIR = setup_dir_path(arg and arg[1])
+local DIR = setup_dir_path(PROJECT_DIR_ARG)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "libs/?.lua;" .. package.path
 local tf = require("text-formatter")
 
@@ -97,6 +107,34 @@ check("exactly 80 columns does not wrap",
 local overlong = "\1<em>emphasis</em>\1 " .. ("word "):rep(20)
 check("emphasized line past the margin still wraps",
     #tf.wrap_preserving_indent(overlong, 80) > 1)
+-- }}}
+
+-- {{{ an emoji is two grid cells (owner, 2026-10-25)
+check("an emoji counts as two columns", tf.display_columns("hi 😀 there") == 11)
+check("a skin-tone mark adds nothing", tf.display_columns("👍🏽") == 2)
+check("a joined family is one picture, two columns", tf.display_columns("👨‍👩‍👧") == 2)
+check("a flag is two letters, one picture, two columns", tf.display_columns("🇺🇸") == 2)
+check("a symbol the font draws stays one column", tf.display_columns("★") == 1)
+check("a symbol asking for its colour emoji is two", tf.display_columns("☀️") == 2)
+check("each emoji is boxed", tf.grid_emoji("a 😀 b") == 'a <span class="e">😀</span> b')
+check("text inside a tag is left alone", tf.grid_emoji('<img alt="😺">') == '<img alt="😺">')
+check("a boxed emoji still measures two", tf.calculate_visible_width(tf.grid_emoji("😀")) == 2)
+-- }}}
+
+-- {{{ an indent too deep to leave room shrinks instead of overflowing
+-- notes-619: 74 spaces, then "quickly" -- 81 columns. It used to come back
+-- whole, one past the text column.
+do
+    local deep = (" "):rep(74) .. "quickly"
+    local out = tf.wrap_preserving_indent(deep, 80)
+    check("a deep-indented word ends at the text column's edge",
+        #out == 1 and tf.calculate_visible_width(out[1]) == 80 and out[1]:match("quickly$") ~= nil, show(out))
+    local long = (" "):rep(75) .. ("word "):rep(6)
+    local wrapped = tf.wrap_preserving_indent(long, 80)
+    local widest = 0
+    for _, l in ipairs(wrapped) do widest = math.max(widest, tf.calculate_visible_width(l)) end
+    check("longer text after a deep indent wraps within the column", widest <= 80, show(wrapped))
+end
 -- }}}
 
 -- {{{ entities and multi-byte characters cost one column each
@@ -279,6 +317,61 @@ do
     local short = tf.format_cw_box("CW:  food\n\n mention ", 30, false)
     check("cw box: whitespace runs and newlines collapse to single spaces",
         short:find("│ CW: food mention", 1, true) ~= nil, short)
+end
+-- }}}
+
+-- {{{ file header: long source names wrap at a dash or slash
+-- " -> file: notes/i-asked-chatgpt-..." was 97 columns wide and failed the
+-- whole-site width check. Owner's rule: wrap at a dash (dash stays up top) or
+-- a slash (slash goes down below), never anywhere else.
+do
+    local prefix = " -> file: "
+    local long = tf.wrap_file_header(prefix,
+        "notes/i-asked-chatgpt-to-rewrite-the-declaration-of-independence-with-todays-grievences", 80)
+    local fits = true
+    for _, line in ipairs(long) do
+        if tf.utf8_char_count(line) > 80 then fits = false end
+    end
+    check("file header: a long dashed name wraps to fit 80", #long == 2 and fits, show(long))
+    check("file header: the dash stays at the end of the upper line",
+        long[1]:sub(-1) == "-", long[1])
+    -- The cut is the furthest dash that fits: "...-independence-with-" is
+    -- exactly 80 wide, so "with-" stays on the upper line.
+    check("file header: the next line sits under the path",
+        long[2] == string.rep(" ", #prefix) .. "todays-grievences", long[2])
+
+    -- A slash goes to the start of the lower line. Width 30 forces the break
+    -- before the slash, the only cut that fits.
+    local slashed = tf.wrap_file_header(prefix, "notesfolder/aaaaaaaaaaaaaaa", 30)
+    check("file header: a slash starts the lower line",
+        #slashed == 2 and slashed[1] == prefix .. "notesfolder"
+            and slashed[2] == string.rep(" ", #prefix) .. "/aaaaaaaaaaaaaaa", show(slashed))
+
+    local short = tf.wrap_file_header(prefix, "fediverse/1234", 80)
+    check("file header: a short name stays one line", #short == 1 and short[1] == prefix .. "fediverse/1234")
+
+    -- Picture titles may also break after ": " (opts.colon). A hash name has
+    -- no dash; without the colon break it could not wrap at all.
+    local hash = "bafkreiafqepgssblxxrogv6lgqwertyuiopasdfghjklzxcvbnm1234567890abc.png"
+    local titled = tf.wrap_file_header("   ", "dnd-pictures-from-the-internet: " .. hash, 80, { colon = true })
+    check("picture title: breaks after the colon, colon on the upper line",
+        #titled == 2 and titled[1] == "   dnd-pictures-from-the-internet: " and titled[2] == "   " .. hash,
+        show(titled))
+    local plain = tf.wrap_file_header("   ", "dnd-pictures-from-the-internet: " .. hash, 80)
+    check("file header: no colon break unless asked for", plain[1]:sub(-2) ~= ": ", show(plain))
+
+    -- No dash or slash to break at: cut at the column (owner, 2026-10-21:
+    -- "We should allow a hard-break"), never inside a multi-byte character.
+    local unbreakable = tf.wrap_file_header(prefix, string.rep("x", 90), 80)
+    local fits = true
+    for _, l in ipairs(unbreakable) do if tf.utf8_char_count(l) > 80 then fits = false end end
+    check("file header: an unbreakable name is cut at the column", #unbreakable == 2 and fits, show(unbreakable))
+    check("file header: the cut loses nothing",
+        (unbreakable[1] .. unbreakable[2]:gsub("^%s+", "")):gsub("^" .. prefix:gsub("%p", "%%%0"), "") == string.rep("x", 90))
+    local accented = tf.wrap_file_header(prefix, string.rep("é", 90), 80)
+    local whole = true
+    for _, l in ipairs(accented) do if l:find("[\192-\255]$") then whole = false end end
+    check("file header: a cut never splits a character", whole)
 end
 -- }}}
 

@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# calculate - works out the tolerance calculations.
+#
+# In plain terms: each file in input/calculations/ asks one question about
+# whether parts will fit and work when every size is a little off (a tab in
+# its channel, the liquid's match to the glass as it warms, the two eyes'
+# pictures lining up...). This works each one out -- the nominal answer, the
+# worst case, the usual spread, which input matters most, pass or fail
+# against its limit -- and writes the numbers and a readable report into
+# output/calculations/. The format is in docs/tolerances.md.
+#
+# Usage:
+#   ./calculate                    every calculation
+#   ./calculate NAME...            only these (file names without .lua)
+#   ./calculate <project-dir> ...  another copy of the project
+
+DIR="/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+exec luajit "${DIR}/src/022-calculate.lua" "${DIR}" "$@"
