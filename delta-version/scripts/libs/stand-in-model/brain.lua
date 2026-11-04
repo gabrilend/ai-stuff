@@ -16,8 +16,10 @@
 --                       "implemented" IMPORTANT, "because" USEFUL, "let me
 --                       try" VERBOSE, else NOISE
 --   vision              a vision document built from the "subject: " lines
---   components          the known component names the user text mentions,
---                       one per line, in a fixed vocabulary
+--   components          each phrase from a fixed list of component phrases
+--                       that the user text holds, written as the text
+--                       writes it (so "Thread-Pool" stays "Thread-Pool"),
+--                       one per line; "none" when there are none
 --   (anything else)     "stand-in reply: " and the first 60 characters
 
 local root = os.getenv("AISTUFF_ROOT") or "/home/ritz/programming/ai-stuff"
@@ -39,16 +41,10 @@ local function first_line(text)
 end
 -- }}}
 
--- {{{ Component vocabulary: a phrase found -> the name reported
+-- {{{ Component phrases the stand-in recognises (Lua patterns, lower case)
 local COMPONENTS = {
-    { "thread ?pool", "threadpool" },
-    { "tui", "tui framework" },
-    { "terminal ui", "tui framework" },
-    { "json", "json parser" },
-    { "http client", "http client" },
-    { "llm client", "llm client" },
-    { "chat client", "llm client" },
-    { "config file", "config parser" },
+    "thread[%-_ ]?pool", "worker pool", "tui framework", "terminal ui", "json parser",
+    "http client", "llm client", "chat client", "config parser",
 }
 -- }}}
 
@@ -85,12 +81,10 @@ elseif task == "vision" then
     for index = 2, #subjects do out[#out + 1] = "- " .. subjects[index] end
     reply(table.concat(out, "\n"))
 elseif task == "components" then
-    local lower, found, seen = user:lower(), {}, {}
-    for _, entry in ipairs(COMPONENTS) do
-        if lower:find(entry[1]) and not seen[entry[2]] then
-            seen[entry[2]] = true
-            found[#found + 1] = entry[2]
-        end
+    local lower, found = user:lower(), {}
+    for _, pattern in ipairs(COMPONENTS) do
+        local from, to = lower:find(pattern)
+        if from then found[#found + 1] = user:sub(from, to) end
     end
     reply(#found > 0 and table.concat(found, "\n") or "none")
 else
