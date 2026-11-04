@@ -35,7 +35,7 @@
 --   measure-authorship.lua --count-worker LIST OUT  -- internal: repository share
 --
 -- See measure-authorship.info.md for the counting rules as a table, and
--- delta-version/issues/059-measure-human-and-machine-authorship.md for why.
+-- delta-version/issues/completed/059-measure-human-and-machine-authorship.md for why.
 
 -- {{{ DIR Configuration
 -- DIR is the repository being measured. The script's own home (for its RAM
@@ -113,6 +113,20 @@ local config = {
         "^Another Claude session sent a message:",
         "^<agent%-message",
     },
+
+    -- Of those, the model's summary of a compacted session. It stays the
+    -- machine's (it is model-written text), but the report names its share,
+    -- since it restates the conversation rather than adding to it (issue 059,
+    -- decision 5).
+    compaction_opening = "^This session is being continued from a previous conversation",
+
+    -- The fullest export (verbosity 4, "v4-complete") pastes the current
+    -- contents of every file an answer touched, under this label and inside a
+    -- fence the exporter closes with a blank line then a bare ``` line.
+    -- Ordinary transcripts never carry them, so they are cut out and every
+    -- conversation is measured alike (issue 059, decision 1). The model's
+    -- file writing is counted from git instead (decision 6).
+    file_body_label = "^%*%*\240\159\147\132 Full content of .+:%*%*$",
 
     -- Only one thing moves a user turn out of the person's column wholesale:
     -- a session id beginning "agent-", which is the tool's own mark of a
@@ -505,7 +519,7 @@ local ORIGINS = {
     person   = function() return false end,
 }
 local function classify_user_turn(text, origin)
-    local counts = { human = 0, machine = 0, pasted = 0, system = 0 }
+    local counts = { human = 0, machine = 0, pasted = 0, system = 0, compaction = 0 }
     if ORIGINS[origin](text, counts) then return counts end
 
     local reminders = 0
@@ -518,6 +532,7 @@ local function classify_user_turn(text, origin)
     local opening = normalise(text)
     if matches_any(opening, config.machine_openings) then
         counts.machine = characters(text)
+        if opening:find(config.compaction_opening) then counts.compaction = counts.machine end
         return counts
     end
     if matches_any(opening, config.system_openings) then
@@ -607,7 +622,8 @@ local function parse_transcript(path, emit)
             before_previous, previous = previous, normalised
             local counts = classify_user_turn(body, origin)
             instance = { key = key, human = counts.human, machine = counts.machine,
-                         pasted = counts.pasted, system = counts.system, answer = 0 }
+                         pasted = counts.pasted, system = counts.system,
+                         compaction = counts.compaction, answer = 0 }
         elseif role == "assistant" then
             local size = characters(body)
             if size == 0 then return end
@@ -615,16 +631,42 @@ local function parse_transcript(path, emit)
                 -- A response with no user turn before it in this conversation
                 -- (a continuation that opens a file): keyed by its own text.
                 instance = { key = hash64("O\1" .. normalise(body)), human = 0,
-                             machine = 0, pasted = 0, system = 0, answer = 0 }
+                             machine = 0, pasted = 0, system = 0, compaction = 0,
+                             answer = 0 }
             end
             instance.answer = instance.answer + size
         end
     end
     -- }}}
 
+    -- A pasted file body inside an answer (see config.file_body_label):
+    -- "label" until its opening fence, then "body" until the exporter's own
+    -- close, a bare ``` after a blank line. Anything that ends the turn ends
+    -- the body too, so a body the export cut short cannot swallow the next turn.
+    local file_body, previous_line, label_line = nil, "", nil
+
     for line in (text .. "\n"):gmatch("([^\n]*)\n") do
         local session = line:match("^# Conversation Summary:%s*(%S*)")
-        if session then
+        if session or line:match("^### User Request %d+") or line:match("^### Assistant Response %d+")
+            or line == config.separator or matches_any(line, config.boundaries) then
+            if file_body == "label" then lines[#lines + 1] = label_line end
+            file_body = nil
+        end
+        if file_body == "body" then
+            if line == "```" and previous_line == "" then file_body = nil end
+        elseif file_body == "label" then
+            if line:match("^```") then
+                file_body = "body"
+            elseif line ~= "" then
+                -- no fence after the label: not a file body after all, so
+                -- the label and this line are the answer's own text
+                file_body = nil
+                lines[#lines + 1] = label_line
+                lines[#lines + 1] = line
+            end
+        elseif role == "assistant" and line:find(config.file_body_label) then
+            file_body, label_line = "label", line
+        elseif session then
             flush(); role = nil
             start_conversation(session)
         elseif line:match("^### User Request %d+") then
@@ -643,6 +685,7 @@ local function parse_transcript(path, emit)
         elseif role then
             lines[#lines + 1] = line
         end
+        previous_line = line
     end
     flush()
     close_instance()
@@ -652,12 +695,12 @@ end
 -- {{{ local function run_worker()
 -- One worker: reads its share of file paths, parses each, and writes one
 -- tab-separated record per turn instance to its output file:
---   key  human  machine  pasted  system  answer
+--   key  human  machine  pasted  system  compaction  answer
 local function run_worker(list_path, out_path)
     local out = assert(io.open(out_path, "wb"))
     local function emit(record)
-        out:write(string.format("%s\t%d\t%d\t%d\t%d\t%d\n", record.key, record.human,
-            record.machine, record.pasted, record.system, record.answer))
+        out:write(string.format("%s\t%d\t%d\t%d\t%d\t%d\t%d\n", record.key, record.human,
+            record.machine, record.pasted, record.system, record.compaction, record.answer))
     end
     for path in io.lines(list_path) do
         parse_transcript(path, emit)
@@ -696,13 +739,19 @@ end
 -- {{{ local function tracked_files()
 -- Every path git tracks, relative to DIR. Read NUL-separated so that names
 -- git would otherwise quote (spaces, accents) arrive exactly as they are.
+-- Symbolic links (mode 120000) are left out: a link's text is its target's,
+-- counted where the target is tracked, and opening one can block for ever.
+-- A tracked Wine prefix links com1 to /dev/ttyS0, and reading that waits on
+-- a serial port.
 local function tracked_files()
-    local pipe = io.popen(string.format("git -C %q ls-files -z", DIR))
+    local pipe = io.popen(string.format("git -C %q ls-files -z -s", DIR))
     if not pipe then error("could not list tracked files in " .. DIR, 0) end
     local listing = pipe:read("*a")
     pipe:close()
     local files = {}
-    for path in listing:gmatch("([^%z]+)%z") do files[#files + 1] = path end
+    for mode, path in listing:gmatch("(%d+) %x+ %d+\t([^%z]+)%z") do
+        if mode ~= "120000" then files[#files + 1] = path end
+    end
     return files
 end
 -- }}}
@@ -771,8 +820,13 @@ local function classify_path(path, vendored)
         if repo_rules.skipped_segments[segment] then skipped = true end
         if repo_rules.doc_text_folders[segment] then in_doc_folder = true end
     end
-    -- notes win over input/ (hand-written poems kept as a project's input)
-    if in_notes then return "notes" end
+    -- notes win over input/ (hand-written poems kept as a project's input),
+    -- except a CLAUDE.md or a saved history of one, which the owner did not
+    -- type line by line (issue 059, decision 3)
+    if in_notes then
+        if name:match("^CLAUDE[%w%._%-]*%.md$") then return nil end
+        return "notes"
+    end
     if skipped then return nil end
 
     local extension = name:match("%.([^%./]+)$")
@@ -919,15 +973,15 @@ local function merge(outputs, files_seen)
     local instances = 0
     for _, output in ipairs(outputs) do
         for line in records_of(output) do
-            local key, human, machine, pasted, system, answer =
-                line:match("^(%x+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)$")
+            local key, human, machine, pasted, system, compaction, answer =
+                line:match("^(%x+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)\t(%d+)$")
             if not key then error("malformed worker record: " .. line, 0) end
             instances = instances + 1
             local turn = turns[key]
             if not turn then
                 turns[key] = { human = tonumber(human), machine = tonumber(machine),
                                pasted = tonumber(pasted), system = tonumber(system),
-                               answer = tonumber(answer) }
+                               compaction = tonumber(compaction), answer = tonumber(answer) }
             elseif tonumber(answer) > turn.answer then
                 turn.answer = tonumber(answer)
             end
@@ -936,7 +990,7 @@ local function merge(outputs, files_seen)
 
     local totals = { human_characters = 0, machine_characters = 0,
                      excluded_paste_characters = 0, system_characters = 0,
-                     turns_counted = 0, turn_copies_seen = instances,
+                     compaction_characters = 0, turns_counted = 0, turn_copies_seen = instances,
                      transcripts_counted = files_seen }
     for _, turn in pairs(turns) do
         totals.turns_counted = totals.turns_counted + 1
@@ -944,6 +998,7 @@ local function merge(outputs, files_seen)
         totals.machine_characters = totals.machine_characters + turn.machine + turn.answer
         totals.excluded_paste_characters = totals.excluded_paste_characters + turn.pasted
         totals.system_characters = totals.system_characters + turn.system
+        totals.compaction_characters = totals.compaction_characters + turn.compaction
     end
     totals.machine_units = totals.machine_characters
     totals.machine_unit_name = "characters"
@@ -996,6 +1051,51 @@ local function merge_files(outputs)
 end
 -- }}}
 
+-- {{{ local function lines_added_from_history()
+-- Lines added across the repository's history, and how many of them came in
+-- commits that carry the model's co-author trailer (issue 059, decision 6).
+-- The transcripts hold no tool calls, so this is where the files the model
+-- wrote through its editing tools show up. It counts only paths the piles
+-- would count today (notes, docs, source), so data, vendored code and the
+-- transcripts themselves stay out; an extension-less file, which the piles
+-- keep only when it opens with #!, is left out because history cannot say.
+-- A commit is the machine's when a Co-Authored-By trailer names Claude or
+-- anthropic.com. The trailer marks the commit, not each line, so this is a
+-- separate figure and is never added to machine_written_total.
+-- A repository with no commits yet counts zero.
+local function lines_added_from_history(vendored)
+    local all, machine = 0, 0
+    local pipe = io.popen(string.format(
+        "git -C %q -c core.quotePath=false log --no-merges --no-renames --numstat " ..
+        "--format='@@%%(trailers:key=Co-Authored-By,valueonly,separator=%%x7C)' 2>/dev/null", DIR))
+    if not pipe then return all, machine end
+    local is_machine, piles = false, {}
+    for line in pipe:lines() do
+        local trailers = line:match("^@@(.*)$")
+        if trailers then
+            trailers = trailers:lower()
+            is_machine = trailers:find("claude", 1, true) ~= nil
+                or trailers:find("anthropic.com", 1, true) ~= nil
+        else
+            local added, path = line:match("^(%d+)\t%S+\t(.+)$")
+            if added then
+                local pile = piles[path]
+                if pile == nil then
+                    pile = classify_path(path, vendored) or false
+                    piles[path] = pile
+                end
+                if pile == "notes" or pile == "docs" or pile == "source" then
+                    all = all + tonumber(added)
+                    if is_machine then machine = machine + tonumber(added) end
+                end
+            end
+        end
+    end
+    pipe:close()
+    return all, machine
+end
+-- }}}
+
 -- {{{ local function measure_repository()
 -- The repository half: list what git tracks, decide each path's pile, count
 -- the files in parallel, merge.
@@ -1003,6 +1103,7 @@ local function measure_repository()
     local files = tracked_files()
     if #files == 0 then error("git tracks no files under " .. DIR, 0) end
     local vendored = vendored_directories(files)
+    local lines_all, lines_machine = lines_added_from_history(vendored)
     local work = {}
     for _, path in ipairs(files) do
         local pile = classify_path(path, vendored)
@@ -1011,6 +1112,8 @@ local function measure_repository()
     local outputs, scratch = run_in_parallel(work, "--count-worker")
     local totals, kept_files = merge_files(outputs)
     os.execute(string.format("rm -r %q", scratch))
+    totals.lines_added_all = lines_all
+    totals.lines_added_machine_coauthored = lines_machine
     return totals, kept_files
 end
 -- }}}
@@ -1062,6 +1165,7 @@ local function render_terminal(totals)
         with_commas(totals.turn_copies_seen)))
     row("typed in conversation", totals.human_characters)
     row("written by the model", totals.machine_characters)
+    row("  compaction summaries", totals.compaction_characters)
     print(string.format("  %-28s %14.2f", "machine per person (chat)", totals.ratio))
     row("set aside: pasted output", totals.excluded_paste_characters)
     row("set aside: tool-generated", totals.system_characters)
@@ -1070,6 +1174,10 @@ local function render_terminal(totals)
         with_commas(totals.repo_files_counted), with_commas(totals.repo_duplicate_files)))
     row("notes (the person's)", totals.notes_characters)
     row("set aside: vendored", totals.vendored_characters)
+    print("")
+    print("From git history (notes, docs and source paths; lines, not characters):")
+    print(string.format("  %-28s %14s lines", "lines added", with_commas(totals.lines_added_all)))
+    print(string.format("  %-28s %14s lines", "  in machine-co-authored", with_commas(totals.lines_added_machine_coauthored)))
 end
 -- }}}
 
@@ -1099,7 +1207,9 @@ local function render_json(totals)
                      "human_characters", "machine_units", "machine_unit_name", "ratio",
                      "transcripts_counted", "excluded_paste_characters",
                      "system_characters", "turns_counted", "turn_copies_seen",
-                     "vendored_characters", "repo_files_counted", "repo_duplicate_files" }
+                     "vendored_characters", "repo_files_counted", "repo_duplicate_files",
+                     "compaction_characters", "lines_added_all",
+                     "lines_added_machine_coauthored" }
     print("{")
     for index, field in ipairs(fields) do
         local value = totals[field]

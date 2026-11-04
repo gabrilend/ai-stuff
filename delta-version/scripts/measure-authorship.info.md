@@ -51,7 +51,14 @@ share, or a malformed record. 2 an unknown mode.
       "turn_copies_seen":          int,     turn copies read, before removing copies
       "vendored_characters":       int,     someone else's code in the tree, set aside
       "repo_files_counted":        int,     tracked files counted into a pile (distinct contents)
-      "repo_duplicate_files":      int }    further copies of those, counted once
+      "repo_duplicate_files":      int,     further copies of those, counted once
+      "compaction_characters":     int,     the part of machine_units that is compaction
+                                            summaries (still counted as the machine's)
+      "lines_added_all":           int,     lines added in git history to paths the
+                                            piles keep (notes, docs, source)
+      "lines_added_machine_coauthored": int } of those, lines in commits whose
+                                            Co-Authored-By trailer names Claude or
+                                            anthropic.com; never added to the totals
 
 ## What is a character
 
@@ -166,8 +173,20 @@ When the same key appears more than once:
 
 - the person's side is counted once;
 - the machine's side uses the longest copy. Renderings at different levels
-  of detail disagree, and the fullest one includes the files the model
-  wrote.
+  of detail disagree.
+
+## Pasted file bodies
+
+The fullest export (`v4-complete`, the exporter's verbosity 4) pastes the
+current contents of each file an answer touched, under a line
+`**📄 Full content of PATH:**` and inside a fence that the exporter closes
+with a blank line and then a bare ```` ``` ````. Ordinary transcripts never
+carry these, so the label, the fence and everything inside are cut out of
+the answer before it is counted. This way every conversation is measured
+alike. A pasted file may hold fences of its own; they do not end the cut,
+because only a bare ```` ``` ```` after a blank line does. Anything that
+ends the turn ends the cut too. A label with no fence after it is ordinary
+text and stays. (Issue 059, decision 1.)
 
 Known edge: the same short message three times running in one conversation
 ("continue", "continue", "continue") keys the third like the second, so it
@@ -175,15 +194,20 @@ is counted once.
 
 ## The repository's files
 
-Only files git tracks are read (`git ls-files -z`), so scratch space,
-ignored files and anything untracked are out. Each path goes to the pile of
-the first rule that matches:
+Only files git tracks are read (`git ls-files -z -s`), so scratch space,
+ignored files and anything untracked are out. A tracked symbolic link is left
+out too. Its text is its target's, which is counted where the target is
+tracked, and opening a link can block for ever: a tracked Wine prefix links
+`com1` to `/dev/ttyS0`.
+
+Each remaining path goes to the pile of the first rule that matches:
 
 | Rule | Pile |
 |------|------|
 | under a folder whose licence file names someone other than the owner; the top-level `libs/`; a `luarocks`, `node_modules`, `vendor`, `third_party`, `third-party` or `site-packages` folder; a browser-saved page (`X.html` beside `X_files/`) | vendored (set aside) |
 | a `.bak` file | left out (a copy) |
 | under `llm-transcripts*/` or `docs/HTML/` | left out (measured elsewhere / generated) |
+| under a `notes/` folder and named `CLAUDE*.md` (a CLAUDE.md or a saved history of one) | left out (the owner did not type it) |
 | under a `notes/` folder, even inside `input/` | notes (the person's) |
 | under `input/`, `output/`, `backups/`, `archives/`, `archive/`, `source/` | left out |
 | `.md` or `.markdown`; `.txt` under `docs/` or `issues/`; `README*.txt` | docs |
@@ -237,6 +261,24 @@ same moment, because LuaJIT has no threads.
 The result is the same for any worker count, and the tests check this for
 both halves.
 
+## Lines from git history
+
+The transcripts hold no tool calls, so the files the model wrote through
+its editing tools never reach the conversation counts. A second, separate
+figure reads `git log --numstat` (no merges, no rename detection):
+
+- **`lines_added_all`**: lines added to paths that the piles would count
+  today (notes, docs, source). Vendored code, data, transcripts and
+  extension-less files are left out; history cannot say whether an
+  extension-less file opened with `#!`.
+- **`lines_added_machine_coauthored`**: the part of those lines added in
+  commits whose `Co-Authored-By` trailer names Claude or anthropic.com.
+
+These are lines, not characters, and the trailer marks a whole commit
+rather than who typed each line. So the figure is reported on its own line
+and is never added to `machine_written_total` (issue 059, decision 6). A
+repository with no commits counts zero.
+
 ## Tests
 
 `test-measure-authorship.sh` builds fixtures in
@@ -245,12 +287,19 @@ both halves.
 - transcripts for the conversation rules, including pasted program output
   set aside and sentences that mention paths, percentages or emoji kept;
 - a small git repository with one file per repository rule, including an
-  untracked file, a duplicate and a binary.
+  untracked file, a duplicate, a binary and a `notes/CLAUDE.md`;
+- a v4-style answer with a pasted file body (holding its own fence), next
+  to an ordinary copy of the same answer, and a label with no body;
+- a repository with two commits, one carrying the co-author trailer, for
+  the git line figures, and one with no commits.
+
+The character helper runs `wc -m` under `C.UTF-8`; under the C locale it
+would count bytes.
 
 `KEEP_FIXTURES=1` leaves the fixtures in place for inspection.
 
 ## Related
 
 - `census-projects.lua` turns this figure into a README slot (issue 058).
-- `../issues/059-measure-human-and-machine-authorship.md` gives the reasons
-  and holds the open questions.
+- `../issues/completed/059-measure-human-and-machine-authorship.md` gives the reasons
+  and records the decisions on its open questions.

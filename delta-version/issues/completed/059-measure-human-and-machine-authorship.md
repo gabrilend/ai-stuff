@@ -1,6 +1,6 @@
 # Issue 059: Measure Human and Machine Authorship
 
-**Status**: In progress (built, tested and on the front page; open questions decided 2026-11-02, the counting changes not yet built)
+**Status**: Completed (2026-11-02): built, tested, on the front page, and the decided counting changes are built
 **Priority**: Medium
 **Created**: 2026-09-23
 **Type**: New measuring instrument (`scripts/measure-authorship.lua`)
@@ -330,10 +330,58 @@ them in a word.
 7. **Tokens: no.** The report stays in counted characters. An estimate
    beside a count reads as a count.
 
-### Steps left
+### Steps (all done 2026-11-02; see What Happened)
 
 1. Strip written-file bodies from full renderings before counting.
 2. Add the machine-co-authored lines figure to `--json` and the text report.
 3. Leave `notes/CLAUDE*.md` out of the notes pile.
 4. Print the compaction-summary share in the text report.
 5. Extend `test-measure-authorship.sh` for each.
+
+## What Happened
+
+**2026-11-02 — the decided counting changes are built.** The coordinator took
+the decisions above as final, under Ritz's instruction to answer open
+questions without waiting on him.
+
+- **File bodies (decision 1).** The exporter's verbosity-4 rendering pastes
+  each touched file under `**📄 Full content of PATH:**` in a fence it
+  closes with a blank line then a bare fence line
+  (`scripts/claude-conversation-exporter.sh`). The parser now cuts out the
+  label, the fence and its contents inside an answer. Only the exporter's
+  own close ends the cut, so a pasted Markdown file with fences of its own
+  is cut whole. A label with no fence after it is kept as text. Across the
+  tree, 223 such labels sit in 11 files: `FULL-TRANSCRIPT-EXPORT.md`, nine
+  handheld-office `-v4-complete` exports and risc-v-university's
+  `v4-complete.md`. In risc-v-university, response 20 measured 24,169
+  characters in v4 against 1,942 in v1 to v3. Since the longest copy of an
+  answer wins, the pasted files used to be counted.
+- **Lines from git (decision 6).** `lines_added_all` and
+  `lines_added_machine_coauthored` come from one `git log --numstat` pass,
+  counting only paths the piles keep. A commit counts as the machine's when
+  its `Co-Authored-By` trailer names Claude or anthropic.com. The figure is
+  printed on its own lines and never added to `machine_written_total`.
+- **`notes/CLAUDE*.md` (decision 3)** is left out of the notes pile.
+- **Compaction share (decision 5).** `compaction_characters` is in the JSON
+  and on its own line under "written by the model". It is still counted as
+  the machine's.
+- **Decisions 2, 4 and 7** needed no code. A skill the list misses is still
+  added to the list, until the shared exporter marks skill injections.
+- **Test fix found on the way.** The test's character helper ran `wc -m`
+  under the C locale, where it counts bytes, so the emoji sentence check
+  failed on this machine. It now runs under `C.UTF-8`.
+
+- **A hang found on the real tree.** Run over the whole monorepo, the
+  measure never finished. One count worker sat reading `/dev/ttyS0`: a
+  tracked Wine prefix (`links-awakening/dosdevices/`) links `com1` to that
+  serial port, and the measure opened every tracked path, links included.
+  Tracked symbolic links are now left out: a link's text is its target's,
+  counted where the target is tracked. A fixture link to a FIFO keeps it
+  fixed.
+
+Tests: `test-measure-authorship.sh` passes 37/37 (was 30). The new checks
+cover the file-body cut (with a nested fence and an ordinary copy beside it),
+the label with no body, the compaction share, the CLAUDE files under
+`notes/`, the git line figures over two commits, and a repository with no
+commits.
+
