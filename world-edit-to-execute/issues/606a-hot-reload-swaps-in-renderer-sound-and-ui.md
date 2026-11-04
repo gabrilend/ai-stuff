@@ -56,8 +56,8 @@ is the editor's; the map viewer's play mode gives way to Test Map.
    by Ritz on 2026-11-02.
 8. A viewer or editor flag (`--hot-reload`) that makes a hot-reloader and
    polls it each frame. (Done on the Lua side 2026-11-03, as
-   `WC3_HOT_RELOAD=1`: `assets/live.lua`, wired into the map viewer and
-   the editor; unseen.)
+   `WC3_HOT_RELOAD=1`: `assets/live.lua`, wired into the editor; unseen.
+   The map viewer's was taken out on 2026-11-04, see below.)
 
 ## Acceptance Criteria
 
@@ -143,9 +143,13 @@ against the fake renderer.
 - 12 more tests in `src/tests/test_renderer_loader.lua` (49 in all).
 
 After the editor-and-client split (2026-11-04): the switch in the editor
-is the wanted half ("Where it shows", above); the map viewer's serves a
-play mode that gives way to Test Map (913), and is left as built until
-the owner says whether to take it out.
+is the wanted half ("Where it shows", above); the map viewer's served a
+play mode that gives way to Test Map (913, PR #239), so with the owner's
+yes it was taken out in a commit of its own. `demo/wc3map/main.lua` is
+back as it was before this issue (`ground.apply`, no `hot`), and
+`live.lua`'s words and its info file speak of the editor. `live.lua`, the
+editor's wiring and their 49 tests stay. A pack changing while a game is
+played is the W client's (its 105a and 1110).
 
 Decisions made while building:
 
@@ -161,9 +165,10 @@ Decisions made while building:
 12. **Lines stay six seconds; at most five are kept.** Errors are drawn in
     red, at the bottom left, so they stay clear of the HUD's top bar.
     Unseen.
-13. **The viewer draws the ground with `ground.textures` and
+13. ~~**The viewer draws the ground with `ground.textures` and
     `ground.lay`** (what `ground.apply` does), so it can keep the ids that
-    hot-reload needs.
-14. **Off when the packs couldn't be read.** If the viewer fell back to
+    hot-reload needs.~~ Taken out with the viewer's switch (2026-11-04);
+    the editor already lays its ground that way.
+14. **Off when the packs couldn't be read.** If the editor fell back to
     the map's handle, there is nothing to watch.
 

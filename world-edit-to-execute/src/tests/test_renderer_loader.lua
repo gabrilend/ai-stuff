@@ -267,8 +267,8 @@ do
 end
 -- }}}
 
--- {{{ The viewer's switch (step 8) and the corner's lines (step 6)
-print("\n=== WC3_HOT_RELOAD in the viewer and editor ===")
+-- {{{ The editor's switch (step 8) and the corner's lines (step 6)
+print("\n=== WC3_HOT_RELOAD in the editor ===")
 do
     local live = require("assets.live")
     local LV = loader.new({ packs = { "mine" }, data = DATA, root = DIR, assets = A })

@@ -1,13 +1,13 @@
 --[[
-Hot-Reload in the Map Viewer and the Editor (Issue 606a, step 8)
+Hot-Reload in the Editor (Issue 606a, step 8)
 
-Turns hot-reload on for a running viewer: a hot-reloader over its loader,
+Turns hot-reload on for the running editor: a hot-reloader over its loader,
 polled once a frame, handing each saved texture to the model cache and the
 ground, and keeping a few short lines for the corner of the screen (step
 6) saying what was reloaded and what failed.
 
-It is off unless asked for. The scene viewer takes one argument (the
-map), so, like its other switches (WC3_MODELS, WC3_TILES ...), it is
+It is off unless asked for. The scene viewer that runs the editor takes
+one argument (the map), so, like its other switches (WC3_MODELS, WC3_TILES ...), it is
 asked for in the environment: WC3_HOT_RELOAD=1 (or "inotify" / "poll" to
 pick the watcher).
 
@@ -22,6 +22,10 @@ pick the watcher).
 A texture is swapped only once render.tex_update exists (render/models.c
 doesn't have it yet); until then each reload says it was read but not
 shown, so the corner says why nothing changed.
+
+The map viewer (demo/wc3map) had the same switch until 2026-11-04: served
+play gives way to Test Map, and a pack changing during a game is the W
+client's (issue 606a, "After the editor-and-client split").
 ]]
 
 local hotreload = require("assets.hotreload")
