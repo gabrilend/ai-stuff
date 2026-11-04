@@ -77,7 +77,9 @@ reaches the MMU, directly or through 902's per-app memory.
   from the app's region). The queue and the workers' round-robin are
   portable, and could be split off and built on the twin with ordinary
   engine memory if that is wanted; **906** (input suppression by taking
-  the arrow away) follows 905.
+  the arrow away) follows 905. Decided for now: the split waits until
+  phase 9 is reachable, so 905 is built whole, on its region, then
+  (Claude's call, open for Ritz).
 - **909** — closing an app frees its region (901, 902).
 - **910** — the capstone demo.
 

@@ -33,6 +33,15 @@ static struct slot   slots[SURFACE_MAX];
 static spin_lock_t   lock = SPIN_LOCK_INIT;
 static uint32_t      next_z = 1;
 
+/* Per screen: the smallest rectangle holding everything a surface has
+ * uncovered since the compositor last looked (603). One rectangle, not a
+ * list: painting a little more than was uncovered is never wrong, only a
+ * little slower, and one rectangle never runs out of room. */
+static struct {
+    int any;
+    int x0, y0, x1, y1;                 /* x1 and y1 one past the edge */
+} exposed[PLATFORM_SCREEN_COUNT];
+
 /* {{{ handle_of */
 static int32_t handle_of(int i)
 {
@@ -84,6 +93,36 @@ static int taken_by_another(int screen, int x, int y, int width, int height, int
         }
     }
     return 0;
+}
+/* }}} */
+
+/* {{{ expose_locked */
+/* Add a rectangle to what the compositor must paint again on `screen`,
+ * clipped to the screen. Called holding the lock. */
+static void expose_locked(int screen, int x, int y, int width, int height)
+{
+    if (screen < 0 || screen >= PLATFORM_SCREEN_COUNT) {
+        return;
+    }
+    struct platform_screen sc = platform_screen(screen);
+    int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
+    int x1 = x + width > sc.width ? sc.width : x + width;
+    int y1 = y + height > sc.height ? sc.height : y + height;
+    if (x0 >= x1 || y0 >= y1) {
+        return;
+    }
+    if (!exposed[screen].any) {
+        exposed[screen].any = 1;
+        exposed[screen].x0 = x0;
+        exposed[screen].y0 = y0;
+        exposed[screen].x1 = x1;
+        exposed[screen].y1 = y1;
+        return;
+    }
+    if (x0 < exposed[screen].x0) exposed[screen].x0 = x0;
+    if (y0 < exposed[screen].y0) exposed[screen].y0 = y0;
+    if (x1 > exposed[screen].x1) exposed[screen].x1 = x1;
+    if (y1 > exposed[screen].y1) exposed[screen].y1 = y1;
 }
 /* }}} */
 
@@ -166,6 +205,7 @@ int surface_release(int32_t handle)
         pixels = s->pixels;
         s->pixels = NULL;
         s->in_use = 0;
+        expose_locked(s->screen, s->x, s->y, s->width, s->height);
         answer = SURFACE_OK;
     }
     spin_unlock(&lock);
@@ -215,6 +255,7 @@ int surface_resize(int32_t handle, int width, int height)
             bytes_copy(fresh + (size_t)r * (size_t)width, s->pixels + (size_t)r * (size_t)s->width,
                        (size_t)cols * sizeof *fresh);
         }
+        expose_locked(s->screen, s->x, s->y, s->width, s->height);
         old = s->pixels;
         s->pixels = fresh;
         s->width = width;
@@ -243,6 +284,7 @@ int surface_set_position(int32_t handle, int x, int y)
     } else if (taken_by_another(s->screen, x, y, s->width, s->height, s->owner, s)) {
         answer = SURFACE_TAKEN;
     } else {
+        expose_locked(s->screen, s->x, s->y, s->width, s->height);
         s->x = x;
         s->y = y;
         atomic_store_release(&s->damage, 1);
@@ -365,5 +407,56 @@ int surface_take_dirty(int32_t handle)
     }
     spin_unlock(&lock);
     return answer;
+}
+/* }}} */
+
+/* {{{ surface_expose */
+void surface_expose(int screen, int x, int y, int width, int height)
+{
+    spin_lock(&lock);
+    expose_locked(screen, x, y, width, height);
+    spin_unlock(&lock);
+}
+/* }}} */
+
+/* {{{ surface_gather */
+int surface_gather(int screen, struct surface_view *out, int max, struct surface_rect *uncovered)
+{
+    int n = 0;
+    uncovered->x = uncovered->y = uncovered->width = uncovered->height = 0;
+    if (screen < 0 || screen >= PLATFORM_SCREEN_COUNT) {
+        return 0;
+    }
+    spin_lock(&lock);
+    if (exposed[screen].any) {
+        uncovered->x = exposed[screen].x0;
+        uncovered->y = exposed[screen].y0;
+        uncovered->width = exposed[screen].x1 - exposed[screen].x0;
+        uncovered->height = exposed[screen].y1 - exposed[screen].y0;
+        exposed[screen].any = 0;
+    }
+    for (int i = 0; i < SURFACE_MAX && n < max; i++) {
+        struct slot *s = &slots[i];
+        if (!s->in_use || s->screen != screen) {
+            continue;
+        }
+        /* Insert in z order, back to front. */
+        int at = n++;
+        while (at > 0 && out[at - 1].z > s->z) {
+            out[at] = out[at - 1];
+            at--;
+        }
+        out[at].handle = handle_of(i);
+        out[at].x = s->x;
+        out[at].y = s->y;
+        out[at].width = s->width;
+        out[at].height = s->height;
+        out[at].owner = s->owner;
+        out[at].z = s->z;
+        out[at].pixels = s->pixels;
+        out[at].dirty = atomic_swap(&s->damage, (uint8_t)0) != 0;
+    }
+    spin_unlock(&lock);
+    return n;
 }
 /* }}} */

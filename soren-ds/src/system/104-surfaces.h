@@ -95,4 +95,36 @@ int surface_mark_dirty(int32_t handle);
 int surface_is_dirty(int32_t handle);
 int surface_take_dirty(int32_t handle);
 
+/* {{{ what the compositor reads (603) */
+struct surface_rect {
+    int x, y, width, height;        /* width 0: nothing */
+};
+
+/* One surface as the compositor copies it: where it is, its pixels (rows
+ * `width` words apart) and whether it was marked, all read at one moment. */
+struct surface_view {
+    int32_t   handle;
+    int       x, y, width, height;
+    int32_t   owner;
+    uint32_t  z;
+    uint32_t *pixels;
+    int       dirty;
+};
+
+/* Say that a rectangle of `screen` must be painted again: what was there
+ * has gone. A release, a move and a resize say it themselves about the
+ * rectangle the surface left; the foreground (604) and the drawers (606)
+ * say it when what should show changes. Clipped to the screen. */
+void surface_expose(int screen, int x, int y, int width, int height);
+
+/* Every surface on `screen`, back to front, up to `max` of them, each with
+ * its damage bit taken (read and cleared, as surface_take_dirty does);
+ * and in `uncovered`, the one rectangle holding everything exposed since
+ * the last gather, taken too. Answers how many surfaces there are, up to
+ * `max`. The pixels stay readable until the end of the caller's run: call
+ * this from inside a box's run, or where nothing releases or resizes
+ * surfaces at the same time. */
+int surface_gather(int screen, struct surface_view *out, int max, struct surface_rect *uncovered);
+/* }}} */
+
 #endif

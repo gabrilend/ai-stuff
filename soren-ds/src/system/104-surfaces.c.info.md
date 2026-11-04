@@ -79,3 +79,15 @@ int surface_is_dirty(int32_t handle)
 int surface_take_dirty(int32_t handle)
 ```
 
+### surface_expose
+
+```c
+void surface_expose(int screen, int x, int y, int width, int height)
+```
+
+### surface_gather
+
+```c
+int surface_gather(int screen, struct surface_view *out, int max, struct surface_rect *uncovered)
+```
+
