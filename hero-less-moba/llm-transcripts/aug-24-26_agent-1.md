@@ -7,7 +7,7 @@ Models: claude-opus-5
 
 1. 2026-08-24 16:55, after Request 4 - Goal: turn your hero-less-moba vision
    into a full design so it can be built. Everything is written and committed
-   into the ai-stuff monorepo as a4f4cf20, with 41 of 65 design questions
+   into the ai-stuff monorepo as db760e00, with 41 of 65 design questions
    answered. Next: start building phase 1, issue 101.
 
 --------------------------------------------------------------------------------
@@ -1344,7 +1344,7 @@ help.
 > Audit clean and the writing is tighter. Committing to the monorepo now,
 > staging only this project:
 
-Committed as `a4f4cf20` on top of the existing monorepo history, alongside its
+Committed as `db760e00` on top of the existing monorepo history, alongside its
 siblings. 113 files tracked, working tree clean for this project, and the 18
 modified sibling files plus their untracked ones are exactly as I found them.
 

@@ -2,8 +2,20 @@
 
 ## Current behavior
 
-Done. `--style wimmelbild`, and the four refusals no style may lift are refused
-by name if one tries.
+Done. A style is a row in a table, `--style <name>` asks for one, and the four
+refusals no style may lift are refused by name if one tries. `photographic` is
+the only style in the table today.
+
+**The Wimmelbild row was built, tried, and removed (2026-10-04).** It did what
+this ticket argued it would: on 川 and 木 the grader's score rose sharply. But
+on 時 the teeming crowd assembled into the character's own strokes — drawn
+outright, not hidden — and the grader scored that second-best of its run
+(`docs/007`, Q13). The owner asked for something better in its place, and the
+answer was not another style: it was two ways of placing any style's scene
+around the strokes, inside and outside (`416`). The mechanism this ticket built
+— terms added, a place in the sentence, refusals lifted by name with a reason —
+is unchanged, and museums (`501`) are the next rows to use it. The
+never-liftable rule has no test while no style lifts anything; `501` adds one.
 
 **Two bugs stood between asking for a style and getting one, and both made it
 look as though the feature did nothing.**

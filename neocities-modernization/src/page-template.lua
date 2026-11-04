@@ -1,4 +1,3 @@
-#!/usr/bin/env lua
 
 -- Page-template substitution: fills {UPPERCASE_NAME} markers in a plain-text
 -- template with live values, so the *words* of a generated page can live in an

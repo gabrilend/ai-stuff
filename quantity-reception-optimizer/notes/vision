@@ -1,0 +1,22 @@
+a firefox plugin that when you mouse-over a quantity of numbers
+like 1234 kg or 15 m2 or 99 newtons of force...
+
+if it connected to a comfyui image generator to create an estimation of the
+quantity in contention. It would use a language model to reason about it a bit
+like "newton calculator, given this number it's like a horse pulling a cart with
+a certain weight and with a certain force" or "yeah 15 pounds of flour looks
+like this many sacks of this size" and the user could say if they didn't
+understand and the system would create them a new picture with a different
+*kind* of subject, types of kind, and none of it would require anything more
+than just mousing over a piece of text. The image generator would get the entire
+paragraph that you were mousing over, and they know which line your mouse was on
+and they have a spectrum intensity value array for the proximity each word in
+the line has to your mouse-pointer, so if you mouse-point over a particular
+quantity it'll both know the entire paragraph, and now how important each thing
+mentioned in it is by line and word-in-a-line, and most importantly, the one
+word-shaped-quantity that you were mousing over specifically.
+
+it is either encouraged or discouraged from embracing context, according to a
+config file option, which can be reached in a menu accessed from the "plugins"
+menu of firefox. Sorry, "Extensions", just to the left of the hamburger menu in
+2026

@@ -7,14 +7,19 @@
 #   - Effil (Lua multithreading library)
 #   - Other dependencies as needed
 #
-# Usage: ./scripts/install-deps.sh [--clean] [--check]
+# Usage: ./scripts/install-deps.sh [--dir PATH] [--clean] [--check]
 # =============================================================================
 
 set -euo pipefail
 
 # {{{ Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+# The project folder: --dir PATH, or the folder this script sits in; a stray
+# word stops the script (libs/project-dir.sh, Issue 10-076). What is left is
+# this script's own flags, handed to main below.
+source "${SCRIPT_DIR}/../libs/project-dir.sh"
+project_dir_read "$(dirname "$SCRIPT_DIR")" "" "$@"
+PROJECT_DIR="$DIR"
 LIBS_DIR="${PROJECT_DIR}/libs"
 NATIVE_LIBS_DIR="${LIBS_DIR}/native"
 
@@ -210,5 +215,5 @@ main() {
     echo ""
 }
 
-main "$@"
+main "${PROJECT_ARGS[@]+"${PROJECT_ARGS[@]}"}"
 # }}}

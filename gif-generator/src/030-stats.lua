@@ -40,8 +40,10 @@ end
 function stats.measure(dir, scene, workers)
     local score = require("022-score")
     local compile = require("024-compile")
+    -- word files loaded so measured scores may use pattern{...} (604a)
+    local vocabulary = require("034-words").load_all(dir)
     local compiled = compile.score(
-        score.read(dir .. "/input/" .. scene .. ".lua"))
+        score.read(dir .. "/input/" .. scene .. ".lua", vocabulary))
     local t0 = stats.wall()
     local bytes, facts
     if workers and workers > 0 then
