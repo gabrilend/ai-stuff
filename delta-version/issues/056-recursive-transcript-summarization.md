@@ -1,7 +1,7 @@
 # Issue 056: Recursive Transcript Summarization & Table-of-Contents
 
 **Phase**: 0 - Tooling
-**Status**: Open (056a and 056b done; 056c and 056d to build, as decided below)
+**Status**: Open (056a, 056b and 056c done; 056d to build)
 **Priority**: High
 **Created**: 2026-07-06
 **Related**: 049 (LLM Transcript Abstraction Viewer), 049d (Ollama Processing Pipeline — superseded endpoint), 052 (Ollama Connection Config — closed as superseded, see `completed/`), 040g (Transcript Analysis Memory)
@@ -310,3 +310,9 @@ recursive summariser, tested against the stand-in model (see
 `completed/056b-recursive-map-reduce-summarizer.md`). Slices hold whole
 exchanges rather than single turns, so a request is never summarised apart
 from its answer. 056c and 056d remain.
+
+**2026-11-03 — 056c built.** `scripts/apply-summary.sh` writes the table of
+contents and the summary block. Renames are off by default, and even when
+turned on they wait until the shared rulebook accepts slug names (see
+`completed/056c-summary-applier.md`). 056d remains. It needs those two
+scripts-project changes to make renames and inline blocks last.
