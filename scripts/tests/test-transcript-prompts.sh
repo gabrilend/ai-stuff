@@ -109,7 +109,7 @@ function export_one() {
 #                              gives the text back, for awkward samples
 function write_helpers() {
     cat > "$SCRATCH/request.lua" <<'LUA'
-local reader = dofile(arg[1] .. "/transcript-site/transcript-reader.lua")
+local reader = dofile(arg[1] .. "/transcript-site/conversation/transcript-reader.lua")
 local f = io.open(arg[2], "rb"); local text = f:read("*a"); f:close()
 for _, e in ipairs(reader.read(text).exchanges) do
     if e.kind == "user" and e.number == tonumber(arg[3]) then

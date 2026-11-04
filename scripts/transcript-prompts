@@ -9,8 +9,8 @@
 --
 -- How it works, in general terms: it reads the transcript as the exporter
 -- left it -- AFTER the transcript patches were applied -- with the shared
--- transcript reader (transcript-site/transcript-reader.lua), takes each user
--- request's text, writes it on one line, and puts the lines in
+-- transcript reader (transcript-site/conversation/transcript-reader.lua),
+-- takes each user request's text, writes it on one line, and puts the lines in
 --
 --   <llm-transcripts>/prompts/<transcript name without .md>.txt
 --
@@ -55,7 +55,7 @@ local SCRIPTS_DIR = (arg and arg[0] and arg[0]:match("^(.*)/[^/]*$"))
     or "/home/ritz/programming/ai-stuff/scripts"
 -- }}}
 
-local reader = dofile(SCRIPTS_DIR .. "/transcript-site/transcript-reader.lua")
+local reader = dofile(SCRIPTS_DIR .. "/transcript-site/conversation/transcript-reader.lua")
 
 local M = {}
 

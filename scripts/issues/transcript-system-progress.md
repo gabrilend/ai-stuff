@@ -202,6 +202,42 @@ somebody had deliberately typed one in backticks.
 Re-derive the corpus-wide counts with `rederive-transcripts`, which reports and
 writes nothing unless told to.
 
+### The pages became a library (035, 035a–035e)
+
+The transcripts became web pages first inside double-diaper-dungeon, then as
+a shared copy here (035), and the two copies drifted apart, each learning
+what the other lacked. On 2026-10-04 they were joined into one library with
+three parts that never load each other — the conversation page, the table
+of contents, and the films (a gif beside every message, chosen by meaning) —
+and a settings file per project. The game was switched onto a pulled copy,
+and its site came out byte for byte the site already live: 70 files, 70 the
+same.
+
+The lesson was about **proof**. "Abstracted without changing anything" is a
+claim; a byte comparison against what strangers are already reading is a
+proof, and it is what let two divergent copies become one without a single
+page moving. The comparison also showed what the live pages had been
+quietly dropping (a recap list in seven transcripts), which became a
+question for the developer rather than a silent change.
+
+### Every commit finds its conversation, or says why (040)
+
+The websites link each commit to the conversation that made it by a line the
+exporter writes at the moment of the commit. Sessions had hidden git's
+announcement in five ways, so commits went unlinked; the exporter now asks
+git, and records a commit only when exactly one fits. A project can name
+other folders whose conversations made commits for it (left off its page),
+and a commit she made by hand gets a page of her own words. Building it found
+three older gaps: sessions started through a link were never rebuilt, a
+recovered commit could be written twice, and a silent session got an empty
+transcript. Double-diaper-dungeon's story page went from 55 linked commits
+of 70 to every shown commit linked.
+
+The lesson was about **asking the second question**. "Why doesn't this
+commit have a conversation" first got the answer "not this issue's problem"
+for eight of twelve commits; the owner asked why it couldn't find those too,
+and every one turned out to have a findable cause.
+
 ### Every transcript got a page of just the requests (002)
 
 Each transcript now has a prompts file beside it,

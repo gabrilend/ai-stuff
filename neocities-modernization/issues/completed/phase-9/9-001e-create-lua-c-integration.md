@@ -113,6 +113,10 @@ return M
 
 - 9-001d (Diversity sequence GPU algorithm)
 
+## Blocks
+
+- 9-001f, 9-001g
+
 ## Implementation Notes
 
 ### Completed Features

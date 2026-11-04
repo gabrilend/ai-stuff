@@ -1,38 +1,34 @@
 #!/usr/bin/env lua
 
--- Core flat HTML page generation system for neocities-modernization
--- Generates 13,680+ pages with similarity/diversity ranking in compiled.txt format
+-- flat-html-generator.lua: Stage 9 -- every page of the site.
+--
+-- WHAT IT DOES (for a CEO): draws the site from the poems and the caches the
+-- earlier stages made: each poem's similar and different pages, the
+-- chronological pages, the poems' plain-text exports and the word pages,
+-- all as jobs for a pool of worker threads (src/poem-entry.lua draws each
+-- poem), plus the explore pages. main.lua --html-only calls it in a build.
+--
+-- Usage: luajit src/flat-html-generator.lua [--dir PATH] [-I]
+--   --dir PATH project folder (default below); -I  ask before each step
 
--- {{{ local function setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- Script configuration - handle args properly to avoid -I interfering with DIR
-local DIR = setup_dir_path()
-if arg then
-    for _, arg_val in ipairs(arg) do
-        if arg_val ~= "-I" and not arg_val:match("^%-") then
-            DIR = arg_val
-            break
-        end
-    end
-end
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded (src/main.lua loads it);
+-- else the path below (libs/project-dir.lua, Issue 10-076). It used to take
+-- the first bare word of the global arg either way.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
-local dkjson = require("dkjson")
 -- Issue 8-056: Shared text formatting module for whitespace preservation
 local text_formatter = require("text-formatter")
 -- Shared in-place progress bar (same look + TTY/--debug rules as the GPU stages)
 local progress = require("progress-display")
 -- Issue 9-013: render ranked image entries (pseudo-poems) as image boxes
-local image_render = require("image-render")
 -- Issue 11-005: the explore pages read their prose from editable input/pages/*.txt
 -- files; this fills the {MARKER} placeholders with the live numbers.
 local page_template = require("page-template")
@@ -50,7 +46,7 @@ local unified_config = config_loader.load()
 local inference_config = require("inference-server-config")
 inference_config.set_project_root(DIR)
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 utils.init_assets_root(arg)
 
 -- Load effil, the threading library the page workers run on.  Where it lives
@@ -63,25 +59,9 @@ local effil_loader = require("effil-loader")
 local effil, effil_load_error = effil_loader.try_load()
 local has_threading = effil ~= nil
 
--- Issue 10-034: Orchestrator message types for lazy loading parallel HTML generation
--- Main thread acts as cache server, sending 80KB work slices instead of workers loading 700MB
-local MSG_REQUEST_WORK = "get_work"   -- Worker → Main: "give me a poem to process"
-local MSG_WORK_SLICE = "work"         -- Main → Worker: poem_index + rankings
-local MSG_WORK_DONE = "done"          -- Worker → Main: "finished poem X"
-local MSG_SHUTDOWN = "shutdown"       -- Main → Worker: "no more work, exit"
 
 local M = {}
 
--- Mock color assignment for testing (until we have real embeddings)
-local MOCK_POEM_COLORS = {
-    [1] = "blue",    -- Introduction post
-    [2] = "purple",  -- Philosophy/metaphysics  
-    [3] = "red",     -- Passion/energy
-    [5] = "orange",  -- Programming/technical
-    [4625] = "red",  -- Politics/passion
-    [4626] = "gray", -- Short post
-    [4624] = "green" -- Hope/future themes
-}
 
 -- {{{ COLOR_CONFIG -- the site's one progress-bar palette
 -- Derived from config.lua's semantic_colors rather than restated, so the hex a
@@ -150,10 +130,16 @@ M.BOOST_COLOR_CONFIG = BOOST_COLOR_CONFIG
 -- rules come from the shared module so all four generators cannot disagree.
 local page_head = require("page-head")
 
--- The bar-drawing module the page workers use.  The main thread still carries
--- its own bar copy (generate_progress_dashes, below; merging them is 8-058),
--- but both refuse an impossible percentage through the one shared check.
+-- The one bar-and-box drawer, used by the page workers AND (since 2026-10-07,
+-- Issue 8-058) by the main thread's chronological pages, whose own drifted copy
+-- was removed.
 local poem_bars_shared = require("poem-bars")
+-- The shared drawer takes the palette from its host, once per Lua state. The
+-- main thread now draws every bar and box through it (Issue 8-058), so it
+-- needs the same table the workers hand theirs.
+poem_bars_shared.configure(COLOR_CONFIG,
+    (unified_config.layout or error("config.lua has no layout section")).text_content_width
+        or error("config.lua layout.text_content_width is missing"))
 
 -- {{{ POEM_PAGE_CSS
 -- True page-centering for the poem column. The old <table align="center">
@@ -164,9 +150,12 @@ local poem_bars_shared = require("poem-bars")
 -- centers as a block (text stays left-aligned inside), and media centers via
 -- auto margins. Now a vertical line down the page bisects every poem AND image,
 -- regardless of how wide any single image is.
+-- Every <pre> is the grid's full width (page_head.frame_columns, in cells),
+-- so blocks split around a picture all centre the same and their frames
+-- line up; a block only as wide as its widest line used to shift.
 local POEM_PAGE_CSS = [[
 td { text-align: center; }
-pre { display: inline-block; text-align: left; margin: 0 auto; }
+pre { display: inline-block; text-align: left; margin: 0 auto; width: ]] .. page_head.frame_columns() .. [[ch; }
 img, video, audio { margin-left: auto; margin-right: auto; }]]
 -- }}}
 
@@ -193,94 +182,59 @@ local PAGE_HEAD_BLOCK = page_head.viewport_meta() .. "\n"
 local PAGE_HEAD_BLOCK_IN_TEMPLATE = PAGE_HEAD_BLOCK:gsub("%%", "%%%%")
 -- }}}
 
--- Pagination configuration defaults
--- Issue 10-003: These values are overridden by unified config (config.lua) if present
--- See Issue 8-020 for hybrid pagination strategy (45GB storage constraint)
--- Issue 9-003 Fix F: Added chronological pagination settings
-local PAGINATION_CONFIG = {
-    poems_per_page = 100,
-    minimum_pages = 1,
-    -- COMPUTED per build by compute_storage_max_pages (Issue 10-057), not a config
-    -- value. This placeholder is only the operative value if that computation is
-    -- skipped (e.g. a caller that loads pagination just for chronological mapping);
-    -- kept finite so %d logging and math.min() stay well-defined.
-    max_pages_per_poem = 9999,
-    page_number_padding = 2,
-    generate_txt_exports = true,
-    generate_html_archives = false,  -- Disabled: redundant with paginated pages
-    chronological_paginated = false, -- Set to true to split chronological.html into multiple pages
-    chronological_poems_per_page = 500  -- Poems per page when chronological_paginated is true
+-- Page and storage settings. Every value comes from config.lua's `pagination`
+-- and `storage` sections (filled by load_pagination_config below, at load).
+-- The owner's rule (2026-10-04, Issue 10-065a): "the only place we should have
+-- 'default' values is config.lua. Never in the code itself." These two tables
+-- used to start out holding numbers of their own (100 poems per page, 500 per
+-- chronological page, a 45 GB limit...) that config.lua then overrode; a
+-- setting missing from config.lua silently fell back to the number here. Now a
+-- missing setting is an error naming it.
+--   PAGINATION_CONFIG fields: poems_per_page, minimum_pages,
+--     page_number_padding (numbers); generate_txt_exports,
+--     generate_html_archives, chronological_paginated (true/false);
+--     chronological_poems_per_page (number); and max_pages_per_poem (number),
+--     which is NOT a setting: compute_storage_max_pages works it out each build
+--     from the storage limit and the last build's page sizes. It stays unset
+--     until then, and anything that needs it before then is an error (a test
+--     sets it directly).
+--   STORAGE_CONFIG fields: limit_gb, reserved_for_maze_gb, reserved_headroom_gb
+--     (numbers, gigabytes).
+-- See Issue 8-020 for the hybrid pagination strategy (the storage quota).
+local PAGINATION_CONFIG = {}
+local STORAGE_CONFIG = {}
+
+-- The settings each section must provide (Lua table of section -> list of names)
+local REQUIRED_SETTINGS = {
+    pagination = { "poems_per_page", "minimum_pages", "page_number_padding",
+        "generate_txt_exports", "generate_html_archives",
+        "chronological_paginated", "chronological_poems_per_page" },
+    storage = { "limit_gb", "reserved_for_maze_gb", "reserved_headroom_gb" },
 }
 
--- Storage configuration (for display purposes)
--- Issue 10-003: Loaded from unified config (config.lua) if present
-local STORAGE_CONFIG = {
-    limit_gb = 45,
-    reserved_for_maze_gb = 0.031,
-    reserved_headroom_gb = 5
-}
-
--- Layout constants: Single source of truth for box widths and positions
--- Issue 8-037: Centralized to prevent drift between calculations
--- Issue 10-003: Values can be overridden in unified config (config.lua) "layout" section
--- Reference: All progress bars, nav boxes, and content should use these
+-- The text column's width, from config.lua layout.text_content_width: a
+-- poem's line is at most this many characters, and src/poem-bars.lua draws
+-- every frame from it (a wall, a space, the text, a space, a wall). The box
+-- widths and junction columns that used to sit here (and in config.lua) were
+-- never what the pages were drawn with, and disagreed with them (owner's
+-- rule, 2026-10-25).
 local LAYOUT = {
-    -- Total visible width for regular poems (positions 0-82)
-    REGULAR_POEM_WIDTH = 82,
-    -- Total visible width for golden poems: 84 chars
-    -- Structure: ╔ (1) + interior (82) + ┐ (1) = 84
-    GOLDEN_POEM_WIDTH = 84,
-    -- Maximum text content width (80 chars by default +1 space padding on left and +1 on right)
-    TEXT_CONTENT_WIDTH = 80,
-
-    -- Regular poem nav box positions (within 83-char line):
-    -- ┌─────────┐                                                           ┌───────────┐
-    -- positions: 0-10 = left box (11 chars), 11-69 = gap (59 chars), 70-82 = right box (13 chars)
-    REGULAR_LEFT_BOX_WIDTH = 11,      -- ┌─────────┐
-    REGULAR_RIGHT_BOX_WIDTH = 13,     -- ┌───────────┐
-    REGULAR_GAP_WIDTH = 59,           -- 83 - 11 - 13 = 59
-    REGULAR_LEFT_JUNCTION_POS = 10,   -- Position of ┐/┴ under left box
-    REGULAR_RIGHT_JUNCTION_POS = 70,  -- Position of ┌/┴ under right box
-
-    -- Golden poem nav box positions (within 84-char line):
-    -- Structure: ║ (1) + content (80) + space (1) + │ (1) = 83 interior + corners
-    GOLDEN_LEFT_BOX_WIDTH = 11,
-    GOLDEN_RIGHT_BOX_WIDTH = 13,
-    GOLDEN_GAP_WIDTH = 58,            -- 84 - 2 corners - 11 - 13 = 58
-    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
-    GOLDEN_LEFT_JUNCTION_POS = 10,    -- Same as regular (left box ┐ at position 10)
-    GOLDEN_RIGHT_JUNCTION_POS = 71,   -- Regular + 1 (right box ┌ at position 71 due to wider golden)
+    TEXT_CONTENT_WIDTH = (unified_config.layout or error("config.lua has no layout section")).text_content_width
+        or error("config.lua layout.text_content_width is missing"),
 }
 
--- {{{ function load_layout_from_config
--- Issue 10-003: Loads layout settings from unified config, with fallback to LAYOUT defaults
-local function load_layout_from_config()
-    local layout = unified_config.layout
-    if not layout then return end
-
-    -- Override LAYOUT values from config
-    if layout.regular_poem_width then LAYOUT.REGULAR_POEM_WIDTH = layout.regular_poem_width end
-    if layout.golden_poem_width then LAYOUT.GOLDEN_POEM_WIDTH = layout.golden_poem_width end
-    if layout.text_content_width then LAYOUT.TEXT_CONTENT_WIDTH = layout.text_content_width end
-    if layout.left_box_width then
-        LAYOUT.REGULAR_LEFT_BOX_WIDTH = layout.left_box_width
-        LAYOUT.GOLDEN_LEFT_BOX_WIDTH = layout.left_box_width
-    end
-    if layout.right_box_width then
-        LAYOUT.REGULAR_RIGHT_BOX_WIDTH = layout.right_box_width
-        LAYOUT.GOLDEN_RIGHT_BOX_WIDTH = layout.right_box_width
-    end
-    if layout.gap_width then
-        LAYOUT.REGULAR_GAP_WIDTH = layout.gap_width
-        LAYOUT.GOLDEN_GAP_WIDTH = layout.gap_width
-    end
-    if layout.left_junction_pos then LAYOUT.REGULAR_LEFT_JUNCTION_POS = layout.left_junction_pos end
-    if layout.right_junction_pos then LAYOUT.REGULAR_RIGHT_JUNCTION_POS = layout.right_junction_pos end
-end
--- }}}
-
--- Load layout from config on module initialization
-load_layout_from_config()
+-- The one poem drawer (Issue 8-058): the chronological pages drawn here and
+-- the similar/different pages drawn by the workers both draw each poem
+-- through it. Configured with the same palettes and text width the workers
+-- are handed, so the two cannot disagree.
+local poem_entry = require("poem-entry")
+-- the chronological pages' frame, also loaded by each worker (Issue 8-058)
+local chronological_page = require("chronological-page")
+poem_entry.configure({
+    palette = COLOR_CONFIG,
+    boost_palette = BOOST_COLOR_CONFIG,
+    text_width = LAYOUT.TEXT_CONTENT_WIDTH,
+})
 
 -- Diversity cache (pre-computed GPU sequences for fast HTML generation)
 -- Loaded from assets/embeddings/embeddinggemma_latest/diversity_cache.json
@@ -328,6 +282,16 @@ This takes ~1 minute with GPU (or ~42 hours with CPU using --cpu-only).
 
     if not cache_data.sequences then
         error("Diversity cache has invalid format (missing sequences table)")
+    end
+    -- Before 2026-10-21 this cache held GPU positions (0 .. N-1) where the
+    -- pages read poem numbers, so every "different" page showed the next
+    -- poem's walk shifted by one (Issue 8-019). A cache written since says
+    -- so in its metadata; an older one is refused rather than misread.
+    if not (cache_data.metadata and cache_data.metadata.numbering == "poem_index") then
+        error(string.format([[
+Diversity cache %s holds GPU positions, not poem numbers (written before
+2026-10-21), so every "different" list would be off by one.
+Regenerate it: ./run.sh --generate-diversity (or a --force build).]], cache_file))
     end
 
     DIVERSITY_CACHE = cache_data
@@ -389,27 +353,9 @@ This will regenerate both similarity files AND the rankings cache.
 end
 -- }}}
 
--- {{{ local function media_href
--- Where a file lives under output/media/, url-encoded for an <img src>/href.
--- Art images (path under input/images/<source>/...) KEEP their source + subdir
--- structure -- their human basenames collide (e.g. my-art/x.png vs
--- my-art/game-design/x.png) and a flat output/media/<basename> would let one
--- overwrite the other. Mastodon attachments (hashes, NOT under input/images/)
--- keep just the basename. This MUST match flatten_media_files' target layout and
--- image-render.lua's copy of this rule, or the src points at the wrong file.
--- Slashes preserved; space / ? / # / % percent-encoded.
-local function media_href(path)
-    path = path or ""
-    local sub = path:match("input/images/(.+)$") or (path:match("([^/]+)$") or path)
-    return (sub:gsub("[^%w%-%._~/]", function(c)
-        return string.format("%%%02X", string.byte(c))
-    end))
-end
--- }}}
-
 -- {{{ local function flatten_media_files
 -- Issue 8-048: Copy every configured image into output/media/ for easy deploy.
--- TWO layouts, by species (kept in lockstep with media_href in the renderers):
+-- TWO layouts, by species (kept in lockstep with media_href in src/poem-entry.lua):
 --   * Mastodon media: collapse the ~7-level content-addressed nesting to the
 --     bare hash basename (output/media/abc.png) -- unique already.
 --   * Art images (input/images/<source>/...): keep <source>/<subpath>
@@ -489,7 +435,7 @@ local function flatten_media_files(output_dir)
 
             -- Find every file under the resolved source and place it under
             -- output/media/. TWO species, two layouts (must match media_href in
-            -- the renderers exactly, or the <img src> points at the wrong file):
+            -- src/poem-entry.lua exactly, or the <img src> points at the wrong file):
             --   * art sources (path .../input/images/<source>): keep
             --     <source>/<subpath>, so two files that share a basename in
             --     different subdirs (e.g. my-art/x.png and my-art/game-design/x.png)
@@ -499,7 +445,7 @@ local function flatten_media_files(output_dir)
             --     collapses the ~7-level Mastodon nesting.
             -- No leading-^ anchor: dir.path is absolute (see above), so we match the
             -- "input/images/<rest>" tail wherever it appears -- the same tail
-            -- media_href() extracts in the renderers, keeping the two layouts identical.
+            -- media_href() in poem-entry extracts, keeping the two layouts identical.
             local ns_prefix = dir.path and dir.path:match("input/images/(.+)$") or nil
             local find_cmd = string.format('find "%s" -type f', resolved_path)
             local handle = io.popen(find_cmd)
@@ -563,28 +509,39 @@ local function load_pagination_config()
         return PAGINATION_CONFIG
     end
 
-    -- Load pagination settings from unified config
-    if unified_config.pagination then
-        for key, value in pairs(unified_config.pagination) do
-            if key ~= "_comment" and PAGINATION_CONFIG[key] ~= nil then
-                PAGINATION_CONFIG[key] = value
+    -- Copy every required setting from config.lua, noting each one missing so
+    -- they can all be reported at once (one run tells the whole fix).
+    local targets = { pagination = PAGINATION_CONFIG, storage = STORAGE_CONFIG }
+    local missing = {}
+    for section, names in pairs(REQUIRED_SETTINGS) do
+        -- every missing setting is named in the one error below, not just the first;
+        -- optional: so an absent section is read as empty here
+        local source = unified_config[section] or {}
+        for _, name in ipairs(names) do
+            if source[name] == nil then
+                missing[#missing + 1] = section .. "." .. name
+            else
+                targets[section][name] = source[name]
             end
         end
     end
-
-    -- Load storage settings from unified config (Issue 8-020)
-    if unified_config.storage then
-        for key, value in pairs(unified_config.storage) do
-            if key ~= "_comment" and STORAGE_CONFIG[key] ~= nil then
-                STORAGE_CONFIG[key] = value
-            end
-        end
+    if #missing > 0 then
+        table.sort(missing)
+        error("config.lua is missing these settings the page builder needs: "
+            .. table.concat(missing, ", ")
+            .. ". Defaults live only in config.lua (Issue 10-065a); add them there.")
     end
 
     pagination_config_loaded = true
     return PAGINATION_CONFIG
 end
 -- }}}
+
+-- Loaded as soon as this file is: several readers below look at these settings
+-- without loading them first, and used to see the code's own numbers when they
+-- did. Loading here means every reader sees config.lua's, and a config.lua that
+-- lacks one stops the program at once, before any work.
+load_pagination_config()
 
 -- {{{ local function compute_storage_max_pages
 -- Issue 10-057 follow-up: derive how many similar/different pages per poem fit the
@@ -660,8 +617,12 @@ end
 -- Supports formats:
 --   nil or "default"  → Use minimum_pages from config (usually {1})
 --   "all"             → Generate all pages up to max_pages_per_poem limit
---   "N"               → Single page number, e.g., "1" → {1}, "5" → {5}
---   "N-M"             → Range of pages, e.g., "1-10" → {1,2,...,10}
+--   "N"               → N pages per poem: pages 1 through N, e.g. "3" → {1,2,3}
+--
+-- A bare number is a COUNT, the same as stages 7 and 8 read it and as run.sh's
+-- help says ("pages generated per poem"). It briefly meant "only page N",
+-- which made "--pages 3" write nothing but the -03 file for every poem while
+-- every link on the site pointed at -01: 1.3 million broken links in one build.
 -- Returns: {pages = {1,2,3,...}, is_all = boolean}
 -- is_all flag indicates if we should generate all pages (respecting max_pages limit)
 local function parse_pages_specification(pages_spec, total_pages_possible)
@@ -682,211 +643,26 @@ local function parse_pages_specification(pages_spec, total_pages_possible)
         return {pages = nil, is_all = true}  -- nil means "generate all" in context
     end
 
-    -- Single page number: "5" → {5}
-    local single_num = tonumber(pages_spec)
-    if single_num then
-        return {pages = {single_num}, is_all = false}
-    end
-
-    -- Range: "1-10" → {1,2,3,...,10}
-    local start_page, end_page = pages_spec:match("^(%d+)%-(%d+)$")
-    if start_page and end_page then
-        start_page = tonumber(start_page)
-        end_page = tonumber(end_page)
-
-        if start_page and end_page and start_page <= end_page then
-            local pages = {}
-            for i = start_page, end_page do
-                table.insert(pages, i)
-            end
-            return {pages = pages, is_all = false}
-        else
-            -- Issue 10-036: this used to log and build page 1 anyway -- a whole
-            -- stage run on a guess about what was meant.
-            error(string.format("Invalid page range: %s (start must be <= end)", pages_spec))
+    -- A count: "3" → {1,2,3}
+    local count = tonumber(pages_spec)
+    if count then
+        if count < 1 or count ~= math.floor(count) then
+            error(string.format("Invalid --pages count: '%s' (a whole number of pages, 1 or more)", pages_spec))
         end
-    end
-
-    error(string.format("Invalid --pages format: '%s'. Expected: 1, all, or 1-10", pages_spec))
-end
--- }}}
-
--- {{{ local function get_poems_for_page
--- Extracts poems for a specific page from a sorted list
--- page_num is 1-indexed
--- Returns: table of poem entries for that page
-local function get_poems_for_page(sorted_poems, page_num)
-    local poems_per_page = PAGINATION_CONFIG.poems_per_page
-    local start_idx = ((page_num - 1) * poems_per_page) + 1
-    local end_idx = math.min(start_idx + poems_per_page - 1, #sorted_poems)
-
-    local page_poems = {}
-    for i = start_idx, end_idx do
-        if sorted_poems[i] then
-            table.insert(page_poems, sorted_poems[i])
+        local pages = {}
+        for i = 1, count do
+            pages[i] = i
         end
+        return {pages = pages, is_all = false}
     end
 
-    return page_poems
+    -- Anything else is refused. Ranges ("2-5", exactly those pages) were
+    -- removed 2026-10-07: never used, and a bare number is a count.
+    error(string.format("Invalid --pages value: '%s'. Expected a number of pages per poem (3) or all", pages_spec))
 end
--- }}}
-
--- {{{ local function get_unique_poem_filename_id
--- Generates a unique identifier for poem filenames using category prefix
--- Solves cross-category ID collisions: fediverse/0002.txt and messages/0002.txt
--- both have id=2 but become "fediverse-0002" and "messages-0002". See Issue 8-019.
--- poem: poem object with id and category fields
--- Returns: unique filename identifier like "fediverse-0002" or "messages-0767"
-local function get_unique_poem_filename_id(poem)
-    local category = poem.category or "unknown"
-    local id = poem.id or 0
-    return string.format("%s-%04d", category, id)
-end
--- }}}
-
--- {{{ local function get_poem_anchor_id
--- Generates HTML anchor ID for linking to poems in chronological.html
--- Issue 8-030: Add chronological anchor links
--- Issue 16-006: Changed to use poem_index for simpler, machine-readable format
---               Old format: "poem-fediverse-0042" (leaked category info)
---               New format: "poem-4625" (just the unique poem_index)
--- poem: poem object with poem_index field
--- Returns: anchor ID like "poem-4625"
-local function get_poem_anchor_id(poem)
-    local poem_index = poem.poem_index or 0
-    return string.format("poem-%d", poem_index)
-end
--- }}}
-
--- {{{ local function format_page_number
--- Formats a page number with zero-padding
--- Returns: padded string like "01", "02", etc.
-local function format_page_number(page_num)
-    local padding = PAGINATION_CONFIG.page_number_padding
-    return string.format("%0" .. padding .. "d", page_num)
-end
--- }}}
-
--- {{{ local function generate_page_filename
--- Generates the filename for a paginated page
--- poem_id: the starting poem ID (for similarity/diversity pages)
--- page_num: 1-indexed page number
--- page_type: "similar" or "different"
--- Returns: filename like "similar/0068-01.html"
-local function generate_page_filename(poem_id, page_num, page_type)
-    local padded_id = string.format("%04d", poem_id)
-    local padded_page = format_page_number(page_num)
-    return string.format("%s/%s-%s.html", page_type, padded_id, padded_page)
-end
--- }}}
-
--- {{{ local function generate_prev_next_navigation
--- Generates prev/next navigation links for paginated pages
--- current_page: 1-indexed current page
--- total_pages: total number of pages (may be capped by max_pages_per_poem)
--- poem_id: starting poem ID (nil for chronological)
--- page_type: "similar", "different", or "chronological"
--- total_corpus: optional - total poems in corpus (for storage context display)
--- Returns: HTML string with navigation
--- Updated for Issue 8-020: Shows storage constraint message on last page
--- pages_written: array of page numbers (integers) this build writes for this
---   poem and page type.  Issue 10-036: Previous/Next link only to pages in it.
---   total_pages counts every page the ranking COULD fill, but a build writes
---   only the pages it was asked for (by default just page 1), so "Next Page"
---   used to point at NNNN-02.html on every page 1 -- a file never written.
-local function generate_prev_next_navigation(current_page, total_pages, poem_id, page_type, total_corpus, pages_written)
-    assert(type(pages_written) == "table",
-        "generate_prev_next_navigation: pages_written (the pages this build writes) is required")
-    -- The written neighbours of this page: the nearest written page on each side.
-    local prev_written, next_written
-    for _, p in ipairs(pages_written) do
-        if p < current_page and (not prev_written or p > prev_written) then prev_written = p end
-        if p > current_page and (not next_written or p < next_written) then next_written = p end
-    end
-    local nav_parts = {}
-
-    -- Calculate poem range for this page
-    local poems_per_page = PAGINATION_CONFIG.poems_per_page
-    local max_pages = PAGINATION_CONFIG.max_pages_per_poem
-    local start_poem = ((current_page - 1) * poems_per_page) + 1
-    local end_poem = math.min(current_page * poems_per_page, total_pages * poems_per_page)
-
-    -- Check if this is a storage-constrained last page
-    local is_storage_limited = (total_pages == max_pages) and (total_corpus and total_corpus > end_poem)
-    local poems_shown = end_poem
-    local poems_omitted = total_corpus and (total_corpus - poems_shown) or 0
-
-    -- Header line with page info
-    table.insert(nav_parts, "════════════════════════════════════════════════════════════════════════════════")
-
-    if page_type == "chronological" then
-        table.insert(nav_parts, string.format(" Page %d of %d │ Poems %d-%d",
-            current_page, total_pages, start_poem, end_poem))
-    else
-        local padded_id = string.format("%04d", poem_id)
-        if is_storage_limited then
-            -- Show storage context on capped pages (Issue 8-020)
-            table.insert(nav_parts, string.format(" %s to Poem %s │ Page %d of %d │ Showing top %d poems",
-                page_type == "similar" and "Similar" or "Different",
-                padded_id, current_page, total_pages, poems_shown))
-        else
-            table.insert(nav_parts, string.format(" %s to Poem %s │ Page %d of %d │ Poems %d-%d",
-                page_type == "similar" and "Similar" or "Different",
-                padded_id, current_page, total_pages, start_poem, end_poem))
-        end
-    end
-
-    table.insert(nav_parts, "════════════════════════════════════════════════════════════════════════════════")
-
-    -- Storage constraint notice on last page (Issue 8-020)
-    if is_storage_limited and current_page == total_pages and poems_omitted > 0 then
-        table.insert(nav_parts, string.format(" (%d additional poems omitted for storage constraints)",
-            poems_omitted))
-    end
-
-    table.insert(nav_parts, "")
-
-    -- Navigation links
-    local nav_line = ""
-
-    -- Previous link (left aligned)
-    if prev_written then
-        local prev_file
-        if page_type == "chronological" then
-            -- Issue 8-039 Fix: Chronological pages now in subdirectory, use relative paths
-            prev_file = string.format("%s.html", format_page_number(prev_written))
-        else
-            prev_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(prev_written))
-        end
-        nav_line = string.format("[<a href=\"%s\">◀ Previous Page</a>]", prev_file)
-    else
-        nav_line = "[◀ Previous Page]"  -- Disabled
-    end
-
-    -- Calculate padding to push next link to right side
-    local padding = 80 - #nav_line - 16  -- 16 chars for next link
-    if padding < 0 then padding = 0 end
-    nav_line = nav_line .. string.rep(" ", padding)
-
-    -- Next link (right aligned)
-    if next_written then
-        local next_file
-        if page_type == "chronological" then
-            -- Issue 8-039 Fix: Chronological pages now in subdirectory, use relative paths
-            next_file = string.format("%s.html", format_page_number(next_written))
-        else
-            next_file = string.format("%s-%s.html", string.format("%04d", poem_id), format_page_number(next_written))
-        end
-        nav_line = nav_line .. string.format("[<a href=\"%s\">Next Page ▶</a>]", next_file)
-    else
-        nav_line = nav_line .. "[Next Page ▶]"  -- Disabled
-    end
-
-    table.insert(nav_parts, nav_line)
-    table.insert(nav_parts, "────────────────────────────────────────────────────────────────────────────────")
-
-    return table.concat(nav_parts, "\n")
-end
+-- Exposed so src/flat-html-generator.pages-count.test.lua can pin what a
+-- --pages value writes, without building a site.
+M.parse_pages_specification = parse_pages_specification
 -- }}}
 
 -- {{{ function load_poem_colors
@@ -902,117 +678,22 @@ local function load_poem_colors()
     local poem_colors_file = utils.embeddings_dir() .. "/poem_colors.json"
     local poem_colors_data = utils.read_json_file(poem_colors_file)
 
-    if poem_colors_data and poem_colors_data.poem_colors then
-        -- Count actual entries dynamically (stored total_poems may be stale)
-        cached_poem_colors = poem_colors_data.poem_colors
-        return cached_poem_colors
-    else
-        utils.log_warn("Could not load poem colors, using mock colors")
-        cached_poem_colors = MOCK_POEM_COLORS
-        return cached_poem_colors
+    -- No colours, no export: the page workers stop the same way. (Until
+    -- 2026-10-21 this drew from seven made-up colours instead, so a missing
+    -- file gave a text export that looked coloured and was not.)
+    if not (poem_colors_data and poem_colors_data.poem_colors) then
+        error("no poem colours in " .. poem_colors_file)
     end
+    cached_poem_colors = poem_colors_data.poem_colors
+    return cached_poem_colors
 end
 -- }}}
 
--- {{{ function get_file_creation_timestamp
-local function get_file_creation_timestamp(file_path)
-    -- Use bash stat command to get file modification time (best approximation)
-    local cmd = string.format("stat -c %%Y '%s' 2>/dev/null", file_path)
-    local handle = io.popen(cmd)
-    
-    if handle then
-        local result = handle:read("*a")
-        handle:close()
-        
-        if result and result:match("^%d+") then
-            return tonumber(result:match("^%d+"))
-        end
-    end
-    
-    return nil
-end
--- }}}
-
--- {{{ function extract_post_date_from_poem
-local function extract_post_date_from_poem(poem_data)
-    -- First, try to use the creation_date metadata field (if available)
-    local creation_date = poem_data.creation_date or (poem_data.metadata and poem_data.metadata.creation_date)
-    if creation_date then
-        -- Parse ISO 8601 format: "2023-04-20T05:22:03" or "2023-04-20T05:22:03Z"
-        local year, month, day, hour, min, sec = creation_date:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
-        if year and month and day then
-            local parsed_time = os.time({
-                year = tonumber(year),
-                month = tonumber(month),
-                day = tonumber(day),
-                hour = tonumber(hour) or 0,
-                min = tonumber(min) or 0,
-                sec = tonumber(sec) or 0
-            })
-            if parsed_time then return parsed_time end
-        end
-        
-        -- Fallback: try to extract just date part
-        year, month, day = creation_date:match("(%d+)-(%d+)-(%d+)")
-        if year and month and day then
-            local parsed_time = os.time({
-                year = tonumber(year),
-                month = tonumber(month),
-                day = tonumber(day),
-                hour = 0, min = 0, sec = 0
-            })
-            if parsed_time then return parsed_time end
-        end
-    end
-    
-    -- Fallback: Look for date patterns in poem content (legacy logic)
-    local content = poem_data.content or ""
-    
-    -- First, try to extract YYYY-MM-DD from the very beginning (processing artifact dates)
-    local year, month, day = content:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)")
-    if year and month and day then
-        return os.time({year=tonumber(year), month=tonumber(month), day=tonumber(day)})
-    end
-    
-    -- Try to extract date from first line (other patterns)
-    local date_line = content:match("^([^\n]+)")
-    if date_line then        
-        -- MM/DD/YYYY format  
-        local month, day, year = date_line:match("(%d%d)/(%d%d)/(%d%d%d%d)")
-        if month and day and year then
-            return os.time({year=tonumber(year), month=tonumber(month), day=tonumber(day)})
-        end
-        
-        -- Month DD, YYYY format (like "april 16th 2023")
-        local month_name, day_num, year_num = date_line:match("(%w+)%s+(%d+)%w*%s+(%d%d%d%d)")
-        if month_name and day_num and year_num then
-            local month_map = {
-                january=1, february=2, march=3, april=4, may=5, june=6,
-                july=7, august=8, september=9, october=10, november=11, december=12
-            }
-            local month_num = month_map[month_name:lower()]
-            if month_num then
-                return os.time({year=tonumber(year_num), month=month_num, day=tonumber(day_num)})
-            end
-        end
-    end
-    
-    -- Fallback to file creation time if available
-    if poem_data.filepath then
-        local timestamp = get_file_creation_timestamp(poem_data.filepath)
-        if timestamp then
-            return timestamp
-        end
-    end
-    
-    -- Issue 8-045: no date anywhere.  This used to return the poem's id as a
-    -- "timestamp" -- a number of seconds after 1970 -- which put the poem at
-    -- the very start of the timeline and stretched the timeline's span back to
-    -- 1970, squashing every real poem into the last sliver of its bar.  The
-    -- caller refuses a nil and names the poem.
-    return nil
-end
--- }}}
+-- A poem's date, as a Unix time, from the one module that reads dates
+-- (src/poem-dates.lua): the extractor numbers poems by it (Issue 8-019), the
+-- chronological pages order them by it.
+local poem_dates = require("poem-dates")
+local extract_post_date_from_poem = poem_dates.timestamp
 
 -- {{{ function sort_poems_chronologically_by_dates
 local function sort_poems_chronologically_by_dates(poems_data)
@@ -1123,1684 +804,6 @@ function M.default_chrono_per_page()
 end
 -- }}}
 
--- {{{ function generate_progress_dashes
-local function generate_progress_dashes(progress_info, color_name, is_golden, position, has_corner_boxes)
-    -- For golden poems: 82 chars interior (+ 2 corners = 84 total)
-    -- For regular poems: 83 chars total (positions 0-82)
-    -- Golden poems have corner characters (╔/┐ or ╚/┘) that add 2 to the width,
-    -- so interior needs to be 1 less to maintain 84-char total alignment
-    poem_bars_shared.check_percentage(progress_info)  -- Issue 8-045: 0-100 or stop
-    local total_chars = is_golden and 82 or 83
-    local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
-    local remaining_chars = total_chars - progress_chars
-
-    -- Get color information
-    local hex_color = COLOR_CONFIG[color_name] or COLOR_CONFIG["gray"]
-
-    -- For golden bottom borders with corner boxes, we need to insert junction characters
-    -- Issue 8-055: Fixed junction positions to align ╧/┴ under ┐/┌ corners
-    -- Junction positions in the 82-char interior (0-indexed):
-    -- - Position 10: under "similar" box ┐ (same as regular poems)
-    -- - Position 71: under "different" box ┌ (regular + 1 due to wider golden poem)
-    local LEFT_JUNCTION_POS = 10   -- Same as regular: left box ┐ at position 10
-    local RIGHT_JUNCTION_POS = 71  -- Regular + 1: right box ┌ at position 71 (golden is 1 char wider)
-
-    -- Junction positions for regular poems (different from golden due to no outer walls)
-    -- Regular corner boxes: ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
-    -- Inner walls at positions 10 and 70 (0-indexed)
-    local REGULAR_LEFT_JUNCTION_POS = 10
-    local REGULAR_RIGHT_JUNCTION_POS = 70
-
-    local visual_output
-    if is_golden and position == "bottom" and has_corner_boxes then
-        -- Build progress bar with junction characters inserted
-        -- We need to construct the bar character by character to insert junctions at the right spots
-
-        -- Determine which junction character to use at each position
-        -- ╧ (U+2567) - up single and horizontal double (connects to ═) - COLORED
-        -- ┴ (U+2534) - up and horizontal single (connects to ─) - UNCOLORED
-        local left_in_progress = LEFT_JUNCTION_POS < progress_chars
-        local right_in_progress = RIGHT_JUNCTION_POS < progress_chars
-
-        -- Build colored junctions (╧ when in progress section)
-        local left_junction
-        if left_in_progress then
-            left_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            left_junction = "┴"
-        end
-
-        local right_junction
-        if right_in_progress then
-            right_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            right_junction = "┴"
-        end
-
-        -- Build the progress section (colored ═) and remaining section (─)
-        -- We need to split around the junction positions
-        local segments = {}
-        local current_pos = 0
-
-        -- Helper to add a segment with proper coloring
-        local function add_segment(start_pos, end_pos)
-            if end_pos <= start_pos then return end
-            local seg_len = end_pos - start_pos
-
-            -- Determine how much of this segment is progress vs remaining
-            local progress_in_seg = math.max(0, math.min(seg_len, progress_chars - start_pos))
-            local remaining_in_seg = seg_len - progress_in_seg
-
-            if progress_in_seg > 0 then
-                table.insert(segments, string.format('<font color="%s"><b>%s</b></font>',
-                    hex_color, string.rep("═", progress_in_seg)))
-            end
-            if remaining_in_seg > 0 then
-                table.insert(segments, string.rep("─", remaining_in_seg))
-            end
-        end
-
-        -- Bugfix: this copy started at 0 and ended at total_chars, landing the
-        -- left junction one column too far right (col 11) and the right one a
-        -- dash short -- so the bottom bar did not line up under the nav-box
-        -- corners. Start at 1 and end at total_chars+1 to match poem-bars (the
-        -- word pages, which were correct): 9 dashes before the left junction so
-        -- it sits at column 10, 11 after the right junction. Width is unchanged.
-        -- Segment 1: corner ╚ is column 0, so the first dash runs 1..left junction
-        add_segment(1, LEFT_JUNCTION_POS)
-        -- Insert left junction (colored if ╧, plain if ┴)
-        table.insert(segments, left_junction)
-
-        -- Segment 2: from left junction + 1 to right junction (exclusive)
-        add_segment(LEFT_JUNCTION_POS + 1, RIGHT_JUNCTION_POS)
-        -- Insert right junction (colored if ╧, plain if ┴)
-        table.insert(segments, right_junction)
-
-        -- Segment 3: from right junction + 1 to the far corner (exclusive of ┘)
-        add_segment(RIGHT_JUNCTION_POS + 1, total_chars + 1)
-
-        local interior = table.concat(segments, "")
-        -- Color the ╚ corner to match the progress bar
-        local colored_corner = string.format('<font color="%s"><b>╚</b></font>', hex_color)
-        visual_output = colored_corner .. interior .. "┘"
-
-    elseif not is_golden and position == "bottom" and has_corner_boxes then
-        -- Regular poem bottom border with corner characters and junctions connecting to corner boxes
-        -- Structure: ╘ (pos 0) + progress bar + ┴/╧ (pos 10) + progress bar + ┴/╧ (pos 69) + progress bar + ┘ (pos 81)
-        -- ╘ (U+2558) - up single and right double - closes left box, connects to ═ progress
-        -- ┘ (U+2518) - light up and left - closes right box, connects to ─ remaining
-
-        local left_in_progress = REGULAR_LEFT_JUNCTION_POS < progress_chars
-        local right_in_progress = REGULAR_RIGHT_JUNCTION_POS < progress_chars
-
-        -- Build colored junctions (╧ when in progress section, ┴ otherwise)
-        local left_junction
-        if left_in_progress then
-            left_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            left_junction = "┴"
-        end
-
-        local right_junction
-        if right_in_progress then
-            right_junction = string.format('<font color="%s"><b>╧</b></font>', hex_color)
-        else
-            right_junction = "┴"
-        end
-
-        -- Left corner ╘ - colored if progress > 0 (position 0 is always in progress section if any progress)
-        local left_corner
-        if progress_chars > 0 then
-            left_corner = string.format('<font color="%s"><b>╘</b></font>', hex_color)
-        else
-            left_corner = "╘"
-        end
-
-        -- Right corner ┘ - always uncolored (position 82 is almost never in progress section)
-        local right_corner = "┘"
-
-        -- Build the progress bar with junctions
-        local segments = {}
-
-        -- Helper to add a segment with proper coloring
-        -- Note: positions are now 1-80 since 0 and 81 are corner characters
-        local function add_segment(start_pos, end_pos)
-            if end_pos <= start_pos then return end
-            local seg_len = end_pos - start_pos
-
-            local progress_in_seg = math.max(0, math.min(seg_len, progress_chars - start_pos))
-            local remaining_in_seg = seg_len - progress_in_seg
-
-            if progress_in_seg > 0 then
-                table.insert(segments, string.format('<font color="%s"><b>%s</b></font>',
-                    hex_color, string.rep("═", progress_in_seg)))
-            end
-            if remaining_in_seg > 0 then
-                table.insert(segments, string.rep("─", remaining_in_seg))
-            end
-        end
-
-        -- Start with left corner
-        table.insert(segments, left_corner)
-
-        -- Segment 1: from 1 to left junction (exclusive) - 9 chars
-        add_segment(1, REGULAR_LEFT_JUNCTION_POS)
-        table.insert(segments, left_junction)
-
-        -- Segment 2: from left junction + 1 to right junction (exclusive) - 59 chars
-        add_segment(REGULAR_LEFT_JUNCTION_POS + 1, REGULAR_RIGHT_JUNCTION_POS)
-        table.insert(segments, right_junction)
-
-        -- Segment 3: from right junction + 1 to end - 1 (exclusive of right corner) - 11 chars
-        add_segment(REGULAR_RIGHT_JUNCTION_POS + 1, total_chars - 1)
-
-        -- End with right corner
-        table.insert(segments, right_corner)
-
-        -- No padding needed - content has 1-space indent for alignment
-        visual_output = table.concat(segments, "")
-
-    elseif is_golden then
-        -- Golden poem top border or bottom without corner boxes
-        -- Create progress visualization using equals/dash distinction
-        local progress_section = string.rep("═", progress_chars)
-        local remaining_section = string.rep("─", remaining_chars)
-
-        local colored_progress = string.format(
-            '<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section
-        )
-
-        -- Color the left corners to match the progress bar
-        local colored_top_corner = string.format('<font color="%s"><b>╔</b></font>', hex_color)
-        local colored_bottom_corner = string.format('<font color="%s"><b>╚</b></font>', hex_color)
-
-        if position == "top" then
-            visual_output = colored_top_corner .. colored_progress .. "┐"
-        elseif position == "bottom" then
-            visual_output = colored_bottom_corner .. colored_progress .. "┘"
-        else
-            visual_output = colored_top_corner .. colored_progress .. "┐"
-        end
-    else
-        -- Regular poems: no padding needed - content has 1-space indent for alignment
-        local progress_section = string.rep("═", progress_chars)
-        local remaining_section = string.rep("─", remaining_chars)
-
-        local colored_progress = string.format(
-            '<font color="%s"><b>%s</b></font>%s',
-            hex_color, progress_section, remaining_section
-        )
-        visual_output = colored_progress
-    end
-
-    -- Screen reader accessible version - brief format for frequent use
-    local screen_reader_text
-    if is_golden then
-        screen_reader_text = string.format(
-            'aria-label="golden poem border. %s."',
-            color_name
-        )
-    else
-        screen_reader_text = string.format(
-            'aria-label="eighty dashes. %s."',
-            color_name
-        )
-    end
-
-    return {
-        visual = visual_output,
-        accessibility = screen_reader_text,
-        raw_progress = progress_chars,
-        raw_remaining = remaining_chars,
-        color = color_name,
-        percentage = progress_info.percentage,
-        is_golden = is_golden or false
-    }
-end
--- }}}
-
--- {{{ function wrap_single_line_80_chars
-local function wrap_single_line_80_chars(line)
-    -- Wrap a single line to 80 characters, preserving words
-    if #line <= 80 then
-        return line
-    end
-
-    local result_lines = {}
-    local words = {}
-
-    for word in line:gmatch("%S+") do
-        table.insert(words, word)
-    end
-
-    local current_line = ""
-    for _, word in ipairs(words) do
-        if #current_line == 0 then
-            current_line = word
-        elseif #current_line + 1 + #word <= 80 then
-            current_line = current_line .. " " .. word
-        else
-            table.insert(result_lines, current_line)
-            current_line = word
-        end
-    end
-
-    if #current_line > 0 then
-        table.insert(result_lines, current_line)
-    end
-
-    return table.concat(result_lines, "\n")
-end
--- }}}
-
--- {{{ function strip_html_tags
-local function strip_html_tags(content)
-    -- Strip all HTML tags and decode HTML entities for TXT export
-    -- Images should be converted with render_attachment_images_txt() separately
-    local result = content
-
-    -- Strip HTML tags
-    result = result:gsub("<[^>]+>", "")
-
-    -- Decode common HTML entities
-    result = result:gsub("&amp;", "&")
-    result = result:gsub("&lt;", "<")
-    result = result:gsub("&gt;", ">")
-    result = result:gsub("&quot;", '"')
-    result = result:gsub("&#39;", "'")
-    result = result:gsub("&nbsp;", " ")
-    result = result:gsub("&#(%d+);", function(n)
-        return string.char(tonumber(n))
-    end)
-
-    -- Normalize multiple consecutive spaces/newlines
-    result = result:gsub("[ \t]+", " ")
-    result = result:gsub("\n[ \t]+", "\n")
-    result = result:gsub("[ \t]+\n", "\n")
-    result = result:gsub("\n\n\n+", "\n\n")
-
-    return result
-end
--- }}}
-
--- {{{ function wrap_text_80_chars
-local function wrap_text_80_chars(text)
-    -- Wrap text to 80 chars while preserving existing newlines (paragraph breaks)
-    local input_lines = {}
-    for line in (text .. "\n"):gmatch("(.-)\n") do
-        table.insert(input_lines, line)
-    end
-
-    local output_lines = {}
-    for _, line in ipairs(input_lines) do
-        if #line == 0 then
-            -- Preserve empty lines (paragraph breaks)
-            table.insert(output_lines, "")
-        else
-            -- Wrap long lines
-            local wrapped = wrap_single_line_80_chars(line)
-            for wrapped_line in (wrapped .. "\n"):gmatch("(.-)\n") do
-                table.insert(output_lines, wrapped_line)
-            end
-        end
-    end
-
-    return table.concat(output_lines, "\n")
-end
--- }}}
-
--- {{{ function M.generate_similarity_ranked_list
--- Cache-only similarity ranking lookup (no on-the-fly sorting)
--- Requires pre-computed similarity rankings cache from: ./run.sh --generate-similarity
--- Parameter similarity_data is kept for API compatibility but not used when cache is available
-function M.generate_similarity_ranked_list(starting_poem_id, poems_data, similarity_data)
-    -- Verify cache is loaded
-    if not SIMILARITY_RANKINGS_CACHE then
-        error("Similarity rankings cache not loaded! Run: ./run.sh --generate-similarity")
-    end
-
-    if not SIMILARITY_RANKINGS_CACHE.rankings then
-        error("Similarity rankings cache has invalid format (missing rankings table)")
-    end
-
-    -- Look up pre-sorted ranking for this poem
-    local cached_ranking = SIMILARITY_RANKINGS_CACHE.rankings[tostring(starting_poem_id)]
-    if not cached_ranking then
-        error(string.format("Similarity ranking not found for poem %s in cache.", starting_poem_id))
-    end
-
-    -- Build poem index lookup for fast access
-    local poem_by_index = {}
-    for i, poem in ipairs(poems_data.poems) do
-        if poem.poem_index then
-            poem_by_index[poem.poem_index] = poem
-        end
-    end
-
-    -- Issue 10-025: the list holds only the NEIGHBOURS.  The page draws the
-    -- anchor itself, first, from the poem it is handed.  This list used to open
-    -- with the anchor too -- looked up by array position rather than by
-    -- poem_index, and stamped with the global index while every other entry
-    -- carried its per-category id -- so the page's "skip the anchor" check
-    -- (which compared per-category ids) never matched it and the anchor
-    -- printed twice.  Entries are keyed by poem_index, the one number unique
-    -- across every source, and the anchor is left out if the cache lists it.
-    local ranked_poems = {}
-    local rank = 1
-    for _, target_poem_index in ipairs(cached_ranking) do
-        local poem = target_poem_index ~= starting_poem_id and poem_by_index[target_poem_index]
-        if poem then
-            table.insert(ranked_poems, {
-                id = poem.poem_index,
-                poem = poem,
-                similarity = nil,  -- Not needed for display, saves memory
-                rank = rank
-            })
-            rank = rank + 1
-        end
-    end
-
-    return ranked_poems
-end
--- }}}
-
--- {{{ function M.generate_maximum_diversity_sequence
--- Cache-only diversity sequence lookup (no on-the-fly computation)
--- Requires pre-computed GPU diversity cache from: ./run.sh --generate-diversity
-function M.generate_maximum_diversity_sequence(starting_poem_id, poems_data, embeddings_data)
-    -- Verify cache is loaded
-    if not DIVERSITY_CACHE then
-        error("Diversity cache not loaded! Run: ./run.sh --generate-diversity")
-    end
-
-    if not DIVERSITY_CACHE.sequences then
-        error("Diversity cache has invalid format (missing sequences table)")
-    end
-
-    -- Look up pre-computed sequence
-    local cached_sequence = DIVERSITY_CACHE.sequences[tostring(starting_poem_id)]
-    if not cached_sequence then
-        error(string.format("Diversity sequence not found for poem %d in cache. Cache may be corrupted or incomplete.", starting_poem_id))
-    end
-
-    -- Convert cached poem_index values to full poem objects
-    -- Note: The diversity cache stores poem_index (globally unique), NOT poem.id (per-category)
-    local diversity_sequence = {}
-    local poem_lookup = {}
-
-    -- Build lookup table keyed by poem_index (NOT poem.id which is per-category)
-    for i, poem in ipairs(poems_data.poems) do
-        if poem.poem_index then
-            poem_lookup[poem.poem_index] = poem
-        end
-    end
-
-    -- Convert cached sequence (contains poem_index values) to format expected by HTML generator
-    -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
-    for step, poem_index in ipairs(cached_sequence) do
-        if poem_index ~= starting_poem_id then
-            local poem = poem_lookup[poem_index]
-            if poem then
-                table.insert(diversity_sequence, {
-                    id = poem_index,  -- Store poem_index for consistency
-                    poem = poem,
-                    step = step
-                })
-            end
-        end
-    end
-
-    return diversity_sequence
-end
--- }}}
-
--- {{{ function render_attachment_images
--- Issue 8-049: Renamed conceptually to render all media types (images, audio, video)
--- Function name kept for backwards compatibility with existing call sites
-local function render_attachment_images(attachments)
-    -- Render HTML for poem attachments (images, audio, video)
-    -- Returns empty string if no attachments or no renderable attachments
-    -- Media output format designed for 80-char width aesthetic
-    --
-    -- ATTACHMENT STRUCTURE (from ActivityPub extraction):
-    -- {
-    --   media_type = "image/png" or "audio/mpeg" or "video/mp4",
-    --   url = "https://server.com/media/files/123/456/original/abc.png",
-    --   relative_path = "files/123/456/original/abc.png",
-    --   alt_text = "User description" or nil,
-    --   width = 1920,   -- images/video only
-    --   height = 1080   -- images/video only
-    -- }
-
-    if not attachments or #attachments == 0 then
-        return ""
-    end
-
-    local media_html = {}
-    -- "up to the site root" -- these attachments render on poem pages, which sit
-    -- one level below output/ (output/similar/, output/different/, ...), so a
-    -- "../" prefix reaches the root. Document-relative: resolves the same opened
-    -- locally from any folder or served on the site, so no path conversion step.
-    local base_path = ".."
-
-    for _, attachment in ipairs(attachments) do
-        local media_type = attachment.media_type or ""
-        -- Issue 8-048: media lives at output/media/<source>/<subpath> (see
-        -- flatten_media_files); media_href keeps art's source+subdir structure so
-        -- same-named pieces don't collide. "../media/" reaches it from a poem page.
-        local relative_path = attachment.relative_path or ""
-        -- media_href namespaces art by source+subdir (collision-safe) and
-        -- url-encodes; Mastodon hashes collapse to the bare name. Matches where
-        -- flatten_media_files placed the file.
-        local media_src = base_path .. "/media/" .. media_href(relative_path)
-
-        if media_type:match("^image/") then
-            -- Use alt text if available, otherwise generate generic description
-            -- Issue 9-012: ActivityPub uses 'description' field for alt-text
-            local alt_text = attachment.description or attachment.alt_text or "Image attachment"
-            -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
-            alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
-            -- Escape quotes in alt text for HTML attribute
-            alt_text = alt_text:gsub('"', '&quot;')
-
-            -- Build image tag with lazy loading for performance
-            -- Issue 8-005 Fix: Add max-width to prevent viewport overflow
-            -- display:block prevents multiple images from appearing side-by-side
-            -- max-width:min(100%,800px) caps at content width (~80 chars) while being responsive
-            -- width/height hints help browser reserve space before load (aspect ratio preserved)
-            -- Issue 8-053: title attribute provides mouse-over tooltip for sighted users
-            local img_tag
-            if attachment.width and attachment.height then
-                img_tag = string.format(
-                    '  <img src="%s" alt="%s" title="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
-                    media_src, alt_text, alt_text, attachment.width, attachment.height
-                )
-            else
-                img_tag = string.format(
-                    '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
-                    media_src, alt_text, alt_text
-                )
-            end
-            table.insert(media_html, img_tag)
-
-        elseif media_type:match("^audio/") then
-            -- Issue 8-049: Audio playback support
-            -- controls: Shows play/pause, volume, seek bar
-            -- preload="metadata": Only loads duration/metadata initially for performance
-            local audio_tag = string.format(
-                '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
-                '    <source src="%s" type="%s">\n' ..
-                '    Your browser does not support the audio element.\n' ..
-                '  </audio>',
-                media_src, media_type
-            )
-            table.insert(media_html, audio_tag)
-
-        elseif media_type:match("^video/") then
-            -- Issue 8-049: Video playback support
-            -- controls: Shows play/pause, volume, seek bar, fullscreen
-            -- preload="metadata": Only loads poster frame initially for performance
-            -- max-width caps at content width while being responsive
-            local video_tag
-            if attachment.width and attachment.height then
-                video_tag = string.format(
-                    '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                    '    <source src="%s" type="%s">\n' ..
-                    '    Your browser does not support the video element.\n' ..
-                    '  </video>',
-                    attachment.width, attachment.height, media_src, media_type
-                )
-            else
-                video_tag = string.format(
-                    '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                    '    <source src="%s" type="%s">\n' ..
-                    '    Your browser does not support the video element.\n' ..
-                    '  </video>',
-                    media_src, media_type
-                )
-            end
-            table.insert(media_html, video_tag)
-        end
-    end
-
-    if #media_html == 0 then
-        return ""
-    end
-
-    -- Issue 8-005 Fix: Close </pre> before media, reopen after
-    -- Media inside <pre> don't respect max-width:100% because <pre> sizes to content
-    -- By closing </pre>, media inherit width constraints from the parent <td> container
-    return "\n</pre>\n" .. table.concat(media_html, "\n") .. "\n<pre>\n"
-end
--- }}}
-
--- {{{ function render_attachment_images_txt
--- Issue 8-049: Now handles all media types (images, audio, video)
-local function render_attachment_images_txt(attachments)
-    -- Render plain text placeholders for poem attachments (images, audio, video)
-    -- Returns [Image: alt-text], [Audio: filename], [Video: filename] format for TXT export
-    -- Unlike render_attachment_images(), this outputs plain text, not HTML
-    --
-    -- This function exists because TXT exports cannot contain HTML media tags.
-    -- Media are replaced with bracketed descriptions.
-
-    if not attachments or #attachments == 0 then
-        return ""
-    end
-
-    local media_lines = {}
-
-    for _, attachment in ipairs(attachments) do
-        local media_type = attachment.media_type or ""
-        local placeholder
-
-        if media_type:match("^image/") then
-            -- Use alt text if available, otherwise indicate no description
-            local alt_text = attachment.description or attachment.alt_text or "no description"
-            placeholder = string.format("[Image: %s]", alt_text)
-
-        elseif media_type:match("^audio/") then
-            -- Issue 8-049: Audio placeholder
-            local basename = (attachment.relative_path or ""):match("([^/]+)$") or "audio file"
-            placeholder = string.format("[Audio: %s]", basename)
-
-        elseif media_type:match("^video/") then
-            -- Issue 8-049: Video placeholder
-            local basename = (attachment.relative_path or ""):match("([^/]+)$") or "video file"
-            placeholder = string.format("[Video: %s]", basename)
-        end
-
-        if placeholder then
-            -- Wrap long text to 80 characters
-            if #placeholder > 80 then
-                placeholder = wrap_text_80_chars(placeholder)
-            end
-            table.insert(media_lines, placeholder)
-        end
-    end
-
-    if #media_lines == 0 then
-        return ""
-    end
-
-    -- Return with newline prefix/suffix for proper spacing
-    return "\n" .. table.concat(media_lines, "\n") .. "\n"
-end
--- }}}
-
--- {{{ function format_warning_box
-local function format_warning_box(warning_text)
-    -- Issue 9-011: the shared content-warning box.  At most 80 wide (a text
-    -- area of 76, as before) and shrinking to a short warning, so the look
-    -- is unchanged -- but a long warning now wraps after dashes as well as
-    -- spaces, and lines are padded by visible width, not bytes.  This copy
-    -- used to break only at spaces and pad by byte count, so dash-joined
-    -- warnings and accented letters pushed the right wall out.
-    return text_formatter.format_cw_box(warning_text, 80, true)
-end
--- }}}
-
--- {{{ function escape_html
-local function escape_html(text)
-    -- Escape HTML special characters in poem content to prevent browser interpretation
-    -- Issue 8-041: Fixes bug where poem content containing </pre> breaks page rendering
-    -- IMPORTANT: Must be called BEFORE apply_markdown_formatting() so that
-    -- markdown-generated HTML tags (like <em>) are NOT escaped
-    -- Order matters: & must be escaped first, otherwise &lt; becomes &amp;lt;
-    if not text then return "" end
-    return text
-        -- Strip NUL and other C0 control bytes that occasionally ride along in
-        -- source poem text (a stray \0 in one post is what made a chronological
-        -- page read as "binary" and could make a browser choke on it). Keep the
-        -- legitimate whitespace controls: tab (\9), newline (\10), CR (\13).
-        :gsub("[%z\1-\8\11\12\14-\31]", "")
-        :gsub("&", "&amp;")
-        :gsub("<", "&lt;")
-        :gsub(">", "&gt;")
-end
--- }}}
-
--- {{{ function apply_markdown_formatting
-local function apply_markdown_formatting(text)
-    -- Issue 4-003 (August 2026): emphasis renders styled AND keeps the typed
-    -- delimiters visible ("both", per user) -- *love* shows as *love* with only
-    -- the word slanted. The delimiters sit OUTSIDE the tag: the styling belongs
-    -- to what the author emphasized, not to the marks they used to say so, so a
-    -- slanted asterisk would be the tool leaking into the sentence.
-    -- Delimiters already consumed into output are re-emitted as \1 sentinels
-    -- so the narrower single-asterisk pass cannot re-match inside a bold span;
-    -- escape_html strips control bytes beforehand, so \1 cannot collide with
-    -- poem content. Sentinels become literal asterisks at the end.
-
-    -- Handle *\*text*\* (legacy escaped-italics convention, kept first so the
-    -- plain passes below never half-consume its backslash form)
-    text = text:gsub("%*\\%*([^%*]+)%*\\%*", "\1<em>%1</em>\1")
-
-    -- Handle **text** (bold) before *text* so the pair is not split in two
-    text = text:gsub("%*%*([^%*]+)%*%*", "\1\1<strong>%1</strong>\1\1")
-
-    -- Handle *text* (italics). The content must start and end on non-space
-    -- and stay on one line: "2 * 3 * 4" and asterisk bullet lists are not
-    -- emphasis. (Two passes because Lua patterns have no alternation: one
-    -- for 2+ character spans, one for the single-character *x* case.)
-    text = text:gsub("%*([^%s%*][^%*\n]-[^%s%*])%*", "\1<em>%1</em>\1")
-    text = text:gsub("%*([^%s%*])%*", "\1<em>%1</em>\1")
-
-    -- Handle ~~text~~ (strikethrough) and `text` (inline code). Same rule as
-    -- above: the tildes stay unstruck and the backticks stay out of the code
-    -- span, so each mark reads as punctuation rather than as part of the span.
-    text = text:gsub("~~([^~]+)~~", "~~<del>%1</del>~~")
-    text = text:gsub("`([^`\n]+)`", "`<code>%1</code>`")
-
-    -- Sentinels back to the asterisks the author typed
-    text = text:gsub("\1", "*")
-
-    return text
-end
-M.apply_markdown_formatting = apply_markdown_formatting
--- }}}
-
--- {{{ function is_golden_poem
-local function is_golden_poem(poem)
-    -- Issue 8-044: Use pre-calculated golden status from extraction metadata
-    -- This correctly accounts for:
-    --   - Pre-anonymization content (original @mentions preserved)
-    --   - Content warning text (without "CW: " prefix)
-    -- The extraction calculates this once; we use metadata as single source of truth
-    if poem.metadata and poem.metadata.is_golden_poem then
-        return true
-    end
-    return false
-end
--- }}}
-
--- {{{ function is_boost_poem
-local function is_boost_poem(poem)
-    -- Issue 8-057: Detect boosted/shared posts for visual formatting
-    -- Boosts are reshared content from other fediverse users
-    -- boost_type can be: "cached_external", "external", or "embedded"
-    if poem.metadata and poem.metadata.is_boost then
-        return true
-    end
-    return false
-end
--- }}}
-
--- {{{ function get_poem_display_filename
-local function get_poem_display_filename(poem)
-    -- Returns the display filename for a poem (without extension)
-    -- For notes: uses metadata.source_file (the original filename)
-    -- For fediverse/messages: uses the numeric ID
-    -- All categories: no .txt extension (cleaner display)
-    local category = poem.category or "unknown"
-    local filename
-
-    if category == "notes" and poem.metadata and poem.metadata.source_file then
-        -- Notes preserve their original descriptive filenames
-        filename = poem.metadata.source_file
-    else
-        -- Fediverse and messages use numeric ID
-        filename = tostring(poem.id or "unknown")
-    end
-
-    return category .. "/" .. filename
-end
--- }}}
-
--- {{{ function generate_corner_box_separator
-local function generate_corner_box_separator(hex_color)
-    -- Generate the separator line with corner box tops for GOLDEN poems
-    -- Format: ╟─────────┐                    ┌───────────┤
-    -- Left box: 11 chars (╟ + 9×─ + ┐)
-    -- Right box: 13 chars (┌ + 11×─ + ┤)
-    -- Gap: 60 chars (spaces)
-    -- Total: 84 chars
-    -- The left junction ╟ is colored to match the progress bar
-    local colored_junction = string.format('<font color="%s"><b>╟</b></font>', hex_color)
-    local left_box = colored_junction .. string.rep("─", 9) .. "┐"
-    local right_box = "┌" .. string.rep("─", 11) .. "┤"
-    local gap = string.rep(" ", 60)
-    return left_box .. gap .. right_box
-end
--- }}}
-
--- {{{ function colorize_char
--- Helper to wrap a character in color tags
-local function colorize_char(char, hex_color)
-    if hex_color then
-        return string.format('<font color="%s"><b>%s</b></font>', hex_color, char)
-    end
-    return char
-end
--- }}}
-
--- {{{ function generate_regular_corner_box_top
--- Issue 8-035: Added progress_chars and hex_color for progressive colorization
-local function generate_regular_corner_box_top(progress_chars, hex_color)
-    -- Generate the top line of corner boxes for REGULAR poems (no side walls)
-    -- Format: ┌─────────┐                    ┌───────────┐
-    -- Left box: 11 chars (┌ + 9×─ + ┐) at positions 0-10
-    -- Right box: 13 chars (┌ + 11×─ + ┐) at positions 70-82
-    -- Gap: 59 chars (spaces) at positions 11-69
-    -- Total: 83 chars
-
-    progress_chars = progress_chars or 0
-
-    -- Left box (positions 0-10)
-    local left_parts = {}
-    -- Position 0: ┌
-    table.insert(left_parts, progress_chars > 0 and colorize_char("┌", hex_color) or "┌")
-    -- Positions 1-9: ─────────
-    for i = 1, 9 do
-        table.insert(left_parts, progress_chars > i and colorize_char("─", hex_color) or "─")
-    end
-    -- Position 10: ┐
-    table.insert(left_parts, progress_chars > 10 and colorize_char("┐", hex_color) or "┐")
-
-    -- Gap (positions 11-69) - spaces don't need coloring
-    local gap = string.rep(" ", 59)
-
-    -- Right box (positions 70-82)
-    local right_parts = {}
-    -- Position 70: ┌
-    table.insert(right_parts, progress_chars > 70 and colorize_char("┌", hex_color) or "┌")
-    -- Positions 71-81: ───────────
-    for i = 71, 81 do
-        table.insert(right_parts, progress_chars > i and colorize_char("─", hex_color) or "─")
-    end
-    -- Position 82: ┐
-    table.insert(right_parts, progress_chars > 82 and colorize_char("┐", hex_color) or "┐")
-
-    return table.concat(left_parts) .. gap .. table.concat(right_parts)
-end
--- }}}
-
--- {{{ function generate_regular_corner_box_bottom
-local function generate_regular_corner_box_bottom()
-    -- Generate the bottom line of corner boxes for REGULAR poems
-    -- Format: └─────────┘                    └───────────┘
-    -- Gap: 59 chars, Total: 83 chars
-    local left_box = "└" .. string.rep("─", 9) .. "┘"
-    local right_box = "└" .. string.rep("─", 11) .. "┘"
-    local gap = string.rep(" ", 59)
-    return left_box .. gap .. right_box
-end
--- }}}
-
--- {{{ function generate_corner_box_nav_line
-local function generate_corner_box_nav_line(similar_link, different_link, chronological_link, hex_color)
-    -- Generate the navigation line with corner box walls for GOLDEN poems (Issue 8-030)
-    -- Format: ║ similar │      chronological      │ different │
-    -- Left box: ║ + space + link + space + │ = 11 chars
-    -- Center text: chronological (13 chars visible) - or empty space if nil (on chronological.html)
-    -- Right box: │ + space + link + space + │ = 13 chars
-    -- Gaps: 2 gaps of ~23 chars each
-    -- Total: 84 chars
-    -- The left wall ║ is colored to match the progress bar
-
-    -- The links contain HTML, so we need to measure visible text
-    local similar_visible = similar_link:gsub("<[^>]+>", "")  -- "similar"
-    local different_visible = different_link:gsub("<[^>]+>", "")  -- "different"
-
-    -- Handle nil chronological_link (on chronological.html page, we don't show this link)
-    local center_text = ""
-    local center_visible_len = 0
-    if chronological_link then
-        center_text = chronological_link
-        center_visible_len = chronological_link:gsub("<[^>]+>", ""):len()  -- "chronological" = 13 chars
-    end
-
-    -- Left box: ║ (colored) + space + similar + padding + │
-    local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-    local left_content_width = 9  -- space between ║ and │
-    local similar_padding = left_content_width - 1 - #similar_visible  -- 1 for leading space
-    local left_box = colored_wall .. " " .. similar_link .. string.rep(" ", similar_padding) .. "│"
-
-    -- Right box: │ + space + different + padding + │
-    local right_content_width = 11  -- space between │ and │
-    local different_padding = right_content_width - 1 - #different_visible  -- 1 for leading space
-    local right_box = "│ " .. different_link .. string.rep(" ", different_padding) .. "│"
-
-    -- Calculate gaps: Total 84 - 11 (left) - center_visible - 13 (right) = remaining
-    -- If no center text, distribute all 47+13 = 60 chars into the gaps (30 left, 30 right)
-    -- If center text (13 chars), split remaining 47 into 22 left + 25 right
-    local left_gap, right_gap
-    if center_visible_len > 0 then
-        left_gap = string.rep(" ", 22)
-        right_gap = string.rep(" ", 25)
-    else
-        -- No chronological link - distribute 60 chars evenly (30+30)
-        left_gap = string.rep(" ", 30)
-        right_gap = string.rep(" ", 30)
-    end
-
-    return left_box .. left_gap .. center_text .. right_gap .. right_box
-end
--- }}}
-
--- {{{ function generate_regular_corner_box_nav_line
--- Issue 8-035: Added progress_chars and hex_color for progressive colorization
-local function generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color)
-    -- Generate the navigation line with corner box walls for REGULAR poems (Issue 8-030)
-    -- Format: │ similar │      chronological      │ different │
-    -- Left box: │ + space + link + space + │ = 11 chars (positions 0-10)
-    -- Center text: chronological (13 chars visible) - or empty space if nil (on chronological.html)
-    -- Right box: │ + space + link + space + │ = 13 chars (positions 70-82)
-    -- Gaps: 2 gaps totaling 59 chars (with 13 char center text: 23 left + 23 right)
-    -- Total: 83 chars
-
-    progress_chars = progress_chars or 0
-
-    local similar_visible = similar_link:gsub("<[^>]+>", "")
-    local different_visible = different_link:gsub("<[^>]+>", "")
-
-    -- Handle nil chronological_link (on chronological.html page, we don't show this link)
-    local center_text = ""
-    local center_visible_len = 0
-    if chronological_link then
-        center_text = chronological_link
-        center_visible_len = chronological_link:gsub("<[^>]+>", ""):len()  -- "chronological" = 13 chars
-    end
-
-    -- Left box: │ + space + similar + padding + │
-    -- Wall characters at positions 0 and 10
-    local left_wall = progress_chars > 0 and colorize_char("│", hex_color) or "│"
-    local right_wall_of_left = progress_chars > 10 and colorize_char("│", hex_color) or "│"
-    local left_content_width = 9
-    local similar_padding = left_content_width - 1 - #similar_visible
-    local left_box = left_wall .. " " .. similar_link .. string.rep(" ", similar_padding) .. right_wall_of_left
-
-    -- Right box: │ + space + different + padding + │
-    -- Wall characters at positions 70 and 82
-    local left_wall_of_right = progress_chars > 70 and colorize_char("│", hex_color) or "│"
-    local right_wall = progress_chars > 82 and colorize_char("│", hex_color) or "│"
-    local right_content_width = 11
-    local different_padding = right_content_width - 1 - #different_visible
-    local right_box = left_wall_of_right .. " " .. different_link .. string.rep(" ", different_padding) .. right_wall
-
-    -- Calculate gaps: Total 83 - 11 (left) - 13 (right) = 59 for gaps + center
-    -- If no center text, distribute 59 chars into the gaps (29 left, 30 right)
-    -- If center text (13 chars), split remaining 46 into 23 left + 23 right
-    local left_gap, right_gap
-    if center_visible_len > 0 then
-        left_gap = string.rep(" ", 23)
-        right_gap = string.rep(" ", 23)
-    else
-        -- No chronological link - distribute 59 chars (29+30)
-        left_gap = string.rep(" ", 29)
-        right_gap = string.rep(" ", 30)
-    end
-
-    return left_box .. left_gap .. center_text .. right_gap .. right_box
-end
--- }}}
-
--- {{{ function apply_golden_poem_formatting
-local function apply_golden_poem_formatting(content, is_golden, similar_link, different_link, chronological_link, hex_color)
-    -- Golden poem side borders: ║ on left (colored), │ on right
-    -- Interior width: 80 characters for content (with 1 space padding on each side)
-    -- Format: ║ + space + 80 chars content (padded) + space + │ = 84 total
-    -- The left wall ║ is colored to match the progress bar
-    if not is_golden then
-        return content
-    end
-
-    local CONTENT_WIDTH = 80  -- Content area between padding spaces
-    local color = hex_color or "#787878"  -- Default to gray if no color provided
-
-    -- Helper to count UTF-8 characters (not bytes)
-    -- Box-drawing chars are 3 bytes each, so #str gives wrong count
-    local function utf8_char_count(str)
-        -- Remove UTF-8 continuation bytes (0x80-0xBF), count what remains
-        return #(str:gsub("[\128-\191]", ""))
-    end
-
-    -- Split content into lines (append newline to handle last line without trailing newline)
-    local lines = {}
-    for line in (content .. "\n"):gmatch("(.-)\n") do
-        table.insert(lines, line)
-    end
-
-    local formatted_lines = {}
-    local colored_wall = string.format('<font color="%s"><b>║</b></font>', color)
-
-    for _, line in ipairs(lines) do
-        -- Calculate visible length (excluding HTML tags, counting UTF-8 chars)
-        -- Issue 8-055: Also decode HTML entities for accurate width counting
-        -- e.g., &gt; is 4 bytes but displays as 1 character (>)
-        local visible_length = text_formatter.calculate_visible_width(line)
-
-        -- Pad or handle line to fit content width
-        local padded_line
-        if visible_length >= CONTENT_WIDTH then
-            -- Line is already at or over width - use as-is
-            padded_line = line
-        else
-            -- Pad with spaces to reach content width
-            local padding_needed = CONTENT_WIDTH - visible_length
-            padded_line = line .. string.rep(" ", padding_needed)
-        end
-
-        -- Add side borders with padding: ║ (colored) content │
-        table.insert(formatted_lines, colored_wall .. " " .. padded_line .. " │")
-    end
-
-    -- Add corner box navigation (separator + nav line) if links provided
-    -- Issue 9-003 Fix: Only require similar and different links - chronological_link can be nil
-    if similar_link and different_link then
-        -- Add separator line with corner box tops: ╟─────────┐      ┌───────────┤
-        table.insert(formatted_lines, generate_corner_box_separator(color))
-        -- Add navigation line with corner box walls: ║ similar │ chronological │ different │
-        -- chronological_link may be nil on chronological.html (shows empty space in center)
-        table.insert(formatted_lines, generate_corner_box_nav_line(similar_link, different_link, chronological_link, color))
-    end
-
-    return table.concat(formatted_lines, "\n")
-end
--- }}}
-
--- {{{ Issue 8-057: Boost Visual Formatting Functions
--- Boosts use nested frames: outer blue frame + inner teal content box with
--- asymmetric arrows (◀═ top-left, ─▶ bottom-right) and a floating [BOOST] label.
--- ALL geometry now lives in src/boost-bars.lua (shared, unit-tested) -- the old
--- generate_boost_* helpers were removed because three drifting copies produced
--- misaligned walls, wrong junction columns, and ▢ corruption. This path keeps
--- only the thin assembler below.
-
--- {{{ function apply_boost_poem_formatting
-local function apply_boost_poem_formatting(content, progress_percent, similar_link, different_link, chronological_link)
-    -- Issue 8-057: nested frame formatting for boosts, drawn by the shared
-    -- boost-bars module (single source of truth for every render path). We just
-    -- split the pre-wrapped content into lines; the module owns all geometry.
-    local lines = {}
-    for line in (content .. "\n"):gmatch("(.-)\n") do
-        table.insert(lines, line)
-    end
-    local include_nav = (similar_link and different_link) and true or false
-    return boost_bars.format_boost(
-        lines, progress_percent, similar_link, different_link, chronological_link, include_nav)
-end
--- }}}
-
--- }}} End Issue 8-057: Boost Visual Formatting Functions
-
--- {{{ function format_content_with_warnings
-local function format_content_with_warnings(text, poem_category, poem, similar_link, different_link, chronological_link, hex_color)
-    -- Issue 8-041: Escape HTML special characters in poem content FIRST
-    -- This prevents browser from interpreting poem content as HTML markup
-    -- (e.g., a poem containing "</pre>" would otherwise close the preformatted block)
-    text = escape_html(text)
-
-    -- Apply markdown formatting AFTER escaping
-    -- This allows *italics* to become <em>italics</em> while keeping
-    -- literal < > & in poem content safely escaped
-    text = apply_markdown_formatting(text)
-
-    -- Check if this is a golden poem
-    local is_golden = poem and is_golden_poem(poem)
-
-    local formatted_lines = {}
-
-    -- Issue 9-011: Display content warning from poem.content_warning field (Mastodon CW)
-    -- This is separate from in-content CW: patterns - it comes from ActivityPub summary field
-    if poem and poem.content_warning and poem.content_warning ~= "" then
-        local cw_label = "CW: " .. poem.content_warning
-        local warning_box = format_warning_box(cw_label)
-        table.insert(formatted_lines, warning_box)
-        table.insert(formatted_lines, "") -- First newline
-        table.insert(formatted_lines, "") -- Second newline for spacing
-    end
-
-    -- Detect additional content warning patterns in text (CW:, content warning:, etc.)
-    -- Issue 10-021: Use text_formatter.format_poem_lines to preserve empty lines (paragraph breaks)
-    local lines = text_formatter.format_poem_lines(text)
-
-    for _, line in ipairs(lines) do
-        -- Check if line starts with content warning (in-content CW pattern)
-        if line:lower():match("^%s*cw%s*:") or line:lower():match("^%s*content warning%s*:") then
-            -- Format content warning with box
-            local warning_box = format_warning_box(line)
-            table.insert(formatted_lines, warning_box)
-            table.insert(formatted_lines, "") -- First newline
-            table.insert(formatted_lines, "") -- Second newline for spacing
-        else
-            -- Issue 10-021: Wrap long lines while preserving leading whitespace
-            -- This replaces 8-056's no-wrap approach with whitespace-aware wrapping
-            local wrapped = text_formatter.wrap_preserving_indent(line, 80)
-            for _, wrapped_line in ipairs(wrapped) do
-                table.insert(formatted_lines, wrapped_line)
-            end
-        end
-    end
-
-    local formatted_content = table.concat(formatted_lines, "\n")
-
-    -- Apply golden poem box-drawing formatting (with corner box nav inside)
-    if is_golden then
-        formatted_content = apply_golden_poem_formatting(formatted_content, true, similar_link, different_link, chronological_link, hex_color)
-    else
-        -- For regular poems, add 1-space left padding to each content line
-        -- Content uses 1-space indent for alignment (83 chars total width)
-        local padded_lines = {}
-        for line in (formatted_content .. "\n"):gmatch("(.-)\n") do
-            table.insert(padded_lines, " " .. line)
-        end
-        formatted_content = table.concat(padded_lines, "\n")
-    end
-
-    return formatted_content, is_golden
-end
--- }}}
-
-
--- {{{ function format_single_poem_with_progress_and_color
--- Issue 10-036: Added chrono_mapping for correct paginated chronological links
--- chrono_paginated: whether the chronological view was split into numbered pages.
---   It cannot be read from PAGINATION_CONFIG here, because --chrono-per-page
---   turns pagination on at runtime without touching the config table.
-local function format_single_poem_with_progress_and_color(poem, poem_colors, chrono_mapping, chrono_paginated)
-    -- Issue 9-013: a ranked IMAGE entry (pseudo-poem) renders as an image box,
-    -- not a poem. Inert until inject_pseudo_poems tags/append image entries.
-    if poem.is_image then
-        return image_render.format_image_entry(poem)
-    end
-
-    local formatted = ""
-
-    -- Get semantic color for this poem (key by poem_index, NOT poem.id)
-    local poem_color_data = poem_colors[poem.poem_index]
-    local semantic_color = poem_color_data and poem_color_data.color or "gray"
-    local hex_color = COLOR_CONFIG[semantic_color] or COLOR_CONFIG["gray"]
-
-    -- Issue 8-045: the bar shows how far through the writing span the poem
-    -- was written, read from the chronological map -- the same number the
-    -- page workers use.  This path used to divide the poem's position in the
-    -- combined list by the largest id on the page (two numbering schemes
-    -- mixed), which put early messages near 100% and some bars past it.
-    -- A poem the map does not hold cannot have a bar or a chronological link,
-    -- so the build stops and names it.
-    local chrono_entry = chrono_mapping and chrono_mapping[poem.poem_index]
-    if not chrono_entry then
-        error(string.format("poem %s (%s) is not in the chronological map%s",
-            tostring(poem.poem_index), tostring(poem.category),
-            chrono_mapping and "" or " (no map was passed)"))
-    end
-    local progress_info = {
-        poem_id = poem.poem_index,
-        percentage = chrono_entry.timeline_progress,
-    }
-
-    -- Check if this is a golden poem (exactly 1024 characters)
-    local is_golden = is_golden_poem(poem)
-
-    -- Issue 8-057: Check if this is a boost (reshared content from another author)
-    local is_boost = is_boost_poem(poem)
-
-    -- Build navigation links for this poem (using category prefix for anchors, poem_index for paginated files)
-    local unique_id = get_unique_poem_filename_id(poem)  -- For anchor IDs only (e.g. "messages-0001")
-    local anchor_id = get_poem_anchor_id(poem)
-    local poem_index = poem.poem_index or 0  -- Numeric ID for paginated files (e.g. 1 → "0001")
-
-    -- Issue 8-012 Phase E: Link to paginated format (similar/0001-01.html)
-    -- Issue 9-003: Use absolute file:// paths - helper script converts to production URLs
-    local base_path = ".."
-    local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
-    local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
-    -- Issue 8-039: Chronological now in subdirectory
-    -- Issue 10-036: the link must name the chronological page that actually holds
-    -- this poem, and TWO facts decide that filename -- both have to reach here:
-    --   chrono_mapping   poem_index -> {page_number, total_pages, ...}
-    --   chrono_paginated whether the view was split into numbered pages at all
-    -- Paginated builds write chronological/NN.html; unpaginated builds write only
-    -- chronological/index.html. That branch is the one in
-    -- generate_chronological_index_with_navigation, and this link has to agree
-    -- with it or it names a file that was never written.
-    --
-    -- The old code guessed "01" whenever the mapping was absent. That guess is
-    -- how a full build shipped 694,530 links all pointing at chronological page
-    -- 1: this sequential path ran with chrono_mapping = nil, so every poem on
-    -- every similar/different page claimed to live among the first 88 poems.
-    -- A guess that is silently wrong for 99% of a corpus is worse than a stop.
-    -- A later fallback to index.html lost the #poem anchor across its redirect;
-    -- since 8-045 a poem missing from the map stops the build at the top of
-    -- this function (its progress bar needs the same entry), so chrono_entry is
-    -- always real here and no fallback is needed.
-    local chronological_link
-    if chrono_paginated and (chrono_entry.total_pages or 1) > 1 then
-        chronological_link = string.format("<a href='%s/chronological/%02d.html#%s'>chronological</a>",
-            base_path, chrono_entry.page_number, anchor_id)
-    else
-        -- Unpaginated: index.html IS the whole chronological view, and the
-        -- anchor resolves inside it.
-        chronological_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>",
-            base_path, anchor_id)
-    end
-
-    -- Add file header (notes show original filename, others show numeric ID)
-    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
-    -- Issue 9-013: text+image posts get a direct "image.png" link below the
-    -- header. (Image entries never reach here -- they return early above.)
-    local img_link = image_render.text_image_link(poem)
-    if img_link ~= "" then formatted = formatted .. " " .. img_link .. "\n" end
-
-    -- Issue 8-057: Boost formatting - uses complete nested frame with arrows and [BOOST] label
-    -- Boost formatting replaces all standard elements (top bar, content, nav, bottom bar)
-    if is_boost then
-        -- Escape HTML and apply markdown to content
-        local text = escape_html(poem.content or "")
-
-        -- Issue 10-037: Defensive fallback for blank boost content
-        -- If content is empty, display the original URI or diagnostic message
-        if text == "" or text:match("^%s*$") then
-            local original_uri = poem.metadata and poem.metadata.original_uri
-            if original_uri then
-                text = "External post: " .. escape_html(original_uri)
-            else
-                text = "(Boost content unavailable)"
-            end
-        end
-
-        -- Issue 10-039: Make external boost URLs clickable
-        -- Pattern: "External post: https://..." -> wrap URL in anchor tag
-        local external_pattern = "^External post: (https?://[^%s]+)$"
-        local external_url = text:match(external_pattern)
-        if external_url then
-            -- Wrap the URL across box lines (boost content width) instead of
-            -- letting it overflow the box; each line links to the full URL.
-            text = text_formatter.wrap_external_url("External post: ", external_url, boost_bars.CONTENT_WIDTH)
-        else
-            -- Issue 10-041: Wrap long embedded content to fit the boost box.
-            -- Only wrap non-external-post content (external posts keep URLs intact)
-            local BOOST_CONTENT_WIDTH = boost_bars.CONTENT_WIDTH
-            local wrapped_lines = {}
-            for line in (text .. "\n"):gmatch("(.-)\n") do
-                local wrapped = text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
-                for _, wrapped_line in ipairs(wrapped) do
-                    table.insert(wrapped_lines, wrapped_line)
-                end
-            end
-            text = table.concat(wrapped_lines, "\n")
-        end
-
-        text = apply_markdown_formatting(text)
-
-        -- Calculate progress as decimal (0-1) for boost functions
-        local progress_percent = progress_info.percentage / 100
-
-        -- Apply complete boost formatting (includes all frame elements)
-        local boost_formatted = apply_boost_poem_formatting(
-            text, progress_percent, similar_link, different_link, chronological_link
-        )
-        formatted = formatted .. boost_formatted .. "\n"
-
-        -- Render attached images after boost frame
-        if poem.attachments then
-            formatted = formatted .. render_attachment_images(poem.attachments)
-        end
-
-        return {
-            content = formatted,
-            semantic_color = semantic_color,
-            progress_percentage = progress_info.percentage,
-            poem_id = poem.id
-        }
-    end
-
-    -- Standard formatting for golden and regular poems
-    -- Generate top progress bar separator (with golden corners if applicable)
-    local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
-    formatted = formatted .. string.format('<span %s>%s</span>',
-                                          top_dashes.accessibility,
-                                          top_dashes.visual)
-
-    -- Add newline after top border for all poems
-    -- Golden poems: ┐ corner needs newline before ║ content wall on next line
-    -- Regular poems: progress bar needs newline before content
-    formatted = formatted .. "\n"
-
-    -- Format poem content with content warning handling and whitespace preservation
-    -- Pass nav links and hex_color for golden poems
-    local content_formatted = format_content_with_warnings(
-        poem.content or "", poem.category, poem,
-        is_golden and similar_link or nil,
-        is_golden and different_link or nil,
-        is_golden and chronological_link or nil,
-        is_golden and hex_color or nil
-    )
-    formatted = formatted .. content_formatted
-
-    -- Render attached images if present (from ActivityPub extraction)
-    -- Images appear after poem content, before navigation links
-    -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
-    if poem.attachments then
-        formatted = formatted .. render_attachment_images(poem.attachments)
-    end
-
-    -- For golden poems, content already includes nav in corner boxes
-    -- For regular poems, add corner-boxed navigation links (top and nav lines only, bottom connects to progress bar)
-    if not is_golden then
-        -- Issue 8-035: Calculate progress_chars and hex_color for nav box colorization
-        local total_chars = LAYOUT.REGULAR_POEM_WIDTH
-        local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
-        local hex_color = COLOR_CONFIG[semantic_color]
-
-        formatted = formatted .. "\n"
-        formatted = formatted .. generate_regular_corner_box_top(progress_chars, hex_color) .. "\n"
-        formatted = formatted .. generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color) .. "\n"
-        -- No bottom line - corner boxes connect directly to progress bar via junctions
-    else
-        -- Golden poems: add newline after nav line (content_formatted doesn't end with newline)
-        formatted = formatted .. "\n"
-    end
-
-    -- Generate bottom progress bar separator (with junctions for both golden and regular poems)
-    -- The has_corner_boxes parameter enables junction characters at wall positions
-    local bottom_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "bottom", true)
-    formatted = formatted .. string.format('<span %s>%s</span>\n',
-                                          bottom_dashes.accessibility,
-                                          bottom_dashes.visual)
-
-    return {
-        content = formatted,
-        semantic_color = semantic_color,
-        progress_percentage = progress_info.percentage,
-        poem_id = poem.id
-    }
-end
--- }}}
-
--- {{{ function format_single_poem_with_warnings
-local function format_single_poem_with_warnings(poem)
-    local formatted = ""
-
-    -- Add file header (notes show original filename, others show numeric ID)
-    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
-    formatted = formatted .. string.rep("-", 80) .. "\n"
-
-    -- Format poem content with content warning handling and whitespace preservation
-    formatted = formatted .. format_content_with_warnings(poem.content or "", poem.category, poem)
-
-    -- Render attached images if present
-    if poem.attachments then
-        formatted = formatted .. render_attachment_images(poem.attachments)
-    end
-
-    return formatted
-end
--- }}}
-
--- {{{ function format_single_poem_80_width
-local function format_single_poem_80_width(poem)
-    -- Format a single poem for TXT export (80-character width, no HTML)
-    -- Uses strip_html_tags() to remove HTML and render_attachment_images_txt() for images
-    local formatted = ""
-
-    -- Add file header (notes show original filename, others show numeric ID)
-    formatted = formatted .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
-    formatted = formatted .. string.rep("-", 80) .. "\n"
-
-    -- Strip HTML tags and format poem content to 80-character width
-    local clean_content = strip_html_tags(poem.content or "")
-    formatted = formatted .. wrap_text_80_chars(clean_content)
-
-    -- Render attached images as [Image: alt-text] placeholders (not HTML)
-    if poem.attachments then
-        formatted = formatted .. render_attachment_images_txt(poem.attachments)
-    end
-
-    return formatted
-end
--- }}}
-
--- {{{ function format_all_poems_with_progress_and_color
--- Issue 10-036: Added chrono_mapping for correct paginated chronological links
-local function format_all_poems_with_progress_and_color(starting_poem, sorted_poems, poem_colors, chrono_mapping, chrono_paginated)
-    local content = ""
-
-    -- Add starting poem first with progress visualization
-    local formatted_starting = format_single_poem_with_progress_and_color(starting_poem, poem_colors, chrono_mapping, chrono_paginated)
-    content = content .. formatted_starting.content .. "\n\n"
-
-    -- Add all other poems sorted by similarity/diversity
-    for _, poem_info in ipairs(sorted_poems) do
-        -- Issue 10-025: compare poem_index, unique across sources; a per-category
-        -- id match would also hide a different poem that shares the number.
-        if poem_info.poem.poem_index ~= starting_poem.poem_index then  -- skip the anchor, drawn above
-            local formatted_poem = format_single_poem_with_progress_and_color(poem_info.poem, poem_colors, chrono_mapping, chrono_paginated)
-            content = content .. formatted_poem.content .. "\n\n"
-        end
-    end
-
-    return content
-end
--- }}}
-
--- {{{ function format_all_poems_with_content_warnings
-local function format_all_poems_with_content_warnings(starting_poem, sorted_poems)
-    local content = ""
-    
-    -- Add starting poem first
-    content = content .. format_single_poem_with_warnings(starting_poem)
-    content = content .. "\n\n"
-    
-    -- Add all other poems sorted by similarity/diversity
-    for _, poem_info in ipairs(sorted_poems) do
-        -- Issue 10-025: compare poem_index, unique across sources; a per-category
-        -- id match would also hide a different poem that shares the number.
-        if poem_info.poem.poem_index ~= starting_poem.poem_index then  -- skip the anchor, drawn above
-            content = content .. format_single_poem_with_warnings(poem_info.poem)
-            content = content .. "\n\n"
-        end
-    end
-    
-    return content
-end
--- }}}
-
--- {{{ function format_all_poems_80_width
-local function format_all_poems_80_width(starting_poem, sorted_poems)
-    local content = ""
-    
-    -- Add starting poem first
-    content = content .. format_single_poem_80_width(starting_poem)
-    content = content .. "\n\n"
-    
-    -- Add all other poems sorted by similarity/diversity
-    for _, poem_info in ipairs(sorted_poems) do
-        -- Issue 10-025: compare poem_index, unique across sources; a per-category
-        -- id match would also hide a different poem that shares the number.
-        if poem_info.poem.poem_index ~= starting_poem.poem_index then  -- skip the anchor, drawn above
-            content = content .. format_single_poem_80_width(poem_info.poem)
-            content = content .. "\n\n"
-        end
-    end
-    
-    return content
-end
--- }}}
-
--- {{{ function M.generate_flat_poem_list_html_with_progress
--- Issue 10-036: Added chrono_mapping for correct paginated chronological links
-function M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, use_progress, chrono_mapping, chrono_paginated)
-    -- Template uses pure HTML without CSS (except Issue 16-010 font-stack)
-    -- Content is pre-wrapped to 80 chars, <pre> provides monospace formatting
-    -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-    -- Issue 16-010: shared head block -- viewport + shipped monospace font
-    local template = [[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Poems sorted by %s to: %s</title>
-]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poetry Collection</h1>
-<p>All poems sorted by %s to: %s</p>
-</center>
-<table align="center"><tr><td>
-<pre>
-%s
-</pre>
-</td></tr></table>
-</body>
-</html>]]
-    
-    local formatted_content
-    
-    if use_progress then
-        -- Load poem colors and use enhanced formatting
-        local poem_colors = load_poem_colors()
-
-        -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
-        -- (and, since 8-045, for each poem's progress bar)
-        formatted_content = format_all_poems_with_progress_and_color(starting_poem, sorted_poems, poem_colors, chrono_mapping, chrono_paginated)
-    else
-        -- Use standard formatting with content warnings
-        formatted_content = format_all_poems_with_content_warnings(starting_poem, sorted_poems)
-    end
-    
-    local page_type_desc = (page_type == "similar") and "similarity" or "difference"
-    local starting_title = starting_poem.title or ("Poem " .. starting_poem_id)
-    
-    return string.format(template, 
-                        page_type_desc,
-                        starting_title,
-                        page_type_desc, 
-                        starting_title,
-                        formatted_content)
-end
--- }}}
-
--- {{{ function M.generate_flat_poem_list_html
--- Issue 10-036: Added chrono_mapping for correct paginated chronological links
-function M.generate_flat_poem_list_html(starting_poem, sorted_poems, page_type, starting_poem_id, chrono_mapping, chrono_paginated)
-    -- Default to using progress bars
-    return M.generate_flat_poem_list_html_with_progress(starting_poem, sorted_poems, page_type, starting_poem_id, true, chrono_mapping, chrono_paginated)
-end
--- }}}
-
--- {{{ local function generate_download_links
--- Generates download links for the exports sitting beside this page.
--- starting_poem: the anchor poem -- the export filenames are derived from it
--- total_pages: how many pages this ordering was split into; decides the plural
--- Returns: HTML string with download links
-local function generate_download_links(starting_poem, total_pages)
-    -- The exports are WRITTEN under get_unique_poem_filename_id, which prefixes
-    -- the category to dodge cross-category id collisions (Issue 8-019). The file
-    -- on disk is "fediverse-4355.txt". This used to build the name from a bare
-    -- %04d of the poem index instead -- "4355.txt" -- naming a file that was
-    -- never written. Read the name from the same function the writer uses, so
-    -- the two cannot drift apart again.
-    local unique_id = get_unique_poem_filename_id(starting_poem)
-
-    -- Bare filenames, no directory. These links are document-relative and this
-    -- page ALREADY lives inside similar/ or different/, so naming the directory
-    -- again resolved to similar/similar/fediverse-4355.txt. The export is a
-    -- sibling of this page, not a child of it.
-    local txt_file = string.format("%s.txt", unique_id)
-    local html_archive_file = string.format("%s-archive.html", unique_id)
-
-    -- The label counts pages, so it has to agree with the pagination the reader
-    -- is actually looking at rather than assume either case. Missing or zero
-    -- page counts read as one page, because a page the reader is standing on
-    -- always exists -- there is no such thing as "download these 0 pages".
-    local page_count = total_pages or 1
-    if page_count < 1 then page_count = 1 end
-    local label = (page_count > 1) and "Download these pages:" or "Download this page:"
-
-    local links = {}
-    table.insert(links, label)
-    table.insert(links, string.format(' [<a href="%s">.txt</a>]', txt_file))
-
-    -- The .html archive is only written when generate_html_archives is on, and
-    -- it ships off (config.lua: "redundant with paginated pages"). Offering the
-    -- link regardless put a permanently dead download on every page. Advertise
-    -- what was actually produced -- see Issue 10-055's rule for the source
-    -- browser: skip it, do not emit a dead link.
-    if PAGINATION_CONFIG.generate_html_archives then
-        table.insert(links, string.format(' [<a href="%s">.html</a>]', html_archive_file))
-    end
-
-    return table.concat(links, " ")
-end
--- }}}
-
--- {{{ function M.generate_paginated_poem_page_html
--- Generates a single paginated page with navigation
--- starting_poem: the anchor poem object
--- sorted_poems: full sorted list of all poems
--- page_type: "similar" or "different"
--- starting_poem_id: the anchor poem's ID
--- page_num: 1-indexed page number
--- total_pages: total number of pages (may be capped by max_pages_per_poem)
--- total_corpus: optional - total poems in full corpus (for storage context display)
--- chrono_mapping: optional - poem_index → {page_number, ...} for correct chronological links
--- Returns: HTML string for this specific page
--- Updated for Issue 8-020: Passes total_corpus to navigation for storage constraint messaging
--- Issue 10-036: Added chrono_mapping for correct paginated chronological links
--- pages_written: array of the page numbers this build writes for this poem and
---   page type; Previous/Next link only to those (see generate_prev_next_navigation)
-function M.generate_paginated_poem_page_html(starting_poem, sorted_poems, page_type, starting_poem_id, page_num, total_pages, total_corpus, chrono_mapping, chrono_paginated, pages_written)
-    -- Ensure pagination config is loaded
-    load_pagination_config()
-
-    -- Get poems for this specific page
-    local page_poems = get_poems_for_page(sorted_poems, page_num)
-
-    if #page_poems == 0 then
-        utils.log_warn(string.format("No poems found for page %d of %s/%d",
-            page_num, page_type, starting_poem_id))
-        return nil
-    end
-
-    -- Use provided total_corpus or calculate from sorted_poems
-    local corpus_size = total_corpus or #sorted_poems
-
-    -- Generate header navigation (with storage context)
-    local header_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size, pages_written)
-
-    -- Generate footer navigation (same as header)
-    local footer_nav = generate_prev_next_navigation(page_num, total_pages, starting_poem_id, page_type, corpus_size, pages_written)
-
-    -- Load poem colors for progress bars
-    local poem_colors = load_poem_colors()
-
-    -- Format the poems for this page
-    -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
-    -- (and, since 8-045, for each poem's progress bar)
-    local formatted_content = format_all_poems_with_progress_and_color(
-        starting_poem, page_poems, poem_colors, chrono_mapping, chrono_paginated)
-
-    -- Build the page
-    local page_type_desc = (page_type == "similar") and "similarity" or "difference"
-    local starting_title = starting_poem.title or ("Poem " .. starting_poem_id)
-    local padded_id = string.format("%04d", starting_poem_id)
-
-    -- Generate download links for full-corpus exports
-    local download_links = generate_download_links(starting_poem, total_pages)
-
-    -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-    -- Issue 16-010: shared head block -- viewport + shipped monospace font
-    local template = [[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Poems sorted by %s to: %s (Page %d of %d)</title>
-]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poetry Collection</h1>
-<p>Poems sorted by %s to: %s</p>
-<p>%s</p>
-</center>
-<table align="center"><tr><td>
-<pre>
-%s
-
-%s
-
-%s
-</pre>
-</td></tr></table>
-</body>
-</html>]]
-
-    return string.format(template,
-        page_type_desc, starting_title, page_num, total_pages,
-        page_type_desc, starting_title,
-        download_links,
-        header_nav,
-        formatted_content,
-        footer_nav)
-end
--- }}}
-
--- {{{ function M.generate_all_paginated_pages_for_poem
--- Generates all paginated pages for a single poem's similarity or diversity ordering
--- starting_poem: the anchor poem object
--- sorted_poems: full sorted list of all poems
--- page_type: "similar" or "different"
--- starting_poem_id: the anchor poem's ID
--- output_dir: base output directory
--- pages_to_generate: optional - which pages to generate (nil = use config limits, or {1,2,3} for specific pages)
--- chrono_mapping: poem_index -> {page_number, total_pages, ...}; see Issue 10-036
--- chrono_paginated: whether the chronological view was split into numbered pages
--- Returns: table with generated file paths and stats
--- Updated for Issue 8-020: Respects max_pages_per_poem storage constraint
--- Issue 10-036 (regression): these last two parameters did not exist, so the
--- sequential path -- the ONLY path that runs now that effil is gone -- had no way
--- to tell the formatter which chronological page a poem sits on. Every link fell
--- to the "01" guess. They are threaded, not read from config, because
--- --chrono-per-page enables pagination at runtime without touching the config.
-function M.generate_all_paginated_pages_for_poem(starting_poem, sorted_poems, page_type, starting_poem_id, output_dir, pages_to_generate, chrono_mapping, chrono_paginated)
-    -- Ensure pagination config is loaded
-    load_pagination_config()
-
-    local total_poems = #sorted_poems
-    local total_pages_possible = calculate_page_count(total_poems)
-
-    -- Apply max_pages_per_poem limit (Issue 8-020: 45GB storage constraint)
-    local max_pages = PAGINATION_CONFIG.max_pages_per_poem
-    local total_pages = math.min(total_pages_possible, max_pages)
-
-    local results = {
-        files_generated = {},
-        total_pages = total_pages,
-        total_pages_possible = total_pages_possible,  -- Before storage limit
-        poems_per_page = PAGINATION_CONFIG.poems_per_page,
-        poem_id = starting_poem_id,
-        storage_limited = (total_pages < total_pages_possible)  -- Indicates if pages were capped
-    }
-
-    -- Determine which pages to generate
-    local pages = pages_to_generate
-    if not pages then
-        -- Generate pages 1 through max_pages (respecting storage limit)
-        pages = {}
-        for i = 1, total_pages do
-            table.insert(pages, i)
-        end
-    end
-
-    -- Ensure output directory exists
-    local page_dir = output_dir .. "/" .. page_type
-    os.execute("mkdir -p " .. page_dir)
-
-    -- Issue 10-036: settle the set of pages that will be written BEFORE
-    -- writing any, so each page's Previous/Next can link only to pages that
-    -- exist.  A requested page past the last page the ranking fills (or past
-    -- the storage cap) is not written.
-    local pages_written = {}
-    for _, page_num in ipairs(pages) do
-        if page_num >= 1 and page_num <= total_pages then
-            table.insert(pages_written, page_num)
-        end
-    end
-
-    -- Generate each page in that set
-    for _, page_num in ipairs(pages_written) do
-        do
-            local html = M.generate_paginated_poem_page_html(
-                starting_poem, sorted_poems, page_type, starting_poem_id,
-                page_num, total_pages, total_poems,  -- Pass total_poems for storage context
-                chrono_mapping, chrono_paginated,    -- Issue 10-036: aim the chronological links at real pages
-                pages_written)                       -- Issue 10-036: and Previous/Next at written ones
-
-            if html then
-                local filename = generate_page_filename(starting_poem_id, page_num, page_type)
-                local filepath = output_dir .. "/" .. filename
-
-                if utils.write_file(filepath, html) then
-                    table.insert(results.files_generated, filepath)
-                end
-            end
-        end
-    end
-
-    return results
-end
--- }}}
 
 -- {{{ function M.get_pagination_config
 -- Exposes pagination configuration for external scripts
@@ -2829,357 +832,518 @@ function M.calculate_page_count(total_poems)
 end
 -- }}}
 
--- {{{ local function generate_chronological_page_navigation
--- Issue 8-039: Files now in chronological/ subdirectory, use simpler relative paths
-local function generate_chronological_page_navigation(current_page, total_pages)
-    -- Generate pagination navigation for chronological pages
-    -- Format: [« First] [‹ Prev] Page X of Y [Next ›] [Last »]
-    -- Issue 8-039: Using relative paths within chronological/ directory (01.html, not chronological-01.html)
-    if total_pages <= 1 then
-        return ""
+-- {{{ local function worker_config()
+-- What every page worker is handed when it starts (plain values only: a worker
+-- is its own Lua state). Callers add the fields their jobs need.
+--   dir, output_dir      : strings, the project and the site folder
+--   image_manifest_path  : string, the picture pseudo-poem manifest (Issue 9-013)
+--   embeddings_dir       : string, the selected model's folder (poem colours)
+--   palette, boost_palette : the colour tables from config.lua (Issue 8-058)
+--   layout               : the widths the drawer needs
+--   page_head            : string, the shared <head> lines
+local function worker_config(output_dir)
+    return {
+        dir = DIR,
+        output_dir = output_dir,
+        image_manifest_path = utils.embeddings_dir() .. "/image-manifest.json",
+        -- the selected model's folder, named here because a worker cannot
+        -- see which model this program was told to use
+        embeddings_dir = utils.embeddings_dir(),
+        palette = COLOR_CONFIG,
+        boost_palette = BOOST_COLOR_CONFIG,
+        layout = { text_content_width = LAYOUT.TEXT_CONTENT_WIDTH },
+        page_head = PAGE_HEAD_BLOCK,
+    }
+end
+-- }}}
+
+-- {{{ local function run_page_workers()
+-- Builds pages on a pool of worker threads (Issue 10-034's orchestrator,
+-- shared by every page type since Issue 8-058). This program keeps the job
+-- list and the big neighbour caches; each worker asks for a job, gets just
+-- what that job needs, writes its pages and asks again.
+-- num_threads : number of workers, 1 or more (one thread is one worker: the
+--               single-threaded builder, a drifted copy, is gone)
+-- config      : table from worker_config(), plus job-specific fields
+-- jobs        : list of
+--   { kind = "poems", poem_index = n }  -- that poem's similar + different pages
+--   { kind = "chrono_page", page_num = n, total_pages = n, total_poems = n,
+--     entries = { { poem = <a poem from the caller's poems>, progress_pct = number }, ... } }
+--   { kind = "word_page", word = string, header_color = "#rrggbb", centre_link = string,
+--     entries = { { poem = <a poem from the caller's poems>, progress_pct = number, chrono_file = "03.html" }, ... } }
+--     -- one word-cloud word's page (Issue 10-035); the poems are already
+--     -- chosen and ordered by src/generate-word-pages.lua, and carried in
+--     -- the job as the chronological jobs carry theirs (this worker's own
+--     -- copy has the gallery pictures folded in, which draws an image-only
+--     -- post as a picture box)
+-- returns     : { similar = n, different = n, poems = n, chrono_pages = n, text_files = n, word_pages = n }
+local function run_page_workers(num_threads, config, jobs)
+    if not has_threading then
+        -- Errors, not fallbacks (owner, 2026-09-22): there is no other builder
+        error("the threading library (effil) did not load: " .. tostring(effil_load_error))
+    end
+    local total_work = #jobs
+    utils.log_info(string.format("Building pages on %d worker thread(s): %d job(s)", num_threads, total_work))
+    -- Workers -> this program: requests and completions; this program ->
+    -- worker i: its next job, or shutdown
+    local work_request_channel = effil.channel()
+    local work_response_channels = {}
+    for t = 1, num_threads do
+        work_response_channels[t] = effil.channel()
     end
 
-    local nav_parts = {}
+    local threads = {}
+    local start_time = os.time()
+    for thread_id = 1, num_threads do
+        local thread_func = effil.thread(function(config, tid, request_channel, response_channel)
+            -- Set up package paths in thread context
+            package.path = config.dir .. "/libs/?.lua;" .. config.dir .. "/src/?.lua;" .. package.path
 
-    -- First page link
-    if current_page > 1 then
-        table.insert(nav_parts, "<a href='01.html'>« First</a>")
-    else
-        table.insert(nav_parts, "« First")
+            -- Load required modules in thread context
+            local t_utils = require('utils')
+            local t_dkjson = require('dkjson')
+            -- Issue 8-056: Shared text formatting module for whitespace preservation
+            local t_text_formatter = require('text-formatter')
+            -- The one poem drawer every page type uses (Issue 8-058). It
+            -- loads the bar, boost and text modules itself; the palette
+            -- and widths come from the main program in config, so this
+            -- worker draws with exactly the colours config.lua holds.
+            -- config arrives as effil's shared tables, not Lua tables;
+            -- effil.dump copies one into a plain table the drawer can read.
+            local t_poem_entry = require('poem-entry')
+            local t_effil = require('effil')
+            t_poem_entry.configure({
+                palette = t_effil.dump(config.palette),
+                boost_palette = t_effil.dump(config.boost_palette),
+                text_width = config.layout.text_content_width,
+            })
+            -- Issue 9-013: fold ranked image pseudo-poems into this worker's
+            -- poem list so it draws them instead of dropping unknown indices.
+            local t_image_render = require('image-render')
+            t_utils.init_assets_root({config.dir})
+
+            -- Load data files (each thread loads independently - files are in disk cache)
+            local poems_file = t_utils.asset_path("poems.json")
+            local poems_data = t_utils.read_json_file(poems_file)
+            if not poems_data then
+                error("Thread " .. tid .. ": Failed to load poems.json")
+            end
+            t_image_render.inject_pseudo_poems(poems_data,
+                t_image_render.load_manifest(config.image_manifest_path, t_utils.read_json_file))
+
+            -- Build poem lookup by poem_index
+            local poem_lookup = {}
+            for i, poem in ipairs(poems_data.poems) do
+                if poem.poem_index then
+                    poem_lookup[poem.poem_index] = poem
+                end
+            end
+
+            -- Issue 10-034: Caches NOT loaded here - orchestrator sends work slices
+            -- This saves 700MB RAM per worker thread
+
+            -- Load poem colors (small file: ~900KB, acceptable per-worker).
+            -- From the folder the main program names (config.embeddings_dir):
+            -- a worker is its own Lua state and does not see which model the
+            -- main program was told to use, so resolving the folder here could
+            -- pick a different model's colours (found by the 8-058 render).
+            -- A missing file stops the worker: every poem would draw grey.
+            local poem_colors_file = config.embeddings_dir .. "/poem_colors.json"
+            local poem_colors_data = t_utils.read_json_file(poem_colors_file)
+            if not (poem_colors_data and poem_colors_data.poem_colors) then
+                error("Thread " .. tid .. ": no poem colours in " .. poem_colors_file)
+            end
+            local poem_colors = poem_colors_data.poem_colors
+
+
+            -- The ranked pages and their text exports, drawn by one module
+            -- (src/ranked-page.lua) that the tests call too (Issue 8-058).
+            local t_ranked_page = require('ranked-page')
+            local t_effil_for_ctx = require('effil')
+            -- {{{ local function ranked_ctx()
+            -- What every ranked page needs about the wider collection (see the
+            -- module's header for each field). Built on the first poem job:
+            -- a pool that only builds chronological pages is never handed the
+            -- ranking settings.
+            local page_ctx = false
+            local function ranked_ctx()
+                if not page_ctx then
+                    page_ctx = {
+                        colors = poem_colors,
+                        chrono_map = t_effil_for_ctx.dump(config.chrono_mapping),
+                        chrono_paged = config.chrono_paginated,
+                        poems_per_page = config.poems_per_page,
+                        head_block = PAGE_HEAD_BLOCK,
+                    }
+                end
+                return page_ctx
+            end
+            -- }}}
+
+            -- {{{ local function write_file()
+            local function write_file(filename, text)
+                os.execute('mkdir -p "' .. filename:match("(.*/)") .. '"')
+                local f = io.open(filename, "w")
+                if not f then error("could not write " .. filename) end
+                f:write(text)
+                f:close()
+            end
+            -- }}}
+
+            -- Messages arrive as effil's shared tables; effil.dump makes a plain
+            -- Lua table of one, so the job can be read like any other table.
+            local t_effil = require('effil')
+            -- The chronological pages' frame (Issue 8-058): head, navigation,
+            -- the line above each poem, file names.
+            local t_chrono_page = require('chronological-page')
+            -- Every address by the poem's source key (Issue 8-019).
+            local t_poem_address = require('poem-address')
+
+            -- {{{ local function build_chrono_page()
+            -- One chronological page: each poem's header line and entry, in
+            -- the order given, inside the page frame. No chronological link on a
+            -- chronological page (Issue 9-003 Fix C).
+            -- The job carries its poems, exactly as the caller loaded them: a
+            -- caller may have filtered poems.json (regenerate-clean-site drops
+            -- PDF-damaged poems) or built its own (the tests), and this
+            -- worker's own copy is the file on disk, with gallery pictures
+            -- folded in for the ranked lists (Issue 9-013).
+            local function build_chrono_page(work)
+                local parts = {}
+                for _, e in ipairs(work.entries) do
+                    local poem = e.poem
+                    local color_data = poem_colors[poem.poem_index]
+                    parts[#parts + 1] = t_chrono_page.entry_header(poem)
+                    parts[#parts + 1] = t_poem_entry.format_entry(poem, {
+                        color_name = color_data and color_data.color or "gray",
+                        progress_pct = e.progress_pct,
+                        similar_link = t_poem_address.list_link(poem, "similar"),
+                        different_link = t_poem_address.list_link(poem, "different"),
+                        chrono_link = false,
+                    })
+                    parts[#parts + 1] = "\n\n"
+                end
+                -- Issue 8-013: the whole view as one text file, offered on
+                -- every page (written by the main program, chronological.txt)
+                parts[#parts + 1] = string.format(
+                    " download every poem as text: <a href='../chronological.txt'>chronological.txt</a> (%d poems)\n",
+                    work.total_poems)
+                local html = t_chrono_page.page_html(work.page_num, work.total_pages,
+                    config.page_head, table.concat(parts))
+                local dir_path = config.output_dir .. "/chronological"
+                os.execute('mkdir -p "' .. dir_path .. '"')
+                local file = dir_path .. "/" .. t_chrono_page.file_name(work.page_num, work.total_pages)
+                local f = io.open(file, "w")
+                if not f then error("could not write " .. file) end
+                f:write(html)
+                f:close()
+            end
+            -- }}}
+
+            -- The word pages' frame and entry (Issue 10-035).
+            local t_word_page = require('word-page')
+
+
+            -- {{{ local function build_word_page()
+            -- One word's page: its poems, in the order given, each with its
+            -- file line and entry, inside the word-page frame. The poems come
+            -- in the job, as the caller loaded them (see run_page_workers).
+            local function build_word_page(work)
+                local parts = {}
+                for _, e in ipairs(work.entries) do
+                    local poem = e.poem
+                    local color_data = poem_colors[poem.poem_index]
+                    parts[#parts + 1] = t_word_page.entry(poem,
+                        color_data and color_data.color or "gray", e.progress_pct, e.chrono_file)
+                    parts[#parts + 1] = "\n"
+                end
+                write_file(config.output_dir .. "/wordcloud/" .. t_word_page.file_name(work.word),
+                    t_word_page.page_html(work.word, work.header_color, work.centre_link,
+                        #work.entries, table.concat(parts)))
+            end
+            -- }}}
+
+            -- {{{ local function build_poem_pages()
+            -- One poem's similar and different pages, and their text exports
+            -- when exports are on (config.lua pagination.generate_txt_exports,
+            -- Issue 8-013), from the ranked lists this program sends (about
+            -- 80 KB; Issue 10-034).
+            local function build_poem_pages(work, counts)
+                local poem_index = work.poem_index
+                local poem = poem_lookup[poem_index]
+                if not poem then
+                    error("poem " .. tostring(poem_index) .. " is not in poems.json")
+                end
+                -- {{{ local function build_list()
+                local function build_list(ranking, page_type)
+                    -- a poem with no ranking: the caches were made without it
+                    -- (it arrived after the embeddings); stop rather than write
+                    -- a poem whose pages every other page links to but nobody wrote
+                    if not ranking then
+                        error(string.format("poem %d has no %s ranking in the caches", poem_index, page_type))
+                    end
+                    local list = t_ranked_page.ranked_list(ranking, poem_index, poem_lookup)
+                    local pages, count, total_pages = t_ranked_page.plan(list,
+                        config.pages_is_all and "all" or config.pages_list,
+                        config.poems_per_page, config.max_pages_per_poem)
+                    local download = config.txt_exports
+                        and { file = t_poem_address.text_file(poem), count = count } or false
+                    local written = 0
+                    for _, page_num in ipairs(pages) do
+                        local html = t_ranked_page.page_html(poem, list, page_type, page_num,
+                            total_pages, download, ranked_ctx())
+                        -- a page past the end of the list is not written
+                        if html then
+                            write_file(string.format("%s/%s/%s", config.output_dir,
+                                page_type, t_poem_address.page_file(poem, page_num)), html)
+                            written = written + 1
+                        end
+                    end
+                    if config.txt_exports and count > 0 then
+                        write_file(string.format("%s/%s/%s", config.output_dir, page_type, t_poem_address.text_file(poem)),
+                            t_ranked_page.text_export(poem, list, page_type, count, ranked_ctx()))
+                        counts.text_files = counts.text_files + 1
+                    end
+                    return written
+                end
+                -- }}}
+                counts.similar = counts.similar + build_list(work.similarity_ranking, "similar")
+                counts.different = counts.different + build_list(work.diversity_sequence, "different")
+                counts.poems = counts.poems + 1
+            end
+            -- }}}
+
+            -- ask for a job, do it, report it, until told to stop
+            local counts = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0, word_pages = 0 }
+            while true do
+                request_channel:push({ type = "get_work", worker_id = tid })
+                local work = response_channel:pop()
+                -- {{{ dispatch on the kind of job
+                if not work or work.type == "shutdown" then
+                    -- no job: the channel closed, or all work is handed out
+                    break
+                end
+                work = t_effil.dump(work)
+                if work.type == "poems" then
+                    build_poem_pages(work, counts)
+                elseif work.type == "chrono_page" then
+                    build_chrono_page(work)
+                    counts.chrono_pages = counts.chrono_pages + 1
+                elseif work.type == "word_page" then
+                    build_word_page(work)
+                    counts.word_pages = counts.word_pages + 1
+                else
+                    error("unknown job type: " .. tostring(work.type))
+                end
+                -- }}}
+                request_channel:push({ type = "done", worker_id = tid })
+            end
+            return counts.similar, counts.different, counts.poems, counts.chrono_pages, counts.text_files, counts.word_pages
+        end)
+        threads[thread_id] = thread_func(config, thread_id, work_request_channel, work_response_channels[thread_id])
     end
 
-    -- Previous page link
-    if current_page > 1 then
-        table.insert(nav_parts, string.format("<a href='%02d.html'>‹ Prev</a>", current_page - 1))
-    else
-        table.insert(nav_parts, "‹ Prev")
+    -- {{{ hand out jobs until every worker has been told to stop
+    local work_queue_idx = 1
+    local completed_count = 0
+    local workers_active = num_threads
+    local workers_shutdown = {}
+    local last_progress_time = os.time()
+    while workers_active > 0 do
+        local msg = work_request_channel:pop(100)   -- wait up to 100 ms
+        if msg and msg.type == "get_work" then
+            local worker_id = msg.worker_id
+            if work_queue_idx <= total_work then
+                local job = jobs[work_queue_idx]
+                work_queue_idx = work_queue_idx + 1
+                -- {{{ build the message for this job
+                if job.kind == "poems" then
+                    -- the poem's two ranked lists, sliced from the caches here
+                    local key = tostring(job.poem_index)
+                    work_response_channels[worker_id]:push({
+                        type = "poems",
+                        poem_index = job.poem_index,
+                        similarity_ranking = SIMILARITY_RANKINGS_CACHE.rankings[key],
+                        diversity_sequence = DIVERSITY_CACHE.sequences[key],
+                    })
+                elseif job.kind == "chrono_page" then
+                    work_response_channels[worker_id]:push({
+                        type = "chrono_page",
+                        page_num = job.page_num,
+                        total_pages = job.total_pages,
+                        total_poems = job.total_poems,
+                        entries = job.entries,
+                    })
+                elseif job.kind == "word_page" then
+                    work_response_channels[worker_id]:push({
+                        type = "word_page",
+                        word = job.word,
+                        header_color = job.header_color,
+                        centre_link = job.centre_link,
+                        entries = job.entries,
+                    })
+                else
+                    error("unknown job kind: " .. tostring(job.kind))
+                end
+                -- }}}
+            elseif not workers_shutdown[worker_id] then
+                -- no jobs left: this worker stops
+                work_response_channels[worker_id]:push({ type = "shutdown" })
+                workers_shutdown[worker_id] = true
+                workers_active = workers_active - 1
+            end
+        elseif msg and msg.type == "done" then
+            completed_count = completed_count + 1
+        end
+
+        local now = os.time()
+        if now - last_progress_time >= 1 then
+            last_progress_time = now
+            -- A worker that raised an error stops asking for work, and this
+            -- loop would wait for it forever. Once a second, look for a failed
+            -- worker and stop the run with its error (Issue 8-045).
+            for tid, worker in pairs(threads) do
+                local status, worker_err, worker_stack = worker:status()
+                if status == "failed" then
+                    progress.finish()
+                    utils.log_error(string.format("HTML worker %d failed: %s", tid, tostring(worker_err)))
+                    if worker_stack then io.stderr:write(tostring(worker_stack), "\n") end
+                    os.exit(1)
+                end
+            end
+            local elapsed = now - start_time
+            local rate = elapsed > 0 and (completed_count / elapsed) or 0
+            local eta = rate > 0 and math.floor((total_work - completed_count) / rate) or 0
+            progress.update(string.format("   [%d threads]", num_threads), completed_count, total_work,
+                string.format("%.1f jobs/sec | ETA: %ds | Queue: %d", rate, eta, total_work - work_queue_idx + 1))
+        end
     end
+    -- }}}
+    progress.finish()
+    local elapsed = os.time() - start_time
+    require("output").print(string.format("   [%d threads] Complete: %d jobs in %ds (%.1f jobs/sec)",
+        num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
 
-    -- Current page indicator
-    table.insert(nav_parts, string.format("Page %d of %d", current_page, total_pages))
-
-    -- Next page link
-    if current_page < total_pages then
-        table.insert(nav_parts, string.format("<a href='%02d.html'>Next ›</a>", current_page + 1))
-    else
-        table.insert(nav_parts, "Next ›")
+    -- {{{ collect each worker's counts; one that did not finish stops the run
+    local totals = { similar = 0, different = 0, poems = 0, chrono_pages = 0, text_files = 0, word_pages = 0 }
+    for tid, thread in pairs(threads) do
+        local status, worker_err = thread:wait()
+        if status ~= "completed" then
+            -- a worker that did not finish built only part of its share
+            utils.log_error(string.format("HTML worker %d ended as '%s': %s",
+                tid, tostring(status), tostring(worker_err)))
+            os.exit(1)
+        end
+        local sim, diff, poems, chrono, texts, words = thread:get()
+        totals.similar = totals.similar + sim
+        totals.different = totals.different + diff
+        totals.poems = totals.poems + poems
+        totals.chrono_pages = totals.chrono_pages + chrono
+        totals.text_files = totals.text_files + texts
+        totals.word_pages = totals.word_pages + words
     end
+    -- }}}
+    return totals
+end
+-- }}}
 
-    -- Last page link
-    if current_page < total_pages then
-        table.insert(nav_parts, string.format("<a href='%02d.html'>Last »</a>", total_pages))
-    else
-        table.insert(nav_parts, "Last »")
+-- {{{ function M.generate_word_pages_on_workers
+-- Draws the word-cloud word pages on the page workers (Issue 10-035).
+-- jobs        : list of { word, header_color, centre_link, entries } as
+--               run_page_workers takes for kind "word_page" (kind is set here)
+-- output_dir  : the site folder; pages go to output_dir/wordcloud/
+-- num_threads : worker threads, 1 or more
+-- returns     : the number of pages written
+function M.generate_word_pages_on_workers(jobs, output_dir, num_threads)
+    if type(num_threads) ~= "number" or num_threads < 1 then
+        error("generate_word_pages_on_workers: num_threads must be 1 or more (got " .. tostring(num_threads) .. ")")
     end
-
-    -- Issue 8-052: Use Unicode box-drawing vertical for consistent HTML output
-    return table.concat(nav_parts, " │ ")
+    for _, job in ipairs(jobs) do job.kind = "word_page" end
+    local totals = run_page_workers(num_threads, worker_config(output_dir), jobs)
+    if totals.word_pages ~= #jobs then
+        error(string.format("word pages: %d asked for, %d written", #jobs, totals.word_pages))
+    end
+    return totals.word_pages
 end
 -- }}}
 
 -- {{{ function M.generate_chronological_index_with_navigation
--- Issue 9-003: chrono_per_page parameter allows CLI override of poems per page
-function M.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page)
+-- Writes the chronological pages: every poem in date order, a page at a time,
+-- each page built by a worker thread (Issue 8-058; they used to be built here,
+-- one long string at a time, which took ~33 s for 9 pages).
+-- poems_data      : the loaded poems.json
+-- output_dir      : the site folder
+-- chrono_per_page : number of poems per page, or nil for config.lua's value
+--                   (Issue 9-003); a number also turns pagination on
+-- num_threads     : number of worker threads, 1 or more
+-- returns         : the path of the first page written
+function M.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, num_threads)
+    if type(num_threads) ~= "number" or num_threads < 1 then
+        error("generate_chronological_index_with_navigation needs a worker count of 1 or more; got "
+            .. tostring(num_threads))
+    end
     -- Load pagination config for chronological settings (Issue 9-003 Fix F)
     load_pagination_config()
-
-    local chronological_paginated = PAGINATION_CONFIG.chronological_paginated or false
-    local poems_per_page = PAGINATION_CONFIG.chronological_poems_per_page or 500
-
-    -- Apply CLI override if provided. Pagination is enabled either by config
-    -- or by the operator supplying --chrono-per-page.
+    local chronological_paginated = PAGINATION_CONFIG.chronological_paginated
+    local poems_per_page = PAGINATION_CONFIG.chronological_poems_per_page
+    -- a per-page count from the command line overrides config and turns
+    -- pagination on
     if chrono_per_page and type(chrono_per_page) == "number" and chrono_per_page > 0 then
         poems_per_page = chrono_per_page
         chronological_paginated = true
     end
 
-    utils.log_info(string.format("Chronological pagination: %d poems/page", poems_per_page))
-
     -- Sort poems chronologically (by actual post dates)
-    local sorted_poems_with_timestamps = sort_poems_chronologically_by_dates(poems_data)
-    local total_poems = #sorted_poems_with_timestamps
-
-    -- Issue 8-045: Calculate timeline bounds for time-based progress bars
-    local first_timestamp = sorted_poems_with_timestamps[1] and sorted_poems_with_timestamps[1].timestamp or 0
-    local last_timestamp = sorted_poems_with_timestamps[total_poems] and sorted_poems_with_timestamps[total_poems].timestamp or 0
+    local sorted = sort_poems_chronologically_by_dates(poems_data)
+    local total_poems = #sorted
+    -- Issue 8-045: progress bars show how far through the writing timeline a
+    -- poem was written, by date, not by its place in the list
+    local first_timestamp = sorted[1] and sorted[1].timestamp or 0
+    local last_timestamp = sorted[total_poems] and sorted[total_poems].timestamp or 0
     local timeline_span = last_timestamp - first_timestamp
-    if timeline_span <= 0 then timeline_span = 1 end  -- Avoid division by zero
+    if timeline_span <= 0 then timeline_span = 1 end  -- one date: avoid dividing by zero
 
-    -- Calculate pagination
     local total_pages = chronological_paginated and math.ceil(total_poems / poems_per_page) or 1
     if total_pages < 1 then total_pages = 1 end
+    local per_page = chronological_paginated and poems_per_page or total_poems
+    utils.log_info(string.format("Chronological pages: %d poems, %d page(s), %d poems/page",
+        total_poems, total_pages, per_page))
 
-    utils.log_info(string.format("Generating chronological HTML for %d poems (%d pages, %d poems/page)...",
-        total_poems, total_pages, chronological_paginated and poems_per_page or total_poems))
-    local generation_start = os.time()
-
-    -- Load poem colors for progress bars
-    local poem_colors = load_poem_colors()
-
-    os.execute("mkdir -p " .. output_dir)
-
-    local files_written = {}
-
+    -- {{{ one job per page: its poems, in order, each with its timeline progress
+    local jobs = {}
     for page_num = 1, total_pages do
-        -- Calculate poem range for this page
-        local start_idx = (page_num - 1) * poems_per_page + 1
-        local end_idx = chronological_paginated and math.min(page_num * poems_per_page, total_poems) or total_poems
-
-        -- Generate page navigation
-        local page_nav = generate_chronological_page_navigation(page_num, total_pages)
-        local page_nav_html = page_nav ~= "" and string.format("<p>%s</p>", page_nav) or ""
-
-        -- Template with optional pagination navigation
-        -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-        -- Issue 16-010: shared head block -- viewport + shipped monospace font
-        local template
-        if chronological_paginated and total_pages > 1 then
-            -- This template is formatted TWICE: here (page numbers, head,
-            -- navigation) and again below with the poems (the "%%s" left
-            -- in).  So the head goes in as PAGE_HEAD_BLOCK_IN_TEMPLATE: an
-            -- argument is copied verbatim, so its doubled "%%" survive this
-            -- first pass and the second pass turns them back into "%".
-            -- Passing the plain block crashed the second pass on the
-            -- stylesheet's "100%;" (the stage-9 failure of 2026-09-23).
-            template = string.format([[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Poetry Collection - Chronological Order (Page %d of %d)</title>
-%s</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poetry Collection</h1>
-<p>Poems in true chronological order by post date</p>
-%s
-<p><a href="../wordcloud.html">Menu</a></p>
-</center>
-<table align="center"><tr><td>
-<pre>
-%%s
-</pre>
-</td></tr></table>
-<center>%s</center>
-</body>
-</html>]], page_num, total_pages, PAGE_HEAD_BLOCK_IN_TEMPLATE, page_nav_html, page_nav_html)
-        else
-            template = [[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Poetry Collection - Chronological Order</title>
-]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<center>
-<h1>Poetry Collection</h1>
-<p>All poems in true chronological order by post date</p>
-<p><a href="../wordcloud.html">Menu</a></p>
-</center>
-<table align="center"><tr><td>
-<pre>
-%s
-</pre>
-</td></tr></table>
-</body>
-</html>]]
-        end
-
-        -- Generate content for this page
-        local content = ""
-        for i = start_idx, end_idx do
-            local poem_info = sorted_poems_with_timestamps[i]
-            local poem = poem_info.poem
-            local poem_id = poem.poem_index
-
-            -- Progress output every 100 poems
-            if i % 100 == 0 or i == total_poems then
-                local elapsed = os.time() - generation_start
-                local rate = i / math.max(elapsed, 1)
-                local eta = (total_poems - i) / math.max(rate, 1)
-                local progress_msg = string.format("\r   Processing poem %d/%d (%.1f%%) - %.1f poems/sec, ETA: %ds",
-                    i, total_poems, (i / total_poems) * 100, rate, eta)
-                io.write(progress_msg .. string.rep(" ", math.max(0, 80 - #progress_msg)))
-                io.flush()
-            end
-
-            -- Issue 8-045: Calculate chronological progress based on actual timestamp
-            -- This shows temporal position in the author's timeline, not just poem count
-            local poem_timestamp = poem_info.timestamp or first_timestamp
-            local timeline_progress = ((poem_timestamp - first_timestamp) / timeline_span) * 100
-            local progress_info = {
-                poem_id = poem_id,
-                total_poems = total_poems,
-                percentage = timeline_progress,  -- Issue 8-045: time-based, not position-based
-                position = i,
-                temporal_index = i
+        local entries = {}
+        local start_idx = (page_num - 1) * per_page + 1
+        for i = start_idx, math.min(page_num * per_page, total_poems) do
+            local info = sorted[i]
+            local stamp = info.timestamp or first_timestamp
+            entries[#entries + 1] = {
+                poem = info.poem,
+                progress_pct = ((stamp - first_timestamp) / timeline_span) * 100,
             }
-
-            local poem_color_data = poem_colors[poem_id]
-            local semantic_color = poem_color_data and poem_color_data.color or "gray"
-            local is_golden = is_golden_poem(poem)
-            local is_boost = is_boost_poem(poem)  -- Issue 10-040: Check for boosts
-            local anchor_id = get_poem_anchor_id(poem)
-            local poem_index = poem.poem_index or 0
-
-            -- Add HTML anchor
-            content = content .. string.format('<span id="%s"></span>', anchor_id)
-            content = content .. string.format(" -> file: %s\n", get_poem_display_filename(poem))
-
-            -- Navigation links (absolute paths for consistency)
-            -- Issue 9-003: Use absolute file:// paths - helper script converts to production URLs
-            local base_path = ".."
-            local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_index)
-            local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_index)
-            local chronological_link = nil  -- Issue 9-003 Fix C: No chronological link on chronological pages
-
-            -- Issue 10-040: Apply boost formatting consistently on chronological pages
-            -- Uses same boost box styling as similar/different pages
-            if is_boost then
-                -- Escape HTML and apply markdown to content
-                local text = escape_html(poem.content or "")
-
-                -- Issue 10-037: Defensive fallback for blank boost content
-                if text == "" or text:match("^%s*$") then
-                    local original_uri = poem.metadata and poem.metadata.original_uri
-                    if original_uri then
-                        text = "External post: " .. escape_html(original_uri)
-                    else
-                        text = "(Boost content unavailable)"
-                    end
-                end
-
-                -- Issue 10-039: Make external boost URLs clickable
-                local external_pattern = "^External post: (https?://[^%s]+)$"
-                local external_url = text:match(external_pattern)
-                if external_url then
-                    -- Wrap the URL across box lines instead of overflowing.
-                    text = text_formatter.wrap_external_url("External post: ", external_url, boost_bars.CONTENT_WIDTH)
-                else
-                    -- Issue 10-041: Wrap long embedded content to fit boost box
-                    local BOOST_CONTENT_WIDTH = boost_bars.CONTENT_WIDTH
-                    local wrapped_lines = {}
-                    for line in (text .. "\n"):gmatch("(.-)\n") do
-                        local wrapped = text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
-                        for _, wrapped_line in ipairs(wrapped) do
-                            table.insert(wrapped_lines, wrapped_line)
-                        end
-                    end
-                    text = table.concat(wrapped_lines, "\n")
-                end
-
-                text = apply_markdown_formatting(text)
-
-                -- Calculate progress as decimal (0-1) for boost functions
-                local progress_decimal = progress_info.percentage / 100
-
-                -- Apply complete boost formatting (includes all frame elements)
-                local boost_formatted = apply_boost_poem_formatting(
-                    text, progress_decimal, similar_link, different_link, chronological_link
-                )
-                content = content .. boost_formatted .. "\n"
-
-                -- Render attached images after boost frame
-                if poem.attachments then
-                    content = content .. render_attachment_images(poem.attachments)
-                end
-            else
-                -- Standard formatting for golden and regular poems
-                -- Generate top progress bar
-                local top_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "top")
-                content = content .. string.format('<span %s>%s</span>\n',
-                                                  top_dashes.accessibility,
-                                                  top_dashes.visual)
-
-                -- Add poem content
-                local hex_color = COLOR_CONFIG[semantic_color] or COLOR_CONFIG["gray"]
-                local formatted_content = format_content_with_warnings(
-                    poem.content or "", poem.category, poem,
-                    is_golden and similar_link or nil,
-                    is_golden and different_link or nil,
-                    is_golden and chronological_link or nil,
-                    is_golden and hex_color or nil
-                )
-                content = content .. formatted_content
-
-                -- Add images if present
-                -- Issue 9-010: Images stay with their original post only (no associated_images rendering)
-                if poem.attachments and #poem.attachments > 0 then
-                    content = content .. render_attachment_images(poem.attachments)
-                end
-
-                -- Add navigation box for regular poems
-                if not is_golden then
-                    -- Issue 8-035: Calculate progress_chars for nav box colorization
-                    local total_chars = LAYOUT.REGULAR_POEM_WIDTH
-                    local progress_chars = math.floor((progress_info.percentage / 100) * total_chars)
-
-                    content = content .. "\n"
-                    content = content .. generate_regular_corner_box_top(progress_chars, hex_color) .. "\n"
-                    content = content .. generate_regular_corner_box_nav_line(similar_link, different_link, chronological_link, progress_chars, hex_color) .. "\n"
-                else
-                    content = content .. "\n"
-                end
-            end
-
-            -- Generate bottom progress bar (skip for boosts - they have their own bottom border)
-            if not is_boost then
-                local bottom_dashes = generate_progress_dashes(progress_info, semantic_color, is_golden, "bottom", true)
-                content = content .. string.format('<span %s>%s</span>\n\n',
-                                                  bottom_dashes.accessibility,
-                                                  bottom_dashes.visual)
-            else
-                content = content .. "\n"  -- Just add spacing between poems
-            end
         end
+        jobs[#jobs + 1] = { kind = "chrono_page", page_num = page_num,
+            total_pages = total_pages, total_poems = total_poems, entries = entries }
+    end
+    -- }}}
 
-        -- Write page file
-        -- Issue 8-039: Files now in chronological/ subdirectory
-        local final_html = string.format(template, content)
-        local chrono_dir = output_dir .. "/chronological"
-        os.execute(string.format('mkdir -p "%s"', chrono_dir))
-
-        local output_file
-        if chronological_paginated and total_pages > 1 then
-            -- Paginated: chronological/01.html, chronological/02.html, etc.
-            output_file = string.format("%s/%02d.html", chrono_dir, page_num)
-        else
-            -- Single page: chronological/index.html (for clean URL)
-            output_file = chrono_dir .. "/index.html"
-        end
-
-        local success = utils.write_file(output_file, final_html)
-        if success then
-            table.insert(files_written, output_file)
-        else
-            utils.log_error("Failed to write: " .. output_file)
-        end
+    local done = run_page_workers(num_threads, worker_config(output_dir), jobs)
+    if done.chrono_pages ~= total_pages then
+        error(string.format("chronological pages: %d of %d written", done.chrono_pages, total_pages))
     end
 
-    io.write("\n")
-    local total_elapsed = os.time() - generation_start
-    utils.log_info(string.format("Chronological HTML generation complete: %d poems, %d pages in %d seconds",
-        total_poems, total_pages, total_elapsed))
-
-    -- Issue 8-039: For paginated chronological, create index.html redirect within the subdirectory
-    if chronological_paginated and total_pages > 1 then
-        local chrono_dir = output_dir .. "/chronological"
-        local redirect_html = [[<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta http-equiv="refresh" content="0;url=01.html">
-<title>Redirecting...</title>
-</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
-<p>Redirecting to <a href="01.html">01.html</a>...</p>
-</body>
-</html>]]
-        utils.write_file(chrono_dir .. "/index.html", redirect_html)
+    -- Issue 8-039: a paginated view gets chronological/index.html as a redirect
+    -- to its first page
+    local chrono_dir = output_dir .. "/chronological"
+    if total_pages > 1 then
+        if not utils.write_file(chrono_dir .. "/index.html", chronological_page.redirect_html()) then
+            error("could not write " .. chrono_dir .. "/index.html")
+        end
         utils.log_info("✓ chronological/index.html created (redirect to 01.html)")
     end
-
-    return files_written[1]
+    return chrono_dir .. "/" .. chronological_page.file_name(1, total_pages)
 end
+-- }}}
 -- }}}
 
 -- {{{ function explore_page_shell()
@@ -3193,7 +1357,7 @@ local function explore_page_shell(title, heading, body)
 <meta charset="UTF-8">
 <title>%s</title>
 ]] .. PAGE_HEAD_BLOCK_IN_TEMPLATE .. [[</head>
-<body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF">
+]] .. require("page-theme").body_tag() .. [[
 <center>
 <h1>%s</h1>
 </center>
@@ -3393,95 +1557,43 @@ function M.generate_explore_math_page(output_dir, poems_data)
 end
 -- }}}
 
--- {{{ function generate_txt_file_header
-local function generate_txt_file_header(title, total_poems)
-    -- Generate a consistent header for TXT export files
-    -- Matches the compiled.txt aesthetic with 80-character width
-    local separator = string.rep("=", 80)
-    local header = separator .. "\n"
-
-    -- Center the title
-    local padding = math.floor((80 - #title) / 2)
-    header = header .. string.rep(" ", padding) .. title .. "\n"
-
-    header = header .. separator .. "\n"
-    header = header .. string.format("Total poems: %d\n", total_poems)
-    header = header .. string.format("Generated: %s\n", os.date("%Y-%m-%d %H:%M:%S"))
-    header = header .. separator .. "\n\n"
-
-    return header
-end
--- }}}
-
--- {{{ function generate_similarity_txt_file
-function generate_similarity_txt_file(starting_poem, sorted_poems, output_file)
-    -- Generate TXT export for similarity-sorted poems
-    -- Includes file header with metadata and all poems formatted at 80-char width
-    local title = string.format("POEMS SORTED BY SIMILARITY TO POEM %s", starting_poem.id or "?")
-    local header = generate_txt_file_header(title, #sorted_poems + 1)
-    local poems_content = format_all_poems_80_width(starting_poem, sorted_poems)
-    local content = header .. poems_content
-    return utils.write_file(output_file, content) and output_file or nil
-end
--- }}}
-
--- {{{ function generate_similarity_html_archive
--- Issue 10-036: Added chrono_mapping for correct paginated chronological links
-function generate_similarity_html_archive(starting_poem, sorted_poems, output_file, chrono_mapping, chrono_paginated)
-    -- Generate HTML archive for similarity-sorted poems (full corpus with images)
-    -- Unlike paginated pages, this is a single file with ALL poems
-    -- Use poem_index (globally unique) for consistency
-    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "similar", starting_poem.poem_index, chrono_mapping, chrono_paginated)
-    return utils.write_file(output_file, html) and output_file or nil
-end
--- }}}
-
--- {{{ function generate_diversity_txt_file
-function generate_diversity_txt_file(starting_poem, sorted_poems, output_file)
-    -- Generate TXT export for diversity-sorted poems
-    -- Includes file header with metadata and all poems formatted at 80-char width
-    local title = string.format("POEMS SORTED BY DIVERSITY FROM POEM %s", starting_poem.poem_index or "?")
-    local header = generate_txt_file_header(title, #sorted_poems + 1)
-    local poems_content = format_all_poems_80_width(starting_poem, sorted_poems)
-    local content = header .. poems_content
-    return utils.write_file(output_file, content) and output_file or nil
-end
--- }}}
-
--- {{{ function generate_diversity_html_archive
--- Issue 10-036: Added chrono_mapping for correct paginated chronological links
-function generate_diversity_html_archive(starting_poem, sorted_poems, output_file, chrono_mapping, chrono_paginated)
-    -- Generate HTML archive for diversity-sorted poems (full corpus with images)
-    -- Unlike paginated pages, this is a single file with ALL poems
-    -- Use poem_index (globally unique) for consistency
-    local html = M.generate_flat_poem_list_html(starting_poem, sorted_poems, "different", starting_poem.poem_index, chrono_mapping, chrono_paginated)
-    return utils.write_file(output_file, html) and output_file or nil
-end
--- }}}
-
 -- {{{ function M.generate_chronological_txt_file
+-- Every poem in date order as one text file (Issue 8-013), drawn as on the
+-- chronological pages but as plain text: each poem's file line and its frame,
+-- no navigation boxes, no links, pictures as their descriptions. No time
+-- stamp, so the same poems write the same bytes. Returns output_file.
 function M.generate_chronological_txt_file(poems_data, output_file)
-    -- Generate TXT export for all poems in chronological order
-    -- Uses actual post dates for sorting (not poem IDs)
-    -- Includes file header with metadata and all poems formatted at 80-char width
-
-    -- Sort poems chronologically by actual post dates
-    local sorted_poems = sort_poems_chronologically_by_dates(poems_data)
-    local total_poems = #sorted_poems
-
-    -- Generate header
-    local title = "POEMS IN CHRONOLOGICAL ORDER"
-    local header = generate_txt_file_header(title, total_poems)
-
-    -- Generate content for each poem
-    local content = header
-    for i, poem_info in ipairs(sorted_poems) do
-        content = content .. format_single_poem_80_width(poem_info.poem)
-        content = content .. "\n\n"
+    local sorted = sort_poems_chronologically_by_dates(poems_data)
+    local total = #sorted
+    -- Issue 8-045: progress by date through the writing timeline, as the pages
+    local first_timestamp = sorted[1] and sorted[1].timestamp or 0
+    local last_timestamp = sorted[total] and sorted[total].timestamp or 0
+    local span = last_timestamp - first_timestamp
+    if span <= 0 then span = 1 end  -- one date: avoid dividing by zero
+    local poem_colors = load_poem_colors()
+    local parts = {
+        "Poems in chronological order, by post date\n",
+        string.format("%d poems\n\n", total),
+    }
+    for _, info in ipairs(sorted) do
+        local poem = info.poem
+        local color_data = poem_colors[poem.poem_index]
+        parts[#parts + 1] = table.concat(text_formatter.wrap_file_header(" -> file: ",
+            chronological_page.display_filename(poem), 80), "\n") .. "\n"
+        parts[#parts + 1] = poem_entry.format_entry(poem, {
+            color_name = color_data and color_data.color or "gray",
+            progress_pct = (((info.timestamp or first_timestamp) - first_timestamp) / span) * 100,
+            similar_link = "", different_link = "", chrono_link = false,
+            plain = true,
+        })
+        parts[#parts + 1] = "\n\n"
     end
-
-    return utils.write_file(output_file, content) and output_file or nil
+    if not utils.write_file(output_file, table.concat(parts)) then
+        error("could not write " .. output_file)
+    end
+    return output_file
 end
+-- }}}
 -- }}}
 
 -- {{{ function M.generate_complete_flat_html_collection
@@ -3490,11 +1602,16 @@ end
 -- similarity_data: similarity matrix
 -- embeddings_data: poem embeddings (for diversity calculation)
 -- output_dir: base output directory
--- pages_spec: (optional) --pages flag value: nil/"default", "all", "1", "1-10" (Phase D: Issue 8-012)
+-- pages_spec: (optional) --pages flag value: nil/"default", "all", or a page count such as "3" (Phase D: Issue 8-012)
 -- poems_per_page: (optional) CLI override for poems per page (Issue 8-022)
--- num_threads: (optional) number of parallel threads (default: 1 = single-threaded)
+-- num_threads: (required) number of worker threads, 1 or more (Issue 10-065a: no default in code)
 -- chrono_per_page: (optional) CLI override for chronological poems per page (Issue 9-003)
-function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page)
+-- anchor_indices: (optional) list of poem_index numbers. Given, only these
+--   poems get similar/different pages; every poem in poems_data still takes
+--   its place on the timeline and in the ranked lists. Used by
+--   scripts/render-page-sample to draw a sample of the site (Issue 8-058);
+--   a build passes nothing and every poem gets its pages.
+function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page, anchor_indices)
     -- Load diversity cache for fast HTML generation (Issue: diversity generation taking 42+ hours)
     -- Cache provides instant lookup of pre-computed GPU diversity sequences
     load_diversity_cache()
@@ -3536,9 +1653,11 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         elseif pages_spec == "all" then
             pages = PAGINATION_CONFIG.max_pages_per_poem
         else
+            -- A count of pages per poem. (The second guess that read the last
+            -- number of a range, and the quiet fall back to minimum_pages,
+            -- went with ranges on 2026-10-07: an unreadable value is refused.)
             pages = tonumber(pages_spec)
-                or tonumber(tostring(pages_spec):match("(%d+)$"))
-                or PAGINATION_CONFIG.minimum_pages
+                or error(string.format("Invalid --pages value: '%s'. Expected a number of pages per poem (3) or all", tostring(pages_spec)))
         end
         local needed_k = pages * per_page
         local function check_cache(cache, label, regen_flag)
@@ -3560,9 +1679,23 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Note: poem.id is per-category and NOT unique across categories
     -- poem_index is the globally unique identifier used by embeddings/similarity
     local valid_poems = {}
+    -- anchors given: only those poems get pages (each must exist); none given:
+    -- every poem does
+    local wanted = nil
+    if anchor_indices then
+        wanted = {}
+        for _, idx in ipairs(anchor_indices) do wanted[idx] = true end
+    end
     for i, poem in ipairs(poems_data.poems) do
-        if poem.poem_index then
+        if poem.poem_index and (not wanted or wanted[poem.poem_index]) then
             valid_poems[poem.poem_index] = poem
+        end
+    end
+    if wanted then
+        for idx in pairs(wanted) do
+            if not valid_poems[idx] then
+                error("anchor poem " .. tostring(idx) .. " is not in poems_data")
+            end
         end
     end
 
@@ -3599,9 +1732,13 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         instructions_page = nil
     }
 
-    -- Normalize num_threads
-    num_threads = num_threads or 1
-    if num_threads < 1 then num_threads = 1 end
+    -- The worker count is a required input (a whole number, 1 or more). It used
+    -- to fall back to 1 here, and a 0 or negative count was quietly raised to 1;
+    -- under Issue 10-065a a program that starts this asks for or is given it.
+    if type(num_threads) ~= "number" or num_threads < 1 or num_threads ~= math.floor(num_threads) then
+        error("generate_complete_flat_html_collection needs a worker count of 1 or more; got "
+            .. tostring(num_threads))
+    end
 
     -- Issue 8-058: threads were asked for and the threading library would not
     -- load.  This used to log a warning and quietly build every page on the
@@ -3645,7 +1782,7 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
 
     -- Issue 10-036: Compute chrono_mapping before parallel/sequential split so both paths can use it
     local chronological_paginated = PAGINATION_CONFIG.chronological_paginated
-    local chrono_poems_per_page_config = PAGINATION_CONFIG.chronological_poems_per_page or 500
+    local chrono_poems_per_page_config = PAGINATION_CONFIG.chronological_poems_per_page
     local effective_chrono_per_page = chrono_poems_per_page_config
     if chrono_per_page and type(chrono_per_page) == "number" and chrono_per_page > 0 then
         effective_chrono_per_page = chrono_per_page
@@ -3653,1087 +1790,32 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     end
     local chrono_mapping = compute_chronological_mapping(poems_data, chronological_paginated and effective_chrono_per_page or nil)
 
-    -- Check if parallel processing is available and requested
-    local use_parallel = num_threads > 1 and has_threading and effil
-
-    if use_parallel then
-        -- {{{ Parallel processing with effil threads (Issue 10-034: Orchestrator pattern)
-        -- Main thread acts as cache server, sending 80KB work slices instead of workers loading 700MB
-        utils.log_info(string.format("Using parallel processing with %d threads (orchestrator mode)", num_threads))
-
-        -- Issue 10-034: Create channels for orchestrator communication
-        -- Workers request work → main sends slices → workers report completion
-        local work_request_channel = effil.channel()  -- Workers → Main: work requests + completions
-        local work_response_channels = {}              -- Main → Worker[i]: work slices or shutdown
-        for t = 1, num_threads do
-            work_response_channels[t] = effil.channel()
-        end
-
-        -- Issue 10-034: Build work queue (all poem indices that need processing)
-        local work_queue = {}
-        for _, poem_index in ipairs(poem_indices) do
-            table.insert(work_queue, poem_index)
-        end
-        local total_work = #work_queue
-
-        -- Issue 10-036: chrono_mapping is now computed before parallel/sequential split
-        -- (see Issue 9-003 Fix D for original rationale)
-
-        -- Prepare shared config for threads (serializable data only)
-        local thread_config = {
-            dir = DIR,
-            output_dir = output_dir,
-            -- Issue 9-013: where the worker finds the image pseudo-poem manifest
-            image_manifest_path = utils.embeddings_dir() .. "/image-manifest.json",
-            pages_is_all = pages_config.is_all,
-            pages_list = pages_config.pages,
-            poems_per_page = PAGINATION_CONFIG.poems_per_page,
-            -- Issue 10-036: "--pages all" stops at this storage cap (8-020)
-            max_pages_per_poem = PAGINATION_CONFIG.max_pages_per_poem,
-            generate_html_archives = PAGINATION_CONFIG.generate_html_archives,
-            generate_txt_exports = PAGINATION_CONFIG.generate_txt_exports,
-            -- Issue 9-003 Fix D: Full formatting data
-            chrono_mapping = chrono_mapping,
-            chrono_paginated = chronological_paginated,
-            -- Issue 8-055: Pass layout constants to worker threads for consistency
-            layout = {
-                golden_poem_width = LAYOUT.GOLDEN_POEM_WIDTH or 84,
-                regular_poem_width = LAYOUT.REGULAR_POEM_WIDTH or 82,
-                text_content_width = LAYOUT.TEXT_CONTENT_WIDTH or 80,
-                golden_left_junction = LAYOUT.GOLDEN_LEFT_JUNCTION_POS or 10,
-                golden_right_junction = LAYOUT.GOLDEN_RIGHT_JUNCTION_POS or 71,
-                regular_left_junction = LAYOUT.REGULAR_LEFT_JUNCTION_POS or 10,
-                regular_right_junction = LAYOUT.REGULAR_RIGHT_JUNCTION_POS or 70
-            }
-        }
-
-        -- Create and launch worker threads
-        local threads = {}
-        local start_time = os.time()
-
-        -- Issue 10-034: Launch workers that request work from orchestrator
-        for thread_id = 1, num_threads do
-            -- effil.thread creates a new Lua state that runs the function
-            -- Workers receive work slices via channels instead of loading full caches
-            local thread_func = effil.thread(function(config, tid, request_channel, response_channel)
-                -- Set up package paths in thread context
-                package.path = config.dir .. "/libs/?.lua;" .. config.dir .. "/src/?.lua;" .. package.path
-
-                -- Load required modules in thread context
-                local t_utils = require('utils')
-                local t_dkjson = require('dkjson')
-                -- Issue 8-056: Shared text formatting module for whitespace preservation
-                local t_text_formatter = require('text-formatter')
-                -- Shared box/bar drawing (canonical geometry) so this worker copy
-                -- can't drift from the main thread's bars. See poem-bars.lua.
-                local t_poem_bars = require('poem-bars')
-                -- Issue 9-013: fold ranked image pseudo-poems into this worker's
-                -- poem list so it draws them instead of dropping unknown indices.
-                local t_image_render = require('image-render')
-                t_utils.init_assets_root({config.dir})
-
-                -- Load data files (each thread loads independently - files are in disk cache)
-                local poems_file = t_utils.asset_path("poems.json")
-                local poems_data = t_utils.read_json_file(poems_file)
-                if not poems_data then
-                    error("Thread " .. tid .. ": Failed to load poems.json")
-                end
-                t_image_render.inject_pseudo_poems(poems_data,
-                    t_image_render.load_manifest(config.image_manifest_path, t_utils.read_json_file))
-
-                -- Build poem lookup by poem_index
-                local poem_lookup = {}
-                for i, poem in ipairs(poems_data.poems) do
-                    if poem.poem_index then
-                        poem_lookup[poem.poem_index] = poem
-                    end
-                end
-
-                -- Issue 10-034: Caches NOT loaded here - orchestrator sends work slices
-                -- This saves 700MB RAM per worker thread
-
-                -- Load poem colors (small file: ~900KB, acceptable per-worker)
-                local poem_colors_file = t_utils.embeddings_dir() .. "/poem_colors.json"
-                local poem_colors_data = t_utils.read_json_file(poem_colors_file)
-                local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
-
-                -- Color config for progress bars
-                local color_config = {
-                    red = "#dc3c3c", blue = "#3c78dc", green = "#3cb45a",
-                    purple = "#8c3cc8", orange = "#e68c3c", yellow = "#c8b428", gray = "#787878"
-                }
-
-                -- Local helper: Get unique filename ID for poem
-                local function get_unique_id(poem)
-                    local cat_prefix = (poem.category or "unknown"):sub(1, 1):lower()
-                    local id_num = poem.id or poem.poem_index or 0
-                    return string.format("%s-%04d", cat_prefix, id_num)
-                end
-
-                -- {{{ Local helper: Get source path for poem identification in ranking headers
-                -- Issue 8-036: Returns human-readable source path for each category
-                local function get_source_path(poem)
-                    local category = poem.category or "unknown"
-                    if category == "notes" and poem.metadata and poem.metadata.source_file then
-                        -- Notes show original descriptive filename
-                        return "notes/" .. poem.metadata.source_file
-                    elseif category == "bluesky" then
-                        -- Bluesky uses # notation
-                        return "bluesky#" .. (poem.id or 0)
-                    elseif category == "fediverse" then
-                        -- Fediverse shows category/id
-                        return "fediverse/" .. (poem.id or 0)
-                    elseif category == "messages" then
-                        -- Messages shows category/id
-                        return "messages/" .. (poem.id or 0)
-                    else
-                        return category .. "/" .. (poem.id or poem.poem_index or 0)
-                    end
-                end
-                -- }}}
-
-                -- {{{ Local helper: Check if poem is golden (exactly 1024 chars when posted)
-                -- Issue 8-044: Use pre-calculated metadata as single source of truth
-                local function is_golden_poem(poem)
-                    if poem.metadata and poem.metadata.is_golden_poem then
-                        return true
-                    end
-                    return false
-                end
-                -- }}}
-
-                -- {{{ Local helper: Check if poem is a boost (Issue 8-057)
-                local function is_boost_poem(poem)
-                    if poem.metadata and poem.metadata.is_boost then
-                        return true
-                    end
-                    return false
-                end
-                -- }}}
-
-                -- Issue 8-057: Boost color configuration for worker thread
-                local BOOST_COLORS = {
-                    arrow = "#dc3c3c",      -- Red: ◀═ and ─▶ arrows, [BOOST] label
-                    outer_frame = "#3c78dc", -- Blue: ╔═╗║╚═╝ outer frame
-                    inner_box = "#2aa198",   -- Teal: ┌─┐│└─┘ inner content box
-                    content_text = "#c8b428" -- Yellow: boosted text content
-                }
-
-                -- Same shared boost-frame module the main thread uses; require()
-                -- reloads it fresh in this isolated worker state (only live
-                -- closures can't cross states, plain modules reload from disk).
-                local t_boost_bars = require('boost-bars')
-                t_boost_bars.configure(BOOST_COLORS)
-
-                -- Local helper: Build poem lookup by poem_index for ranking conversion
-                local function build_poem_by_index()
-                    local lookup = {}
-                    for i, poem in ipairs(poems_data.poems) do
-                        if poem.poem_index then
-                            lookup[poem.poem_index] = poem
-                        end
-                    end
-                    return lookup
-                end
-                local poem_by_index = build_poem_by_index()
-
-                -- Issue 10-034: Convert similarity ranking (raw indices) to poem objects
-                -- ranking_data is an array of poem indices received from orchestrator
-                local function convert_similarity_ranking(ranking_data, source_poem_index)
-                    if not ranking_data then return {} end
-                    local result = {}
-                    for i, neighbor_index in ipairs(ranking_data) do
-                        -- Issue 10-025: the anchor is drawn once, above the
-                        -- list; a ranking that includes it must not draw it
-                        -- again (the diversity converter below already skips it).
-                        local neighbor_poem = neighbor_index ~= source_poem_index
-                            and poem_by_index[neighbor_index]
-                        if neighbor_poem then
-                            table.insert(result, {
-                                poem = neighbor_poem,
-                                rank = i
-                            })
-                        end
-                    end
-                    return result
-                end
-
-                -- Issue 10-034: Convert diversity sequence (raw indices) to poem objects
-                -- sequence_data is an array of poem indices received from orchestrator
-                -- Issue 10-025: Skip anchor poem (GPU cache stores source poem as first entry)
-                local function convert_diversity_sequence(sequence_data, source_poem_index)
-                    if not sequence_data then return {} end
-                    local result = {}
-                    for step, neighbor_index in ipairs(sequence_data) do
-                        if neighbor_index ~= source_poem_index then
-                            local neighbor_poem = poem_by_index[neighbor_index]
-                            if neighbor_poem then
-                                table.insert(result, {
-                                    id = neighbor_index,
-                                    poem = neighbor_poem,
-                                    step = step
-                                })
-                            end
-                        end
-                    end
-                    return result
-                end
-
-                -- {{{ Issue 8-057: Boost formatting functions for worker thread
-
-                -- Worker: apply complete boost formatting. All geometry lives in
-                -- the shared boost-bars module (top/inner/content/nav/bottom +
-                -- the asymmetric fill-frontier right edge). The worker only splits
-                -- the pre-wrapped content into lines; txt_fmt is unused now that
-                -- the module owns visible-width padding.
-                local function worker_apply_boost_formatting(content, progress_percent, similar_link, different_link, chronological_link, txt_fmt)
-                    local lines = {}
-                    for line in (content .. "\n"):gmatch("(.-)\n") do
-                        table.insert(lines, line)
-                    end
-                    local include_nav = (similar_link and different_link) and true or false
-                    return t_boost_bars.format_boost(
-                        lines, progress_percent, similar_link, different_link, chronological_link, include_nav)
-                end
-                -- }}} End Issue 8-057: Boost formatting functions
-
-                -- Local helper: Format single poem with full formatting (Issue 9-003 Fix D)
-                -- Includes progress bars, navigation box, and chronological page links
-                -- Issue 8-044: Added golden poem formatting support
-                -- Issue 8-057: Added boost formatting support
-                local function format_poem_entry(poem, poem_colors_tbl, clr_config, chrono_map, chrono_paged)
-                    -- Issue 9-013: a ranked IMAGE entry draws as an image box, not a poem.
-                    if poem.is_image then
-                        return t_image_render.format_image_entry(poem)
-                    end
-                    local poem_idx = poem.poem_index
-                    local poem_color_data = poem_colors_tbl[poem_idx]
-                    local semantic_color = poem_color_data and poem_color_data.color or "gray"
-                    local hex_color = clr_config[semantic_color] or clr_config["gray"]
-                    -- Hand the shared bar module this state's palette (idempotent).
-                    t_poem_bars.configure(clr_config)
-
-                    -- Issue 8-044: Check if this is a golden poem
-                    local is_golden = is_golden_poem(poem)
-
-                    -- Issue 8-057: Check if this is a boost and handle with special formatting
-                    local is_boost = is_boost_poem(poem)
-
-                    -- Get chronological position from mapping
-                    -- Issue 8-045: a poem missing from the chronological map has
-                    -- no bar and no chronological page.  This used to draw a 50%
-                    -- bar and link page 1; now the worker fails, and the
-                    -- orchestrator stops the run with this message.
-                    local chrono_info = chrono_map[poem_idx]
-                    if not chrono_info then
-                        error("poem " .. tostring(poem_idx) .. " is not in the chronological map")
-                    end
-                    -- Time-based: how far through the writing span, not poem count
-                    local progress_pct = chrono_info.timeline_progress
-
-                    -- Calculate progress bar chars
-                    -- Golden: 82 interior chars + 2 corners = 84 total
-                    -- Regular: 83 chars total (no corners on top bar)
-                    local total_bar_chars = is_golden and 82 or 83
-                    local progress_chars = math.floor((progress_pct / 100) * total_bar_chars)
-                    local remaining_chars = total_bar_chars - progress_chars
-
-                    -- Top bar from the shared poem-bars module (canonical 83
-                    -- regular / 84 golden). progress_chars above is still used to
-                    -- progressively colour the regular nav corner boxes below.
-                    local colored_progress = t_poem_bars.progress_dashes(
-                        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "top", false).visual
-
-                    -- Navigation links (absolute paths for local testing)
-                    -- Issue 9-003 Fix: Use absolute file:// paths - helper script converts to production URLs
-                    local base_path = ".."
-                    local similar_link = string.format("<a href='%s/similar/%04d-01.html'>similar</a>", base_path, poem_idx)
-                    local different_link = string.format("<a href='%s/different/%04d-01.html'>different</a>", base_path, poem_idx)
-                    -- Issue 16-006: Use poem_index for simpler, machine-readable anchor format
-                    -- Old format: "poem-fediverse-0042" (leaked category info)
-                    -- New format: "poem-4625" (just the unique poem_index)
-                    local anchor_id = string.format("poem-%d", poem.poem_index or 0)
-
-                    -- Issue 8-039: Chronological link points to subdirectory
-                    local chrono_link
-                    if chrono_paged and chrono_info.total_pages > 1 then
-                        -- Paginated: chronological/01.html, chronological/02.html, etc.
-                        chrono_link = string.format("<a href='%s/chronological/%02d.html#%s'>chronological</a>",
-                            base_path, chrono_info.page_number, anchor_id)
-                    else
-                        -- Single page: chronological/index.html
-                        chrono_link = string.format("<a href='%s/chronological/index.html#%s'>chronological</a>", base_path, anchor_id)
-                    end
-
-                    -- Issue 8-057: Handle boost poems with special nested frame formatting
-                    -- Boosts return early with their complete formatting (arrows, [BOOST] label, nested frames)
-                    if is_boost then
-                        local boost_content = poem.content or ""
-                        -- Escape HTML in content
-                        boost_content = boost_content:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-                        -- Issue 10-037: Defensive fallback for blank boost content (worker thread)
-                        -- If content is empty, display the original URI or diagnostic message
-                        if boost_content == "" or boost_content:match("^%s*$") then
-                            local original_uri = poem.metadata and poem.metadata.original_uri
-                            if original_uri then
-                                -- Escape HTML in URI
-                                local safe_uri = original_uri:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-                                boost_content = "External post: " .. safe_uri
-                            else
-                                boost_content = "(Boost content unavailable)"
-                            end
-                        end
-
-                        -- Issue 10-039: Make external boost URLs clickable (worker thread)
-                        -- Pattern: "External post: https://..." -> wrap URL in anchor tag
-                        local external_pattern = "^External post: (https?://[^%s]+)$"
-                        local external_url = boost_content:match(external_pattern)
-                        if external_url then
-                            -- Wrap the URL across box lines instead of overflowing.
-                            boost_content = t_text_formatter.wrap_external_url("External post: ", external_url, t_boost_bars.CONTENT_WIDTH)
-                        else
-                            -- Issue 10-041: Wrap long embedded content to fit the boost box.
-                            -- Only wrap non-external-post content (external posts keep URLs intact)
-                            local BOOST_CONTENT_WIDTH = t_boost_bars.CONTENT_WIDTH
-                            local wrapped_lines = {}
-                            for line in (boost_content .. "\n"):gmatch("(.-)\n") do
-                                local wrapped = t_text_formatter.wrap_preserving_indent(line, BOOST_CONTENT_WIDTH)
-                                for _, wrapped_line in ipairs(wrapped) do
-                                    table.insert(wrapped_lines, wrapped_line)
-                                end
-                            end
-                            boost_content = table.concat(wrapped_lines, "\n")
-                        end
-
-                        -- Calculate progress as decimal (0-1)
-                        local progress_decimal = progress_pct / 100
-
-                        -- Apply boost formatting with all frame elements
-                        local boost_formatted = worker_apply_boost_formatting(
-                            boost_content, progress_decimal,
-                            similar_link, different_link, chrono_link,
-                            t_text_formatter
-                        )
-
-                        -- Build output including any attached media
-                        local output = { boost_formatted }
-
-                        -- Handle media attachments for boosts (same logic as regular poems)
-                        local media_base = ".."
-                        local has_media = false
-                        local media_atts = {}
-                        if poem.attachments and #poem.attachments > 0 then
-                            for _, att in ipairs(poem.attachments) do
-                                local mt = att.media_type or ""
-                                if mt:match("^image/") or mt:match("^audio/") or mt:match("^video/") then
-                                    table.insert(media_atts, att)
-                                    has_media = true
-                                end
-                            end
-                        end
-
-                        if has_media then
-                            table.insert(output, "</pre>")
-                            for _, att in ipairs(media_atts) do
-                                local rpath = att.relative_path or ""
-                                -- media_href: namespace art by source+subdir,
-                                -- url-encode (this is the path that previously
-                                -- emitted the raw broken "...TROUBLE-U-?...png"
-                                -- link on the similarity pages); Mastodon stays flat.
-                                local media_src = "../media/" .. media_href(rpath)
-                                local media_type = att.media_type or "image/png"
-                                if media_type:match("^image/") then
-                                    local alt = att.description and att.description ~= "" and att.description or "Image attachment"
-                                    if att.width and att.height then
-                                        table.insert(output, string.format(
-                                            '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
-                                            media_src, alt, att.width, att.height
-                                        ))
-                                    else
-                                        table.insert(output, string.format(
-                                            '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
-                                            media_src, alt
-                                        ))
-                                    end
-                                elseif media_type:match("^audio/") then
-                                    table.insert(output, string.format(
-                                        '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
-                                        '    <source src="%s" type="%s">\n' ..
-                                        '    Your browser does not support the audio element.\n' ..
-                                        '  </audio>',
-                                        media_src, media_type
-                                    ))
-                                elseif media_type:match("^video/") then
-                                    if att.width and att.height then
-                                        table.insert(output, string.format(
-                                            '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                            '    <source src="%s" type="%s">\n' ..
-                                            '    Your browser does not support the video element.\n' ..
-                                            '  </video>',
-                                            att.width, att.height, media_src, media_type
-                                        ))
-                                    else
-                                        table.insert(output, string.format(
-                                            '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                            '    <source src="%s" type="%s">\n' ..
-                                            '    Your browser does not support the video element.\n' ..
-                                            '  </video>',
-                                            media_src, media_type
-                                        ))
-                                    end
-                                end
-                            end
-                            table.insert(output, "<pre>")
-                        end
-
-                        return table.concat(output, "\n")
-                    end
-
-                    -- Standard formatting for golden and regular (non-boost) poems
-                    -- Wrap content to 80 chars while preserving paragraph breaks
-                    -- Also handle content warnings (CW: or content warning:)
-                    local content = poem.content or ""
-
-                    -- Issue 8-041: Escape HTML special characters in poem content
-                    -- Prevents browser from interpreting poem content as HTML markup
-                    -- (e.g., a poem containing "</pre>" would otherwise close the preformatted block)
-                    -- Order: & first, then < and > (otherwise &lt; becomes &amp;lt;)
-                    content = content:gsub("[%z\1-\8\11\12\14-\31]", ""):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-
-                    local wrapped_lines = {}
-
-                    -- Issue 9-011: Display content warning from poem.content_warning field (Mastodon CW)
-                    -- This is separate from in-content CW: patterns - it comes from ActivityPub summary field
-                    -- Issue 9-011: warning boxes come from the shared builder
-                    -- (wraps long warnings after dashes and spaces, pads by
-                    -- visible width), indented one column as before.  These
-                    -- two copies used to put the whole warning on one line.
-                    local function add_cw_box(cw_display)
-                        local box = t_text_formatter.format_cw_box(cw_display, 80, true)
-                        for box_line in box:gmatch("[^\n]+") do
-                            table.insert(wrapped_lines, " " .. box_line)
-                        end
-                    end
-
-                    if poem.content_warning and poem.content_warning ~= "" then
-                        -- Box around the ActivityPub content warning
-                        add_cw_box("CW: " .. poem.content_warning)
-                        table.insert(wrapped_lines, "")  -- Empty line after CW
-                        table.insert(wrapped_lines, "")  -- Second empty line for spacing
-                    end
-
-                    -- Check for content warning at start
-                    local cw_text = nil
-                    local main_content = content
-                    local cw_match = content:match("^%s*[Cc][Ww]%s*:(.-)[\n\r]")
-                    if not cw_match then
-                        cw_match = content:match("^%s*[Cc]ontent [Ww]arning%s*:(.-)[\n\r]")
-                    end
-                    if cw_match then
-                        cw_text = cw_match:match("^%s*(.-)%s*$")  -- trim whitespace
-                        -- Remove the CW line from main content
-                        main_content = content:gsub("^%s*[Cc][Ww]%s*:[^\n\r]*[\n\r]?", "")
-                        main_content = main_content:gsub("^%s*[Cc]ontent [Ww]arning%s*:[^\n\r]*[\n\r]?", "")
-                    end
-
-                    -- If there's a content warning, format it in a box
-                    if cw_text and #cw_text > 0 then
-                        add_cw_box("CW: " .. cw_text)
-                        table.insert(wrapped_lines, "")  -- Empty line after CW
-                    end
-
-                    -- Issue 8-056: Preserve whitespace for ALL categories
-                    -- Poetry is artistic content - author's spacing must be respected
-                    -- Use shared text-formatter module for consistent behavior with main thread
-                    local content_lines = t_text_formatter.format_poem_content(main_content)
-                    for _, line in ipairs(content_lines) do
-                        table.insert(wrapped_lines, line)
-                    end
-
-                    -- Issue 8-044: Apply golden side borders to content lines
-                    -- Golden poems get ║ (colored) on left and │ on right
-                    -- Total width: ║ (1) + space (1) + 80 chars content + space (1) + │ (1) = 84 total
-                    if is_golden then
-                        local golden_lines = {}
-                        local colored_wall = string.format('<font color="%s"><b>║</b></font>', hex_color)
-                        -- Issue 8-055: Use config layout values instead of hardcoded 80
-                        local CONTENT_WIDTH = config.layout and config.layout.text_content_width or 80
-
-                        -- Helper to count UTF-8 characters (not bytes)
-                        -- Box-drawing chars are 3 bytes each, so #str gives wrong count
-                        local function utf8_char_count(str)
-                            -- Remove UTF-8 continuation bytes (0x80-0xBF), count what remains
-                            return #(str:gsub("[\128-\191]", ""))
-                        end
-
-                        for _, line in ipairs(wrapped_lines) do
-                            -- Strip the leading space that word-wrap added (we'll add our own)
-                            local content = line:match("^%s*(.*)$") or line
-
-                            -- Calculate visible length (excluding HTML tags, counting UTF-8 chars)
-                            -- Issue 8-055: Also decode HTML entities for accurate width counting
-                            -- e.g., &gt; is 4 bytes but displays as 1 character (>)
-                            local visible_length = t_text_formatter.calculate_visible_width(content)
-
-                            -- Pad content to 80 chars
-                            local padded_content
-                            if visible_length >= CONTENT_WIDTH then
-                                padded_content = content
-                            else
-                                local padding_needed = CONTENT_WIDTH - visible_length
-                                padded_content = content .. string.rep(" ", padding_needed)
-                            end
-
-                            -- Add side borders: ║ + space + 80 chars + space + │ = 84 total
-                            table.insert(golden_lines, colored_wall .. " " .. padded_content .. " │")
-                        end
-                        wrapped_lines = golden_lines
-                    end
-
-                    -- Build navigation box matching reference implementation
-                    -- Regular poem structure: 83 chars total (positions 0-82)
-                    -- ┌─────────┐ (11 chars) + 59 spaces + ┌───────────┐ (13 chars) = 83 chars
-
-                    -- Issue 8-035: Helper to colorize box characters based on progress
-                    local function color_char(char, pos)
-                        if progress_chars > pos then
-                            return string.format('<font color="%s"><b>%s</b></font>', hex_color, char)
-                        end
-                        return char
-                    end
-
-                    -- Build nav_top and nav_mid
-                    -- Issue 8-044: Golden poems use different box characters
-                    -- Nav top + line come from the shared poem-bars module so this
-                    -- worker can't drift from the main thread (the whole point of
-                    -- the de-dup). Golden nav box dashes are not progress-tinted,
-                    -- which now matches the chronological (main-rendered) golden
-                    -- poems exactly.
-                    local nav_top, nav_mid
-                    if is_golden then
-                        nav_top = t_poem_bars.golden_corner_box_separator(hex_color, progress_chars)
-                        nav_mid = t_poem_bars.golden_corner_box_nav_line(similar_link, different_link, chrono_link, hex_color, progress_chars)
-                    else
-                        nav_top = t_poem_bars.corner_box_top(progress_chars, hex_color)
-                        nav_mid = t_poem_bars.corner_box_nav_line(similar_link, different_link, chrono_link, progress_chars, hex_color)
-                    end
-
-                    -- Bottom line: delegate to the shared poem-bars module so this
-                    -- worker cannot drift from the main thread's canonical geometry.
-                    -- The old inline copy used the 82-char CONTENT width as the BAR
-                    -- width, so the bar ended one column short of the nav boxes (and
-                    -- an earlier version produced 88-char bars with doubled ╧╧).
-                    -- progress_dashes is correct for both regular (83) and golden
-                    -- (84) and seats the junctions under the corner-box walls.
-                    local bottom_line = t_poem_bars.progress_dashes(
-                        { percentage = progress_pct, poem_id = poem_idx }, semantic_color, is_golden, "bottom", true).visual
-
-                    -- Build formatted output
-                    local output = {}
-                    table.insert(output, colored_progress)  -- Top progress bar (golden: 84 chars, regular: 83 chars)
-                    table.insert(output, table.concat(wrapped_lines, "\n"))  -- Content with preserved newlines
-
-                    -- Issue 8-040: Render attached images if present (from ActivityPub extraction)
-                    -- Images appear after poem content, before navigation links
-                    -- Must be inline since worker thread can't access main scope functions
-                    local base_path = ".."
-
-                    -- Issue 8-049: Check if we have any media to render (images, audio, video)
-                    -- Issue 9-010: Media stays with their original post only (no associated_images rendering)
-                    local has_any_media = false
-                    local media_attachments = {}
-                    if poem.attachments and #poem.attachments > 0 then
-                        for _, att in ipairs(poem.attachments) do
-                            local mt = att.media_type or ""
-                            if mt:match("^image/") or mt:match("^audio/") or mt:match("^video/") then
-                                table.insert(media_attachments, att)
-                                has_any_media = true
-                            end
-                        end
-                    end
-
-                    -- If there are media attachments, close </pre>, render them, reopen <pre>
-                    -- Issue 8-005 Fix: Media rendered outside <pre> for proper max-width behavior
-                    -- display:block prevents side-by-side, max-width:min(100%,800px) caps width
-                    if has_any_media then
-                        table.insert(output, "</pre>")
-                        for _, attachment in ipairs(media_attachments) do
-                            -- Issue 8-048: Use flat output/media/ path structure
-                            local relative_path = attachment.relative_path or ""
-                            -- media_href: namespace art by source+subdir (collision-
-                            -- safe) + url-encode; Mastodon hashes stay flat.
-                            local media_src = base_path .. "/media/" .. media_href(relative_path)
-                            local media_type = attachment.media_type or ""
-
-                            if media_type:match("^image/") then
-                                local alt_text = attachment.description or attachment.alt_text or "Image attachment"
-                                -- Issue 8-053: Normalize newlines to spaces for clean HTML attributes
-                                alt_text = alt_text:gsub("\n", " "):gsub("\r", "")
-                                alt_text = alt_text:gsub('"', '&quot;')
-                                -- Issue 8-053: title attribute provides mouse-over tooltip
-                                local img_tag = string.format(
-                                    '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto"',
-                                    media_src, alt_text, alt_text
-                                )
-                                if attachment.width and attachment.height then
-                                    img_tag = img_tag .. string.format(' width="%d" height="%d"', attachment.width, attachment.height)
-                                end
-                                img_tag = img_tag .. '>'
-                                table.insert(output, img_tag)
-
-                            elseif media_type:match("^audio/") then
-                                -- Issue 8-049: Audio playback support
-                                local audio_tag = string.format(
-                                    '  <audio controls preload="metadata" style="display:block; max-width:100%%">\n' ..
-                                    '    <source src="%s" type="%s">\n' ..
-                                    '    Your browser does not support the audio element.\n' ..
-                                    '  </audio>',
-                                    media_src, media_type
-                                )
-                                table.insert(output, audio_tag)
-
-                            elseif media_type:match("^video/") then
-                                -- Issue 8-049: Video playback support
-                                local video_tag
-                                if attachment.width and attachment.height then
-                                    video_tag = string.format(
-                                        '  <video controls preload="metadata" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                        '    <source src="%s" type="%s">\n' ..
-                                        '    Your browser does not support the video element.\n' ..
-                                        '  </video>',
-                                        attachment.width, attachment.height, media_src, media_type
-                                    )
-                                else
-                                    video_tag = string.format(
-                                        '  <video controls preload="metadata" style="display:block; max-width:min(100%%,800px); height:auto">\n' ..
-                                        '    <source src="%s" type="%s">\n' ..
-                                        '    Your browser does not support the video element.\n' ..
-                                        '  </video>',
-                                        media_src, media_type
-                                    )
-                                end
-                                table.insert(output, video_tag)
-                            end
-                        end
-                        table.insert(output, "<pre>")
-                    end
-
-                    table.insert(output, nav_top)  -- Nav box top (golden: 84, regular: 83 chars)
-                    table.insert(output, nav_mid)  -- Nav box middle
-                    table.insert(output, bottom_line)  -- Bottom with junctions
-
-                    return table.concat(output, "\n")
-                end
-
-                -- Local helper: Generate paginated HTML page
-                -- Issue 9-003 Fix D: Added chrono_map and chrono_paged for full formatting
-                local function generate_page(poem, sorted_list, page_type, page_num, poems_per_pg, out_dir, chrono_map, chrono_paged)
-                    local start_idx = (page_num - 1) * poems_per_pg + 1
-                    local end_idx = math.min(start_idx + poems_per_pg - 1, #sorted_list)
-                    if start_idx > #sorted_list then return nil end
-
-                    local type_label = page_type == "similar" and "similarity" or "diversity"
-                    local poem_idx_str = string.format("%04d", poem.poem_index or 0)
-                    local filename = string.format("%s/%s/%s-%02d.html", out_dir, page_type, poem_idx_str, page_num)
-
-                    -- Build HTML content with full formatting
-                    -- Issue 9-003 Fix: Use centered table for block centering with left-aligned text inside
-                    -- Issue 16-010: shared head block -- viewport + shipped monospace font.
-                    -- This path had the THINNEST head of the four: the bare font
-                    -- stack, no viewport, and none of the centering rules the
-                    -- chronological pages carry. That last omission is why an
-                    -- attached image pulls the poem column off-centre here but
-                    -- not there; the shared block ends all three divergences at
-                    -- once, since these pages sit one level below the root just
-                    -- like the chronological ones.
-                    local html_parts = {
-                        '<!DOCTYPE html><html><head><meta charset="UTF-8">',
-                        '<title>Poems by ' .. type_label .. ' to poem ' .. poem_idx_str .. ' (page ' .. page_num .. ')</title>',
-                        PAGE_HEAD_BLOCK,
-                        '</head><body bgcolor="#000000" text="#FFFFFF" link="#6699FF" vlink="#9966FF"><table align="center"><tr><td><pre>'
-                    }
-
-                    -- Add anchor poem with full formatting
-                    table.insert(html_parts, "=== ANCHOR POEM ===\n")
-                    table.insert(html_parts, format_poem_entry(poem, poem_colors, color_config, chrono_map, chrono_paged))
-                    table.insert(html_parts, "\n\n=== " .. type_label:upper() .. " RANKED ===\n\n")
-
-                    -- Add poems for this page with full formatting
-                    for i = start_idx, end_idx do
-                        local entry = sorted_list[i]
-                        local entry_poem = entry.poem
-                        if entry_poem then
-                            -- Issue 8-036: Add poem source path to ranking header
-                            local source_path = get_source_path(entry_poem)
-                            table.insert(html_parts, string.format("--- #%d %s ---\n", i, source_path))
-                            -- Issue 9-013: text+image posts get a direct "image.png"
-                            -- link below their header (image entries are skipped --
-                            -- their title already deep-links into the gallery).
-                            if not entry_poem.is_image then
-                                local img_link = t_image_render.text_image_link(entry_poem)
-                                if img_link ~= "" then
-                                    table.insert(html_parts, " " .. img_link .. "\n")
-                                end
-                            end
-                            table.insert(html_parts, format_poem_entry(entry_poem, poem_colors, color_config, chrono_map, chrono_paged))
-                            table.insert(html_parts, "\n\n")
-                        end
-                    end
-
-                    table.insert(html_parts, '</pre></td></tr></table></body></html>')
-
-                    -- Write file
-                    local dir_path = filename:match("(.*/)")
-                    os.execute('mkdir -p "' .. dir_path .. '"')
-                    local f = io.open(filename, "w")
-                    if f then
-                        f:write(table.concat(html_parts))
-                        f:close()
-                        return filename
-                    end
-                    return nil
-                end
-
-                -- Issue 10-034: Orchestrator request/response loop
-                -- Workers request work, receive slices, generate pages, report completion
-                local similarity_count = 0
-                local diversity_count = 0
-                local processed = 0
-
-                while true do
-                    -- Request work from orchestrator
-                    request_channel:push({
-                        type = "get_work",
-                        worker_id = tid
-                    })
-
-                    -- Wait for response (blocks until data available)
-                    local work = response_channel:pop()
-
-                    if not work then
-                        -- Channel closed or error
-                        break
-                    end
-
-                    if work.type == "shutdown" then
-                        -- No more work, exit loop
-                        break
-                    end
-
-                    if work.type == "work" then
-                        local poem_index = work.poem_index
-                        local poem = poem_lookup[poem_index]
-
-                        if poem then
-                            -- Convert raw index arrays to poem objects using data from orchestrator
-                            local similar_ranking = convert_similarity_ranking(work.similarity_ranking, poem_index)
-                            local diverse_sequence = convert_diversity_sequence(work.diversity_sequence, poem_index)
-
-                            -- Issue 10-036: which pages to write for one list.
-                            -- "--pages all" means every page the list fills, up
-                            -- to the storage cap; a page list means exactly
-                            -- those page numbers.  This used to write ONE page
-                            -- for "all", and pages 1..N for a list of N pages
-                            -- (so "1,3" wrote 1 and 2).  A page past the end of
-                            -- the list is skipped by generate_page itself.
-                            local function pages_for(list)
-                                if config.pages_is_all then
-                                    local count = math.ceil(#list / config.poems_per_page)
-                                    count = math.min(count, config.max_pages_per_poem)
-                                    local all = {}
-                                    for p = 1, count do all[p] = p end
-                                    return all
-                                end
-                                return config.pages_list or { 1 }
-                            end
-
-                            -- Generate similarity pages
-                            -- Issue 9-003 Fix D: Pass chrono_mapping and chrono_paginated for full formatting
-                            for _, page_num in ipairs(pages_for(similar_ranking)) do
-                                local page_file = generate_page(poem, similar_ranking, "similar", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
-                                if page_file then similarity_count = similarity_count + 1 end
-                            end
-
-                            -- Generate diversity pages
-                            for _, page_num in ipairs(pages_for(diverse_sequence)) do
-                                local page_file = generate_page(poem, diverse_sequence, "different", page_num, config.poems_per_page, config.output_dir, config.chrono_mapping, config.chrono_paginated)
-                                if page_file then diversity_count = diversity_count + 1 end
-                            end
-
-                            processed = processed + 1
-
-                            -- Report completion to orchestrator
-                            request_channel:push({
-                                type = "done",
-                                worker_id = tid,
-                                poem_index = poem_index
-                            })
-                        end
-                    end
-                end
-
-                return similarity_count, diversity_count, processed
-            end)
-
-            -- Launch thread with channels for orchestrator communication
-            threads[thread_id] = thread_func(thread_config, thread_id, work_request_channel, work_response_channels[thread_id])
-        end
-
-        -- Issue 10-034: Orchestrator loop - serves work slices to workers
-        -- Main thread holds caches, sends ~80KB slices instead of workers loading 700MB
-
-        -- Track work state
-        local work_queue_idx = 1           -- Next poem index to assign
-        local completed_count = 0           -- Number of poems completed
-        local workers_active = num_threads  -- Number of workers still running
-        local workers_shutdown = {}         -- Track which workers have been told to shut down
-        for t = 1, num_threads do
-            workers_shutdown[t] = false
-        end
-
-        -- Get references to caches loaded in main thread (lines 3092-3096)
-        -- DIVERSITY_CACHE and SIMILARITY_RANKINGS_CACHE are module-level variables
-        local similarity_cache = SIMILARITY_RANKINGS_CACHE
-        local diversity_cache = DIVERSITY_CACHE
-
-        -- Progress tracking
-        local last_progress_time = os.time()
-        local progress_interval = 1  -- Update progress every 1 second
-
-        -- Orchestrator main loop: process requests until all work done and all workers shut down
-        while workers_active > 0 do
-            -- Non-blocking receive with short timeout (100ms)
-            local msg = work_request_channel:pop(100)
-
-            if msg then
-                if msg.type == "get_work" then
-                    local worker_id = msg.worker_id
-
-                    if work_queue_idx <= total_work then
-                        -- Get next poem index from queue
-                        local poem_index = work_queue[work_queue_idx]
-                        work_queue_idx = work_queue_idx + 1
-
-                        -- Extract work slice from caches (~80KB: similarity ranking + diversity sequence)
-                        local similarity_ranking = similarity_cache.rankings[tostring(poem_index)]
-                        local diversity_sequence = diversity_cache.sequences[tostring(poem_index)]
-
-                        -- Send work slice to worker
-                        work_response_channels[worker_id]:push({
-                            type = "work",
-                            poem_index = poem_index,
-                            similarity_ranking = similarity_ranking,
-                            diversity_sequence = diversity_sequence
-                        })
-                    else
-                        -- No more work - tell worker to shut down
-                        if not workers_shutdown[worker_id] then
-                            work_response_channels[worker_id]:push({
-                                type = "shutdown"
-                            })
-                            workers_shutdown[worker_id] = true
-                            workers_active = workers_active - 1
-                        end
-                    end
-
-                elseif msg.type == "done" then
-                    -- Worker completed a poem
-                    completed_count = completed_count + 1
-                end
-            end
-
-            -- Update progress display periodically
-            local now = os.time()
-            if now - last_progress_time >= progress_interval then
-                last_progress_time = now
-
-                -- A worker that raised an error stops asking for work, so the
-                -- loop above -- which ends when every worker has been told to
-                -- shut down -- would wait for it forever: an overnight build
-                -- that never finishes and never says why.  Once a second, look
-                -- for a failed worker and stop the whole run with its error.
-                -- (Workers raise errors on purpose now: a poem missing from
-                -- the chronological map, a bar outside 0-100 -- issue 8-045.)
-                for tid, worker in pairs(threads) do
-                    local status, worker_err, worker_stack = worker:status()
-                    if status == "failed" then
-                        progress.finish()
-                        utils.log_error(string.format("HTML worker %d failed: %s",
-                            tid, tostring(worker_err)))
-                        if worker_stack then io.stderr:write(tostring(worker_stack), "\n") end
-                        os.exit(1)
-                    end
-                end
-
-                local elapsed = now - start_time
-                local rate = elapsed > 0 and (completed_count / elapsed) or 0
-                local remaining = total_work - completed_count
-                local eta = rate > 0 and math.floor(remaining / rate) or 0
-                local pct = (completed_count / total_work) * 100
-
-                -- Show orchestrator progress as the shared bar. The rate, ETA,
-                -- and remaining queue depth ride along as the suffix.
-                local label = string.format("   [%d threads]", num_threads)
-                local suffix = string.format("%.1f poems/sec | ETA: %ds | Queue: %d",
-                    rate, eta, total_work - work_queue_idx + 1)
-                progress.update(label, completed_count, total_work, suffix)
-            end
-        end
-
-        -- Close the animated bar, then print a plain completion summary so it
-        -- survives in logs (the bar itself is suppressed when piped/quiet).
-        progress.finish()
-        local elapsed = os.time() - start_time
-        print(string.format("   [%d threads] Complete: %d poems in %ds (%.1f poems/sec)",
-            num_threads, completed_count, elapsed, completed_count / math.max(elapsed, 1)))
-
-        -- Wait for all threads to fully complete and collect results
-        local total_similarity = 0
-        local total_diversity = 0
-        local total_processed = 0
-
-        for tid, thread in pairs(threads) do
-            -- Wait for thread completion (may already be done)
-            local status, worker_err = thread:wait()
-            if status == "completed" then
-                local sim_count, div_count, proc_count = thread:get()
-                total_similarity = total_similarity + (sim_count or 0)
-                total_diversity = total_diversity + (div_count or 0)
-                total_processed = total_processed + (proc_count or 0)
-            else
-                -- A worker that did not complete built only part of its share:
-                -- the site would ship with pages missing.  This used to log and
-                -- carry on (and read the error with thread:get(), which returns
-                -- nothing for a failed thread).  Stop instead.
-                utils.log_error(string.format("HTML worker %d ended as '%s': %s",
-                    tid, tostring(status), tostring(worker_err)))
-                os.exit(1)
-            end
-        end
-
-        -- Update results counts (we don't have individual filenames in parallel mode)
-        for i = 1, total_similarity do table.insert(results.similarity_pages, "parallel") end
-        for i = 1, total_diversity do table.insert(results.diversity_pages, "parallel") end
-        -- }}} End parallel processing
-
-    else
-        -- {{{ Sequential processing (original code path)
-        -- Reached only with --threads 1, or when the memory budget shrank the
-        -- worker count to one.  A missing threading library no longer lands
-        -- here: it stops the run where num_threads is normalised (issue 8-058).
-
-        -- Generate similarity and diversity pages for each poem
-        -- Note: Loop variable is poem_index (globally unique) not poem.id (per-category)
-        local progress_count = 0
-        for poem_index, poem_data in pairs(valid_poems) do
-            progress_count = progress_count + 1
-
-            -- Animate one progress line; throttle sparser under --debug (verbose).
-            local step = (progress.mode() == 2) and 100 or 25
-            if progress_count % step == 0 then
-                progress.update("   📄 HTML pages", progress_count, total_poems)
-            end
-
-            -- Generate unique filename identifier (category prefix for cross-category uniqueness)
-            local unique_id = get_unique_poem_filename_id(poem_data)
-
-            -- Generate similarity ranking (cache is keyed by poem_index)
-            local similar_ranking = M.generate_similarity_ranked_list(poem_index, poems_data, similarity_data)
-
-            -- Phase D (Issue 8-012): Use paginated generation
-            -- Note: Pagination uses poem_index (numeric) for file naming (similar/0001-01.html)
-            local pagination_result = M.generate_all_paginated_pages_for_poem(
-                poem_data,
-                similar_ranking,
-                "similar",
-                poem_data.poem_index,  -- Use numeric poem_index for pagination filenames
-                output_dir,
-                pages_config.is_all and nil or pages_config.pages,  -- nil means "all pages"
-                -- Issue 10-036: the mapping computed above must travel with the
-                -- work, or the formatter guesses chronological page 01 for every
-                -- poem. It was in scope here all along and simply not handed over.
-                chrono_mapping,
-                chronological_paginated
-            )
-
-            if pagination_result and pagination_result.files_generated then
-                for _, file in ipairs(pagination_result.files_generated) do
-                    table.insert(results.similarity_pages, file)
-                end
-            end
-
-            -- Generate TXT version. NOT a full-corpus export, despite what this comment
-            -- used to claim: it receives the SAME ranked list the pages are built
-            -- from, already trimmed, so it holds what the reader is looking at
-            -- (~90 entries), unsplit by page. The old wording sent a reader
-            -- looking for a whole-collection download that is not produced here.
-            local similar_txt = generate_similarity_txt_file(poem_data, similar_ranking,
-                                                           string.format("%s/similar/%s.txt", output_dir, unique_id))
-            if similar_txt then
-                table.insert(results.txt_files, similar_txt)
-            end
-
-            -- Generate HTML archive version: the same ranked list as the pages, with
-            -- images, in one unsplit file. Off by default, which is why the page
-            -- only advertises it when generate_html_archives is on.
-            -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
-            if PAGINATION_CONFIG.generate_html_archives then
-                local similar_archive = generate_similarity_html_archive(poem_data, similar_ranking,
-                                                               string.format("%s/similar/%s-archive.html", output_dir, unique_id), chrono_mapping, chronological_paginated)
-                if similar_archive then
-                    table.insert(results.html_archives, similar_archive)
-                end
-            end
-
-            -- Generate diversity pages (cache is keyed by poem_index)
-            local diverse_sequence = M.generate_maximum_diversity_sequence(poem_index, poems_data, embeddings_data)
-
-            -- Phase D (Issue 8-012): Use paginated generation for diversity pages too
-            -- Note: Pagination uses poem_index (numeric) for file naming (different/0001-01.html)
-            local diversity_pagination_result = M.generate_all_paginated_pages_for_poem(
-                poem_data,
-                diverse_sequence,
-                "different",
-                poem_data.poem_index,  -- Use numeric poem_index for pagination filenames
-                output_dir,
-                pages_config.is_all and nil or pages_config.pages,  -- nil means "all pages"
-                -- Issue 10-036: same mapping, same reason as the "similar" call above.
-                chrono_mapping,
-                chronological_paginated
-            )
-
-            if diversity_pagination_result and diversity_pagination_result.files_generated then
-                for _, file in ipairs(diversity_pagination_result.files_generated) do
-                    table.insert(results.diversity_pages, file)
-                end
-            end
-
-            -- Generate TXT version. NOT a full-corpus export, despite what this comment
-            -- used to claim: it receives the SAME ranked list the pages are built
-            -- from, already trimmed, so it holds what the reader is looking at
-            -- (~90 entries), unsplit by page. The old wording sent a reader
-            -- looking for a whole-collection download that is not produced here.
-            local diverse_txt = generate_diversity_txt_file(poem_data, diverse_sequence,
-                                                          string.format("%s/different/%s.txt", output_dir, unique_id))
-            if diverse_txt then
-                table.insert(results.txt_files, diverse_txt)
-            end
-
-            -- Generate HTML archive version: the same ranked list as the pages, with
-            -- images, in one unsplit file. Off by default, which is why the page
-            -- only advertises it when generate_html_archives is on.
-            -- Issue 10-036: Pass chrono_mapping for correct paginated chronological links
-            if PAGINATION_CONFIG.generate_html_archives then
-                local diverse_archive = generate_diversity_html_archive(poem_data, diverse_sequence,
-                                                              string.format("%s/different/%s-archive.html", output_dir, unique_id), chrono_mapping, chronological_paginated)
-                if diverse_archive then
-                    table.insert(results.html_archives, diverse_archive)
-                end
-            end
-        end
-        -- }}} End sequential processing
-        progress.finish()
+    -- Issue 8-058: every page is built by the worker pool; one thread is one
+    -- worker. (The single-threaded builder was a separate, drifted copy of
+    -- the page code, reached with --threads 1 and, quietly, whenever the
+    -- memory guard lowered the worker count to one.)
+    local jobs = {}
+    for _, poem_index in ipairs(poem_indices) do
+        jobs[#jobs + 1] = { kind = "poems", poem_index = poem_index }
+    end
+    local config = worker_config(output_dir)
+    config.pages_is_all = pages_config.is_all
+    -- "--pages N" is pages 1..N (parse_pages_specification); "all" is decided
+    -- per list inside the worker
+    config.pages_list = pages_config.pages or {}
+    config.poems_per_page = PAGINATION_CONFIG.poems_per_page
+    -- Issue 10-036: "--pages all" stops at this storage cap (8-020)
+    config.max_pages_per_poem = PAGINATION_CONFIG.max_pages_per_poem
+    -- Issue 9-003 Fix D: where each poem sits on the timeline and its page
+    config.chrono_mapping = chrono_mapping
+    config.chrono_paginated = chronological_paginated
+    -- Issue 8-013: each list's text export, and the download line on its pages
+    config.txt_exports = PAGINATION_CONFIG.generate_txt_exports
+    local done = run_page_workers(num_threads, config, jobs)
+    for i = 1, done.similar do table.insert(results.similarity_pages, "parallel") end
+    for i = 1, done.different do table.insert(results.diversity_pages, "parallel") end
+    if config.txt_exports then
+        utils.log_info(string.format("Text exports written: %d (one per list)", done.text_files))
     end
     
     -- Note: Chronological index and explore.html are generated by main.lua before this function
@@ -4752,102 +1834,44 @@ end
 -- }}}
 
 -- {{{ function M.main
+-- The page builder run on its own (-I). One poem's test pages are drawn by
+-- src/main.lua's "Test one poem's pages", or scripts/render-page-sample
+-- --anchor N; the menu items here that drew them with the old one-thread
+-- builder went with it (Issue 8-058).
 function M.main(interactive_mode)
     if interactive_mode then
-        print("Flat HTML Generator - Interactive Mode")
-        print("1. Generate complete flat HTML collection")
-        print("2. Generate chronological index only")
-        print("3. Generate instructions page only")
-        print("4. Test single similarity page")
-        print("5. Test single difference page")
-        io.write("Select option (1-5): ")
+        require("output").print("Flat HTML Generator - Interactive Mode")
+        require("output").print("1. Generate complete flat HTML collection")
+        require("output").print("2. Generate chronological index only")
+        require("output").print("3. Generate instructions page only")
+        io.write("Select option (1-3): ")
         local choice = io.read()
-        
+
         local poems_file = utils.asset_path("poems.json")
-        local similarity_file = utils.embeddings_dir() .. "/similarity_matrix.json"
-        local embeddings_file = utils.embeddings_dir() .. "/embeddings.json"
         local output_dir = DIR .. "/output"
-        
+
+        -- {{{ local function ask_threads()
+        -- the pages are built by worker threads (Issue 8-058): ask how many
+        local function ask_threads()
+            io.write("How many worker threads? ")
+            return tonumber(io.read()) or error("a thread count is a whole number of 1 or more")
+        end
+        -- }}}
+
         if choice == "1" then
             utils.log_info("Loading data files...")
-            local poems_data = utils.read_json_file(poems_file)
-            local similarity_data = utils.read_json_file(similarity_file)
-            local embeddings_data = utils.read_json_file(embeddings_file)
-            
-            if poems_data and similarity_data and embeddings_data then
-                M.generate_complete_flat_html_collection(poems_data, similarity_data.similarities, embeddings_data, output_dir)
-            else
-                utils.log_error("Failed to load required data files")
-            end
+            local poems_data = utils.read_json_file(poems_file) or error("poems.json did not load: " .. poems_file)
+            -- the workers read the ranking caches themselves; nothing else is passed
+            M.generate_complete_flat_html_collection(poems_data, nil, nil, output_dir, nil, nil, ask_threads())
         elseif choice == "2" then
-            local poems_data = utils.read_json_file(poems_file)
-            if poems_data then
-                M.generate_chronological_index_with_navigation(poems_data, output_dir)
-                M.generate_chronological_txt_file(poems_data, output_dir .. "/chronological.txt")
-                utils.log_info("Generated chronological/index.html and chronological.txt")
-            end
+            local poems_data = utils.read_json_file(poems_file) or error("poems.json did not load: " .. poems_file)
+            M.generate_chronological_index_with_navigation(poems_data, output_dir, nil, ask_threads())
+            M.generate_chronological_txt_file(poems_data, output_dir .. "/chronological.txt")
+            utils.log_info("Generated chronological/index.html and chronological.txt")
         elseif choice == "3" then
             M.generate_simple_discovery_instructions(output_dir)
-        elseif choice == "4" then
-            io.write("Enter poem ID for similarity test: ")
-            local poem_id = tonumber(io.read())
-            if poem_id then
-                local poems_data = utils.read_json_file(poems_file)
-                local similarity_data = utils.read_json_file(similarity_file)
-                
-                if poems_data and similarity_data then
-                    local poem_data = nil
-                    for _, poem in ipairs(poems_data.poems) do
-                        if poem.id == poem_id then
-                            poem_data = poem
-                            break
-                        end
-                    end
-                    
-                    if poem_data then
-                        local ranking = M.generate_similarity_ranked_list(poem_id, poems_data, similarity_data.similarities)
-                        -- Every poem needs its chronological map entry (progress bar and
-                        -- chronological link, issues 8-045 / 10-036); an unpaginated map
-                        -- is right for a one-off test page.
-                        local html = M.generate_flat_poem_list_html(poem_data, ranking, "similar", poem_id,
-                            compute_chronological_mapping(poems_data, nil), false)
-                        local test_file = string.format("%s/test_similar_%03d.html", output_dir, poem_id)
-                        os.execute("mkdir -p " .. output_dir)
-                        utils.write_file(test_file, html)
-                        utils.log_info("Test file written: " .. test_file)
-                    end
-                end
-            end
-        elseif choice == "5" then
-            io.write("Enter poem ID for difference test: ")
-            local poem_id = tonumber(io.read())
-            if poem_id then
-                local poems_data = utils.read_json_file(poems_file)
-                local embeddings_data = utils.read_json_file(embeddings_file)
-
-                if poems_data and embeddings_data then
-                    local poem_data = nil
-                    for _, poem in ipairs(poems_data.poems) do
-                        if poem.id == poem_id then
-                            poem_data = poem
-                            break
-                        end
-                    end
-
-                    if poem_data then
-                        local sequence = M.generate_maximum_diversity_sequence(poem_id, poems_data, embeddings_data)
-                        -- Every poem needs its chronological map entry (progress bar and
-                        -- chronological link, issues 8-045 / 10-036); an unpaginated map
-                        -- is right for a one-off test page.
-                        local html = M.generate_flat_poem_list_html(poem_data, sequence, "different", poem_id,
-                            compute_chronological_mapping(poems_data, nil), false)
-                        local test_file = string.format("%s/test_different_%03d.html", output_dir, poem_id)
-                        os.execute("mkdir -p " .. output_dir)
-                        utils.write_file(test_file, html)
-                        utils.log_info("Test file written: " .. test_file)
-                    end
-                end
-            end
+        else
+            error("unknown menu choice: " .. tostring(choice))
         end
     else
         utils.log_info("Use -I flag for interactive mode")

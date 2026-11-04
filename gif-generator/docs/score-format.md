@@ -94,11 +94,38 @@ times stop the walk too, so simultaneous strokes keep their arrival
 order — which the compiler preserves, because emission order is the
 random stream's order, and determinism is a promise here.
 
+## Patterns — words with their own files
+
+```lua
+pattern{ name = "ring", at = 0.0, lasts = 2.0, color = "ice",
+         center = {128, 128}, radius = 70 }
+```
+
+A pattern is a word that has a file of its own in `words/`
+(`words/ring.lua`), saying what it draws. The reader replaces the call
+with the ordinary strokes the word file's `expand` returns, each marked
+with a comment naming the pattern, and the wall checks them like any
+others. So a pattern can never draw what the vocabulary forbids. The
+fields a pattern takes beyond `name` are listed in its file's `fields`,
+and every word file carries one `example` call that renders.
+
+Word files come in two kinds. A **pattern** draws (`kind = "pattern"`,
+with `fields`, `expand` and `example`). A **plain** word draws nothing new
+(`kind = "plain"`): it is understood, and its `meaning` says how to read
+it in the vocabulary's terms ("slowly": a longer stroke, eased in). Every
+word file also carries `word` (matching its file name), `aliases` (other
+forms of the word) and `meaning`. Word files load in a sandbox holding
+only `math`, `string`, `table`, `ipairs`, `pairs`, `type`, `tostring`,
+`tonumber`, `error` and the shape constructors; check one with
+`luajit src/034-words.lua --check WORD`. The `say` tool (issue 604)
+writes new word files when a person uses a word the studio does not know.
+
 ## What a score may not do
 
 Compute. The sandbox offers the vocabulary and nothing else — no
 loops, no math library, no reading files. A score that tries is an
-error, not a plugin. Scores stay portable, diffable, safe to share,
+error, not a plugin. (A pattern computes, but inside its own word
+file's sandbox, never in the score; the score only names it.) Scores stay portable, diffable, safe to share,
 and speakable by grammar-constrained small models.
 
 ## Validation

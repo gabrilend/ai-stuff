@@ -1,0 +1,503 @@
+# 214 — The depth around the dashboard
+
+**Phase:** 2 — Glass and metal
+**Blocked by:** 209, 210
+**Related documents:** docs/visual-language.md (The far camera),
+assets/tilt-shift-style-design-part-1.2.png and part-2.2.png (the owner's
+reference: a valley receding to mountains)
+
+## Current Behavior
+
+Three views are built (2026-10-10), waiting on the open questions below. The
+hub camera (`src/003-the-far-camera.lua`) stands just above the hub (eye
+height, look-down and field of view from `input/`) and aims along the chair;
+under it the scroll wheel turns a whole quadrant a notch. Far ground, figures
+and cuboids fade into a haze, which is also the sky (`src/013`). The focus
+ring (`src/025-the-focus-ring.lua`) blurs by each pixel's ground distance
+from the hub, worked out from the camera — an arc on screen. Figures stand
+upright, or lean away from the hub (0.45 radians) to compare. The settings
+menu has three painted toggles (view, standing, blur), and the starting
+choices are in the settings file. Tests: under the hub camera a click finds
+the ground point it was drawn at; the camera aims along the chair; nearer
+ground is nearer in depth. Raising the hub camera straight up without
+changing its aim (pictures 005 and 006 in development-history/) showed only
+haze: its fixed look-down then aims past the map's edge. That led to the
+slant view below. The slant view is built as described below and is where
+the game now starts (settings: `view_depth = "slant"`, `slant_reach`);
+the view toggle cycles flat, hub, slant; switching to slant switches the
+size law (fold, shaders, and the ceramic engine at its next step). Tests:
+the hub on the bottom row and the reach on the top row along the chair, a
+far thing as tall on screen as a near one, nearer ground nearer in depth, a
+click round trip, both size laws, and the C motion against its Lua twin
+under both. Pictures 012 to 014. Haulers walk on the sphere (step 8,
+pictures 015-016). The arch view (step 9) is built and is now where the
+game starts (`view_depth = "arch"`, `arch_reach`); neighbours' quadrants
+grow from their own arches, and the quadrant across (never visible) is sent
+below the screen so its wrapping angle cannot tear the ground (pictures
+017-019, 018 showing the tear). The magic circles (step 10) then replaced
+the neighbours' arches: one arch spans `arch_span_degrees` (450 to start)
+foot to foot, the world drawn once per winding, the ground by its mesh's
+own unbroken angle (pictures 025-027 at 450, 360, 720). The view dials
+(step 11) are built: A with the wheel sets the reach, S the span, shown on
+two console dials (pictures 036-041). The painted terrain (step 12) is
+built: splotches all one size, as many to every stretch of ring, painted
+far to near (pictures 042-049); the blur is now off by default. The land
+as lit dots (step 13) then replaced the splotches: a grid of points with
+heights, facings and colours (026), drawn as round sprites turned toward
+the sun on an empty ground; the painted map is a menu choice (pictures
+051-054 at dawn, noon, evening and mid-morning). Then flat circles twice as
+dense, lit only by their turn, nearest first with wholly covered circles
+never painted (055-057); ordered by distance from the centre alone and
+shaded straight pole to pole, after the owner saw "funky" hills and "fins"
+(058-059). The test script now also starts the game for a moment. The bar-chart
+circle (opaque, and "bars-open" with a clear background) shows the turn;
+the owner confirmed the circles turn about the right axis (pictures
+060-066). The circle's picture now shades by direction round its centre,
+from the owner's drawing (pictures 067-069); the game starts in "shade".
+Sheen-points now record two colours each, and a lake's sheen-points live in
+the engine's shared memory, turned each step by waves and the sun in a
+third engine stage (step 14; pictures 070-073). The circles are now plain
+gradients (074-076), and the sun circles the hub's upright axis at a
+fixed height (077-079). The view dials are proven end to end through the
+key and wheel events (082-084); figures stand upright to the screen under
+the arch view (085-087). Villagers turn to their on-screen path
+(`figure_facing_follow`, pictures 088-095); waiting on the owner's choice
+of strength.
+
+## Intended Behavior
+
+The owner brought pictures of a tilt-shift look — a valley seen from high
+up, the near ground large, the far end shrinking toward mountains, little
+pieces on it like a model — "instead of giant robots ... little individuals
+running about and performing medieval village duties", and: "the input
+image is not curved around the dashboard as the final result should be, it
+is just the depth effect applied down one scenery."
+
+- **The camera at the hub, aimed outward one colour at a time.** The owner:
+  "position the camera at the origin of the graph shape drawn on the ground.
+  Then, aim it outward at one color at a time." A true perspective camera
+  stands just above the hub and looks out and down across one quadrant —
+  the valley of the reference pictures, its far end the foe's tiers. Each
+  notch of the scroll wheel turns it to the next colour (eased), so the
+  depth goes all the way round the dashboard, one valley at a time. The far,
+  flat view stays as the other choice to compare.
+- **The slant view** (the owner, after the raised-camera pictures: "expand
+  the... longitude I think? to display more distance. Also, remember, the
+  stuff that's displayed near the dashboard should be closer than the stuff
+  that's near the top. But this means the stuff near the top just moves
+  faster, but remains the same size relative to the part near the
+  dashboard."). A third view: the hub sits at the bottom of the screen,
+  behind the console, and the chair's quadrant runs up the screen to the
+  map's edge at the top — the whole distance shown, not the few tiers the
+  hub camera reaches before its haze. Nothing shrinks with distance: a
+  figure at the top is the size of one by the dashboard (no perspective, and
+  the sphere fold's shrinking of far things is switched off in this view).
+  The fold itself stays: the outer tiers are still pressed together, so up
+  there each step on screen covers more of the world — "the stuff near the
+  top just moves faster" — and when the chair turns, the far ground sweeps
+  past faster than the near, like the rim of a turning wheel. The scroll
+  wheel turns a whole quadrant a notch, as under the hub camera. The focus
+  ring, seen this way, is a semicircle around the console.
+- **The arch view** (the owner: "if you project the arc of the
+  circumference of the circle you're rendering with a 2d texture plane, and
+  then projected onto that... it might be easier to match the world's
+  scaling to the curve of the dashboard"; asked to choose, the owner chose
+  moving the points rather than wrapping a picture). A fourth view: every
+  tier ring is drawn as a scaled copy of the arch's outer curve, grown
+  outward from the console — tier 0 on the arch itself, the map's edge near
+  the top of the screen, the fold pressing the far rings together. Along
+  each ring runs the chair's quadrant from foot to foot exactly as along the
+  band, so the band's painted map and the open world line up angle for
+  angle. Each figure and cuboid is moved to its spot on its ring and drawn
+  there upright, the same size everywhere; outer rings are longer, so far
+  figures cross the screen sideways faster. The owner's picture of it:
+
+  > picture a king in a castle walking along the battlements viewing all
+  > the surrounds. if you walk to the east wall, you'll have a different
+  > perspective of north and south than if you walked to the west wall.
+  > Just like how when it's one time of year, we can see a certain
+  > perspective of celestial objects, and when it's another time of year we
+  > can see another angle.
+
+  The arch is the wall; turning the chair is walking along it.
+- **Magic circles: more than 360 degrees** (the owner: "can you try having
+  much more than just 90 degrees? Like what if our circles were magic
+  circles that had more than 360 degrees of rotation. Like, if the
+  rotational axis was just... bigger. I think that'll help us fit the more
+  correct displays on screen."). One arch's rings carry a wide span of
+  angle foot to foot — a setting, and it may pass 360 degrees: then the
+  circle runs on past itself, the same ground showing at both ends (the far
+  side of the world at both lower corners at once). This takes the place of
+  growing each neighbour's quadrant from the neighbour's own arch (which
+  left seams where two families of rings overlapped).
+- **Two view dials, turned by key and wheel** (the owner: "can we have a
+  dial that the user can adjust with holding the modifier key listed next
+  to it and scrolling that dynamically adjusts the speed of the distant
+  units? Correspondingly, what does that modify? The view distance. I think
+  A is a good letter to hold down while we scroll. Then, for S, can you
+  increase/decrease the FoV that the user has? We should be able to see
+  more/less of the dashboard by squeezing more units in from the side. With
+  these two designs, I think we can fully customize how we want to
+  view."). Holding A while scrolling changes the arch view's reach (how far
+  out the top of the screen sees): reaching farther presses the far rings
+  together, so distant units cross the screen more slowly; nearer, faster.
+  Holding S while scrolling changes the arch's span (its field of view):
+  more degrees squeeze more of the world in from the sides. Each has a
+  small dial on the console, its key engraved beside it, showing the value
+  (tiers reached; degrees). The plain wheel still turns the chair. The
+  dials are still never clicked: the game turns them, the keys only ask.
+  (The owner: "can we make sure we can dynamically adjust the
+  field-of-view by holding S while scrolling? And that holding A while
+  scrolling does what it's supposed to as well." The game keeps its own
+  list of keys held, from key-press and key-release events — the same
+  events a script sends — so a scripted check proves the path a person's
+  keys take; the test script holds each key, scrolls, lets go, and reads
+  the reach and span the game writes to its run log.)
+- **Painted terrain, to test distance** (the owner: "can we make some
+  "terrain" that's just different colors painted in splotches on the
+  ground? To test the rendering at different distances. Remember, each
+  "spot" (overlapping) is just a circle drawn with closer circles drawn
+  on-top. It should still be partially visible, just enough to draw a part
+  of the texture map. Then, we can automatically rotate the circles along
+  the axis with the raycast to the camera, and rotate it just precisely
+  enough to curve a little bit of the surface we're trying to model.
+  Usually one side of the circle is bright, and one is darker." — and then:
+  "um ok"). Splotches of earthy colour scattered over the ground, as many
+  per ring near as far; each a disc lying on the ground, overlapping its
+  neighbours, nearer ones drawn over farther ones; each tipped a little
+  toward the camera about its sideways line and domed slightly, so it reads
+  as a small rise; lit brighter on the side toward the hour's light and
+  darker on the other, the bright side moving with the day. Then the
+  owner: "all of the circles should be the same size, and there should be
+  an even amount of them per "x" distance (around the central
+  dashboard(s) but it should increase as it goes deeper. Meaning, at any
+  particular length, there's N circles." — and "can we remove the
+  blurring effect I think it's clearer without it."
+- **Terrain as lit dots** (the owner, after the splotches: "this is for
+  rendering terrain btw so instead of a "terrain mesh" (think like a
+  navmesh, but terrain for rendering purposes not pathfinding) and instead
+  of a triangle we might have a pixel-style dot that we represent over an
+  area by applying textures to via the rotation of a particular circle dot
+  thing ... it should change reflection in the changing day/night cycle
+  ... so in the morning one side of the "Warcraft The Barrens" style cliff
+  is lit, and then as the sun traverses the other side is bright while the
+  rest is in shadow ... each "point" ... now has a bit of extra
+  information, and we don't draw a texture onto the ground. It's just a
+  completely empty canvas with invisible points. Then, we add our stuff.
+  What we have is a rotation and a circular texture (whose library
+  utilities we're building with the UI as well by the way.) the circular
+  texture will have one side of it with a certain color, say... bright, as
+  if the sun was shining on it but it was still the same color, and the
+  other as if it were dark. The rotation determines which of those is
+  visible to the player. At distant distances, we'll have more of them,
+  and closer we'll have fewer." — and: "they should be isometric style
+  sprited to the camera. The closer ones should render above the farther
+  ones. Stuff behind a hill won't even need to be rendered at all.").
+  Then, on seeing it: "getting closer actually! they should be mostly
+  overlapping, so maybe twice as many as there are now. The closest one
+  should display, and it should rotate alongside the sunlight rotation. The
+  sun shouldn't display onto them, the spinning of the sprite axies is what
+  will display their lighting. Also they should be circles, not spheres,
+  though the pattern is roughly equivalent to what we're looking for -
+  darker on one side, bright on the other, kinda... shading toward the
+  other, like poles on a sphere. then, we rotate it around the raycast to
+  the camera from the center of that circle, render the closest one on
+  top... furthest ones not displayed at all if they're fully occluded. The
+  idea is, we'd have so many that they paint a surface, and are very easy
+  to calculate by visualizing data on the graphics card(s)."
+  So: no light is worked out on a sprite's pixels. Each sprite is one flat
+  circle shaded from a dark pole to a bright pole, turned in the screen's
+  plane (about the line from its centre to the camera). Each circle is
+  mostly covered by the nearer ones in front of it, so what shows is its
+  upper edge: turned bright-pole-up the patch of land reads lit, turned
+  bright-pole-down it reads in shadow. The turn follows the sun: the more
+  squarely a point's slope faces the sun, the nearer to bright-up; the
+  side the bright pole leans to follows the sun's side; at night all turn
+  dark-up. Twice the points (spacing divided by the square root of 2);
+  drawn nearest first with a strict depth test, so a fully covered circle is
+  rejected by the graphics card without being painted. Then: "the hills
+  look a little funky. it's because the "closest" circles are closer in
+  euclidean coordinates ... but we just want to pay attention to one
+  value, the distance from the center. not the camera I guess. also there
+  seems to be weird... "fins" attached to the circles?" — so a circle's
+  depth is its point's distance from the centre alone (its height not
+  counted), and its shade runs straight from pole to pole (shading along
+  lines of latitude had crowded into thin wedges at the rims).
+  The ground is no longer painted: the terrain is a grid of points, each
+  with a height, a facing (the slope's direction, from the height's
+  steepness) and a colour, drawn as a round sprite facing the camera. Every
+  sprite uses one circular picture, bright on one side and dark on the
+  other (made by formula, with the console's dial pictures); it is turned
+  so its bright side points toward the sun, and shows more of it the more
+  squarely the slope faces the sun — so a cliff facing east is lit in the
+  morning and in shadow at evening. Nearer sprites cover farther ones and
+  write depth, so what stands behind a hill is hidden. Points are spaced
+  evenly along each ring, so longer rings far out hold more. A few mesas
+  with steep sides, by formula from the seed, make the test landscape. The
+  flat painted map can be switched back from the settings menu.
+- **A bar-chart circle, to check the turn** (the owner: "just to make
+  sure we got the rotation right, can you change the sprite texture to be
+  a series of increasing bars on a barchart, with the centering being 0
+  and the edge being max? It should spiral around clockwise or
+  counter-clockwise, depending on if the sun is closer to the left or the
+  right side of the screen. at 0 it should be dark, at max it should have
+  lots of bars visible, so more of the color. I just wanna watch and make
+  sure you're rotating around the correct axis."). A second circle style:
+  bars round the circle, each reaching from the centre a little farther
+  than the last, from none (dark) to the rim (full colour), the longest at
+  the bright pole's place; winding clockwise when the sun is on the
+  screen's right, counter-clockwise on its left. Chosen in the settings
+  (`view_circle`: "shade", "bars" or "bars-open") and the menu. The
+  owner, on seeing it: "yes we are rotating around the same axis! ... Can
+  you try as if the background of the circle isn't transparent, but rather
+  opaque? And then try with transparent, just to see what it's like." —
+  both are kept as choices.
+- **The circle's picture: shaded round its centre** (the owner, with a
+  drawing kept as assets/references/terrain-circle-sun-top-right.png: "an
+  image that sorta shows what the circle's texture should look like when
+  the sun is off to the top right. Minus the lines that I drew through in
+  green, which are just to show you the boundaries of the sections of
+  color. And it should be a smoother gradient probably. Notice how the
+  bottom left area is darkest? and the top-right is brightest? This could
+  be a good way to render any color of surface like... water, for example,
+  with fewer bits stored in shared memory, which is slow to update, hence
+  why you need fewer of them being updated. But luckily we have soramech,
+  which handles all of them nicely."). The circle's shade goes by angle
+  round its centre, not by height: brightest in the direction it is turned
+  toward, falling off smoothly (as the cosine of the angle away) to darkest
+  opposite, each direction one shade from centre to rim — the drawing's
+  eight sections, blended. The turn is unchanged. Then: "the circles look
+  a little weird, can we instead have a gradient instead of the circle
+  thing we have? It should still spin, and the lit part should still point
+  toward the sun..." — so the circle is a plain gradient straight across,
+  dark edge to lit edge, turned as before.
+- **Two colours per sheen-point, and water turned by the engine** (the
+  owner, asked what colour a ripple's sun side and shade side are at
+  sunset: "facing the sun is light, away is dark. the color itself...
+  probably depends on the color of the scenery around. If it's bright, then
+  usually a brighter blue. If it's dark, or if the water is muddy, then
+  darker blue, with particulates adding their own color. One side of the
+  circle can be one color, and one side another color, it's arbitrary, but
+  should be recorded per circle." — and, asked whether moving surfaces
+  should live in the engine's shared memory: "yes but we just adjust the
+  rotation of the bloxels - no that's for cubes, we use "sheen-points" for
+  circles - we adjust the rotation to display a certain color."). Each
+  sheen-point records a sun-side colour and a shade-side colour, and its
+  circle blends from one to the other round its centre. A lake lies in the
+  test land: its sheen-points sit in the ceramic engine's shared memory,
+  and each step the engine's workers turn them by the passing waves and the
+  sun — the water is moved by turning its points, nothing else. The land's
+  points stay still and are handed to the graphics card once.
+- **The sun circles the origin** (the owner: "can we have the sun orbit
+  around the origin axis instead of... where is it rotating around now?").
+  It turned about the north-south line, like the real sun (rising in the
+  east, setting in the west, below the land at night); now it circles the
+  hub's upright axis once a day at a fixed height, its bearing the hour,
+  so every slope, facing any way, has its turn in the light.
+- **Figures stand up the screen** (the owner: "the units are leaning
+  toward us, when they should lean... "up", for lack of a better word" —
+  and "try using the new visualizer to visualize the perspective that
+  would be appropriate"; a see-in-3d model in mind/ shows world-upright
+  figures, seen by a camera looking down at 62 degrees, tipping their heads
+  toward the viewer, and screen-upright ones standing straight up the
+  picture). Under the arch view villagers and cuboids are drawn upright to
+  the screen, like sprites: their height straight up the picture, a little
+  of their front-to-back depth showing so they keep some volume, their
+  width across; their feet still on their rings.
+- **Facing the way they walk on screen** (the owner: "if they're walking
+  around a curve, right now it just looks like they're walking left/right.
+  But they should turn away from the camera if they're walking toward the
+  center, and turn toward the camera if they're walking toward the sides
+  of the screen / the edges of the radial mapgraph. Their models are
+  rendering at the correct orientation right now, but their actual
+  direction that they're walking toward needs to change. Can you try some
+  examples and I'll let you know when it looks right?"). Under the arch
+  view, a figure's heading is turned to its path on screen: its walk along
+  the ring follows the ring's curve (rising toward the apex, falling toward
+  the feet), so walking toward the middle it turns its back to the camera,
+  toward the sides it turns to face it. A setting `figure_facing_follow`
+  blends: 0 as before, 1 following the curve exactly; examples at 0, 0.5,
+  1 and 1.5 for the owner to choose.
+- **No snap as the sun passes behind** (the owner: "the colored spheres
+  "snap" to a new color everytime the sun rotates. that's not ideal.
+  instead, we should just reverse the rotation direction when the sun
+  passes directly behind us."). A circle's turn was its lean from the sun
+  times the side of the screen the sun was on, so when the sun crossed
+  behind the camera every circle flipped from one side to the other at
+  once. Now the turn is the angle whose sideways part is how far the sun
+  lies to the side of the circle's facing across the screen and whose
+  upward part is how squarely it faces the sun: as the sun passes behind,
+  the sideways part runs smoothly through nothing and the turn reverses
+  direction without a jump.
+- **D and the wheel: the spacing of the rings** (the owner: "can we make
+  it so that if we hold d and scroll, then it increases the "Y" distance
+  between each of the circle spheres? Remember, they're circle textures,
+  not spheres."). A third view dial: D held while scrolling spreads the
+  rings farther apart up the screen (or closer), a tenth a notch, while
+  the circles, villagers and cuboids keep their size — so the circles
+  overlap less or more. Shown on the console as D: SPACING.
+- **Haze**: far ground fades toward a hazy colour (hub camera only).
+- **Focus blur, in a ring**: "if you apply blurring ... apply it in a
+  semicircle around a radius zone" — sharp within a band of distance from the
+  hub, blurring nearer and farther; seen from the hub camera, ground at one
+  distance is an arc, so the sharp zone is a semicircle on screen. Optional: "if you have lots of visible
+  spaces, it can fake the tilt-shift without blurring."
+- **Standing**: villagers stand straight up on their own ground — "neither
+  leaning toward nor away". For comparison, a second way: leaning outward
+  from the hub (the owner wanted to see both).
+- **Compare everything**: the flat view and the ring perspective, blur on
+  and off, the two ways of standing — switched by painted buttons in the
+  settings menu, and set at start from input/game-settings.lua.
+
+## Suggested Implementation Steps
+
+1. The ring perspective as a mapping of each object's place (ground
+   distance -> screen distance and size), in the world shaders; flat view
+   kept as it is.
+2. Haze in the world shaders by perspective depth.
+3. The focus ring: a full-screen pass over the world picture, blurring by
+   distance from the focus radius.
+4. Standing modes in the unit and cuboid shaders.
+5. Settings: three words in the settings file; three buttons in the menu.
+6. Pictures of every combination in development-history/.
+7. The slant view: a third word for the view setting ("slant") and a reach
+   setting (world units from the hub, at the screen's bottom, to the top
+   edge); its projection in `003` (the far camera's tilt and the chair's
+   turn, no perspective, shifted so the hub is at the bottom row, zoomed so
+   the reach fills the height) with Lua and shader twins and the click ray;
+   a size law in the fold (`004`, shader twin, and the ceramic engine's twin
+   in `020` with a setter through `022`/`023`) so sizes and carried or
+   stacked heights stay full size while the slant view is on; the focus
+   ring's distance for slant pixels; the menu's view toggle cycles flat →
+   hub → slant; tests (hub at the bottom row, reach at the top, click round
+   trip, sizes kept); pictures.
+
+8. Walking on the sphere (the owner's answer to the first question below:
+   far figures should visibly move faster left-right, "closer / farther is
+   always just dense"). The haulers' steering in the ceramic engine measures
+   pace on the sphere instead of on the folded ground: a far pole setting
+   (the foes' pole, just past the tiers shown), a lap radius
+   (far pole / pi x sin(pi r / far pole), Lua and C twins), steering by
+   outward tiers and sideways sphere distance at a steady tiers-per-second
+   pace, reach and section arrival in tiers. The simulation is then the same
+   under every view (the size law only touches drawing). Tests: the twins
+   agree; sideways screen speed per step grows outward while outward screen
+   speed shrinks; cuboids still delivered.
+
+9. The arch view: a fourth view word ("arch") and a reach setting (world
+   units from the hub, on the arch's outer curve, to the top of the
+   screen); the camera learns the arch's size in pixels from the console;
+   in `003`, the warp (ground point -> ring by its folded radius, place on
+   the ring by its angle from the chair, foot to foot as the band does,
+   continuing down past the feet off screen), its inverse for clicks, and an
+   anchored projection for the shaders: a figure's or cuboid's anchor is
+   warped and its own shape is laid on the ring's local direction at one
+   scale; the ground mesh is warped point by point. The size law keeps full
+   size in this view too. The focus ring finds a pixel's ring by solving
+   for the scaled curve through it. Tests: tier 0 at the apex lands on the
+   arch's outer curve; a point at the quadrant's edge lands on the foot;
+   click round trip; a figure is as tall at the top as near the arch;
+   sideways screen distance per radian grows outward.
+
+10. Magic circles: a span setting (degrees foot to foot); the warp's
+    angle is measured from the chair and laid as span (no neighbour-arch
+    families); the world is drawn once per winding (the same ground offset
+    by whole turns) so spans past 360 show it more than once; the ground
+    mesh keeps its own unbroken angles so no ground piece ever straddles a
+    wrap; ground beyond the span's feet is sent below the screen. Tests:
+    the span's ends land on the feet; with a span past 360 one ground point
+    appears at two places; click round trip. Pictures at several spans.
+
+11. The view dials: wheel with A held changes the reach, with S held the
+    span, each a tenth per notch within limits; the camera's arch scales
+    recomputed from the reach; two dials and their engraved keys on the
+    console; a scripted "wheel with a key held" option for pictures; tests
+    of the limits and that a farther reach makes far rings tighter.
+
+12. Painted terrain: seeding the splotches (`007`: place by tier distance
+    and angle, size, colour from an earthy palette, from the seed; count
+    from `terrain_splotch_count` in the settings, 0 for none); drawing them
+    (`013`: one instanced disc, anchored like figures so the arch view lays
+    it on its ring, tipped toward the camera and domed, shaded bright to
+    dark across by the hour); tests that the seeding is the same for the
+    same seed and spread evenly by tier; pictures at noon, dusk, far and
+    near.
+
+13. Terrain as lit dots: a new terrain file (data: the grid of points by
+    ring, heights from seeded mesas, facings from the height's slope,
+    colours by height and slope) with its info file; the two-sided circular
+    picture in `012`; the sprite drawing in `013` (facing the camera,
+    turned toward the sun, depth by the point's distance so nearer covers
+    farther and hills hide what is behind); a ground word in the settings
+    ("dots" or "map") and a menu toggle; the splotches retired; tests: same
+    seed same terrain, spacing even along rings, a slope facing the
+    morning sun is lit then and not at evening; pictures at morning, noon
+    and evening.
+
+14. Sheen-points with two colours, and water: a sheen record of sixteen
+    numbers (005; place, height, lean; facing and whether the engine turns
+    it; sun-side colour and wave phase; shade-side colour), the same layout
+    the graphics card reads; the land's points (026) given two colours and
+    a seeded lake whose points are water; a third stage in the ceramic
+    engine (021 map, 020 box, 022/023 host) that turns each water point by
+    a sum of waves and the sun each step, still points copied; the
+    renderer drawing both the still land and the streamed water with one
+    shader, blending the two colours. Tests: the C water turn matches its
+    Lua twin; the stage gives the same water in any chunk order; a lake's
+    points are recorded as driven; same seed same lake.
+
+## Open questions
+
+- Facing (the owner's second description: "as they're walking toward the
+  center of the screen, from the left to the middle (facing right) they
+  should turn to their right. From the right, toward the middle, they
+  should turn left. Now if they're moving toward the edge of the screen,
+  they should turn toward the player slightly, moving left they turn left,
+  moving right they turn right."). The edge half matches what is built.
+  The middle half: built as turning away from the camera (a walker facing
+  right turns to its own left); "to their right", counted from the
+  walker's own body, would turn it toward the camera. Asked, with a
+  picture.
+- Which facing strength looks right: 0 (ground heading), 0.5, 1 (follows
+  the ring's curve on screen) or 1.5? Started at 1.
+
+- The circling sun never sets: at the dials' midnight the land stays sunlit
+  while figures, cuboids and console turn night-blue (picture 079). Should
+  the sun dip below the land for the night as it circles (lower in the
+  "night" half of its round), should the land take the dials' night colour
+  too, or should there be no night for the land at all?
+
+- The land's points are made once and handed to the graphics card whole,
+  so nothing about them is updated while running. A surface that moves,
+  like water, would turn its points every step: should those points live
+  in the ceramic engine's shared memory, turned there by its workers (the
+  owner: "luckily we have soramech, which handles all of them nicely")?
+
+- Answered: figures near the top should visibly move faster left-right;
+  toward and away stays dense (step 8). The owner: "otherwise we won't be
+  able to simulate the other kingdoms that our kingdom of 4 is fighting.
+  It's one across from each other on all four, but how else do you represent
+  that except two (or more) poles on a sphere? well, instead of the units
+  bending away from you, as if they were on the horizon sphere curving
+  away... but also not curving toward you, as if you were both inside of a
+  sphere's surface, but rather, just directly away, at the exact plane where
+  they are not bent one way or the other, rather, simply perfect to you."
+- Which span feels right? 450 shows three quadrants whole; 720 all four,
+  the one across from ours at both edges.
+- The arch view's figures are smaller than the slant view's (the whole
+  hub-to-edge distance fits in the half screen above the apex), and fewer
+  are on screen (mostly our own quadrant). Is that the right trade, or
+  should the arch view reach less far (bigger figures, fewer tiers in
+  view)?
+- The mesas are only seen: villagers walk the flat ground through them.
+  Should the terrain's heights become part of the world (walking up and
+  around hills, line of sight), and in which phase?
+- Where is the far pole? Built as one tier past the tiers shown (just
+  beyond the map's edge). Should it be at the edge itself, or further?
+- "Expand the longitude": built as showing from the hub out to the map's
+  edge (the reach setting). Did it also mean more tiers in the world (the
+  tiers shown setting, now 6)?
+
+- What does "neither leaning toward nor away" look like when a villager
+  stands at the left edge of the ring view? Built as: straight up in the
+  world, seen at the camera's slant.

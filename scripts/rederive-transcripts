@@ -33,6 +33,11 @@ CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
 
 # Where projects live. A project is anything holding an llm-transcripts folder.
 SEARCH_ROOTS=(/mnt/mtwo /mnt/cmdo /mnt/kaun)
+# TRANSCRIPT_SEARCH_ROOTS (space-separated folders) replaces them, for a
+# test's throwaway projects; the exporter's parser reads the same setting.
+if [ -n "${TRANSCRIPT_SEARCH_ROOTS:-}" ]; then
+   read -ra SEARCH_ROOTS <<< "$TRANSCRIPT_SEARCH_ROOTS"
+fi
 
 # Deep enough to reach the deepest project that exists, with room to spare.
 # At 6 this missed one project seven levels down - it had a surviving session
@@ -86,6 +91,17 @@ parse_arguments() {
 session_log_dir_for() {
    local project="$1"
    echo "${CLAUDE_SESSIONS_ROOT}/$(printf '%s' "$project" | sed 's/[^A-Za-z0-9]/-/g')"
+}
+# }}}
+
+# -- {{{ spelling_of_log(log_path)
+# The folder a session was started in, as the session spelled it: the first
+# "cwd" its log records. A session started through a link -- a shortcut such
+# as /mnt/mtwo/programs/claude-code standing for /mnt/mtwo/.claude/claude-code
+# -- is filed under the LINK's name, and the exporter, handed that spelling,
+# finds it (it tries the spelling as given before the resolved one).
+spelling_of_log() {
+   grep -o -m1 '"cwd":"[^"]*"' "$1" | sed 's/^"cwd":"//; s/"$//' || true
 }
 # }}}
 
@@ -152,7 +168,9 @@ load_surviving_log_ids() {
    while read -r path; do
       id="${path##*/}"
       id="${id%.jsonl}"
-      [ -n "$id" ] && SURVIVING_LOGS["$id"]=1
+      # The path, not just a mark: where a log is filed says which spelling
+      # of its folder the session was started under (see other_spellings).
+      [ -n "$id" ] && SURVIVING_LOGS["$id"]="$path"
    done < <(find "$CLAUDE_SESSIONS_ROOT" -name '*.jsonl' -type f)
 }
 # }}}
@@ -219,6 +237,14 @@ main() {
    local runnable=() barren=()
    local repairable=0 frozen=0 headerless=0 helpers_to_rename=0
    local project log_dir file verdict here_repairable
+   # Other spellings of a project's folder (issue 040). A transcript whose
+   # log is filed under a different folder name than the project's own was
+   # started through a link, and a sweep of the project's own name never
+   # reaches it: the archive re-dating session in the Claude Code folder sat
+   # unrebuilt this way. Each such spelling is swept too, once.
+   # project -> newline-separated spellings
+   local -A other_spellings=()
+   local id log_path spelling own_dir
 
    while read -r project; do
       [ -n "$project" ] || continue
@@ -237,6 +263,25 @@ main() {
          case "$verdict" in
             repairable) repairable=$((repairable + 1))
                         here_repairable=$((here_repairable + 1))
+                        # Two paths: the log is filed under the project's
+                        # own folder name (or inside it, a helper's), and the
+                        # sweep reaches it; or under another spelling, which
+                        # is remembered and swept as well.
+                        id=$(head -1 "$file" | sed -n 's/^# Conversation Summary:[[:space:]]*\([^[:space:]]*\).*/\1/p')
+                        log_path="${SURVIVING_LOGS[$id]}"
+                        own_dir=$(session_log_dir_for "$project")
+                        case "$log_path" in
+                           "$own_dir"/*) : ;;
+                           *) spelling=$(spelling_of_log "$log_path")
+                              if [ -n "$spelling" ] && [ -d "$spelling" ] \
+                                 && [ "$(realpath "$spelling")" = "$project" ] \
+                                 && [ "$spelling" != "$project" ]; then
+                                 case $'\n'"${other_spellings[$project]:-}"$'\n' in
+                                    *$'\n'"$spelling"$'\n'*) : ;;
+                                    *) other_spellings[$project]+="${other_spellings[$project]:+$'\n'}$spelling" ;;
+                                 esac
+                              fi ;;
+                        esac
                         # A helper still under a date-only name
                         # ("sep-22-26_agent-7.md") is renamed after its task by
                         # the exporter on --write (issue 025). Counted so the
@@ -272,6 +317,18 @@ main() {
    echo ""
    echo "Projects the exporter can be run on:                    ${#runnable[@]}"
    echo "Projects with no session logs at all:                   ${#barren[@]}"
+   local spelled=0
+   for project in "${!other_spellings[@]}"; do
+      while IFS= read -r spelling; do
+         [ -n "$spelling" ] && spelled=$((spelled + 1))
+      done <<< "${other_spellings[$project]}"
+   done
+   echo "Folders also swept under a link's spelling:             ${spelled}"
+   for project in "${!other_spellings[@]}"; do
+      while IFS= read -r spelling; do
+         [ -n "$spelling" ] && echo "  $project, as $spelling"
+      done <<< "${other_spellings[$project]}"
+   done
    echo ""
 
    if [ "$WRITE" != "true" ]; then
@@ -294,6 +351,12 @@ main() {
       echo "=== $project"
       "$EXPORTER" "$project" || echo "  (exporter reported a problem; continuing)"
       rebuilt=$((rebuilt + 1))
+      # The same folder under the other spellings its sessions used.
+      while IFS= read -r spelling; do
+         [ -n "$spelling" ] || continue
+         echo "=== $project, as $spelling"
+         "$EXPORTER" "$spelling" || echo "  (exporter reported a problem; continuing)"
+      done <<< "${other_spellings[$project]:-}"
    done
 
    echo ""

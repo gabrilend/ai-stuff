@@ -26,10 +26,10 @@ The generated site has one fixed ordering per view:
   the least reachable spot on the site.
 - **Similar pages** are ordered most-similar-first. The order is read straight from
   the precomputed similarity-rankings cache (descending similarity score) by
-  `generate_similarity_ranked_list`.
+  the page worker, which turns it into a list with `ranked-page.ranked_list`.
 - **Different pages** are ordered most-different-first. The order is the precomputed
   maximum-diversity walk from the diversity cache (consecutive poems kept maximally
-  spread), read by `generate_maximum_diversity_sequence`.
+  spread), read the same way from the diversity cache.
 
 The explore page (`explore.html`, prose in `page-templates/explore.txt`) describes
 these orders as fixed facts: "chronological — read the collection in time order,
@@ -165,8 +165,8 @@ sentinel and error-on-unknown-marker behavior — issue 11-005) is the right too
    each page's within-chunk ascending order intact. Preserve existing page naming
    and the `index.html → 01.html` redirect.
 4. **`src/flat-html-generator.lua` — similar/different.** In the page-generation
-   path (`generate_page` / the callers `generate_similarity_ranked_list` and
-   `generate_maximum_diversity_sequence`), when `reverse` is set, re-sort the
+   path (the worker's list step, `ranked-page.ranked_list` then
+   `ranked-page.plan`), when `reverse` is set, re-sort the
    selected related list by post date before pagination — similar descending
    (latest first), different ascending (earliest first) — using the same date
    extraction the canonical chronological sort uses.
@@ -194,8 +194,9 @@ sentinel and error-on-unknown-marker behavior — issue 11-005) is the right too
   forwarding).
 - `src/flat-html-generator.lua` — `sort_poems_chronologically_by_dates`,
   `extract_post_date_from_poem`, `generate_chronological_index_with_navigation`,
-  `generate_similarity_ranked_list`, `generate_maximum_diversity_sequence`,
-  `generate_page`, `corpus_stats`, `generate_explore_page`.
+  `corpus_stats`, `generate_explore_page`, and the page worker.
+- `src/ranked-page.lua` — `ranked_list`, `plan` (the similar/different order
+  and pagination, Issue 8-058).
 - `src/wordcloud-generator.lua`, `src/generate-word-pages.lua` — must receive the
   flag for `#poem` link and ordering agreement.
 - `page-templates/explore.txt` + `scripts/sync-page-templates` + `src/page-template.lua`
