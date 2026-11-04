@@ -1,0 +1,513 @@
+<!doctype html>
+<!-- made by delta-version/scripts/project-timeline-page.lua (issue 067) from timeline.json and project-timeline-page.html on 2026-10-28, so the timeline can be redrawn and restyled in a browser -->
+<!--
+  project-timeline-page.html - the template for the interactive project
+  timeline. project-timeline-page.lua copies this file and puts the timeline
+  JSON where the TIMELINE_DATA marker sits, so the finished page opens straight
+  from disk with no server. Everything here draws; nothing here gathers.
+  The drawing rules match project-timeline-png.lua (same palette, same two
+  modes per axis), so a picture saved from this page and one painted by the
+  PNG drawer agree. Issue 067.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Timeline</title>
+<style>
+  :root {
+    --page: #0e1116; --panel: #161b22; --edge: #2a313c; --ink: #c8cdd6; --faint: #78808e;
+    --accent: #f0b429;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 14px/1.45 ui-monospace, "DejaVu Sans Mono", monospace; }
+  header { padding: 16px; border-bottom: 1px solid var(--edge); }
+  header h1 { margin: 0 0 4px; font-size: 18px; letter-spacing: 0.04em; }
+  header p { margin: 0; color: var(--faint); max-width: 80ch; }
+  .layout { display: grid; grid-template-columns: 300px 1fr; min-height: calc(100vh - 80px); }
+  @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+  aside { padding: 16px; border-right: 1px solid var(--edge); background: var(--panel); }
+  aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--faint);
+             margin: 18px 0 6px; }
+  aside h2:first-child { margin-top: 0; }
+  label { display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; }
+  label.range { display: grid; grid-template-columns: 1fr auto; }
+  label.range input { grid-column: 1 / -1; width: 100%; }
+  input[type=text], select { width: 100%; background: var(--page); color: var(--ink);
+                             border: 1px solid var(--edge); padding: 5px 6px; font: inherit; }
+  input[type=color] { width: 28px; height: 22px; border: 1px solid var(--edge); background: none; padding: 0; }
+  .segmented { display: flex; border: 1px solid var(--edge); }
+  .segmented button { flex: 1; background: none; color: var(--faint); border: 0; padding: 6px; font: inherit; cursor: pointer; }
+  .segmented button.on { background: var(--edge); color: var(--ink); }
+  button.action { width: 100%; margin-top: 6px; background: var(--edge); color: var(--ink); border: 0;
+                  padding: 8px; font: inherit; cursor: pointer; }
+  button.action:hover { background: #38414e; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;
+           padding: 12px 16px; border-bottom: 1px solid var(--edge); }
+  .stat { background: var(--panel); padding: 8px 10px; }
+  .stat b { display: block; font-size: 20px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--faint); font-size: 12px; }
+  main { min-width: 0; }
+  .scroller { overflow: auto; padding: 8px 16px 16px; }
+  canvas { display: block; image-rendering: pixelated; }
+  #tip { position: fixed; pointer-events: none; background: #000d; border: 1px solid var(--edge);
+         padding: 6px 8px; font-size: 12px; display: none; white-space: pre; z-index: 2; }
+  .note { color: var(--faint); font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PROJECT TIMELINE</h1>
+  <p>One column per project, left to right in the order they were born. Each bar rises from the
+     project's first day to today; lit bands are days it was worked on. Hover a bar for its days.</p>
+</header>
+<div class="layout">
+  <aside>
+    <h2>X axis — when it was born</h2>
+    <div class="segmented" data-option="x">
+      <button data-value="order">birth order</button><button data-value="time">birth date</button>
+    </div>
+    <h2>Y axis — its life</h2>
+    <div class="segmented" data-option="y">
+      <button data-value="age">days since birth</button><button data-value="calendar">calendar</button>
+    </div>
+
+    <h2>What lights a day</h2>
+    <label><input type="checkbox" data-source="commit" checked> commits <input type="color" data-colour="commit"></label>
+    <label><input type="checkbox" data-source="transcript" checked> conversations <input type="color" data-colour="transcript"></label>
+    <label><input type="checkbox" data-source="sweep" checked> sweeps <input type="color" data-colour="sweep"></label>
+    <label>both on one day <input type="color" data-colour="both"></label>
+    <label>dark bar <input type="color" data-colour="bar"></label>
+    <label>background <input type="color" data-colour="background"></label>
+
+    <h2>Which projects</h2>
+    <input type="text" id="filter" placeholder="name contains…">
+    <label class="range">lit days at least <output id="min-lit-out">0</output>
+      <input type="range" id="min-lit" min="0" max="60" value="0"></label>
+    <label>sort by
+      <select id="sort">
+        <option value="birth">birth</option>
+        <option value="name">name</option>
+        <option value="lit">most lit days</option>
+        <option value="last">most recently worked on</option>
+      </select></label>
+
+    <h2>Scale</h2>
+    <label class="range">pixels per day <output id="day-out">2</output>
+      <input type="range" id="day-pixels" min="1" max="6" value="2"></label>
+    <label class="range">column width <output id="column-out">12</output>
+      <input type="range" id="column" min="3" max="30" value="12"></label>
+    <label class="range">gap <output id="gap-out">3</output>
+      <input type="range" id="gap" min="0" max="12" value="3"></label>
+    <label class="range">calendar spacing (birth date mode) <output id="xday-out">3</output>
+      <input type="range" id="x-day-pixels" min="1" max="8" value="3"></label>
+    <label><input type="checkbox" id="names" checked> project names</label>
+
+    <h2>Out and in</h2>
+    <button class="action" id="save">save as PNG</button>
+    <button class="action" id="load-button">load other timeline JSON…</button>
+    <input type="file" id="load" accept=".json,application/json" hidden>
+    <p class="note">Any JSON in the gatherer's shape draws here: <code>today</code>, and
+      <code>projects[]</code> of <code>{name, first_day, commit_days[], transcript_days[], sweep_days[]}</code>,
+      days as YYYY-MM-DD.</p>
+    <p class="note" id="made-by"></p>
+  </aside>
+  <main>
+    <div class="stats" id="stats"></div>
+    <div class="scroller"><canvas id="chart"></canvas></div>
+  </main>
+</div>
+<div id="tip"></div>
+
+<script id="timeline-data" type="application/json">{
+  "made_by": "delta-version/scripts/project-timeline-gather.lua (issue 067): one pass of git log plus the dates in llm-transcripts file names, sorted into the census's projects, so the PNG drawer and HTML page have one source",
+  "generated": "2026-10-28T17:54:01",
+  "today": "2026-10-28",
+  "sweep_threshold": 8,
+  "commits_read": 2106,
+  "sweeps": 3,
+  "transcripts_read": 524,
+  "projects": [
+    { "name": "magic-rumble", "first_day": "2025-09-10", "commits": 1, "transcripts": 0, "sweeps": 1, "commit_days": ["2025-09-10"], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "console-demakes", "first_day": "2025-09-18", "commits": 2, "transcripts": 4, "sweeps": 1, "commit_days": ["2026-02-24"], "transcript_days": ["2025-09-18"], "sweep_days": ["2026-01-04"] },
+    { "name": "handheld-office", "first_day": "2025-09-22", "commits": 7, "transcripts": 9, "sweeps": 2, "commit_days": ["2025-09-22","2025-09-23","2026-09-22"], "transcript_days": ["2025-09-23"], "sweep_days": ["2025-12-29","2026-01-04"] },
+    { "name": "RPG-autobattler", "first_day": "2025-10-22", "commits": 38, "transcripts": 6, "sweeps": 1, "commit_days": ["2025-10-22","2025-12-18","2026-02-24"], "transcript_days": ["2025-10-22"], "sweep_days": ["2026-01-04"] },
+    { "name": "words-pdf", "first_day": "2025-10-24", "commits": 22, "transcripts": 17, "sweeps": 3, "commit_days": ["2025-12-22","2026-01-08","2026-01-17","2026-02-19","2026-02-24","2026-06-14","2026-06-18","2026-06-19","2026-06-22","2026-07-01","2026-08-11","2026-08-21","2026-08-22","2026-08-26","2026-08-27","2026-08-30","2026-08-31","2026-09-01","2026-09-09","2026-10-01"], "transcript_days": ["2025-10-24","2025-11-12","2025-11-16","2026-02-27","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22"], "sweep_days": ["2025-12-29","2026-01-04","2026-07-22"] },
+    { "name": "progress-ii", "first_day": "2025-10-29", "commits": 2, "transcripts": 2, "sweeps": 1, "commit_days": ["2025-12-01"], "transcript_days": ["2025-10-29"], "sweep_days": ["2026-01-04"] },
+    { "name": "risc-v-university", "first_day": "2025-11-05", "commits": 4, "transcripts": 1, "sweeps": 1, "commit_days": ["2025-11-06"], "transcript_days": ["2025-11-05"], "sweep_days": ["2026-01-04"] },
+    { "name": "adroit", "first_day": "2025-12-02", "commits": 1, "transcripts": 0, "sweeps": 1, "commit_days": ["2025-12-02"], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "delta-version", "first_day": "2025-12-10", "commits": 104, "transcripts": 42, "sweeps": 3, "commit_days": ["2025-12-16","2025-12-17","2025-12-18","2025-12-21","2025-12-22","2026-01-04","2026-01-05","2026-01-07","2026-01-08","2026-01-09","2026-02-09","2026-02-10","2026-02-17","2026-02-19","2026-02-23","2026-02-24","2026-07-23","2026-07-25","2026-09-14","2026-09-22","2026-09-29","2026-10-01","2026-10-10","2026-10-21"], "transcript_days": ["2025-12-10","2025-12-11","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-21","2026-07-23","2026-07-24","2026-07-25","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-10-10","2026-10-11"], "sweep_days": ["2025-12-29","2026-01-04","2026-07-22"] },
+    { "name": "scripts", "first_day": "2025-12-16", "commits": 217, "transcripts": 0, "sweeps": 2, "commit_days": ["2025-12-16","2025-12-17","2025-12-21","2025-12-22","2025-12-23","2025-12-26","2025-12-27","2025-12-29","2026-01-02","2026-01-04","2026-01-05","2026-01-09","2026-01-12","2026-01-17","2026-01-30","2026-02-19","2026-03-16","2026-03-18","2026-03-19","2026-03-23","2026-06-21","2026-07-23","2026-07-25","2026-08-04","2026-08-20","2026-08-28","2026-08-31","2026-09-08","2026-09-15","2026-09-16","2026-09-17","2026-09-21","2026-09-22","2026-09-23","2026-09-26","2026-10-01","2026-10-04","2026-10-05","2026-10-10","2026-10-18","2026-10-20","2026-10-21","2026-10-25"], "transcript_days": [], "sweep_days": ["2025-12-29","2026-07-22"] },
+    { "name": "world-edit-to-execute", "first_day": "2025-12-16", "commits": 382, "transcripts": 310, "sweeps": 2, "commit_days": ["2025-12-16","2025-12-17","2025-12-21","2025-12-22","2025-12-23","2025-12-26","2025-12-27","2025-12-29","2025-12-30","2025-12-31","2026-01-01","2026-01-02","2026-01-07","2026-01-08","2026-01-09","2026-02-17","2026-02-18","2026-08-04","2026-09-22","2026-09-23","2026-09-24","2026-09-25","2026-09-26","2026-09-29","2026-09-30","2026-10-01","2026-10-07"], "transcript_days": ["2026-01-07","2026-09-23","2026-09-24","2026-09-25","2026-09-26","2026-09-27","2026-09-28","2026-09-29","2026-10-07"], "sweep_days": ["2025-12-29","2026-01-04"] },
+    { "name": "neocities-modernization", "first_day": "2025-12-17", "commits": 526, "transcripts": 50, "sweeps": 3, "commit_days": ["2025-12-17","2025-12-18","2025-12-20","2025-12-21","2025-12-22","2025-12-23","2025-12-25","2026-01-04","2026-01-08","2026-01-09","2026-01-10","2026-01-11","2026-01-12","2026-01-17","2026-01-18","2026-01-21","2026-01-26","2026-01-28","2026-01-29","2026-01-30","2026-02-13","2026-02-15","2026-02-18","2026-02-19","2026-02-20","2026-02-21","2026-02-24","2026-03-18","2026-03-23","2026-03-25","2026-04-06","2026-04-07","2026-06-15","2026-06-19","2026-06-22","2026-06-23","2026-06-24","2026-06-26","2026-06-29","2026-06-30","2026-08-04","2026-08-07","2026-08-09","2026-08-23","2026-08-24","2026-09-09","2026-09-22","2026-09-23","2026-09-26","2026-09-29","2026-10-01","2026-10-04","2026-10-20","2026-10-21","2026-10-22","2026-10-23","2026-10-25"], "transcript_days": ["2026-05-27","2026-05-28","2026-06-15","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-24","2026-06-25","2026-06-26","2026-06-29","2026-06-30","2026-07-10","2026-07-19","2026-08-04","2026-08-07","2026-08-08","2026-08-09","2026-08-11","2026-08-23","2026-08-24","2026-09-09","2026-09-22","2026-09-23","2026-10-04","2026-10-07","2026-10-20","2026-10-21","2026-10-22","2026-10-23","2026-10-24","2026-10-25"], "sweep_days": ["2025-12-29","2026-01-04","2026-07-22"] },
+    { "name": "translation-layer-wow-chat-city-of-chat", "first_day": "2025-12-18", "commits": 6, "transcripts": 13, "sweeps": 2, "commit_days": ["2025-12-19","2025-12-20","2025-12-22","2025-12-30","2026-10-25"], "transcript_days": ["2025-12-18","2025-12-19","2025-12-20","2025-12-21","2025-12-25","2025-12-26"], "sweep_days": ["2025-12-29","2026-01-04"] },
+    { "name": "factory-war", "first_day": "2025-12-23", "commits": 1, "transcripts": 0, "sweeps": 1, "commit_days": ["2025-12-23"], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "ao3-source-code-import", "first_day": "2025-12-29", "commits": 2, "transcripts": 0, "sweeps": 2, "commit_days": ["2025-12-30","2026-10-25"], "transcript_days": [], "sweep_days": ["2025-12-29","2026-01-04"] },
+    { "name": "continual-co-operation", "first_day": "2025-12-29", "commits": 2, "transcripts": 0, "sweeps": 2, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": ["2025-12-29","2026-01-04"] },
+    { "name": "ruby-castle", "first_day": "2025-12-29", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2025-12-29"] },
+    { "name": "programming-project-analysis", "first_day": "2025-12-30", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2025-12-30"], "transcript_days": [], "sweep_days": [] },
+    { "name": "adventure-hero-quest-mega-max-ultra", "first_day": "2026-01-04", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "ai-playground", "first_day": "2026-01-04", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "dark-volcano", "first_day": "2026-01-04", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "healer-td", "first_day": "2026-01-04", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "resume-generation", "first_day": "2026-01-04", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "symbeline", "first_day": "2026-01-04", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-01-04"] },
+    { "name": "a-hat-in-dual-screen", "first_day": "2026-01-08", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-01-08"], "transcript_days": [], "sweep_days": [] },
+    { "name": "authorship-tool", "first_day": "2026-01-08", "commits": 4, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-01-08","2026-10-25"], "transcript_days": [], "sweep_days": [] },
+    { "name": "my-libs", "first_day": "2026-01-08", "commits": 16, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-01-08","2026-01-09","2026-01-10","2026-09-30","2026-10-04"], "transcript_days": [], "sweep_days": [] },
+    { "name": "dominions-modernization", "first_day": "2026-01-28", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-01-28"], "transcript_days": [], "sweep_days": [] },
+    { "name": "factor-IDE-2", "first_day": "2026-01-28", "commits": 2, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-01-28","2026-10-25"], "transcript_days": [], "sweep_days": [] },
+    { "name": "raleigh3", "first_day": "2026-01-28", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-01-28"], "transcript_days": [], "sweep_days": [] },
+    { "name": "lua-stories", "first_day": "2026-02-19", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-19"], "transcript_days": [], "sweep_days": [] },
+    { "name": "game-design/ai-fsm-concept", "first_day": "2026-02-24", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": [] },
+    { "name": "game-design/game-design-process", "first_day": "2026-02-24", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": [] },
+    { "name": "game-design/legion-dominions", "first_day": "2026-02-24", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": [] },
+    { "name": "game-design/mech-commander", "first_day": "2026-02-24", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": [] },
+    { "name": "game-design/playstyle-balance-theory", "first_day": "2026-02-24", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": [] },
+    { "name": "game-design/pyrrhic-victory", "first_day": "2026-02-24", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": [] },
+    { "name": "games/city-of-chat", "first_day": "2026-02-24", "commits": 3, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": [] },
+    { "name": "spatial-drones", "first_day": "2026-02-24", "commits": 1, "transcripts": 0, "sweeps": 1, "commit_days": ["2026-02-24"], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "ut2k4-symbeline-rumble", "first_day": "2026-03-13", "commits": 9, "transcripts": 1, "sweeps": 0, "commit_days": ["2026-03-13","2026-06-14"], "transcript_days": ["2026-06-14"], "sweep_days": [] },
+    { "name": "screen-record-stream", "first_day": "2026-03-27", "commits": 2, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-03-27","2026-08-04"], "transcript_days": [], "sweep_days": [] },
+    { "name": "games/3d-rts", "first_day": "2026-04-27", "commits": 24, "transcripts": 1, "sweeps": 1, "commit_days": ["2026-04-27","2026-04-28","2026-04-29","2026-05-01","2026-06-14","2026-09-22"], "transcript_days": ["2026-06-14"], "sweep_days": ["2026-07-22"] },
+    { "name": "apple-IIds", "first_day": "2026-05-19", "commits": 12, "transcripts": 2, "sweeps": 1, "commit_days": ["2026-05-19","2026-06-14"], "transcript_days": ["2026-05-21","2026-06-14"], "sweep_days": ["2026-07-22"] },
+    { "name": "soren-ds", "first_day": "2026-05-31", "commits": 94, "transcripts": 47, "sweeps": 1, "commit_days": ["2026-06-12","2026-06-14","2026-06-15","2026-06-16","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-25","2026-08-04","2026-08-12","2026-09-12","2026-09-26","2026-09-27","2026-09-29","2026-10-18"], "transcript_days": ["2026-05-31","2026-06-01","2026-06-11","2026-06-12","2026-06-14","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-19","2026-06-20","2026-06-21","2026-06-22","2026-06-23","2026-06-24","2026-06-25","2026-06-26","2026-06-27","2026-06-28","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-10","2026-07-11","2026-07-23","2026-07-24","2026-07-25","2026-07-27","2026-07-28","2026-08-09","2026-08-11","2026-08-12","2026-09-12","2026-09-26","2026-09-27"], "sweep_days": ["2026-07-22"] },
+    { "name": "games/first-person-spellcraft", "first_day": "2026-07-07", "commits": 7, "transcripts": 16, "sweeps": 1, "commit_days": ["2026-07-07","2026-07-21","2026-07-22"], "transcript_days": ["2026-07-07","2026-07-21","2026-07-22"], "sweep_days": ["2026-07-22"] },
+    { "name": "usb-c-universal-encoder", "first_day": "2026-07-14", "commits": 2, "transcripts": 2, "sweeps": 1, "commit_days": ["2026-07-14","2026-07-15"], "transcript_days": ["2026-07-14","2026-07-15"], "sweep_days": ["2026-07-22"] },
+    { "name": "filesystem-tapestry", "first_day": "2026-07-15", "commits": 0, "transcripts": 1, "sweeps": 1, "commit_days": [], "transcript_days": ["2026-07-15"], "sweep_days": ["2026-07-22"] },
+    { "name": "games/nazi-heaven", "first_day": "2026-07-22", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "games/physics-sim", "first_day": "2026-07-22", "commits": 2, "transcripts": 0, "sweeps": 1, "commit_days": ["2026-10-21"], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "games/star-realms-tui", "first_day": "2026-07-22", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "intelligence-system", "first_day": "2026-07-22", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "math-solving-algorithm", "first_day": "2026-07-22", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "roms/symbeline-rumble", "first_day": "2026-07-22", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "runescape-too", "first_day": "2026-07-22", "commits": 0, "transcripts": 0, "sweeps": 1, "commit_days": [], "transcript_days": [], "sweep_days": ["2026-07-22"] },
+    { "name": "gif-generator", "first_day": "2026-07-23", "commits": 28, "transcripts": 3, "sweeps": 0, "commit_days": ["2026-07-23","2026-07-24","2026-07-25","2026-08-25","2026-10-01","2026-10-21"], "transcript_days": ["2026-07-23","2026-07-24","2026-07-25"], "sweep_days": [] },
+    { "name": "backwards-reader", "first_day": "2026-07-29", "commits": 2, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-07-29","2026-08-03"], "transcript_days": [], "sweep_days": [] },
+    { "name": "every-software-image-able", "first_day": "2026-07-30", "commits": 121, "transcripts": 18, "sweeps": 0, "commit_days": ["2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-07","2026-08-09","2026-08-21","2026-08-22","2026-08-31","2026-09-11"], "transcript_days": ["2026-07-30","2026-07-31","2026-08-01","2026-08-02","2026-08-03","2026-08-04","2026-08-07","2026-08-08","2026-08-21","2026-08-22","2026-08-27","2026-08-31","2026-09-10","2026-09-21"], "sweep_days": [] },
+    { "name": "3d-generation-multiplayer-server", "first_day": "2026-07-31", "commits": 5, "transcripts": 2, "sweeps": 0, "commit_days": ["2026-07-31","2026-08-01"], "transcript_days": ["2026-07-31","2026-08-01"], "sweep_days": [] },
+    { "name": "dominions-interpreter", "first_day": "2026-07-31", "commits": 1, "transcripts": 3, "sweeps": 0, "commit_days": ["2026-07-31"], "transcript_days": ["2026-07-31","2026-08-01","2026-08-02"], "sweep_days": [] },
+    { "name": "ceramic-corporation", "first_day": "2026-08-04", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-08-04"], "transcript_days": [], "sweep_days": [] },
+    { "name": "mGBA-link-cable-support", "first_day": "2026-08-09", "commits": 1, "transcripts": 1, "sweeps": 0, "commit_days": ["2026-08-10"], "transcript_days": ["2026-08-09"], "sweep_days": [] },
+    { "name": "xonotic-turning-radius", "first_day": "2026-08-09", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-08-09"], "transcript_days": [], "sweep_days": [] },
+    { "name": "hero-less-moba", "first_day": "2026-08-24", "commits": 63, "transcripts": 13, "sweeps": 0, "commit_days": ["2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-31","2026-09-14","2026-09-15","2026-09-22"], "transcript_days": ["2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-31","2026-09-01","2026-09-02","2026-09-14","2026-09-15"], "sweep_days": [] },
+    { "name": "kanji-learning-image-generator", "first_day": "2026-08-25", "commits": 38, "transcripts": 6, "sweeps": 0, "commit_days": ["2026-08-25","2026-08-26","2026-10-05","2026-10-06"], "transcript_days": ["2026-08-25","2026-08-26","2026-10-04","2026-10-05","2026-10-06"], "sweep_days": [] },
+    { "name": "my-own-custom-vtt", "first_day": "2026-08-25", "commits": 30, "transcripts": 4, "sweeps": 0, "commit_days": ["2026-08-25","2026-08-26","2026-08-28"], "transcript_days": ["2026-08-25","2026-08-26","2026-08-27","2026-08-28"], "sweep_days": [] },
+    { "name": "six-sided-dice-layer-cake", "first_day": "2026-08-25", "commits": 35, "transcripts": 7, "sweeps": 0, "commit_days": ["2026-08-25","2026-08-26","2026-08-27","2026-08-28"], "transcript_days": ["2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31"], "sweep_days": [] },
+    { "name": "games/enheim-tome", "first_day": "2026-08-27", "commits": 12, "transcripts": 8, "sweeps": 0, "commit_days": ["2026-08-28","2026-08-31","2026-09-01"], "transcript_days": ["2026-08-27","2026-08-28","2026-08-29","2026-08-30","2026-08-31","2026-09-01"], "sweep_days": [] },
+    { "name": "jurassic-maze", "first_day": "2026-08-31", "commits": 13, "transcripts": 4, "sweeps": 0, "commit_days": ["2026-08-31","2026-09-01"], "transcript_days": ["2026-08-31","2026-09-01"], "sweep_days": [] },
+    { "name": "graphene-factory", "first_day": "2026-09-01", "commits": 1, "transcripts": 2, "sweeps": 0, "commit_days": ["2026-09-02"], "transcript_days": ["2026-09-01"], "sweep_days": [] },
+    { "name": "ssh-view-only-viewer-script", "first_day": "2026-09-01", "commits": 3, "transcripts": 2, "sweeps": 0, "commit_days": ["2026-09-02"], "transcript_days": ["2026-09-01","2026-09-02"], "sweep_days": [] },
+    { "name": "progress-reports", "first_day": "2026-09-07", "commits": 3, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-09-07","2026-09-22"], "transcript_days": [], "sweep_days": [] },
+    { "name": "jrpg-swarm", "first_day": "2026-09-12", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-09-12"], "transcript_days": [], "sweep_days": [] },
+    { "name": "supcom-derivative-clone", "first_day": "2026-09-12", "commits": 3, "transcripts": 8, "sweeps": 0, "commit_days": ["2026-09-13","2026-09-14"], "transcript_days": ["2026-09-12","2026-09-13"], "sweep_days": [] },
+    { "name": "wow-reports", "first_day": "2026-09-12", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-09-12"], "transcript_days": [], "sweep_days": [] },
+    { "name": "burner-of-down-things", "first_day": "2026-09-26", "commits": 21, "transcripts": 9, "sweeps": 0, "commit_days": ["2026-09-26","2026-09-27","2026-09-29"], "transcript_days": ["2026-09-26","2026-09-27","2026-09-28","2026-09-29"], "sweep_days": [] },
+    { "name": "ruby-forge", "first_day": "2026-09-29", "commits": 1, "transcripts": 0, "sweeps": 0, "commit_days": ["2026-09-29"], "transcript_days": [], "sweep_days": [] },
+    { "name": "quantity-reception-optimizer", "first_day": "2026-10-04", "commits": 0, "transcripts": 1, "sweeps": 0, "commit_days": [], "transcript_days": ["2026-10-04"], "sweep_days": [] },
+    { "name": "symbeline-realms", "first_day": "2026-10-04", "commits": 0, "transcripts": 1, "sweeps": 0, "commit_days": [], "transcript_days": ["2026-10-04"], "sweep_days": [] },
+    { "name": "centered-ui-design", "first_day": "2026-10-10", "commits": 29, "transcripts": 2, "sweeps": 0, "commit_days": ["2026-10-10","2026-10-11"], "transcript_days": ["2026-10-10","2026-10-11"], "sweep_days": [] },
+    { "name": "poor-person-google-glass", "first_day": "2026-10-10", "commits": 10, "transcripts": 2, "sweeps": 0, "commit_days": ["2026-10-10","2026-10-11"], "transcript_days": ["2026-10-10","2026-10-11"], "sweep_days": [] },
+    { "name": "games/malazan-army-on-the-move-web-game-toon", "first_day": "2026-10-14", "commits": 0, "transcripts": 1, "sweeps": 0, "commit_days": [], "transcript_days": ["2026-10-14"], "sweep_days": [] },
+    { "name": "git-status-viewer", "first_day": "2026-10-21", "commits": 0, "transcripts": 1, "sweeps": 0, "commit_days": [], "transcript_days": ["2026-10-21"], "sweep_days": [] },
+    { "name": "guide-feature", "first_day": "2026-10-21", "commits": 3, "transcripts": 2, "sweeps": 0, "commit_days": ["2026-10-21"], "transcript_days": ["2026-10-21","2026-10-22"], "sweep_days": [] },
+    { "name": "ai-movie-generator", "first_day": "2026-10-28", "commits": 1, "transcripts": 1, "sweeps": 0, "commit_days": ["2026-10-28"], "transcript_days": ["2026-10-28"], "sweep_days": [] },
+    { "name": "distant-computer", "first_day": "2026-10-28", "commits": 2, "transcripts": 1, "sweeps": 0, "commit_days": ["2026-10-28"], "transcript_days": ["2026-10-28"], "sweep_days": [] }
+  ],
+  "undated": ["RGPL-license-development", "cloudtop-contest", "console-demakes-2", "factorIDE", "games/galactic-battlegrounds", "games/gameboy-color-rpg", "games/wow-chat-2", "links-awakening", "llm-http", "magicka-forge-guide", "picture-generator", "project-orchestration", "shanna-lib", "symbeline-2", "symbeline-realms/subprojects/android-screen-filter", "video-transcription"],
+  "unparsed_transcripts": ["RPG-autobattler/llm-transcripts/robot-analytics.md", "RPG-autobattler/llm-transcripts/wordcloud.md", "ai-movie-generator/llm-transcripts/README", "authorship-tool/llm-transcripts/robot-analytics.md", "centered-ui-design/llm-transcripts/README", "console-demakes/llm-transcripts/project_evolution_summary.md", "console-demakes/llm-transcripts/robot-analytics.md", "console-demakes/llm-transcripts/wordcloud.md", "delta-version/llm-transcripts/FULL-TRANSCRIPT-EXPORT.md", "games/enheim-tome/llm-transcripts/.gitkeep", "git-status-viewer/llm-transcripts/README", "guide-feature/llm-transcripts/README", "handheld-office/llm-transcripts/25c344af-0a9b-49e9-8c36-a6fe8637fbb9-v3-verbose.md", "handheld-office/llm-transcripts/25c344af-0a9b-49e9-8c36-a6fe8637fbb9-v4-complete.md", "handheld-office/llm-transcripts/25c344af-0a9b-49e9-8c36-a6fe8637fbb9-v5-raw.md", "handheld-office/llm-transcripts/32209423-76ed-444e-bf88-901d8e221555-v3-verbose.md", "handheld-office/llm-transcripts/32209423-76ed-444e-bf88-901d8e221555-v4-complete.md", "handheld-office/llm-transcripts/32209423-76ed-444e-bf88-901d8e221555-v5-raw.md", "handheld-office/llm-transcripts/71b05723-b2ce-4d40-a5d5-025fc40120d4-v3-verbose.md", "handheld-office/llm-transcripts/71b05723-b2ce-4d40-a5d5-025fc40120d4-v4-complete.md", "handheld-office/llm-transcripts/71b05723-b2ce-4d40-a5d5-025fc40120d4-v5-raw.md", "handheld-office/llm-transcripts/75bf94d9-205f-462d-8b84-0499b433a151-v3-verbose.md", "handheld-office/llm-transcripts/75bf94d9-205f-462d-8b84-0499b433a151-v4-complete.md", "handheld-office/llm-transcripts/75bf94d9-205f-462d-8b84-0499b433a151-v5-raw.md", "handheld-office/llm-transcripts/77bfc1ce-516b-49cf-b30b-2393c0916dde-v3-verbose.md", "handheld-office/llm-transcripts/77bfc1ce-516b-49cf-b30b-2393c0916dde-v4-complete.md", "handheld-office/llm-transcripts/77bfc1ce-516b-49cf-b30b-2393c0916dde-v5-raw.md", "handheld-office/llm-transcripts/95646665-746b-4532-9520-c823be64545d-v3-verbose.md", "handheld-office/llm-transcripts/95646665-746b-4532-9520-c823be64545d-v4-complete.md", "handheld-office/llm-transcripts/95646665-746b-4532-9520-c823be64545d-v5-raw.md", "handheld-office/llm-transcripts/b15647f2-88c1-44eb-83a3-98516d212595-v3-verbose.md", "handheld-office/llm-transcripts/b15647f2-88c1-44eb-83a3-98516d212595-v4-complete.md", "handheld-office/llm-transcripts/b15647f2-88c1-44eb-83a3-98516d212595-v5-raw.md", "handheld-office/llm-transcripts/c0567703-78b6-4ae1-91d8-f7d3200fc624-v3-verbose.md", "handheld-office/llm-transcripts/c0567703-78b6-4ae1-91d8-f7d3200fc624-v4-complete.md", "handheld-office/llm-transcripts/c0567703-78b6-4ae1-91d8-f7d3200fc624-v5-raw.md", "handheld-office/llm-transcripts/fb7c2711-bcc7-4834-9470-25249802b7a5-v3-verbose.md", "handheld-office/llm-transcripts/fb7c2711-bcc7-4834-9470-25249802b7a5-v4-complete.md", "handheld-office/llm-transcripts/fb7c2711-bcc7-4834-9470-25249802b7a5-v5-raw.md", "handheld-office/llm-transcripts/robot-analytics.md", "handheld-office/llm-transcripts/wordcloud.md", "neocities-modernization/llm-transcripts/robot-analytics.md", "neocities-modernization/llm-transcripts/tragedy.md", "poor-person-google-glass/llm-transcripts/README", "progress-ii/llm-transcripts/robot-analytics.md", "progress-ii/llm-transcripts/wordcloud.md", "quantity-reception-optimizer/llm-transcripts/README", "risc-v-university/llm-transcripts/robot-analytics.md", "risc-v-university/llm-transcripts/v1-compact.md", "risc-v-university/llm-transcripts/v1-compact.md.bak", "risc-v-university/llm-transcripts/v2-standard.md", "risc-v-university/llm-transcripts/v2-standard.md.bak", "risc-v-university/llm-transcripts/v3-verbose.md", "risc-v-university/llm-transcripts/v3-verbose.md.bak", "risc-v-university/llm-transcripts/v4-complete.md", "risc-v-university/llm-transcripts/v4-complete.md.bak", "risc-v-university/llm-transcripts/v5-raw.md", "risc-v-university/llm-transcripts/v5-raw.md.bak", "risc-v-university/llm-transcripts/wordcloud.md", "ruby-forge/llm-transcripts/README", "supcom-derivative-clone/llm-transcripts/.gitkeep", "translation-layer-wow-chat-city-of-chat/llm-transcripts/robot-analytics.md", "translation-layer-wow-chat-city-of-chat/llm-transcripts/wordcloud.md", "words-pdf/llm-transcripts/robot-analytics.md", "words-pdf/llm-transcripts/wordcloud.md", "world-edit-to-execute/llm-transcripts/robot-analytics.md", "world-edit-to-execute/llm-transcripts/wordcloud.md"]
+}
+</script>
+<script>
+"use strict";
+// The page's state: the data being drawn, and every choice in the side panel.
+let data = JSON.parse(document.getElementById("timeline-data").textContent);
+const options = {
+  x: "order", y: "age", sources: { commit: true, transcript: true, sweep: true },
+  dayPixels: 2, column: 12, gap: 3, xDayPixels: 3, names: true,
+  filter: "", minLit: 0, sort: "birth",
+};
+// same colours as the PNG drawer's palette
+const colours = {
+  background: "#0e1116", bar: "#222936", grid: "#1a1f28", axis: "#5a6270",
+  text: "#c8cdd6", faint: "#78808e",
+  commit: "#f0b429", transcript: "#4fc3f7", both: "#fff4d6", sweep: "#586070",
+};
+const DAY = 86400000;
+const canvas = document.getElementById("chart");
+const context = canvas.getContext("2d");
+let hitBoxes = [];   // [{x, y, w, h, project, bottom, top}] for hovering
+
+// "YYYY-MM-DD" to whole days since 1970 (UTC, so no daylight-saving drift)
+function dayNumber(text) { return Math.round(Date.parse(text + "T00:00:00Z") / DAY); }
+function dayText(number) { return new Date(number * DAY).toISOString().slice(0, 10); }
+
+// Turns the raw data into drawable projects under the current filter and
+// sort: each with its birth day number and a map from day offset to the set
+// of sources that lit it.
+function prepare() {
+  const today = dayNumber(data.today);
+  const wanted = options.sources;
+  let projects = data.projects.map(entry => {
+    const birth = dayNumber(entry.first_day);
+    const lit = new Map();
+    for (const source of ["commit", "transcript", "sweep"]) {
+      if (!wanted[source]) continue;
+      for (const day of entry[source + "_days"] || []) {
+        const offset = dayNumber(day) - birth;
+        if (!lit.has(offset)) lit.set(offset, new Set());
+        lit.get(offset).add(source);
+      }
+    }
+    const offsets = [...lit.keys()];
+    return { name: entry.name, birth, lit, litCount: lit.size,
+             last: offsets.length ? birth + Math.max(...offsets) : birth };
+  });
+  const needle = options.filter.toLowerCase();
+  projects = projects.filter(p => p.name.toLowerCase().includes(needle) && p.litCount >= options.minLit);
+  const sorters = {
+    birth: (a, b) => a.birth - b.birth || a.name.localeCompare(b.name),
+    name: (a, b) => a.name.localeCompare(b.name),
+    lit: (a, b) => b.litCount - a.litCount || a.birth - b.birth,
+    last: (a, b) => b.last - a.last || a.birth - b.birth,
+  };
+  projects.sort(sorters[options.sort]);
+  return { projects, today };
+}
+
+// Where each column stands; mirrors the PNG drawer's two X modes. Birth-date
+// mode only makes sense in birth order, so other sorts fall back to even
+// spacing there and say so in the X label.
+function placeColumns(projects, left, earliest) {
+  const stride = options.column + options.gap;
+  if (options.x === "time" && options.sort === "birth") {
+    let nextFree = left;
+    for (const p of projects) {
+      p.x = Math.max(left + (p.birth - earliest) * options.xDayPixels, nextFree);
+      nextFree = p.x + stride;
+    }
+    return "BIRTH DATE";
+  }
+  projects.forEach((p, i) => { p.x = left + i * stride; });
+  return options.x === "time" ? "BIRTH ORDER (birth date needs sort by birth)" : "BIRTH ORDER";
+}
+
+// Where a bar starts and ends, in days above the baseline; the two Y modes.
+const rowPlacers = {
+  age: (p, today) => [0, today - p.birth],
+  calendar: (p, today, earliest) => [p.birth - earliest, today - earliest],
+};
+
+function draw() {
+  const { projects, today } = prepare();
+  const earliest = projects.length ? Math.min(...projects.map(p => p.birth)) : today;
+  const spanDays = today - earliest;
+  const left = 90, top = 70;
+  const font = "11px ui-monospace, monospace";
+  context.font = font;
+  const longest = options.names ? Math.max(0, ...projects.map(p => context.measureText(p.name).width)) : 0;
+  const xWords = placeColumns(projects, left, earliest);
+  const plotRight = projects.length ? projects[projects.length - 1].x + options.column : left + 200;
+  const plotHeight = (spanDays + 1) * options.dayPixels;
+  const tickBand = 28;
+  const ratio = window.devicePixelRatio || 1;
+  const width = plotRight + 40, height = top + plotHeight + tickBand + longest + 20;
+  canvas.width = width * ratio; canvas.height = height * ratio;
+  canvas.style.width = width + "px"; canvas.style.height = height + "px";
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.font = font;
+  const baseline = top + plotHeight;
+  context.fillStyle = colours.background;
+  context.fillRect(0, 0, width, height);
+
+  // grid and Y labels
+  context.fillStyle = colours.faint;
+  context.textBaseline = "middle";
+  if (options.y === "age") {
+    for (let days = 0; days <= spanDays; days += 30) {
+      const row = baseline - (days + 1) * options.dayPixels;
+      context.fillStyle = colours.grid; context.fillRect(left - 6, row, plotRight - left + 6, 1);
+      if (days % 60 === 0) { context.fillStyle = colours.faint; context.fillText(days + " d", 10, row); }
+    }
+  } else {
+    for (let days = 0; days <= spanDays; days++) {
+      const date = dayText(earliest + days);
+      if (date.endsWith("-01")) {
+        const row = baseline - (days + 1) * options.dayPixels;
+        context.fillStyle = colours.grid; context.fillRect(left - 6, row, plotRight - left + 6, 1);
+        context.fillStyle = colours.faint; context.fillText(date.slice(0, 7), 10, row);
+      }
+    }
+  }
+
+  // bars and lit days
+  hitBoxes = [];
+  let litDays = 0, both = 0;
+  for (const p of projects) {
+    const [bottom, topDay] = rowPlacers[options.y](p, today, earliest);
+    const barTop = baseline - (topDay + 1) * options.dayPixels;
+    const barBottom = baseline - bottom * options.dayPixels;
+    context.fillStyle = colours.bar;
+    context.fillRect(p.x, barTop, options.column, barBottom - barTop);
+    hitBoxes.push({ x: p.x, y: barTop, w: options.column, h: barBottom - barTop, project: p, bottom });
+    for (const [offset, sources] of p.lit) {
+      // a day past "today" lies outside the bar
+      if (offset < 0 || bottom + offset > topDay) continue;
+      let colour = colours.sweep;
+      if (sources.has("commit") && sources.has("transcript")) { colour = colours.both; both++; }
+      else if (sources.has("commit")) colour = colours.commit;
+      else if (sources.has("transcript")) colour = colours.transcript;
+      context.fillStyle = colour;
+      context.fillRect(p.x, baseline - (bottom + offset + 1) * options.dayPixels, options.column, options.dayPixels);
+      litDays++;
+    }
+  }
+
+  // axis, month ticks under the first column born in each month, names
+  context.fillStyle = colours.axis;
+  context.fillRect(left - 6, baseline, plotRight - left + 6, 1);
+  let lastMonth = null, labelFree = 0;
+  context.textBaseline = "top";
+  for (const p of projects) {
+    const month = dayText(p.birth).slice(0, 7);
+    if (options.sort === "birth" && month !== lastMonth) {
+      context.fillStyle = colours.axis; context.fillRect(p.x, baseline + 1, 1, 6);
+      if (p.x >= labelFree) {
+        context.fillStyle = colours.faint; context.fillText(month, p.x, baseline + 9);
+        labelFree = p.x + context.measureText(month).width + 8;
+      }
+      lastMonth = month;
+    }
+  }
+  if (options.names) {
+    context.fillStyle = colours.text;
+    context.textBaseline = "middle";
+    context.textAlign = "right";
+    for (const p of projects) {
+      context.save();
+      context.translate(p.x + options.column / 2, baseline + tickBand);
+      context.rotate(-Math.PI / 2);
+      context.fillText(p.name, 0, 0);
+      context.restore();
+    }
+    context.textAlign = "left";
+  }
+
+  // title and legend, painted into the picture so a saved PNG explains itself
+  context.textBaseline = "top";
+  context.fillStyle = colours.text;
+  context.font = "bold 13px ui-monospace, monospace";
+  context.fillText(`PROJECT TIMELINE  ${dayText(earliest)} TO ${data.today}  ${projects.length} PROJECTS`, left, 12);
+  context.font = font;
+  context.fillStyle = colours.faint;
+  context.fillText(`X: ${xWords}   Y: ${options.y === "age" ? "DAYS SINCE BIRTH" : "CALENDAR"}`, left, 30);
+  let legendX = left;
+  const legend = [["commit", "commit"], ["transcript", "conversation"], ["both", "both"], ["sweep", "sweep"]];
+  for (const [key, word] of legend) {
+    const shown = key === "both" ? options.sources.commit && options.sources.transcript : options.sources[key];
+    if (!shown) continue;
+    context.fillStyle = colours[key]; context.fillRect(legendX, 48, 10, 10);
+    context.fillStyle = colours.faint; context.fillText(word, legendX + 14, 47);
+    legendX += 14 + context.measureText(word).width + 16;
+  }
+
+  showStats(projects, today, earliest, litDays, both);
+}
+
+function showStats(projects, today, earliest, litDays, both) {
+  const busiest = projects.reduce((best, p) => (!best || p.litCount > best.litCount ? p : best), null);
+  const cells = [
+    [projects.length, "projects drawn"],
+    [data.projects.length - projects.length, "filtered out"],
+    [today - earliest, "days spanned"],
+    [litDays, "lit project-days"],
+    [both, "days lit by both"],
+    [busiest ? busiest.litCount : 0, "most lit: " + (busiest ? busiest.name : "—")],
+    [data.sweeps ?? "—", "sweep commits (over " + (data.sweep_threshold ?? "?") + " projects)"],
+    [(data.undated || []).length, "undated projects (not drawn)"],
+  ];
+  document.getElementById("stats").innerHTML =
+    cells.map(([n, words]) => `<div class="stat"><b>${n}</b><span>${escapeHtml(String(words))}</span></div>`).join("");
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+// ---- controls ----
+for (const group of document.querySelectorAll(".segmented")) {
+  const key = group.dataset.option;
+  const sync = () => group.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.value === options[key]));
+  group.addEventListener("click", event => {
+    if (!event.target.dataset.value) return;
+    options[key] = event.target.dataset.value; sync(); draw();
+  });
+  sync();
+}
+for (const box of document.querySelectorAll("[data-source]")) {
+  box.addEventListener("change", () => { options.sources[box.dataset.source] = box.checked; draw(); });
+}
+for (const picker of document.querySelectorAll("[data-colour]")) {
+  picker.value = colours[picker.dataset.colour];
+  picker.addEventListener("input", () => { colours[picker.dataset.colour] = picker.value; draw(); });
+}
+// each slider: [element id, option key, readout id]
+const sliders = [["day-pixels", "dayPixels", "day-out"], ["column", "column", "column-out"],
+                 ["gap", "gap", "gap-out"], ["x-day-pixels", "xDayPixels", "xday-out"],
+                 ["min-lit", "minLit", "min-lit-out"]];
+for (const [id, key, out] of sliders) {
+  const input = document.getElementById(id);
+  input.addEventListener("input", () => {
+    options[key] = Number(input.value); document.getElementById(out).textContent = input.value; draw();
+  });
+}
+document.getElementById("filter").addEventListener("input", e => { options.filter = e.target.value; draw(); });
+document.getElementById("sort").addEventListener("change", e => { options.sort = e.target.value; draw(); });
+document.getElementById("names").addEventListener("change", e => { options.names = e.target.checked; draw(); });
+document.getElementById("save").addEventListener("click", () => {
+  const link = document.createElement("a");
+  link.download = `timeline-${options.x}-${options.y}.png`;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+});
+document.getElementById("load-button").addEventListener("click", () => document.getElementById("load").click());
+document.getElementById("load").addEventListener("change", async event => {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const loaded = JSON.parse(await file.text());
+    if (!Array.isArray(loaded.projects) || !loaded.today) throw new Error("needs today and projects[]");
+    data = loaded; showMadeBy(); draw();
+  } catch (problem) {
+    alert("That file is not timeline data: " + problem.message);
+  }
+});
+
+// hover: name, birth, lit days, and the date under the pointer
+const tip = document.getElementById("tip");
+canvas.addEventListener("mousemove", event => {
+  const box = canvas.getBoundingClientRect();
+  const x = event.clientX - box.left, y = event.clientY - box.top;
+  const hit = hitBoxes.find(h => x >= h.x && x < h.x + h.w && y >= h.y && y < h.y + h.h);
+  if (!hit) { tip.style.display = "none"; return; }
+  const p = hit.project;
+  const offset = Math.floor((hit.y + hit.h - y) / options.dayPixels);
+  const day = p.birth + offset;
+  const sources = p.lit.get(offset);
+  tip.textContent = `${p.name}\nborn ${dayText(p.birth)}  ·  ${p.litCount} lit days\n`
+    + `${dayText(day)}: ${sources ? [...sources].join(" + ") : "dark"}`;
+  tip.style.display = "block";
+  tip.style.left = (event.clientX + 14) + "px";
+  tip.style.top = (event.clientY + 14) + "px";
+});
+canvas.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+
+function showMadeBy() {
+  document.getElementById("made-by").textContent = data.made_by ? "Data: " + data.made_by : "";
+}
+showMadeBy();
+draw();
+</script>
+</body>
+</html>

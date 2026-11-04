@@ -169,3 +169,42 @@ otherwise impossible to compare.
 The UI format is emitted with the seed control set to *fixed* for the same
 reason. A workflow that arrives with *randomize* selected quietly stops being the
 picture that was tested the moment a human presses the button.
+
+## Three routes, and which kitchen runs which
+
+*Added 2026-10-04 (`415`, `416`).* "A run therefore checks nothing about them
+and cannot" above was true when there was no picture program to ask. There is
+now, and the runner asks: before the first picture of each route it reads the
+recipe's box types and model names and compares them with what the far end
+lists, naming every absence at once.
+
+A kitchen's settings name which **routes** it runs, and every character gets
+one picture per route, all from the same scene, style and seed:
+
+```
+                          scene (docs/004)
+                                │
+              ┌─────────────────┼──────────────────┐
+              ▼                 ▼                  ▼
+          illusion           inside             outside
+     field → control net   background first;   ink painted;
+     biases the whole      strokes laid in as   everything off the
+     drawing towards the   a flat tone, then    strokes drawn from
+     character's light     redrawn under the    noise; ink pasted
+     and dark              subjects sentence    back exactly
+              │                 │                  │
+     needs a control net   needs only core      needs only core
+                           masking boxes        masking boxes
+              │                 │                  │
+        graded by machine  graded by machine   graded by a person
+                                                only (docs/007 Q13)
+```
+
+The sentence for each route is one sentence-maker choosing clauses by kind
+(subject, object along a stroke, world, style), so the routes describe the same
+scene. The masks are cut from the same strokes as the field, so they are the
+same character in the same place.
+
+Inputs reach the picture program by upload, which is the same on this machine
+and on another. Which kitchen and which route drew a picture are part of its
+name in the pool.

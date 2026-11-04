@@ -49,6 +49,18 @@ plain line two rows down sat at 80 and stayed whole.
     breaking the address itself rather than truncating it, and re-opening an
     `<a href>` on every line so each piece stays clickable inside its box.
 
+- `wrap_file_header(prefix, path, width) -> array of strings`
+  - Splits a poem's source line (`" -> file: "` + `"notes/long-name"`) into
+    lines no wider than `width` (a number, visible characters), breaking only
+    at a dash (kept at the end of the upper line) or a slash (moved to the
+    start of the lower line). Continuation lines are indented under the path.
+  - A name with no usable dash or slash is cut at the width itself, never
+    inside a multi-byte character (owner, 2026-10-21: allow a hard break
+    rather than rename).
+  - Used by every page type: chronological, similar/different (both the
+    ` -> file:` header and the `--- #N path ---` ranking header), word pages
+    (plain and inside the golden box), and the text exports.
+
 - `slice_by_visible_width(str, width) -> chunk, rest`
   - Cuts a string after `width` visible columns. Walks one display unit at a
     time so the cut lands between characters, never inside one: a tag is

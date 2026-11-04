@@ -1,5 +1,12 @@
 # Hardware overview — Anbernic RG DS
 
+> **Not for sale.** Soren DS is a design and a prototype only. It will
+> not be sold, shipped or installed on any consumer device until every
+> layer of code beneath it can be read, built and replaced by us. On
+> the RG DS, closed Rockchip firmware runs below the kernel, and part
+> of it stays resident at a higher privilege level. See
+> `notes/safety/001-not-for-sale.md`.
+
 This is the answer to issue 101 — what is the device, chip by chip,
 peripheral by peripheral, with the level of detail every later
 phase will need. Each section ends in a list of *known unknowns*

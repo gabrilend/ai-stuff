@@ -45,7 +45,7 @@ end
 local function parse_args(args)
     local dir = nil
     local source_override = nil
-    local include_boosts = nil  -- nil means use config default
+    local include_boosts = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
     local i = 1
 
     while i <= #(args or {}) do
@@ -56,14 +56,10 @@ local function parse_args(args)
         elseif a == "--no-boosts" then
             include_boosts = false
             i = i + 1
-        elseif not a:match("^%-") then
-            -- Positional arguments: first is DIR, second is source override
-            if not dir then
-                dir = a
-            else
-                source_override = a
-            end
-            i = i + 1
+        elseif a == "--source" then
+            -- the source to read instead of the usual one (a temporary extraction)
+            source_override = args[i + 1]
+            i = i + 2
         else
             i = i + 1
         end
@@ -73,9 +69,12 @@ local function parse_args(args)
 end
 -- }}}
 
--- Get project directory and options from command line
-local parsed_dir, OVERRIDE_SOURCE, CLI_INCLUDE_BOOSTS = parse_args(arg)
-local DIR = setup_dir_path(parsed_dir)
+-- The project folder: --dir PATH, or the path above; the source override:
+-- --source PATH; a stray word stops the script (libs/project-dir.lua, Issue
+-- 10-076). Both used to be bare words, told apart by their order.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil), { ["--source"] = true })
+local _, OVERRIDE_SOURCE, CLI_INCLUDE_BOOSTS = parse_args(OWN_ARGS)
 
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path
@@ -120,7 +119,7 @@ end
 -- Issue 10-015a: Get fediverse path from unified sources config (no fallback - errors if not configured)
 local fediverse_directories = sources_loader.get_directories("fediverse")
 if #fediverse_directories == 0 then
-    print(COLOR_RED .. "❌ Error: sources.fediverse not configured in config.lua" .. COLOR_RESET)
+    require("output").print(COLOR_RED .. "❌ Error: sources.fediverse not configured in config.lua" .. COLOR_RESET)
     os.exit(1)
 end
 -- Use the primary directory from sources config
@@ -131,12 +130,21 @@ if fediverse_backup_path:sub(1, #DIR) == DIR then
 end
 
 -- Privacy configuration from unified config
--- CLI flags --include-boosts/--no-boosts override config value
+-- --include-boosts / --no-boosts decide; without either (Issue 10-065a) the
+-- person is asked, config.privacy.include_boosts offered as the default, --yes
+-- takes it with a notice, and under run.sh or with nobody at the keyboard it
+-- is an error. scripts/update always passes one of the two flags.
+local ask = require("ask-for-value")
 local function get_include_boosts()
-    if CLI_INCLUDE_BOOSTS ~= nil then
-        return CLI_INCLUDE_BOOSTS
-    end
-    return config.privacy.include_boosts or false
+    return ask.resolve({
+        flag = "--include-boosts / --no-boosts",
+        question = "Include reblogged (boosted) posts?",
+        kind = "yesno",
+        given = CLI_INCLUDE_BOOSTS,
+        default = config.privacy.include_boosts,
+        default_source = "config.lua privacy.include_boosts",
+        accept_defaults = ask.wants_defaults(arg),
+    })
 end
 
 -- {{{ local function load_boost_content_cache
@@ -167,34 +175,42 @@ local function load_boost_content_cache()
     boost_content_cache = data.entries
     local count = 0
     for _ in pairs(boost_content_cache) do count = count + 1 end
-    print("   📥 Loaded boost content cache: " .. count .. " entries")
+    require("output").print("   📥 Loaded boost content cache: " .. count .. " entries")
     return boost_content_cache
 end
 -- }}}
 
+-- every value from config.lua's privacy section; a missing one is an error
+-- (Issue 10-071). `x or true` cannot express a setting: it turned a
+-- configured false into true.
+local function privacy(key)
+    local value = config.privacy and config.privacy[key]
+    if value == nil then error("config.lua privacy." .. key .. " is missing") end
+    return value
+end
 local privacy_config = {
-    mode = config.privacy.mode or "clean",
-    anonymization_prefix = config.privacy.anonymization_prefix or "user-",
+    mode = privacy("mode"),
+    anonymization_prefix = privacy("anonymization_prefix"),
     include_boosts = get_include_boosts(),
-    preserve_original_length = config.privacy.preserve_original_length or true,
-    store_anonymization_map = config.privacy.store_anonymization_map or false,
-    local_server_domain = config.privacy.local_server_domain or "tech.lgbt",
+    preserve_original_length = privacy("preserve_original_length"),
+    store_anonymization_map = privacy("store_anonymization_map"),
+    local_server_domain = privacy("local_server_domain"),
     debug_anonymization = false  -- Debug flag, not in config
 }
 
 -- Log boost inclusion status
 if privacy_config.include_boosts then
-    print("📤 Including fediverse boosts in extraction (CLI flag or config)")
+    require("output").print("📤 Including fediverse boosts in extraction (CLI flag or config)")
 end
 
 -- Use override path if provided (for ZIP extraction), otherwise use configured path
 local source_base_path
 if OVERRIDE_SOURCE then
     source_base_path = OVERRIDE_SOURCE
-    print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using temporary extraction source: " .. relative_path(source_base_path))
 else
     source_base_path = DIR .. "/" .. fediverse_backup_path
-    print("🔄 Using configured source: " .. relative_path(source_base_path))
+    require("output").print("🔄 Using configured source: " .. relative_path(source_base_path))
 end
 
 -- Set up file paths - check if we're already in extract directory
@@ -207,12 +223,12 @@ end
 local save_location = DIR .. "/" .. fediverse_backup_path .. "/files"
 
 -- Load and parse ActivityPub data
-print("🔄 Loading ActivityPub data from: " .. relative_path(file))
+require("output").print("🔄 Loading ActivityPub data from: " .. relative_path(file))
 local opened_file = io.open(file, "r")
 if not opened_file then
     -- Issue 7-006: Full-line coloring for error messages
-    print(COLOR_RED .. "❌ Error: Could not open file " .. file .. COLOR_RESET)
-    print("   Make sure the file exists and is readable")
+    require("output").print(COLOR_RED .. "❌ Error: Could not open file " .. file .. COLOR_RESET)
+    require("output").print("   Make sure the file exists and is readable")
     os.exit(1)
 end
 
@@ -222,19 +238,19 @@ opened_file:close()
 local data = dkjson.decode(opened_file_string)
 if not data then
     -- Issue 7-006: Full-line coloring for error messages
-    print(COLOR_RED .. "❌ Error: Could not parse JSON data from " .. file .. COLOR_RESET)
+    require("output").print(COLOR_RED .. "❌ Error: Could not parse JSON data from " .. file .. COLOR_RESET)
     os.exit(1)
 end
 
 -- Issue 7-006: Full-line coloring for success messages
-print(COLOR_GREEN .. "✅ Loaded ActivityPub data: " .. (data.totalItems or #data.orderedItems) .. " activities" .. COLOR_RESET)
+require("output").print(COLOR_GREEN .. "✅ Loaded ActivityPub data: " .. (data.totalItems or #data.orderedItems) .. " activities" .. COLOR_RESET)
 
 -- Issue 6-031: Load poem exclusion filter
 -- Excluded poems leave gaps in the ID sequence (tombstoning) to preserve stable anchor links
 local poem_exclusions = exclusion_filter.load_default(DIR)
 if poem_exclusions:count() > 0 then
     -- Issue 7-006: Full-line coloring for info messages
-    print(COLOR_YELLOW .. "🚫 Exclusion filter loaded: " .. poem_exclusions:summary() .. COLOR_RESET)
+    require("output").print(COLOR_YELLOW .. "🚫 Exclusion filter loaded: " .. poem_exclusions:summary() .. COLOR_RESET)
 end
 
 -- Privacy system variables
@@ -576,8 +592,8 @@ local excluded_count = 0  -- Issue 6-031: Track excluded poems
 -- Boosts get their own sequential IDs starting from 0001, independent of fediverse posts
 local boost_id_counter = 1
 
-print("🔄 Processing activities with privacy mode: " .. privacy_config.mode)
-print("🔄 Include boosts: " .. tostring(privacy_config.include_boosts))
+require("output").print("🔄 Processing activities with privacy mode: " .. privacy_config.mode)
+require("output").print("🔄 Include boosts: " .. tostring(privacy_config.include_boosts))
 
 for key, activity in pairs(data.orderedItems) do
     local activity_type, content_object = categorize_activity(activity)
@@ -734,19 +750,19 @@ f:write(dkjson.encode(json_output, { indent = true }))
 f:close()
 
 -- Issue 7-006: Full-line coloring for success messages
-print(COLOR_GREEN .. "✅ Fediverse extraction complete" .. COLOR_RESET)
-print("   📄 Generated: " .. relative_path(json_file))
-print("   📊 Total posts processed: " .. #poems_json)
-print("   📝 Original posts: " .. original_count)
-print("   🔄 Boosted posts: " .. boost_count)
+require("output").print(COLOR_GREEN .. "✅ Fediverse extraction complete" .. COLOR_RESET)
+require("output").print("   📄 Generated: " .. relative_path(json_file))
+require("output").print("   📊 Total posts processed: " .. #poems_json)
+require("output").print("   📝 Original posts: " .. original_count)
+require("output").print("   🔄 Boosted posts: " .. boost_count)
 if excluded_count > 0 then
-    print("   🚫 Excluded posts: " .. excluded_count .. " (tombstoned)")
+    require("output").print("   🚫 Excluded posts: " .. excluded_count .. " (tombstoned)")
 end
-print("   🖼️  Attachments found: " .. attachment_count .. " in " .. posts_with_attachments .. " posts")
-print("   🚨 Content warnings: " .. #json_output.extraction_summary.content_warnings)
-print("   🔒 Privacy mode: " .. privacy_config.mode)
+require("output").print("   🖼️  Attachments found: " .. attachment_count .. " in " .. posts_with_attachments .. " posts")
+require("output").print("   🚨 Content warnings: " .. #json_output.extraction_summary.content_warnings)
+require("output").print("   🔒 Privacy mode: " .. privacy_config.mode)
 if privacy_config.mode == "clean" then
-    print("   🎭 Mentions anonymized: " .. user_counter - 1 .. " users")
+    require("output").print("   🎭 Mentions anonymized: " .. user_counter - 1 .. " users")
 end
 -- }}}
 

@@ -122,6 +122,23 @@ function gate.refuse(json, reason)
 end
 -- }}}
 
+-- {{{ function gate.allow()
+-- Prints a PreToolUse permission, the twin of gate.refuse(). "allow" skips
+-- Claude Code's own question (its folder boundary included); a deny rule in
+-- settings still wins over it. Only hooks that widen access on purpose use
+-- this (allow-own-ram-tiers).
+function gate.allow(json, reason)
+    io.stdout:write(json.encode({
+        hookSpecificOutput = {
+            hookEventName = "PreToolUse",
+            permissionDecision = "allow",
+            permissionDecisionReason = reason,
+        },
+    }), "\n")
+    os.exit(0)
+end
+-- }}}
+
 -- {{{ function gate.refuse_unless_token()
 -- The common ending: spend a token if the person left one, otherwise refuse.
 function gate.refuse_unless_token(json, token_path, reason)
