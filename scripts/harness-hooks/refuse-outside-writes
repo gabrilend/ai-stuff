@@ -1,0 +1,506 @@
+#!/usr/bin/env luajit
+--
+-- refuse-outside-writes
+--
+-- A gate that sits in front of every shell command Claude Code tries to run,
+-- and every Edit, Write, MultiEdit and NotebookEdit, and refuses the ones
+-- that would write to a file outside the folder the session is working in.
+-- (The file tools were added the same day as the shell: Claude Code's own
+-- question for a path outside the folder can be answered by the auto-mode
+-- classifier instead of the person, so it was no guard either. Reading
+-- outside the folder stays free.)
+--
+-- In plain terms: Claude Code checks its own file tools against the folders a
+-- session was started in, but a shell command is never checked that way. In
+-- auto mode a classifier reads the command and judges whether it looks risky,
+-- and a `sed -i` on some other project's file does not look risky. So agents
+-- edited files anywhere the account could reach, by shell, while the file
+-- tools stood guarded (issue 043). This gate reads the command the way a
+-- shell would, collects every place it writes -- redirections, and the
+-- destination words of the commands that write (sed -i, tee, cp, mv, rm, ...)
+-- -- and refuses when any of them lies outside:
+--
+--   - the session's own folder (the hook input's cwd),
+--   - that folder's two RAM rooms (libs/own-ram-tiers.lua, issue 042), and
+--   - the device files a command writes to without writing a file
+--     (/dev/null, /dev/stdout, /dev/stderr, /dev/tty, /dev/fd/N).
+--
+-- TWO TESTS, BOTH MUST PASS
+--
+-- This gate never answers "allow". An "allow" from a hook skips Claude
+-- Code's classifier, and the owner asked for both judgements: "we should
+-- design it so that it gets both tests. They should both be allow for it to
+-- succeed." So the gate refuses, or stays silent and the classifier judges
+-- as before. A command writing only into the project's own rooms is still
+-- judged by the classifier, because what it runs can do anything.
+--
+-- A PLACE IT CANNOT WORK OUT IS REFUSED
+--
+-- A target holding a variable is filled in from the variables the same line
+-- sets, then from this gate's environment (the session's shell shares it:
+-- $HOME and the like). A target that still holds a `$` or a backtick -- a
+-- variable set elsewhere, a command substitution -- is refused, with a
+-- sentence saying the gate cannot tell where it writes. Passing it would be
+-- exactly the unchecked write this gate exists to stop.
+--
+-- The person's way through is a one-time permission file, as for the other
+-- gates: `! touch /tmp/claude-allow-outside-write`. The next refused command
+-- spends it.
+--
+-- WHAT THIS IS NOT
+--
+-- Not a security boundary. It reads the command's text, so a program or
+-- script the command runs writes wherever it likes; `git -C` elsewhere,
+-- `xargs` feeding paths from standard input, aliases, functions, `source`
+-- and a script piped into a shell are not judged. The session it constrains
+-- can edit this file or create the token. An honour system with a witness.
+--
+-- Usage: refuse-outside-writes [token-path] [scripts-directory]
+
+local TOKEN = arg[1] or "/tmp/claude-allow-outside-write"
+local DIR = arg[2] or "/home/ritz/programming/ai-stuff/scripts"
+local GATE_NAME = "refuse-outside-writes"
+
+package.path = DIR .. "/libs/?.lua;" .. package.path
+local gate = require("hook-gate")
+local scan = require("shell-command-scan")
+local tiers = require("own-ram-tiers")
+local permits = require("outside-write-permits")
+
+-- Redirection operators that write to their target. `>&` writes only when
+-- its target is a file name, not a descriptor (2>&1) or `-` (close).
+local WRITING_REDIRECT = {
+    [">"] = true, [">>"] = true, [">|"] = true, ["<>"] = true,
+    ["&>"] = true, ["&>>"] = true, [">&"] = true,
+}
+
+-- Device files that take output without being files anyone keeps. Compared
+-- as written, before links are followed: /dev/stdout leads to a pipe whose
+-- name means nothing to realpath.
+local HARMLESS_DEVICE = {
+    ["/dev/null"] = true, ["/dev/stdout"] = true, ["/dev/stderr"] = true,
+    ["/dev/tty"] = true, ["/dev/zero"] = true,
+}
+
+-- {{{ local function split_arguments()
+-- A command's arguments (after its command word) as operands and options.
+-- `takes_value` names the options whose value is the next word (`-o FILE`);
+-- `--name=value` carries its own. Everything after `--` is an operand.
+-- Returns operands (list of strings) and options (map from option to its
+-- value, or true; a repeated option keeps its last value).
+local function split_arguments(words, takes_value)
+    takes_value = takes_value or {}
+    local operands, options = {}, {}
+    local k = 2
+    local only_operands = false
+    while k <= #words do
+        local w = words[k]
+        if only_operands or w == "-" or w:sub(1, 1) ~= "-" then
+            -- an operand (a lone `-` is standard input or output)
+            operands[#operands + 1] = w
+        elseif w == "--" then
+            -- the end of options
+            only_operands = true
+        elseif w:match("^%-%-[^=]+=") then
+            -- --name=value
+            local name, value = w:match("^(%-%-[^=]+)=(.*)$")
+            options[name] = value
+        elseif takes_value[w] then
+            -- an option whose value is the next word
+            options[w] = words[k + 1] or ""
+            k = k + 1
+        else
+            -- a flag, or a cluster of short flags (-rf)
+            options[w] = true
+        end
+        k = k + 1
+    end
+    return operands, options
+end
+-- }}}
+
+-- {{{ local function has_short_flag()
+-- True when any short-option cluster among the words holds `letter`
+-- (`-pi`, `-i.bak`, `-ni`), or the long form is present. `attached` names
+-- the options whose value is glued on (perl -Mstrict, -Idir): a cluster
+-- starting with one of them is a value, not flags, so its letters say nothing.
+local function has_short_flag(options, letter, long, attached)
+    attached = attached or {}
+    for name in pairs(options) do
+        local first = name:sub(2, 2)
+        -- a short cluster: one dash then letters, not an option with its value glued on
+        if name:match("^%-[^%-]") and not attached[first] and name:sub(2):find(letter, 1, true) then return true end
+        -- the long form, alone or with a value
+        if long and (name == long) then return true end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function destination()
+-- The destination of a copy-like command: the folder after -t /
+-- --target-directory, or the last operand when there are two or more.
+local function destination(words, takes_value)
+    takes_value = takes_value or {}
+    takes_value["-t"] = true
+    local operands, options = split_arguments(words, takes_value)
+    local target = options["-t"] or options["--target-directory"]
+    -- an explicit target folder names the destination
+    if type(target) == "string" then return { target }, operands end
+    -- otherwise the last operand, when there is a source before it
+    if #operands >= 2 then return { operands[#operands] }, operands end
+    return {}, operands
+end
+-- }}}
+
+-- Where each command writes: a table from command name to a reader of its
+-- effective words, returning a list of target words as written. A command
+-- not listed writes nothing this gate can see (its redirections are still
+-- read). Kept as a table rather than a chain of ifs, so adding a command is
+-- adding a row.
+local WRITES_OF = {}
+
+-- {{{ every operand is written
+-- These create, remove or change each file they are given.
+local function every_operand(takes_value)
+    return function(words)
+        local operands = split_arguments(words, takes_value)
+        return operands
+    end
+end
+WRITES_OF.tee      = every_operand()
+WRITES_OF.touch    = every_operand({ ["-r"] = true, ["-d"] = true, ["-t"] = true })
+WRITES_OF.mkdir    = every_operand({ ["-m"] = true })
+WRITES_OF.rm       = every_operand()
+WRITES_OF.rmdir    = every_operand()
+WRITES_OF.unlink   = every_operand()
+WRITES_OF.truncate = every_operand({ ["-s"] = true, ["-r"] = true })
+WRITES_OF.shred    = every_operand({ ["-n"] = true, ["-s"] = true })
+-- }}}
+
+-- {{{ every operand after the first
+-- The first operand is a mode or an owner, the rest are files (unless
+-- --reference names the mode, and then every operand is a file).
+local function after_first(words)
+    local operands, options = split_arguments(words)
+    -- --reference=FILE: no mode operand, every operand is a file
+    if options["--reference"] then return operands end
+    local files = {}
+    for k = 2, #operands do files[#files + 1] = operands[k] end
+    return files
+end
+WRITES_OF.chmod = after_first
+WRITES_OF.chown = after_first
+WRITES_OF.chgrp = after_first
+-- }}}
+
+-- {{{ copy-like: the destination is written
+WRITES_OF.cp      = function(words) return (destination(words, { ["-S"] = true })) end
+WRITES_OF.ln      = function(words) return (destination(words, { ["-S"] = true })) end
+WRITES_OF.install = function(words) return (destination(words, { ["-m"] = true, ["-o"] = true, ["-g"] = true, ["-S"] = true })) end
+WRITES_OF.rsync   = function(words)
+    local targets = destination(words, { ["-e"] = true })
+    -- host:path is another machine; not this gate's to judge
+    if targets[1] and targets[1]:match("^[^/]*:") then return {} end
+    return targets
+end
+-- mv removes its sources as well as writing its destination
+WRITES_OF.mv = function(words)
+    local targets, operands = destination(words, { ["-S"] = true })
+    local all = {}
+    for _, w in ipairs(operands) do all[#all + 1] = w end
+    -- with -t, the operands are all sources and the target is extra
+    if targets[1] and targets[1] ~= operands[#operands] then all[#all + 1] = targets[1] end
+    return all
+end
+-- }}}
+
+-- {{{ in-place editors: the files after the script
+-- sed -i / perl -i rewrite their files; without -i they only print.
+local function in_place_editor(script_options, attached)
+    return function(words)
+        local takes_value = {}
+        for _, o in ipairs(script_options) do takes_value[o] = true end
+        local operands, options = split_arguments(words, takes_value)
+        -- not in place: nothing written
+        if not has_short_flag(options, "i", "--in-place", attached) then return {} end
+        local script_given = false
+        for _, o in ipairs(script_options) do
+            if options[o] then script_given = true end
+        end
+        local files = {}
+        -- without -e/-f the first operand is the script, not a file
+        for k = script_given and 1 or 2, #operands do files[#files + 1] = operands[k] end
+        return files
+    end
+end
+WRITES_OF.sed  = in_place_editor({ "-e", "-f", "--expression", "--file", "-l" }, { e = true, f = true, l = true })
+WRITES_OF.perl = in_place_editor({ "-e", "-E", "-M", "-I" }, { e = true, E = true, M = true, I = true, m = true, x = true, d = true, D = true, C = true })
+-- }}}
+
+-- {{{ named output options
+WRITES_OF.dd = function(words)
+    for k = 2, #words do
+        local of = words[k]:match("^of=(.*)$")
+        -- of= names the output file
+        if of then return { of } end
+    end
+    return {}
+end
+WRITES_OF.curl = function(words)
+    local _, options = split_arguments(words, { ["-o"] = true, ["--output"] = true, ["--output-dir"] = true })
+    local out = {}
+    for _, o in ipairs({ "-o", "--output", "--output-dir" }) do
+        -- each output option names a place written
+        if type(options[o]) == "string" then out[#out + 1] = options[o] end
+    end
+    return out
+end
+WRITES_OF.wget = function(words)
+    local _, options = split_arguments(words, { ["-O"] = true, ["--output-document"] = true, ["-P"] = true, ["--directory-prefix"] = true })
+    local out = {}
+    for _, o in ipairs({ "-O", "--output-document", "-P", "--directory-prefix" }) do
+        if type(options[o]) == "string" then out[#out + 1] = options[o] end
+    end
+    return out
+end
+WRITES_OF.unzip = function(words)
+    local _, options = split_arguments(words, { ["-d"] = true })
+    -- -d names where it unpacks; without it, the session's folder
+    if type(options["-d"]) == "string" then return { options["-d"] } end
+    return {}
+end
+WRITES_OF.patch = function(words)
+    local operands, options = split_arguments(words, { ["-o"] = true, ["-i"] = true, ["-p"] = true, ["-d"] = true })
+    -- -o names a separate output; otherwise the first operand is patched
+    if type(options["-o"]) == "string" then return { options["-o"] } end
+    if type(options["-d"]) == "string" then return { options["-d"] } end
+    if operands[1] then return { operands[1] } end
+    return {}
+end
+-- tar writes the archive it creates (-f) or the folder it unpacks into (-C)
+WRITES_OF.tar = function(words)
+    local mode_word = words[2] or ""
+    local creating = mode_word:match("^%-?[^%-]*c") ~= nil or false
+    local extracting = mode_word:match("^%-?[^%-]*x") ~= nil or false
+    local file, folder
+    for k = 2, #words do
+        local w = words[k]
+        if w == "--create" then creating = true end
+        if w == "--extract" or w == "--get" then extracting = true end
+        if w == "-C" or w == "--directory" then folder = words[k + 1] end
+        if w:match("^%-%-directory=") then folder = w:match("=(.*)$") end
+        if w:match("^%-%-file=") then file = w:match("=(.*)$") end
+        if w == "-f" or w == "--file" then file = words[k + 1] end
+    end
+    -- old-style cluster (`czf out.tgz` / `-czf out.tgz`): f takes the next word
+    if not file and mode_word:match("^%-?[^%-]*f") then file = words[3] end
+    local out = {}
+    -- creating: the archive is written
+    if creating and file and file ~= "-" then out[#out + 1] = file end
+    -- extracting: the folder it unpacks into
+    if extracting and folder then out[#out + 1] = folder end
+    return out
+end
+-- find with -delete or -exec changes things under its starting points
+WRITES_OF.find = function(words)
+    local starts, acts = {}, false
+    for k = 2, #words do
+        local w = words[k]
+        if w == "-delete" or w == "-exec" or w == "-execdir" or w == "-ok" or w == "-okdir" then acts = true end
+    end
+    for k = 2, #words do
+        local w = words[k]
+        -- starting points come before the first expression word
+        if w:sub(1, 1) == "-" or w == "(" or w == "!" then break end
+        starts[#starts + 1] = w
+    end
+    -- only printing: nothing written
+    if not acts then return {} end
+    -- no starting point means the session's folder
+    if #starts == 0 then starts[1] = "." end
+    return starts
+end
+-- }}}
+
+-- {{{ local function fill_in()
+-- A target word with the variables the line sets and the environment's put
+-- in, and a leading ~ made the home folder. Returns the filled word, or nil
+-- when a `$` or backtick is left: a place this gate cannot work out.
+local function fill_in(word, known)
+    local w = scan.expand_known(word, known)
+    w = w:gsub("%${([%a_][%w_]*)}", function(name) return os.getenv(name) end)
+    w = w:gsub("%$([%a_][%w_]*)", function(name) return os.getenv(name) end)
+    if w == "~" then w = os.getenv("HOME") or w
+    elseif w:sub(1, 2) == "~/" then w = (os.getenv("HOME") or "~") .. w:sub(2) end
+    -- something still unexpanded: cannot be placed
+    if w:find("[%$`]") then return nil end
+    return w
+end
+-- }}}
+
+-- {{{ local function targets_of()
+-- Every place the line writes, as { written = word as typed, filled = word
+-- filled in or nil }.
+local function targets_of(command_text)
+    local commands = scan.all_commands(command_text)
+    local known = scan.assignments(commands)
+    local found = {}
+    for _, command in ipairs(commands) do
+        for _, red in ipairs(command.redirects) do
+            local is_descriptor = red.op == ">&" and (red.target:match("^%d+%-?$") or red.target == "-")
+            -- a writing redirection to a file (not 2>&1)
+            if WRITING_REDIRECT[red.op] and not is_descriptor then
+                found[#found + 1] = { written = red.target, filled = fill_in(red.target, known) }
+            end
+        end
+        local words = scan.effective_words(command)
+        local reader = words and WRITES_OF[scan.command_name(words[1])]
+        -- a command known to write: its target words
+        if reader then
+            for _, w in ipairs(reader(words)) do
+                found[#found + 1] = { written = w, filled = fill_in(w, known) }
+            end
+        end
+    end
+    return found
+end
+-- }}}
+
+-- {{{ local function is_allowed_place()
+-- True when a filled-in target lies in the session's folder, its rooms, its
+-- scratchpad, a folder the person allowed Always, or is a harmless device.
+-- Also gives the target's real place (nil for a device or one that cannot
+-- be placed), for the request a refusal files.
+local function is_allowed_place(filled, cwd, here, rooms, session_id)
+    -- devices compared as written (relative ones never name a device)
+    if HARMLESS_DEVICE[filled] or filled:match("^/dev/fd/%d+$") then return true end
+    local path = filled
+    -- a relative target is read from the session's folder, where it runs
+    if path:sub(1, 1) ~= "/" then path = cwd .. "/" .. path end
+    local place = tiers.real_place(path, false)
+    -- cannot be placed: not allowed
+    if not place then return false end
+    if tiers.is_inside(place, here) then return true, place end
+    for _, room in ipairs(rooms) do
+        if tiers.is_inside(place, room) then return true, place end
+    end
+    -- a file or folder the person answered Always for, for sessions in this
+    -- same project folder, or This session for this session
+    if permits.is_allowed(place, session_id, here) then return true, place end
+    -- this session's own Claude Code scratchpad, made yet or not: Claude
+    -- Code tells every session to use it, and merge-agent-scratchpad carries
+    -- it into the project's RAM room when the session ends (the owner's
+    -- design, 2026-10-20: "let the agents write to their default
+    -- directories, and then merge their stuff into the correct directory when
+    -- they finish completely"). Another session's is outside.
+    return tiers.is_in_claude_scratchpad(place, session_id), place
+end
+-- }}}
+
+-- {{{ local function file_tool_target()
+-- The file tools write to the one path their input names. Each reader gives
+-- that path as a target, or nothing when the field is missing. A path that
+-- is not absolute (relative, or starting with ~) is given as one that
+-- cannot be placed: Claude Code asks its file tools for absolute paths, and
+-- what it does with any other kind (read from which folder? ~ made the home
+-- folder or not?) is its business, not something this gate can know. The
+-- owner, 2026-10-20: "help guard against relative paths even when
+-- explicitly allowed".
+local function file_tool_target(field)
+    return function(input)
+        local tool_input = type(input.tool_input) == "table" and input.tool_input or {}
+        local path = tool_input[field]
+        -- no path given: nothing to judge
+        if type(path) ~= "string" or path == "" then return {} end
+        -- not absolute: cannot be placed for certain
+        if path:sub(1, 1) ~= "/" then return { { written = path, filled = nil } } end
+        return { { written = path, filled = path } }
+    end
+end
+-- }}}
+
+-- What each tool writes, by tool name. Bash is read as shell; the file tools
+-- name their path. Reading tools (Read, Glob, Grep) are not here: reading
+-- outside the folder is free. A tool not listed passes untouched.
+-- The file tools are judged here because Claude Code's own question for a
+-- path outside the folder can be answered by the auto-mode classifier rather
+-- than by the person (the owner's "yes", issue 043's second open question).
+local TARGETS_OF_TOOL = {
+    Bash         = function(input) return targets_of(gate.pending_command(GATE_NAME, input)) end,
+    Edit         = file_tool_target("file_path"),
+    Write        = file_tool_target("file_path"),
+    MultiEdit    = file_tool_target("file_path"),
+    NotebookEdit = file_tool_target("notebook_path"),
+}
+
+-- {{{ local function main()
+local function main()
+    local input, json = gate.read_input(GATE_NAME, DIR)
+
+    local reader = TARGETS_OF_TOOL[input.tool_name]
+    -- a tool that writes nothing: pass
+    if not reader then os.exit(0) end
+    local found = reader(input)
+    -- writes nothing this gate can see: the classifier alone judges
+    if #found == 0 then os.exit(0) end
+
+    local cwd = input.cwd
+    if type(cwd) ~= "string" or cwd:sub(1, 1) ~= "/" then
+        gate.warn_and_allow(GATE_NAME, "hook input has no absolute cwd, so the session's folder is unknown")
+    end
+    local here = tiers.real_place(cwd, true)
+    if not here then
+        gate.warn_and_allow(GATE_NAME, "the session's folder " .. cwd .. " cannot be found")
+    end
+    local rooms = tiers.rooms_of(cwd)
+
+    local outside, unknown, places = {}, {}, {}
+    for _, t in ipairs(found) do
+        local allowed, place = false, nil
+        if t.filled then allowed, place = is_allowed_place(t.filled, cwd, here, rooms, input.session_id) end
+        if not t.filled or (not allowed and not place) then
+            -- a target with something unexpanded in it, or one realpath
+            -- cannot place: nothing the person could be asked about
+            unknown[#unknown + 1] = t.written
+        elseif not allowed then
+            outside[#outside + 1] = t.written
+            places[#places + 1] = place
+        end
+    end
+    -- every place it writes is inside: say nothing, the classifier judges
+    if #outside == 0 and #unknown == 0 then os.exit(0) end
+    -- the person said Yes to exactly this (or more) for this session: the
+    -- grant is spent, and the classifier judges as usual
+    if #unknown == 0 and permits.spend_grant(json, input.session_id, places) then os.exit(0) end
+
+    local reason = "This " .. (input.tool_name == "Bash" and "command" or input.tool_name .. " call") .. " writes outside the folder this session is working in (" .. here .. ")"
+    if #rooms > 0 then reason = reason .. ", its RAM scratch space (" .. table.concat(rooms, ", ") .. ")" end
+    reason = reason .. ", or its own Claude Code scratchpad."
+    if #outside > 0 then reason = reason .. " Outside: " .. table.concat(outside, ", ") .. "." end
+    -- a place that cannot be pinned down is refused even with a permission
+    -- waiting, and the permission is kept: a permission is for a write the
+    -- person can see the destination of, and these have none to see
+    if #unknown > 0 then
+        reason = reason .. " This gate cannot tell where these point -- a relative or ~ path given to a file tool, a variable set outside the command, or a command substitution: " .. table.concat(unknown, ", ") .. ". Write the path out in full, as an absolute path; a waiting permission does not cover these, and was not spent."
+        gate.refuse(json, reason)
+    end
+    reason = reason .. " Files outside the session's folder belong to other work."
+    -- the person's own one-time permission, typed at the prompt, still counts
+    local spent = gate.spend_token(TOKEN)
+    if spent then os.exit(0) end
+    -- file a request, so the person can be asked Yes / Always / No; the
+    -- answer is read by answer-outside-write from what Claude Code records,
+    -- never from the agent
+    local request, err = permits.file_request(json, input.session_id, here, places)
+    if not request then
+        reason = reason .. " (A question for the user could not be filed: " .. tostring(err) .. ". They can allow one such write by typing: ! touch " .. TOKEN .. ")"
+        gate.refuse(json, reason)
+    end
+    reason = reason .. " If this write is genuinely needed, ask the user with the AskUserQuestion tool, using exactly this one question, word for word, with no answers filled in: " .. json.encode({ questions = request.questions })
+        .. " If they answer Yes, This time or Always, run the same write again unchanged. If they answer No, do not write there."
+    gate.refuse(json, reason)
+end
+-- }}}
+
+main()

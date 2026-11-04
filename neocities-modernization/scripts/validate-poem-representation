@@ -9,6 +9,8 @@
 --   ./scripts/validate-poem-representation [OPTIONS]
 --
 -- Options:
+--   --output PATH      the built site to check (default: the project's output/)
+--   --poems PATH       the poem list (default: the project's assets/poems.json)
 --   --fix              Regenerate missing pages (not implemented yet)
 --   --quiet            Only output errors and summary
 --   --json             Output results as JSON
@@ -26,10 +28,24 @@ if DIR then
 else
     DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 end
+-- The project folder: --dir PATH, or the folder found above; a stray word
+-- stops the script (libs/project-dir.lua, Issue 10-076). OWN_ARGS is every
+-- other word, for the two option readers below.
+local OWN_ARGS
+DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, DIR, { ["--output"] = true, ["--poems"] = true })
+
+-- the project's libraries (the logged print, the config loader)
+package.path = DIR .. "/libs/?.lua;" .. package.path
 
 -- Paths relative to project directory
 local POEMS_JSON = DIR .. "/assets/poems.json"
 local OUTPUT_DIR = DIR .. "/output"
+-- --output / --poems point it at another site or poem list (the test does)
+for i = 1, #OWN_ARGS do
+    if OWN_ARGS[i] == "--output" and OWN_ARGS[i + 1] then OUTPUT_DIR = OWN_ARGS[i + 1] end
+    if OWN_ARGS[i] == "--poems" and OWN_ARGS[i + 1] then POEMS_JSON = OWN_ARGS[i + 1] end
+end
 -- Issue 10-014: Migrated from input-sources.json to unified config.lua
 local CONFIG_FILE = DIR .. "/config.lua"
 -- }}}
@@ -132,17 +148,17 @@ end
 
 -- {{{ Get list of existing poem files
 local function get_existing_poem_indices(directory, prefix)
-    -- Find all files like similar/0001-01.html and extract the poem index
+    -- Find all files like similar/fediverse-2339-01.html and take the poem's
+    -- source key from the name (pages are named by key, Issue 8-019)
     local cmd = string.format('find "%s/%s" -type f -name "*-01.html" 2>/dev/null', directory, prefix)
     local handle = io.popen(cmd)
     if not handle then return {} end
 
     local indices = {}
     for line in handle:lines() do
-        -- Extract poem index from filename like "0001-01.html"
-        local index = line:match("/(%d+)%-01%.html$")
-        if index then
-            indices[tonumber(index)] = true
+        local key = line:match("/([^/]+)%-01%.html$")
+        if key then
+            indices[key] = true
         end
     end
     handle:close()
@@ -168,7 +184,7 @@ local function validate(options)
 
     -- Load poems.json
     if not options.quiet then
-        print("Loading poem corpus...")
+        require("output").print("Loading poem corpus...")
     end
 
     local poems_data, err = read_json_file(POEMS_JSON)
@@ -182,21 +198,20 @@ local function validate(options)
     results.stats.total_poems = #poems
 
     if not options.quiet then
-        print(string.format("  Found %d poems in corpus", #poems))
+        require("output").print(string.format("  Found %d poems in corpus", #poems))
     end
 
-    -- Build set of expected poem indices
+    -- Build set of expected poems, by source key (Issue 8-019)
     local expected_indices = {}
     for _, poem in ipairs(poems) do
-        local idx = poem.poem_index
-        if idx then
-            expected_indices[idx] = true
-        end
+        local key = poem.source_key
+            or error("poem " .. tostring(poem.poem_index) .. " has no source key; rerun the extraction (stage 3)")
+        expected_indices[key] = true
     end
 
     -- Check similar pages
     if not options.quiet then
-        print("\nChecking similar/ pages...")
+        require("output").print("\nChecking similar/ pages...")
     end
 
     local existing_similar = get_existing_poem_indices(OUTPUT_DIR, "similar")
@@ -216,17 +231,17 @@ local function validate(options)
     end
 
     if not options.quiet then
-        print(string.format("  Found %d similar pages (expected %d)", similar_count, results.stats.total_poems))
+        require("output").print(string.format("  Found %d similar pages (expected %d)", similar_count, results.stats.total_poems))
         if #results.stats.missing_similar > 0 then
-            print(string.format("  ⚠ Missing %d poems", #results.stats.missing_similar))
+            require("output").print(string.format("  ⚠ Missing %d poems", #results.stats.missing_similar))
         else
-            print("  ✓ All poems have similar pages")
+            require("output").print("  ✓ All poems have similar pages")
         end
     end
 
     -- Check different pages
     if not options.quiet then
-        print("\nChecking different/ pages...")
+        require("output").print("\nChecking different/ pages...")
     end
 
     local existing_different = get_existing_poem_indices(OUTPUT_DIR, "different")
@@ -246,48 +261,68 @@ local function validate(options)
     end
 
     if not options.quiet then
-        print(string.format("  Found %d different pages (expected %d)", different_count, results.stats.total_poems))
+        require("output").print(string.format("  Found %d different pages (expected %d)", different_count, results.stats.total_poems))
         if #results.stats.missing_different > 0 then
-            print(string.format("  ⚠ Missing %d poems", #results.stats.missing_different))
+            require("output").print(string.format("  ⚠ Missing %d poems", #results.stats.missing_different))
         else
-            print("  ✓ All poems have different pages")
+            require("output").print("  ✓ All poems have different pages")
         end
     end
 
-    -- Check chronological pages
+    -- Check chronological pages: every poem sits on one of them, found by its
+    -- anchor (id="<source key>", Issue 8-019). The pages live in
+    -- output/chronological/ as 01.html, 02.html, ... with index.html
+    -- redirecting to the first. How many poems a page holds is the build's
+    -- --chrono-per-page, so the page count is reported, not judged: the
+    -- poem-by-poem check below is the test.
     if not options.quiet then
-        print("\nChecking chronological pages...")
+        require("output").print("\nChecking chronological pages...")
     end
-
-    local chrono_count = count_files(OUTPUT_DIR, "chronological-*.html")
+    local chrono_dir = OUTPUT_DIR .. "/chronological"
+    local chrono_count = 0
+    local on_a_page = {}
+    local listing = io.popen(string.format('find "%s" -maxdepth 1 -type f -name "[0-9]*.html"', chrono_dir))
+    for page in listing:lines() do
+        chrono_count = chrono_count + 1
+        local f = io.open(page, "r")
+        if f then
+            for key in f:read("*a"):gmatch('<span id="([^"]+)">') do on_a_page[key] = true end
+            f:close()
+        end
+    end
+    listing:close()
     results.stats.chronological_pages = chrono_count
-
-    -- Load config to get poems_per_page (Issue 10-014: using config.lua)
-    local poems_per_page = 500  -- default
-    local ok, config = pcall(dofile, CONFIG_FILE)
-    if ok and config and config.pagination and config.pagination.chronological_poems_per_page then
-        poems_per_page = config.pagination.chronological_poems_per_page
+    local missing_chrono = {}
+    for key in pairs(expected_indices) do
+        if not on_a_page[key] then missing_chrono[#missing_chrono + 1] = key end
     end
-
-    local expected_chrono_pages = math.ceil(results.stats.total_poems / poems_per_page)
-
+    table.sort(missing_chrono)
+    results.stats.missing_chronological = missing_chrono
+    if #missing_chrono > 0 then
+        results.pass = false
+        table.insert(results.errors, string.format("%d poems on no chronological page", #missing_chrono))
+    end
     if not options.quiet then
-        print(string.format("  Found %d chronological pages (expected ~%d at %d poems/page)",
-            chrono_count, expected_chrono_pages, poems_per_page))
-        if chrono_count >= expected_chrono_pages then
-            print("  ✓ Chronological pages complete")
+        require("output").print(string.format("  Found %d chronological pages", chrono_count))
+        if #missing_chrono == 0 then
+            require("output").print("  ✓ Every poem is on a chronological page")
         else
-            print("  ⚠ Fewer chronological pages than expected")
+            require("output").print(string.format("  ⚠ %d poems are on no chronological page, e.g. %s",
+                #missing_chrono, missing_chrono[1]))
         end
     end
 
-    -- Check for redirect file
-    local has_redirect = file_exists(OUTPUT_DIR .. "/chronological.html")
+    -- the redirect to the first page
+    local has_redirect = file_exists(chrono_dir .. "/index.html")
+    if not has_redirect then
+        results.pass = false
+        table.insert(results.errors, "chronological/index.html (the redirect to the first page) is missing")
+    end
     if not options.quiet then
         if has_redirect then
-            print("  ✓ chronological.html redirect exists")
+            require("output").print("  ✓ chronological/index.html redirect exists")
         else
-            print("  ⚠ chronological.html redirect missing")
+            require("output").print("  ⚠ chronological/index.html redirect missing")
         end
     end
 
@@ -299,7 +334,7 @@ end
 local function output_json(results)
     package.path = DIR .. "/?.lua;" .. DIR .. "/libs/?.lua;" .. package.path
     local dkjson = require("dkjson")
-    print(dkjson.encode(results, { indent = true }))
+    require("output").print(dkjson.encode(results, { indent = true }))
 end
 -- }}}
 
@@ -310,49 +345,49 @@ local function output_summary(results, options)
         return
     end
 
-    print("\n" .. string.rep("=", 60))
-    print("Validation Summary")
-    print(string.rep("=", 60))
+    require("output").print("\n" .. string.rep("=", 60))
+    require("output").print("Validation Summary")
+    require("output").print(string.rep("=", 60))
 
-    print(string.format("\nPoem corpus:        %d poems", results.stats.total_poems))
-    print(string.format("Similar pages:      %d / %d", results.stats.similar_pages, results.stats.total_poems))
-    print(string.format("Different pages:    %d / %d", results.stats.different_pages, results.stats.total_poems))
-    print(string.format("Chronological:      %d pages", results.stats.chronological_pages))
+    require("output").print(string.format("\nPoem corpus:        %d poems", results.stats.total_poems))
+    require("output").print(string.format("Similar pages:      %d / %d", results.stats.similar_pages, results.stats.total_poems))
+    require("output").print(string.format("Different pages:    %d / %d", results.stats.different_pages, results.stats.total_poems))
+    require("output").print(string.format("Chronological:      %d pages", results.stats.chronological_pages))
 
     if #results.stats.missing_similar > 0 then
-        print(string.format("\nMissing similar (%d):", #results.stats.missing_similar))
+        require("output").print(string.format("\nMissing similar (%d):", #results.stats.missing_similar))
         -- Show first 10
         local show = math.min(10, #results.stats.missing_similar)
         local indices = {}
         for i = 1, show do
-            table.insert(indices, string.format("%04d", results.stats.missing_similar[i]))
+            table.insert(indices, tostring(results.stats.missing_similar[i]))
         end
-        print("  " .. table.concat(indices, ", "))
+        require("output").print("  " .. table.concat(indices, ", "))
         if #results.stats.missing_similar > 10 then
-            print(string.format("  ... and %d more", #results.stats.missing_similar - 10))
+            require("output").print(string.format("  ... and %d more", #results.stats.missing_similar - 10))
         end
     end
 
     if #results.stats.missing_different > 0 then
-        print(string.format("\nMissing different (%d):", #results.stats.missing_different))
+        require("output").print(string.format("\nMissing different (%d):", #results.stats.missing_different))
         local show = math.min(10, #results.stats.missing_different)
         local indices = {}
         for i = 1, show do
-            table.insert(indices, string.format("%04d", results.stats.missing_different[i]))
+            table.insert(indices, tostring(results.stats.missing_different[i]))
         end
-        print("  " .. table.concat(indices, ", "))
+        require("output").print("  " .. table.concat(indices, ", "))
         if #results.stats.missing_different > 10 then
-            print(string.format("  ... and %d more", #results.stats.missing_different - 10))
+            require("output").print(string.format("  ... and %d more", #results.stats.missing_different - 10))
         end
     end
 
-    print("")
+    require("output").print("")
     if results.pass then
-        print("✓ PASS: All poems are represented in generated output")
+        require("output").print("✓ PASS: All poems are represented in generated output")
     else
-        print("✗ FAIL: Some poems are missing from output")
+        require("output").print("✗ FAIL: Some poems are missing from output")
         for _, err in ipairs(results.errors) do
-            print("  - " .. err)
+            require("output").print("  - " .. err)
         end
     end
 end
@@ -360,7 +395,7 @@ end
 
 -- {{{ Main
 local function main()
-    local options = parse_arguments(arg)
+    local options = parse_arguments(OWN_ARGS)
 
     if options.help then
         print_usage()
@@ -368,10 +403,10 @@ local function main()
     end
 
     if not options.quiet and not options.json then
-        print("=" .. string.rep("=", 60))
-        print("Poem Representation Validator")
-        print("=" .. string.rep("=", 60))
-        print("")
+        require("output").print("=" .. string.rep("=", 60))
+        require("output").print("Poem Representation Validator")
+        require("output").print("=" .. string.rep("=", 60))
+        require("output").print("")
     end
 
     local results = validate(options)

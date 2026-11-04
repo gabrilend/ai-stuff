@@ -1,32 +1,19 @@
 #!/usr/bin/env lua
 
--- Image discovery and cataloging system
--- Scans configured directories for supported image formats and creates metadata catalog
+-- image-manager.lua: Stage 5 -- the catalog of every picture.
+--
+-- WHAT IT DOES (for a CEO): looks through the picture folders config.lua
+-- lists (sources.images) for the formats it allows, and writes
+-- assets/image-catalog.json: each picture's path, size, dimensions, date
+-- and a fingerprint of its contents. main.lua --catalog-only calls it in a
+-- build.
+--
+-- Usage: luajit src/image-manager.lua [--dir PATH] [-v]
+--   --dir PATH project folder (default below); -v  more detail
 
--- {{{ setup_dir_path
-local function setup_dir_path(provided_dir)
-    -- Skip if provided_dir is a flag (starts with -)
-    if provided_dir and provided_dir:sub(1, 1) ~= "-" then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ parse_dir_from_args
--- Parse arguments to extract directory path, skipping flags like --verbose
-local function parse_dir_from_args(args)
-    if not args then return nil end
-    for i = 1, #args do
-        local a = args[i]
-        -- Skip flags (start with -)
-        if a and a:sub(1, 1) ~= "-" then
-            return a
-        end
-    end
-    return nil
-end
--- }}}
 
 -- {{{ parse_seed_from_args
 -- Issue 10-058: pull the build's master seed out of the shared arg vector. run.sh
@@ -48,8 +35,14 @@ local function parse_seed_from_args(args)
 end
 -- }}}
 
--- Script configuration
-local DIR = setup_dir_path(parse_dir_from_args(arg))
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started (where --seed takes a value), or from its parent's when
+-- loaded (src/main.lua loads it for the picture catalogue); else the path
+-- below (libs/project-dir.lua, Issue 10-076). It used to take the first bare
+-- word of the global arg either way.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization",
+        { ["--seed"] = true })
 -- Issue 10-058: master seed (nil unless run.sh / the operator passed --seed).
 local MASTER_SEED = parse_seed_from_args(arg)
 
@@ -67,7 +60,7 @@ local unified_config = config_loader.load()
 local sources_loader = require("sources-loader")
 sources_loader.set_project_root(DIR)
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 utils.init_assets_root(arg)
 
 -- ANSI color codes for terminal output
@@ -132,13 +125,15 @@ local function load_config()
     end
 
     -- Build config from sources.images settings (with image_integration fallbacks for display settings)
-    local display_config = unified_config.image_integration or {}
+    local display_config = unified_config.image_integration or error("config.lua has no image_integration section")
     local config = {
         enabled = sources_loader.is_enabled("images"),
         image_directories = image_directories,
-        -- Use sources.images settings, fall back to image_integration for legacy compat
-        supported_formats = images_source.supported_formats or display_config.supported_formats or {"png", "jpg", "jpeg", "gif", "webp", "svg"},
-        max_file_size_mb = images_source.max_file_size_mb or display_config.max_file_size_mb or 10,
+        -- from config.lua sources.images; a missing one is an error (Issue 10-071)
+        supported_formats = images_source.supported_formats
+            or error("config.lua sources.images.supported_formats is missing"),
+        max_file_size_mb = images_source.max_file_size_mb
+            or error("config.lua sources.images.max_file_size_mb is missing"),
         -- Keep display settings from image_integration
         output_path = display_config.output_path,
         catalog_file = display_config.catalog_file
@@ -245,14 +240,14 @@ end
 local function scan_directory_for_images(directory, config, dir_config)
     local images = {}
 
-    print("🔍 Scanning directory: " .. relative_path(directory))
+    require("output").print("🔍 Scanning directory: " .. relative_path(directory))
 
     -- Check if directory exists
     local check_cmd = string.format("test -d '%s'", shell_escape(directory))
     local exists = os.execute(check_cmd) == true or os.execute(check_cmd) == 0
 
     if not exists then
-        print("⚠️  Directory not found: " .. relative_path(directory))
+        require("output").print("⚠️  Directory not found: " .. relative_path(directory))
         return images
     end
 
@@ -266,7 +261,7 @@ local function scan_directory_for_images(directory, config, dir_config)
     for file_path in handle:lines() do
         if is_supported_format(file_path, config.supported_formats) then
             local file_size = get_file_size(file_path)
-            local max_size = (config.max_file_size_mb or 10) * 1024 * 1024
+            local max_size = config.max_file_size_mb * 1024 * 1024
 
             if file_size <= max_size then
                 local width, height = extract_image_dimensions(file_path)
@@ -303,9 +298,9 @@ local function scan_directory_for_images(directory, config, dir_config)
     
     handle:close()
     
-    print(string.format("   📄 Processed: %d images", processed_count))
+    require("output").print(string.format("   📄 Processed: %d images", processed_count))
     if skipped_count > 0 then
-        print(string.format("   ⏩ Skipped: %d images (size/format)", skipped_count))
+        require("output").print(string.format("   ⏩ Skipped: %d images (size/format)", skipped_count))
     end
     
     return images
@@ -415,11 +410,11 @@ end
 
 -- {{{ function M.discover_images
 function M.discover_images()
-    print("🖼️  Starting image discovery...")
+    require("output").print("🖼️  Starting image discovery...")
 
     local config = load_config()
     if not config.enabled then
-        print("❌ Image integration disabled in configuration")
+        require("output").print("❌ Image integration disabled in configuration")
         return {}
     end
 
@@ -439,7 +434,7 @@ function M.discover_images()
     -- Issue 10-030: Apply randomization before sorting
     local randomized_count = apply_randomization(all_images)
     if randomized_count > 0 then
-        print(string.format("🎲 Randomized timestamps for %d images", randomized_count))
+        require("output").print(string.format("🎲 Randomized timestamps for %d images", randomized_count))
     end
 
     -- Sort by modification time (newest first)
@@ -447,7 +442,7 @@ function M.discover_images()
         return a.modification_time > b.modification_time
     end)
 
-    print(string.format("✅ Image discovery complete: %d images found", #all_images))
+    require("output").print(string.format("✅ Image discovery complete: %d images found", #all_images))
     return all_images
 end
 -- }}}
@@ -522,7 +517,7 @@ function M.generate_catalog(images, output_file)
 
     -- Report duplicate resolution
     if duplicate_count > 0 then
-        print(string.format("🔄 Resolved %d duplicates (kept newest of each group)", duplicate_count))
+        require("output").print(string.format("🔄 Resolved %d duplicates (kept newest of each group)", duplicate_count))
     end
     
     -- Generate statistics (using filtered_images which has duplicates removed)
@@ -602,7 +597,7 @@ function M.generate_catalog(images, output_file)
     file:write(dkjson.encode(catalog, { indent = true }))
     file:close()
     
-    print("📄 Generated catalog: " .. relative_path(catalog_path))
+    require("output").print("📄 Generated catalog: " .. relative_path(catalog_path))
     return catalog
 end
 -- }}}
@@ -620,7 +615,7 @@ local function print_aligned(rows, indent)
     local widest = 0
     for _, row in ipairs(rows) do widest = math.max(widest, #row[1]) end
     for _, row in ipairs(rows) do
-        print(indent .. row[1] .. ":" .. string.rep(" ", widest - #row[1] + 1) .. row[2])
+        require("output").print(indent .. row[1] .. ":" .. string.rep(" ", widest - #row[1] + 1) .. row[2])
     end
 end
 -- }}}
@@ -628,7 +623,7 @@ end
 function M.show_statistics(catalog, verbose)
     local stats = catalog.metadata.statistics
 
-    print("\n=== IMAGE CATALOG STATISTICS ===")
+    require("output").print("\n=== IMAGE CATALOG STATISTICS ===")
     print_aligned({
         { "Total Images",     string.format("%d", stats.total_images) },
         { "Unique Images",    string.format("%d", stats.unique_images) },
@@ -639,7 +634,7 @@ function M.show_statistics(catalog, verbose)
 
     -- Detailed statistics only shown when verbose flag is set
     if verbose then
-        print("\nFormat Distribution:")
+        require("output").print("\nFormat Distribution:")
         -- Most common format first (pairs() order changed from run to run).
         local formats = {}
         for format, count in pairs(stats.format_distribution) do
@@ -655,14 +650,14 @@ function M.show_statistics(catalog, verbose)
         end
         print_aligned(format_rows, "  ")
 
-        print("\nSize Distribution:")
+        require("output").print("\nSize Distribution:")
         print_aligned({
             { "Small (<100KB)",      string.format("%d images", stats.size_distribution.small) },
             { "Medium (100KB-1MB)",  string.format("%d images", stats.size_distribution.medium) },
             { "Large (>1MB)",        string.format("%d images", stats.size_distribution.large) },
         }, "  ")
 
-        print("\nResolution Distribution:")
+        require("output").print("\nResolution Distribution:")
         print_aligned({
             { "Low (<500px)",        string.format("%d images", stats.resolution_distribution.low) },
             { "Medium (500-1500px)", string.format("%d images", stats.resolution_distribution.medium) },
@@ -680,14 +675,14 @@ end
 -- {{{ function M.main
 -- Issue 10-015a: Added verbose parameter for detailed statistics output
 function M.main(verbose)
-    print("🖼️  Image Integration System")
-    print("Project Directory: " .. relative_path(DIR))
+    require("output").print("🖼️  Image Integration System")
+    require("output").print("Project Directory: " .. relative_path(DIR))
 
     -- Discover all images
     local images = M.discover_images()
 
     if #images == 0 then
-        print("❌ No images found in configured directories")
+        require("output").print("❌ No images found in configured directories")
         return false
     end
 
@@ -697,7 +692,7 @@ function M.main(verbose)
     -- Show statistics (detailed distribution only when verbose=true)
     M.show_statistics(catalog, verbose)
 
-    print("\n✅ Image integration system ready")
+    require("output").print("\n✅ Image integration system ready")
     return true
 end
 -- }}}
@@ -712,7 +707,8 @@ if arg and arg[0] and arg[0]:match("image%-manager%.lua$") then
             break
         end
     end
-    M.main(verbose)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("image-manager.lua", M.main, verbose)
 end
 
 return M

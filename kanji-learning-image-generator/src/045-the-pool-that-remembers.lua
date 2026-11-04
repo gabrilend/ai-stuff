@@ -62,13 +62,18 @@ function M.root(settings)
 end
 -- }}}
 
--- {{{ M.stem(record, seed, style, resolution)
+-- {{{ M.stem(record, seed, style, resolution, variant)
 -- What one rendering is called, without an extension.
 --
 -- The number first so a folder sorts in a stable order, the character next so a
 -- person can read the listing, and the seed last because the same character can
 -- be rendered more than once and those are different pictures.
-function M.stem(record, seed, style, resolution)
+--
+-- `variant` is { drawn_by = string or nil, route = string or nil } (`415`,
+-- `416`). The kitchen's mark and the route are added only when they are not the
+-- original -- the local kitchen and the illusion route -- so every name the pool
+-- already holds still means the picture it always meant.
+function M.stem(record, seed, style, resolution, variant)
   -- Anything that makes a different picture is part of the name.
   --
   -- The seed comes from the character, so two renderings that differ only by a
@@ -83,21 +88,29 @@ function M.stem(record, seed, style, resolution)
   if resolution then
     tail = tail .. "-" .. tostring(math.floor(resolution))
   end
+  variant = variant or {}
+  if variant.drawn_by and variant.drawn_by ~= "" then
+    tail = tail .. "-" .. tostring(variant.drawn_by):gsub("%W", "")
+  end
+  if variant.route and variant.route ~= "" and variant.route ~= "illusion" then
+    tail = tail .. "-" .. tostring(variant.route):gsub("%W", "")
+  end
   return string.format("%08X-%s-%06x%s", record.codepoint, record.character,
                        seed % 0x1000000, tail)
 end
 -- }}}
 
--- {{{ M.place(settings, record, scene, seed, style, resolution)
+-- {{{ M.place(settings, record, scene, seed, style, resolution, variant)
 -- The two paths one rendering occupies.
 --
 -- Arranged by category, because quality is never discussed globally -- it is
 -- always *these* that are looking bad, and the unit somebody says that about
 -- here is the world.
-function M.place(settings, record, scene, seed, style, resolution)
+function M.place(settings, record, scene, seed, style, resolution, variant)
   local folder = M.root(settings) .. "/" .. scene.biome.name
   local stem = M.stem(record, seed, style,
-                      resolution ~= settings.field.reference and resolution or nil)
+                      resolution ~= settings.field.reference and resolution or nil,
+                      variant)
   return folder .. "/" .. stem .. ".png",
          folder .. "/" .. stem .. ".info.md",
          folder
@@ -142,6 +155,9 @@ function M.render_companion(entry)
   field("means", entry.means)
   field("what", what)
   field("style", entry.style)
+  field("route", entry.route)
+  field("drawn_by", entry.drawn_by)
+  field("checkpoint", entry.checkpoint)
   field("resolution", entry.resolution)
   field("kind", entry.kind)
   field("category", entry.category)
@@ -281,7 +297,8 @@ end
 function M.add(settings, entry, picture_bytes)
   local picture_path, companion_path, folder =
     M.place(settings, entry.record, entry.scene, entry.seed, entry.style,
-            entry.resolution)
+            entry.resolution,
+            { drawn_by = entry.drawn_by, route = entry.route })
   project.ensure_directory(folder)
 
   local handle = assert(io.open(picture_path .. ".partial", "wb"))
