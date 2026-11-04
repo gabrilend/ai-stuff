@@ -16,6 +16,12 @@
 -- the markdown table, so there are none.
 
 return {
+    ["burner-of-down-things"] =
+        "Takes a piece of software, describes it in issue files, and delivers a design that meets them",
+    ["centered-ui-design"] =
+        "A team strategy game whose controls sit in the middle of the map, on a rotating glass-and-metal wheel everyone votes through",
+    ["poor-person-google-glass"] =
+        "Glasses with no camera and no lens: a laser shaped by sliding slotted tabs, turned outward by a mirror cylinder",
     ["hero-less-moba"] =
         "A lane-pushing game with the heroes, jungle, and item shop removed, to see what is still standing",
     ["neocities-modernization"] =

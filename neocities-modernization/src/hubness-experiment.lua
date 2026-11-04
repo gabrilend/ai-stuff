@@ -15,7 +15,13 @@
 --      is a cliff, so this can flip more sharply than the smooth cosine.
 --
 -- Prefer running this over trusting a number written in a doc. Knobs below.
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
+-- The project folder: --dir PATH, or the path below; a stray word stops it
+-- (libs/project-dir.lua, Issue 10-076).
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 package.path = DIR .. "/libs/?.lua;" .. package.path
 local dk = require("dkjson")
 local utils = require("utils")  -- Issue 10-054: read embeddings from wherever they live (RAM or disk)
@@ -31,7 +37,7 @@ local SEED           = 12345
 io.write("loading embeddings... "); io.flush()
 local E = dk.decode(io.open(utils.embeddings_dir() .. "/embeddings.json"):read("*a")).embeddings
 local N, D = #E, #E[1].embedding
-print(string.format("%d vectors, %d dims", N, D))
+require("output").print(string.format("%d vectors, %d dims", N, D))
 
 -- {{{ vector helpers
 local function l2(v)
@@ -77,16 +83,16 @@ local function jaccard(x, y)
 end
 -- }}}
 
-print("\n========================================================================")
-print("  1. CENTRALITY  (cosine to corpus centroid; higher = more of a hub)")
-print("========================================================================")
+require("output").print("\n========================================================================")
+require("output").print("  1. CENTRALITY  (cosine to corpus centroid; higher = more of a hub)")
+require("output").print("========================================================================")
 do
     math.randomseed(SEED)
     local base = 0
     for s = 1, PAIR_SAMPLES do base = base + dot(E[math.random(N)].embedding, cen) end
     base = base / PAIR_SAMPLES
-    print(string.format("  baseline (real poem) = %.4f\n", base))
-    print("  before%   crooked   vs base      weighted   vs base")
+    require("output").print(string.format("  baseline (real poem) = %.4f\n", base))
+    require("output").print("  before%   crooked   vs base      weighted   vs base")
     for step = 0, 10 do
         local fr = step / 10
         local sc, sw = 0, 0
@@ -96,15 +102,15 @@ do
             sw = sw + dot(weight_blend(a, b, fr), cen)
         end
         sc, sw = sc / PAIR_SAMPLES, sw / PAIR_SAMPLES
-        print(string.format("  %4d%%     %.4f   %+5.1f%%      %.4f   %+5.1f%%",
+        require("output").print(string.format("  %4d%%     %.4f   %+5.1f%%      %.4f   %+5.1f%%",
             step * 10, sc, (sc - base) / base * 100, sw, (sw - base) / base * 100))
     end
 end
 
-print("\n========================================================================")
-print("  2. STRUCTURE / TEXTURE  (cross-cut's cosine to BEFORE vs AFTER poem)")
-print("========================================================================")
-print("  before%   cos->BEFORE   cos->AFTER   (they cross where structure=texture)")
+require("output").print("\n========================================================================")
+require("output").print("  2. STRUCTURE / TEXTURE  (cross-cut's cosine to BEFORE vs AFTER poem)")
+require("output").print("========================================================================")
+require("output").print("  before%   cos->BEFORE   cos->AFTER   (they cross where structure=texture)")
 do
     math.randomseed(SEED)
     for step = 0, 10 do
@@ -115,14 +121,14 @@ do
             local img = seam_blend(a, b, fr)
             cb = cb + dot(img, a); ca = ca + dot(img, b)
         end
-        print(string.format("  %4d%%     %.3f         %.3f", step * 10, cb / PAIR_SAMPLES, ca / PAIR_SAMPLES))
+        require("output").print(string.format("  %4d%%     %.3f         %.3f", step * 10, cb / PAIR_SAMPLES, ca / PAIR_SAMPLES))
     end
 end
 
-print("\n========================================================================")
-print(string.format("  3. NEIGHBOURHOOD  (top-%d similar-set Jaccard overlap; %d pairs)", TOPK, NBR_PAIRS))
-print("========================================================================")
-print("  before%   J(img, BEFORE-page)   J(img, AFTER-page)")
+require("output").print("\n========================================================================")
+require("output").print(string.format("  3. NEIGHBOURHOOD  (top-%d similar-set Jaccard overlap; %d pairs)", TOPK, NBR_PAIRS))
+require("output").print("========================================================================")
+require("output").print("  before%   J(img, BEFORE-page)   J(img, AFTER-page)")
 do
     math.randomseed(SEED + 1)
     -- Precompute each pair's BEFORE/AFTER neighbour sets once, reuse per seam.
@@ -140,15 +146,15 @@ do
             jb = jb + jaccard(imgset, pd.aset)
             ja = ja + jaccard(imgset, pd.bset)
         end
-        print(string.format("  %4d%%     %.3f                 %.3f", step * 10, jb / NBR_PAIRS, ja / NBR_PAIRS))
+        require("output").print(string.format("  %4d%%     %.3f                 %.3f", step * 10, jb / NBR_PAIRS, ja / NBR_PAIRS))
     end
 end
 
-print("\n========================================================================")
-print(string.format("  4. FREQUENCY  (k-occurrence: times each item lands in others' top-%d)", TOPK))
-print("========================================================================")
-print("  the real question: do images show up MORE than poems? (goal: no). This")
-print("  builds a corpus of real poems + injected images and counts appearances.")
+require("output").print("\n========================================================================")
+require("output").print(string.format("  4. FREQUENCY  (k-occurrence: times each item lands in others' top-%d)", TOPK))
+require("output").print("========================================================================")
+require("output").print("  the real question: do images show up MORE than poems? (goal: no). This")
+require("output").print("  builds a corpus of real poems + injected images and counts appearances.")
 do
     math.randomseed(SEED + 2)
     local KP, KI = 600, 90   -- poems + images in the test corpus (kept small: O(n^2))
@@ -172,10 +178,10 @@ do
         return sp / np, si / ni
     end
     local avg_fn = function(a, b) local o = {}; for i = 1, D do o[i] = (a[i] + b[i]) * 0.5 end; return l2(o) end
-    print("  method               poems   images   images vs poems")
+    require("output").print("  method               poems   images   images vs poems")
     local pp, im = kocc(avg_fn)
-    print(string.format("  midpoint average     %5.1f   %5.2f   %+5.0f%%  (the old flooding)", pp, im, (im / pp - 1) * 100))
+    require("output").print(string.format("  midpoint average     %5.1f   %5.2f   %+5.0f%%  (the old flooding)", pp, im, (im / pp - 1) * 100))
     local pc, ic = kocc(function(a, b) return seam_blend(a, b, 0.5) end)
-    print(string.format("  crooked 50%% (live)   %5.1f   %5.2f   %+5.0f%%  (current setting)", pc, ic, (ic / pc - 1) * 100))
+    require("output").print(string.format("  crooked 50%% (live)   %5.1f   %5.2f   %+5.0f%%  (current setting)", pc, ic, (ic / pc - 1) * 100))
 end
-print("")
+require("output").print("")

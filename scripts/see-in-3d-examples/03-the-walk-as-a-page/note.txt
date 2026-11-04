@@ -1,0 +1,5 @@
+title: The reading walk's file page, read as an open binder
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/03-the-walk-as-a-page/picture.png
+stage: 3
+---
+From the side the page has no depth at all: everything a web page says lies in one plane, so the right and top views show two thin boards and nothing else. Only the front and angle views carry the page, and the code block, drawn as the one raised dark slab, is the only part that reads as an object.

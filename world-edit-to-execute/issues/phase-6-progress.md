@@ -19,11 +19,13 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 603 | [Fetch Maps and Models From Public Sites](./603-fetch-maps-and-models-from-public-sites.md) | open | 604, 605, 116, 117 |
 | 604 | [Asset Deduplication System](./completed/604-asset-deduplication-system.md) | completed | 601 |
 | 605 | [Local Storage Manager](./605-local-storage-manager.md) | open | 604, 601 |
-| 606 | [Hot-Reload System](./606-hot-reload-system.md) | open | 601 |
+| 606 | [Hot-Reload System](./completed/606-hot-reload-system.md) | completed | 601 |
+| 606a | [Hot-Reload Swaps in the Renderer, Sound and UI](./606a-hot-reload-swaps-in-renderer-sound-and-ui.md) | open | 606 |
 | 607 | [File Server Application](./superseded/607-file-server-application.md) | retired (superseded/) | 603, 604 |
-| 608 | [Phase 6 Integration Test](./608-phase6-integration-test.md) | open | 601, 602, 603, 604, 605, 606, 2026, 09, 26 |
-| 609 | [Shared Map-and-Model List](./609-shared-map-and-model-list.md) | open | 604, 605 |
+| 608 | [Phase 6 Integration Test](./608-phase6-integration-test.md) | open | 601, 602, 603, 604, 605, 606, 606a, 2026, 09, 26 |
+| 609 | [Shared Map-and-Model List](./completed/609-shared-map-and-model-list.md) | completed | 604, 605 |
+| 609a | [Shared Lists Over rmail, and the One Prompt](./609a-shared-list-over-rmail-and-the-prompt.md) | open | 609 |
 
-Completed 2, open 6, retired 1, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 4, open 6, retired 1, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

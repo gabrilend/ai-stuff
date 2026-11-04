@@ -83,7 +83,7 @@ end
 -- Get the sources table from config
 local function get_sources()
     local cfg = load_config()
-    return cfg.sources or {}
+    return cfg.sources or error("config.lua has no sources section")
 end
 -- }}}
 
@@ -317,12 +317,12 @@ function M.print_sources()
     local source_types = M.get_source_types()
 
     if #source_types == 0 then
-        print("No sources configured")
+        require("output").print("No sources configured")
         return
     end
 
-    print("Configured sources:")
-    print(string.rep("-", 70))
+    require("output").print("Configured sources:")
+    require("output").print(string.rep("-", 70))
 
     for _, source_type in ipairs(source_types) do
         local source = M.get_source(source_type)
@@ -330,19 +330,19 @@ function M.print_sources()
         local status = enabled and COLOR_GREEN .. "enabled" .. COLOR_RESET
                                or COLOR_YELLOW .. "disabled" .. COLOR_RESET
 
-        print(string.format("  %s [%s]", source_type, status))
+        require("output").print(string.format("  %s [%s]", source_type, status))
 
         if source.format then
-            print(string.format("    Format: %s", source.format))
+            require("output").print(string.format("    Format: %s", source.format))
         end
 
         local dirs = M.get_directories(source_type)
         if #dirs > 0 then
-            print("    Directories:")
+            require("output").print("    Directories:")
             for _, dir in ipairs(dirs) do
                 local exists = dir_exists(dir.path)
                 local marker = exists and "✓" or "✗"
-                print(string.format("      %s %s: %s",
+                require("output").print(string.format("      %s %s: %s",
                     marker, dir.name, dir.path))
             end
         end

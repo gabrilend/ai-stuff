@@ -157,3 +157,4 @@ local colored_char = string.format('<font color="%s"><b>%s</b></font>', color_he
 - **Phase**: 8 (Website Completion / HTML Enhancement)
 - **Estimated Complexity**: Medium (multiple functions to modify, careful character positioning)
 - **Dependencies**: None (standalone visual enhancement)
+- **Blocks**: 8-037
