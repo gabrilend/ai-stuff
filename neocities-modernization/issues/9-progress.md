@@ -26,13 +26,13 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 |-------|-------------|--------|----------|
 | 9-001 | Implement Vulkan compute infrastructure | In Progress | High |
 | 9-001f | Remove effil dependency | Open | Low |
-| 9-002 | Port similarity matrix generation to Vulkan | In Progress | Medium |
-| 9-002b | Validate GPU similarity implementation | Open | High |
-| 9-002c | Parallelize similarity file writing with thread pool | Open | Medium |
+| 9-002 | Port similarity matrix generation to Vulkan | Completed (2026-10-25) | Medium |
+| 9-002b | Validate GPU similarity implementation | Completed (2026-10-25) | High |
+| 9-002c | Parallelize similarity file writing with thread pool | Completed 2026-10-20 (C threads after one GPU dispatch) | Medium |
 | 9-003 | Optimize centroid calculation and parallelization | In Progress | High |
 | 9-004 | GPU-accelerate maze algorithm | Open | Low |
 | 9-006 | Poem box format validator | Completed | Low |
-| 9-007 | C shared memory for HTML generation | Open | Low |
+| 9-007 | C shared memory for HTML generation | Superseded 2026-10-22 (workers get slices from the main program) | Low |
 | 9-008 | Streaming HTML generation with progress | Open | Low |
 | 9-009 | HTML rendering and performance fixes | Open | Medium |
 | 9-013 | Image-only post timestamp association | Open | Medium |
@@ -53,9 +53,10 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 | 9-005b | URL switching helper script (local ↔ production) | Completed | 2026-01-18 |
 | 9-004b | Image-only post timestamp association | Superseded by 9-010 | 2026-01-21 |
 | 9-010 | Fix image repetition in associated posts | Completed | 2026-01-21 |
-| 9-011 | Display content warnings from ActivityPub | Completed | 2026-01-21 |
+| 9-011 | Display content warnings from ActivityPub | Completed | 2026-01-21; reopened 2026-09-22, closed 2026-10-25 |
 | 9-012 | Use archive alt-text for images | Completed | 2026-01-21 |
-| 9-006 | Poem box format validator | Completed | 2026-03-18 |
+| 9-006 | Poem box format validator | Completed | 2026-03-18; reopened 2026-09-22, closed 2026-10-25 |
+| 9-014 | Diversity walks: tiles, one dispatch per tile, pipelining, half-precision vectors (built June 2026; filed 2026-10-22, with the walk-length finding of 10-074) | Completed | 2026-10-22 |
 
 **9-006: Poem Box Format Validator** - COMPLETED (2026-03-18)
 - ✅ Created `scripts/validate-poem-box-format` (476 lines)
@@ -120,7 +121,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 - [x] Diversity sequences generated on GPU (996× speedup achieved)
 - [x] Diversity sequences integrated into run.sh pipeline (Issue 9-005) ✅ **COMPLETED 2026-01-17**
 - [x] Similarity matrix GPU implementation complete
-- [ ] Similarity matrix GPU implementation validated (Issue 9-002b)
+- [x] Similarity matrix GPU implementation validated (Issue 9-002b; `src/similarity-gpu-matches-cpu.test.lua`)
 - [ ] effil dependency removed (Issue 9-001f)
 - [x] Performance targets met (3.5-996× speedup achieved for diversity)
 
@@ -160,7 +161,7 @@ Phase 9 focuses on implementing Vulkan compute infrastructure to accelerate vect
 **Files Created:**
 - 25+ new files (4,700+ lines of code)
 - Diversity cache: Complete test suite with validation (✅ Production ready)
-- Similarity matrix: Implementation complete, validation pending (Issue 9-002b)
+- Similarity matrix: complete and validated against a direct calculation (Issue 9-002b, 2026-10-25)
 - Progress monitoring and auto-resume support
 
 ---

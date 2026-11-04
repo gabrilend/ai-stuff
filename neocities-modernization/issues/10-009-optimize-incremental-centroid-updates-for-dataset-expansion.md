@@ -114,6 +114,7 @@ centroid_memory = {
 
 ## Related Documents
 
+- Design document (the unwind-and-recalculate algorithm): `/docs/incremental-centroid-updates-design.md`
 - Phase 9 GPU acceleration: `/issues/9-001-implement-vulkan-compute-infrastructure.md`
 - Diversity sequence generation: `/issues/completed/phase-9/9-001d-implement-diversity-sequence-gpu-algorithm.md`
 - Centroid optimization: `/issues/9-003-optimize-centroid-calculation-and-parallelization.md`

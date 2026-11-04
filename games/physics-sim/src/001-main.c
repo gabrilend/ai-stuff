@@ -31,6 +31,7 @@
 #include "044-rotor.h"     // Issue 901c: rotor physics system
 #include "052-track-mover.h" // Issues 902c, 902d: track mover physics
 #include "000-config.h"    // Compile-time config
+#include "064-scene.h"     // Issue 115: scene mode and the goodbye receipt
 
 // Background color presets (issue 413)
 // Index matches BACKGROUND_COLOR config value: 0=slate, 1=black, etc.
@@ -491,8 +492,13 @@ static void on_stage_purchased(void* user_data) {
 
 // {{{ main
 int main(int argc, char* argv[]) {
-    (void)argc;
-    (void)argv;
+    // Issue 115: the command line is read before anything else, so a scene
+    // that cannot be read stops the game before a window opens. With no
+    // options the game runs exactly as before.
+    static SceneOptions scene;
+    if (!scene_parse_arguments(argc, argv, &scene)) {
+        return 1;
+    }
 
     int screen_width = 800;  // Initial horizontal size (updated on resize)
     int screen_height = 600;       // Will be adjusted to monitor
@@ -905,6 +911,55 @@ int main(int argc, char* argv[]) {
     // Default state: frozen (player must click to enable mouse control)
     int mouse_controls_reticle = 0;  // 0 = frozen, 1 = follows mouse
 
+    // {{{ apply the scene (issue 115)
+    // A scene replaces the opening of a normal game with one exact moment:
+    // either both boards emptied (only the gates and guard rails remain) or
+    // the loaded board kept; the opponent's own dropping paused; the panels
+    // hidden; and the scene's balls placed with their exact speeds. Input is
+    // ignored for the whole run (see the main loop), so nothing typed into
+    // the window can change what is filmed.
+    if (scene.active) {
+        if (scene.clear_board) {
+            world->peg_count = 0;
+            world->line_count = 0;
+            world->adversary_peg_count = 0;
+            world->adversary_line_count = 0;
+            if (world->polygon_manager) world->polygon_manager->polygon_count = 0;
+            if (world->adversary_polygon_manager) world->adversary_polygon_manager->polygon_count = 0;
+        }
+        if (adversary_is_spawning_enabled(adversary)) {
+            adversary_toggle_spawning(adversary);
+        }
+        ui_visible = 0;
+
+        // The ball manager is empty here, so the n-th ball placed lands in
+        // slot n; its speed and health are then set to the scene's values
+        // (placing a ball gives it a random sideways nudge otherwise).
+        for (int i = 0; i < scene.ball_count; i++) {
+            SceneBall* wanted = &scene.balls[i];
+            float gravity_dir = (wanted->owner == OWNER_PLAYER) ? 1.0f : -1.0f;
+            float x = world->table_x + wanted->x;
+            float y = world->table_top + wanted->y;
+            if (!ball_manager_spawn(ball_manager, x, y, BALL_RADIUS, wanted->owner, gravity_dir)) {
+                fprintf(stderr, "ERROR: scene ball %d could not be placed\n", i + 1);
+                return 1;
+            }
+            Ball* placed = &ball_manager->balls_current[i];
+            if (!placed->active || placed->x != x || placed->y != y) {
+                fprintf(stderr, "ERROR: scene ball %d did not land in slot %d\n", i + 1, i);
+                return 1;
+            }
+            placed->vx = wanted->vx;
+            placed->vy = wanted->vy;
+            placed->health = wanted->health;
+        }
+        printf("Scene %s: %d balls, board %s\n", scene.scene_path, scene.ball_count,
+               scene.clear_board ? "empty" : "kept");
+    }
+    int frames_drawn = 0;
+    int frames_recorded = 0;
+    // }}}
+
     // Main loop
     printf("Entering main loop...\n");
     printf("Press SPACE to spawn balls, A to toggle auto-spawn, SCROLL to pan view\n");
@@ -913,7 +968,11 @@ int main(int argc, char* argv[]) {
     int should_quit = 0;
     while (!should_quit) {
         // Get delta time for physics
-        float dt = GetFrameTime();
+        // Issue 115: a scene steps a fixed 1/60 s per frame. Saving each frame
+        // takes far longer than a sixtieth of a second, and stepping by the
+        // real time would move balls ten times further per frame, far enough
+        // to pass through each other; the film would show a different game.
+        float dt = scene.active ? (1.0f / 60.0f) : GetFrameTime();
 
         // Update player spawner credits (base rate via spawner_update)
         // Pass NULL controller - position handled manually below for input flexibility
@@ -929,6 +988,10 @@ int main(int argc, char* argv[]) {
         // Particle system now updated in parallel after ball physics
         // (see particle_system_prepare_tasks/submit_tasks/finalize/swap below)
 
+        // Issue 115: a scene ignores the keyboard and mouse entirely; only the
+        // window's close button still ends it (handled after this block).
+        int esc_consumed = 0;
+        if (!scene.active) {
         // Handle spawn point movement - toggle-based mouse control
         // Toggle mouse control on left click (when menu is closed)
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && !upgrade_manager->menu_open) {
@@ -984,7 +1047,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Handle upgrade menu input (returns 1 if ESC was consumed)
-        int esc_consumed = upgrade_manager_handle_input(upgrade_manager, &world->score);
+        esc_consumed = upgrade_manager_handle_input(upgrade_manager, &world->score);
 
         // Handle quit: Q always quits, ESC quits only if not consumed by menu
         if (IsKeyPressed(KEY_Q)) {
@@ -993,6 +1056,7 @@ int main(int argc, char* argv[]) {
         if (IsKeyPressed(KEY_ESCAPE) && !esc_consumed) {
             should_quit = 1;
         }
+        }  // end of input handling, skipped in a scene (issue 115)
         // Also quit if window close button clicked
         if (WindowShouldClose()) {
             should_quit = 1;
@@ -1329,7 +1393,7 @@ int main(int argc, char* argv[]) {
         // spawner_try_spawn checks credits, blocking, and capacity internally
         // Auto-spawn acts like SPACE is held down
         // Spawning paused while upgrade menu is open (issue 1309)
-        if (!upgrade_manager->menu_open && (IsKeyDown(KEY_SPACE) || auto_spawn)) {
+        if (!scene.active && !upgrade_manager->menu_open && (IsKeyDown(KEY_SPACE) || auto_spawn)) {
             // Calculate ball radius with upgrade modifier
             float ball_radius = BALL_RADIUS + upgrade_get_ball_radius_modifier(upgrade_manager);
             spawner_try_spawn(&player_spawner, ball_manager, ball_radius);
@@ -1499,6 +1563,32 @@ int main(int argc, char* argv[]) {
         }
 
         EndDrawing();
+
+        // Issue 115: film the frame just drawn, and stop after the frames
+        // asked for. The frame is read back from the screen, so it is
+        // exactly what a player would have seen.
+        frames_drawn++;
+        if (scene.recording) {
+            Image frame = LoadImageFromScreen();
+            if (!ExportImage(frame, TextFormat("%s/frame-%04d.png", scene.record_dir, frames_drawn))) {
+                fprintf(stderr, "ERROR: could not save frame %d into %s\n", frames_drawn, scene.record_dir);
+                should_quit = 1;
+            }
+            UnloadImage(frame);
+            frames_recorded++;
+        }
+        if (scene.frame_limit > 0 && frames_drawn >= scene.frame_limit) {
+            should_quit = 1;
+        }
+    }
+
+    // Issue 115: the receipt, written while the ball manager still exists
+    {
+        int balls_active = 0;
+        for (int i = 0; i < ball_manager->capacity; i++) {
+            if (ball_manager->balls_current[i].active) balls_active++;
+        }
+        scene_write_goodbye(&scene, frames_drawn, GetTime(), frames_recorded, balls_active);
     }
 
     // Cleanup

@@ -25,6 +25,8 @@ were finished and reframed what the project is for. Read that first.
 | `408` | What a higher tier buys | **completed** — a stroke-order animation, and an encoder checked by decoding it |
 | `414` | The numbers were all secretly at 768 | **completed** — a pixel number scales with the frame, and doubling the frame was measured and refused |
 | `413` | The picture grows a panel | **open** — where a panel is allowed to appear, which follows from what the graders must not see |
+| `415` | A kitchen in another house | **completed** — a ComfyUI on another machine, used with what it already has, asked before posting |
+| `416` | Inside and outside | **in progress** — both routes run; outside works, inside works on half of one character; a dozen more to look at |
 
 Three tickets outside this phase are open and belong to it in spirit: `107`,
 letters the archive already drew; `207`, the words a person reads; and `208`,

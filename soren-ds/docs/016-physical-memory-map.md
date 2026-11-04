@@ -1,5 +1,12 @@
 # Physical memory map
 
+> **Not for sale.** Soren DS is a design and a prototype only. It will
+> not be sold, shipped or installed on any consumer device until every
+> layer of code beneath it can be read, built and replaced by us. On
+> the RG DS, closed Rockchip firmware runs below the kernel, and part
+> of it stays resident at a higher privilege level. See
+> `notes/safety/001-not-for-sale.md`.
+
 The Anbernic RG DS is a Rockchip RK3568 with 3 GB of LPDDR4
 DRAM. Like every modern SoC, the chip exposes that DRAM and a
 large collection of peripheral register windows in a single
@@ -41,7 +48,7 @@ above this slice.
 
 | Range                             | Owner                                     |
 | --------------------------------- | ----------------------------------------- |
-| `0x0000_0000` – `0x0020_0000`     | Secure firmware (BL31 / ATF). Untouchable. |
+| `0x0000_0000` – `0x0020_0000`     | Secure firmware (BL31 / ATF). Untouchable. Closed code that stays resident at a higher privilege level (EL3) than the kernel (EL1); the kernel cannot see or watch it. The reason Soren DS is not for sale: `notes/safety/001-not-for-sale.md`. |
 | `0x0020_0000` – `0x0200_0000`     | Bootloader working set. The bootloader on the active path lives somewhere here along with its heap, its decompression scratch, and any framebuffer it set up. Treated as opaque pre-kernel territory. |
 | `0x0200_0000` – `__stack_top`     | SoreOS kernel image, including its stack. |
 | `__stack_top` – `0xC000_0000`     | Free DRAM. This is what the page allocator hands out. |

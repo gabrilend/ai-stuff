@@ -52,6 +52,28 @@ invalidates every cache built from it.
   mean degrades to the previous behaviour rather than to zeros. Callers that must
   not degrade silently should check `corpus_mean`'s second return value.
 
+### `M.centre_once(vec, mean)`
+- **vec**: Lua array of numbers. **mean**: its population's average (required).
+- **returns**: `{ v = <centred array>, sq = <sum of the squares of v> }`, a
+  vector prepared once for many comparisons.
+- Errors on a missing average or a length mismatch.
+
+### `M.cosine_centred(a, b)`
+- **a, b**: two vectors from `centre_once`.
+- **returns**: the same number as `cosine_across_populations` on the raw
+  vectors, to the last bit (same arithmetic, same order); 0 when either equals
+  its average. Used by the word pages to rank every poem against every word
+  without re-centring each poem for each word (Issue 10-035).
+
+### `M.cosine_across_populations(a, a_mean, b, b_mean)`
+- **a, b**: Lua arrays of numbers (same length) from two different populations
+  of text — e.g. a single word and a poem.
+- **a_mean, b_mean**: the average of each one's own population (from
+  `corpus_mean`). Both are **required**; a missing one raises an error.
+- **returns**: a number in [-1, 1], the cosine after each vector is centred on
+  its own average; 0 when a vector equals its average.
+- Used by the word pages. See "Word-to-poem is a different case" below.
+
 ### `M.SPACE_VERSION`
 Read-only string naming how vectors are prepared (currently
 `"mean-centered-v1"`). **Change it whenever the preparation changes in a way that
@@ -89,7 +111,7 @@ opened and found plausible.
 |---|---|---|
 | 7 — similarity matrix | `libs/vulkan-compute/lua/vk_similarity.lua` | centered when packing the flat GPU buffer; everything downstream inherits it |
 | 8 — diversity cache | `scripts/precompute-diversity-sequences-gpu` | centered before FP32→FP16 conversion |
-| 10 — word pages | `src/generate-word-pages.lua` | centered per comparison |
+| 10 — word pages | `src/generate-word-pages.lua` | centered once per run (`centre_once`); scored on the GPU (`vk_cross`), the shortlist re-scored exactly (`cosine_centred`) |
 
 Safe to feed the shaders centered vectors: `similarity_full.comp` computes both
 norms itself rather than assuming unit length.
@@ -101,6 +123,14 @@ carries **more** of the shared direction than a whole poem does (0.829 against
 0.766), so the offset is not constant across that comparison and distorts the
 ordering rather than merely compressing it. Poem-to-poem survives without
 centering — it just survives badly, as the table above shows.
+
+One average is not enough for this case. The first version centred both the
+word and the poem on the **poem** average; the words' own offset stayed inside
+every word vector, was the same for every word, and outweighed the meaning.
+Every word page then led with the same short posts (measured on the
+embeddinggemma-300m build: two one-character posts on 7,254 of 7,290 pages).
+`cosine_across_populations` centres each side on its own population's average,
+which leaves only what tells one word from another and one poem from another.
 
 ## Related
 
