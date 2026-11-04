@@ -13,6 +13,7 @@
 #include "../engine/031-engine.h"
 #include "104-surfaces.h"
 #include "107-compositor.h"
+#include "110-foreground.h"
 
 /* {{{ overlaps */
 static int overlaps(int x, int y, int w, int h, const struct surface_rect *r)
@@ -62,6 +63,7 @@ struct compositor_frame compositor_screen(int screen)
     struct surface_rect   uncovered;
     int n_drawn = 0;
     int n = surface_gather(screen, views, SURFACE_MAX, &uncovered);
+    int32_t foreground = screen_get_foreground(screen);
     struct platform_screen sc = platform_screen(screen);
 
     if (uncovered.width > 0) {
@@ -70,9 +72,15 @@ struct compositor_frame compositor_screen(int screen)
         f.painted++;
     }
     /* Back to front: a surface is copied if it changed, or if anything
-     * behind it was painted or copied where it lies. */
+     * behind it was painted or copied where it lies. Only the foreground
+     * app's surfaces and the system's take part (604); a background app's
+     * mark is taken and dropped, as the screen is painted whole when that
+     * app comes back. */
     for (int i = 0; i < n; i++) {
         const struct surface_view *v = &views[i];
+        if (v->app != SURFACE_APP_SYSTEM && v->app != foreground) {
+            continue;
+        }
         int copy = v->dirty;
         for (int d = 0; !copy && d < n_drawn; d++) {
             copy = overlaps(v->x, v->y, v->width, v->height, &drawn[d]);

@@ -97,6 +97,12 @@ int program_result_count(int program)
 int32_t program_station(int program, const char *name)
 ```
 
+### program_app_of
+
+```c
+int program_app_of(int32_t station)
+```
+
 ### program_station_count
 
 ```c

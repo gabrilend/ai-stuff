@@ -1001,6 +1001,32 @@ int32_t program_station(int program, const char *name)
 }
 /* }}} */
 
+/* {{{ program_app_of */
+int program_app_of(int32_t station)
+{
+    struct station *s = station_at(station);
+    if (!s) {
+        return -1;
+    }
+    uint32_t placed = atomic_load_acquire(&s->program);
+    if (placed == 0) {
+        return -1;
+    }
+    int id = (int)placed - 1;
+    for (int hops = 0; hops < PROGRAM_MAX; hops++) {
+        struct program_record *r = program_record(id);
+        if (!r) {
+            return -1;                  /* removed */
+        }
+        if (r->parent < 0) {
+            return id;
+        }
+        id = r->parent;
+    }
+    return -1;
+}
+/* }}} */
+
 /* {{{ program accessors */
 int program_station_count(int program) { struct program_record *r = program_record(program); return r ? r->n_stations : 0; }
 int32_t program_station_at(int program, int i) { struct program_record *r = program_record(program); return r && i >= 0 && i < r->n_stations ? r->stations[i] : ENGINE_NO_STATION; }

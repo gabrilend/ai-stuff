@@ -14,6 +14,9 @@ copies again every surface that overlaps what it painted. A surface
 that overlaps one copied this frame, in front of it, is copied again as
 well, so a surface behind never shows through one in front.
 
+Only the foreground app's surfaces and the system's are copied to a
+screen (604, 110-foreground.h).
+
 The frame is driven the way the input frame is (501): an engine timer
 writes a tick into the compositor map's argument door once every
 1/60 s, and the frame number rides a loop, so there is only ever one

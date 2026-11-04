@@ -6,8 +6,11 @@
  * station — the box's instance — or the system (SURFACE_SYSTEM) for what
  * no app owns. Asking for one either grants it, with a handle and a
  * buffer of pixels the owner writes and the compositor (603) reads, or
- * refuses it because another owner already holds some of that rectangle
- * on that screen. Moving and resizing are asked for the same way and
+ * refuses it because another owner of the same app already holds some of
+ * that rectangle on that screen. Each app has each screen to itself
+ * (604): only the foreground app's surfaces are shown, so two apps may
+ * hold the same rectangle, and the one in the background keeps its
+ * surfaces, and keeps drawing into them, until it comes back. Moving and resizing are asked for the same way and
  * checked the same way. Surfaces on a screen stack back to front in the
  * order they were granted.
  *
@@ -35,10 +38,15 @@
 #define SURFACE_MAX     64          /* across both screens */
 #define SURFACE_SYSTEM  (-1)        /* the owner for what no app owns */
 
+/* Apps (604). An owner's app is the top-level program its station was
+ * placed by (program_app_of), a number from 0. Two more: */
+#define SURFACE_APP_SYSTEM (-1)     /* the system's surfaces: shown on every foreground */
+#define SURFACE_APP_NONE   (-2)     /* owners no program placed: one app between them */
+
 /* Answers (negative), beside a handle (positive) or 0. */
 enum surface_answer {
     SURFACE_OK          = 0,
-    SURFACE_TAKEN       = -1,       /* another owner holds part of that rectangle */
+    SURFACE_TAKEN       = -1,       /* another owner of the same app holds part of it */
     SURFACE_OFF_SCREEN  = -2,       /* not wholly on the screen, or empty, or no such screen */
     SURFACE_NO_HANDLE   = -3,       /* the handle names nothing granted now */
     SURFACE_FULL        = -4,       /* every slot is in use */
@@ -51,6 +59,7 @@ struct surface_facts {
     int      screen;
     int      x, y, width, height;
     int32_t  owner;
+    int32_t  app;                   /* the owner's app (604) */
     uint32_t z;                     /* larger is nearer the front */
 };
 
@@ -61,6 +70,11 @@ int32_t surface_request(int screen, int x, int y, int width, int height);
 
 /* The same, for a named owner: a station, or SURFACE_SYSTEM. */
 int32_t surface_request_for(int32_t owner, int screen, int x, int y, int width, int height);
+
+/* The app an owner belongs to: SURFACE_APP_SYSTEM for SURFACE_SYSTEM, the
+ * top-level program of a placed station, or SURFACE_APP_NONE. Fixed at
+ * the grant, as a station's program never changes. */
+int32_t surface_app_of(int32_t owner);
 
 /* Let a surface go: its pixels are no longer the owner's to write or the
  * compositor's to read, and its rectangle is free for anyone. */
@@ -106,6 +120,7 @@ struct surface_view {
     int32_t   handle;
     int       x, y, width, height;
     int32_t   owner;
+    int32_t   app;
     uint32_t  z;
     uint32_t *pixels;
     int       dirty;

@@ -1,0 +1,35 @@
+/*
+ * 110-foreground.h — which app each screen shows (issue 604).
+ *
+ * General description: each screen has one foreground app, and the
+ * compositor (603) copies only that app's surfaces, and the system's, to
+ * it. Every other app keeps its surfaces and keeps drawing into them;
+ * they are simply not copied until that app is the foreground again, and
+ * then they show what it drew meanwhile.
+ *
+ * An app is the top-level program its stations were placed by
+ * (program_app_of, 068), so a foreground is a program's number. Until
+ * something sets one, a screen's foreground is SURFACE_APP_NONE: the
+ * surfaces of owners no program placed, which is what boot and the tests
+ * draw with. Finding an app by name is for the callers that know names:
+ * boot restoring the last foregrounds (605) and the link transition (610).
+ *
+ * Setting the foreground is one atomic exchange (acquire and release),
+ * and every read is an acquire load. A change marks the whole screen to
+ * be painted again, after the exchange, so the next frame shows the new
+ * app on the background, with nothing of the old one left over.
+ */
+#ifndef SOREN_FOREGROUND_H
+#define SOREN_FOREGROUND_H
+
+#include <stdint.h>
+
+/* Make `app` the foreground of `screen`. Answers SURFACE_OK, or
+ * SURFACE_OFF_SCREEN for no such screen. Setting the app already there
+ * changes nothing and paints nothing again. */
+int screen_set_foreground(int screen, int32_t app);
+
+/* The foreground of `screen`; SURFACE_APP_NONE for no such screen. */
+int32_t screen_get_foreground(int screen);
+
+#endif
