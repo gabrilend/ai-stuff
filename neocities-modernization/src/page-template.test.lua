@@ -8,6 +8,16 @@
 
 -- {{{ setup_path()
 -- Resolve the module relative to this test file so it runs from any directory.
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup_path()
     local this = debug.getinfo(1, "S").source:sub(2)
     local dir = this:match("(.*/)") or "./"

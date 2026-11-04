@@ -123,13 +123,142 @@ function M.utf8_char_count(str)
 end
 -- }}}
 
+-- {{{ emoji: two grid cells each (owner, 2026-10-25)
+-- The site's font has no emoji, so a browser draws each one from a colour
+-- emoji font, wider than one cell; a line holding one used to push the rest
+-- of its frame out of line. Each emoji is now drawn in a box exactly two
+-- cells wide (M.grid_emoji, styled by src/page-head.lua's ".e" rule) and
+-- counted as two columns, the width terminals give emoji, so padding and
+-- wrapping leave room for it.
+--
+-- What counts (codepoints):
+--   1F000-1FAFF  pictographs, emoticons, transport, symbols: an emoji, 2
+--   1F1E6-1F1FF  regional indicators: a pair is one flag, 2 (the second 0)
+--   1F3FB-1F3FF  skin-tone marks: part of the emoji before them, 0
+--   200D         zero-width joiner: joins the next emoji to this one, 0 (and
+--                the joined emoji 0: "family" is one picture)
+--   FE0F / FE0E  colour / text presentation marks, 0; a symbol from 2600-27BF
+--                (★ ☀ ✔) is one cell, as the font draws it, unless FE0F asks
+--                for its colour emoji, then 2
+local function emoji_kind(cp)
+    if cp == 0x200D then return "joiner" end
+    if cp == 0xFE0F or cp == 0xFE0E then return "mark" end
+    if cp >= 0x1F3FB and cp <= 0x1F3FF then return "mark" end
+    if cp >= 0x1F1E6 and cp <= 0x1F1FF then return "flag" end
+    if cp >= 0x1F000 and cp <= 0x1FAFF then return "emoji" end
+    if cp >= 0x2600 and cp <= 0x27BF then return "symbol" end
+    return nil
+end
+
+-- {{{ local function codepoints()
+-- The UTF-8 characters of s as { cp = number, text = string } (a stray byte
+-- is its own character).
+local function codepoints(s)
+    local out = {}
+    for ch in s:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        local b1 = ch:byte(1)
+        local cp
+        if b1 < 0x80 then cp = b1
+        elseif b1 < 0xE0 then cp = (b1 % 0x20) * 0x40 + (ch:byte(2) or 0x80) % 0x40
+        elseif b1 < 0xF0 then cp = (b1 % 0x10) * 0x1000 + ((ch:byte(2) or 0x80) % 0x40) * 0x40 + (ch:byte(3) or 0x80) % 0x40
+        else cp = (b1 % 0x08) * 0x40000 + ((ch:byte(2) or 0x80) % 0x40) * 0x1000
+            + ((ch:byte(3) or 0x80) % 0x40) * 0x40 + (ch:byte(4) or 0x80) % 0x40 end
+        out[#out + 1] = { cp = cp, text = ch }
+    end
+    return out
+end
+-- }}}
+
+-- {{{ local function clusters()
+-- Splits plain text (no tags) into display units: each is { text, width,
+-- emoji = true/false }. An emoji with its marks, joiners and joined emoji is
+-- one unit of width 2; any other character is one unit of width 1.
+local function clusters(s)
+    local cps = codepoints(s)
+    local units = {}
+    local i = 1
+    while i <= #cps do
+        local c = cps[i]
+        local kind = emoji_kind(c.cp)
+        local is_emoji = kind == "emoji" or kind == "flag"
+            or (kind == "symbol" and cps[i + 1] and cps[i + 1].cp == 0xFE0F)
+        if is_emoji then
+            local parts = { c.text }
+            local j = i + 1
+            if kind == "flag" and cps[j] and emoji_kind(cps[j].cp) == "flag" then
+                parts[#parts + 1] = cps[j].text; j = j + 1
+            end
+            while cps[j] do
+                local k = emoji_kind(cps[j].cp)
+                if k == "mark" then
+                    parts[#parts + 1] = cps[j].text; j = j + 1
+                elseif k == "joiner" and cps[j + 1] then
+                    parts[#parts + 1] = cps[j].text; parts[#parts + 1] = cps[j + 1].text; j = j + 2
+                else
+                    break
+                end
+            end
+            units[#units + 1] = { text = table.concat(parts), width = 2, emoji = true }
+            i = j
+        elseif kind == "mark" or kind == "joiner" then
+            -- a stray mark or joiner, after no emoji: draws nothing
+            units[#units + 1] = { text = c.text, width = 0, emoji = false }
+            i = i + 1
+        else
+            units[#units + 1] = { text = c.text, width = 1, emoji = false }
+            i = i + 1
+        end
+    end
+    return units
+end
+-- }}}
+
+-- {{{ function M.display_columns
+-- The columns plain text (no tags, entities already decoded) takes on the
+-- grid: one per character, two per emoji (see above).
+function M.display_columns(plain)
+    if not plain or plain == "" then return 0 end
+    if not plain:find("[\226\240\239]") then return M.utf8_char_count(plain) end  -- no emoji possible
+    local width = 0
+    for _, u in ipairs(clusters(plain)) do width = width + u.width end
+    return width
+end
+-- }}}
+
+-- {{{ function M.grid_emoji
+-- An HTML line with every emoji (outside tags) wrapped in <span class="e">,
+-- which page-head.lua draws exactly two cells wide. Text inside a tag (an
+-- alt or title attribute) is left alone.
+function M.grid_emoji(html)
+    if not html:find("[\240\226]") then return html end
+    local out = {}
+    local pos = 1
+    while pos <= #html do
+        local tag_start = html:find("<", pos, true)
+        local text = html:sub(pos, (tag_start or (#html + 1)) - 1)
+        if text ~= "" then
+            for _, u in ipairs(clusters(text)) do
+                out[#out + 1] = u.emoji and ('<span class="e">' .. u.text .. "</span>") or u.text
+            end
+        end
+        if not tag_start then break end
+        local tag_end = html:find(">", tag_start, true)
+        if not tag_end then out[#out + 1] = html:sub(tag_start); break end
+        out[#out + 1] = html:sub(tag_start, tag_end)
+        pos = tag_end + 1
+    end
+    return table.concat(out)
+end
+-- }}}
+-- }}}
+
 -- {{{ function M.calculate_visible_width
 -- Calculates the visible display width of a string containing HTML entities.
--- Combines entity decoding and UTF-8 character counting.
+-- Combines entity decoding and grid-column counting (an emoji is two).
 -- Used for padding calculations in golden poem formatting.
 function M.calculate_visible_width(content)
     local decoded = M.decode_html_entities_for_width(content)
-    return M.utf8_char_count(decoded)
+    return M.display_columns(decoded)
 end
 -- }}}
 
@@ -228,9 +357,20 @@ function M.wrap_preserving_indent(line, max_width)
     local indent_width = M.utf8_char_count(leading)
     local content_width = max_width - indent_width
 
-    -- Edge case: if indent is so large we can't fit meaningful content
+    -- An indent so deep it leaves under 10 columns (a word pushed far to
+    -- the right, notes-619's 74 spaces before "quickly"): the line used to
+    -- come back whole and run past the text column. The indent shrinks
+    -- instead -- just enough that the text ends at the column's edge, which
+    -- keeps the word where the author pushed it; or, for text longer than
+    -- that, to leave 10 columns, and the text wraps within them.
     if content_width < 10 then
-        return {line}
+        local text_width = M.calculate_visible_width(remainder)
+        if text_width <= max_width then
+            return { string.rep(" ", max_width - text_width) .. remainder }
+        end
+        leading = string.rep(" ", max_width - 10)
+        indent_width = max_width - 10
+        content_width = 10
     end
 
     local result_lines = {}
@@ -290,6 +430,81 @@ function M.wrap_preserving_indent(line, max_width)
     end
 
     return result_lines
+end
+-- }}}
+
+-- {{{ function M.wrap_file_header(prefix, path, width)
+-- Splits a poem's source line (" -> file: notes/some-long-name") into lines no
+-- wider than `width`, breaking ONLY at a dash or a slash -- the owner's rule:
+-- a dash stays at the END of the upper line; a slash goes to the START of the
+-- lower line. Continuation lines are indented to sit under the path, so the
+-- name still reads as one column:
+--
+--    -> file: notes/i-asked-chatgpt-to-rewrite-the-declaration-of-independence-
+--             with-todays-grievences
+--
+-- prefix: string, the label before the path (" -> file: ", or "-> file: "
+--         inside a golden box, whose wall already supplies the leading space).
+-- path:   string, "category/filename" as displayed.
+-- width:  number, the widest a line may be, in visible characters.
+-- opts:   optional table. opts.colon = true also breaks after ": " (the
+--         colon and its space stay on the upper line) -- picture titles are
+--         "gallery: folder: name", and some names are long hashes with no
+--         dash at all (owner, 2026-10-07: "can break on the colon").
+-- returns: array of strings, one per line, no newlines inside.
+--
+-- A name with no dash, slash (or colon, with opts.colon) that fits is cut at
+-- the column itself, never inside a multi-byte character (owner, 2026-10-21:
+-- "we shouldn't rename. We should allow a hard-break"). Until then it was left
+-- over-wide on purpose, for the whole-site check to name.
+function M.wrap_file_header(prefix, path, width, opts)
+    local break_after_colon = opts and opts.colon
+    local lines = {}
+    local lead = prefix
+    local indent = string.rep(" ", M.utf8_char_count(prefix))
+    local rest = path
+    while M.utf8_char_count(lead .. rest) > width do
+        local budget = width - M.utf8_char_count(lead)
+        -- The cut is a byte position k: rest:sub(1, k) goes on this line.
+        -- After a dash, k is the dash itself; before a slash, k is the byte
+        -- just ahead of it. Keep the furthest cut that still fits.
+        local best = nil
+        for k = 1, #rest - 1 do
+            local ch, next_ch = rest:sub(k, k), rest:sub(k + 1, k + 1)
+            -- With opts.colon, k may also be the space after a ": ".
+            local cut_here = (ch == "-") or (next_ch == "/")
+                or (break_after_colon and ch == " " and k > 1 and rest:sub(k - 1, k - 1) == ":")
+            if cut_here and M.utf8_char_count(rest:sub(1, k)) <= budget then
+                best = k
+            end
+        end
+        if not best then
+            -- No dash, slash or colon to break at within the budget (a
+            -- gallery picture named by a 120-character hash): cut at the
+            -- budget itself, never inside a multi-byte character. (Owner,
+            -- 2026-10-21: "we shouldn't rename. We should allow a
+            -- hard-break." It used to be left over-wide for the site check
+            -- to report.)
+            local k = 0
+            for pos = 1, #rest do
+                local fits = M.utf8_char_count(rest:sub(1, pos)) <= budget
+                if not fits then break end
+                local next_byte = rest:byte(pos + 1)
+                -- a cut may fall only where a character ends
+                if (not next_byte) or next_byte < 128 or next_byte >= 192 then
+                    k = pos
+                end
+            end
+            -- not even one character fits beside the lead: nothing to cut
+            if k == 0 then break end
+            best = k
+        end
+        lines[#lines + 1] = lead .. rest:sub(1, best)
+        rest = rest:sub(best + 1)
+        lead = indent
+    end
+    lines[#lines + 1] = lead .. rest
+    return lines
 end
 -- }}}
 

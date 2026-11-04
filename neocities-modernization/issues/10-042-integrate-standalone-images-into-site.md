@@ -2,7 +2,20 @@
 
 ## Current Behavior
 
-The image-manager (`src/image-manager.lua`) catalogs standalone images from configured directories into `assets/image-catalog.json`, but this catalog is never consumed for display. Images exist in:
+**Where it stands (2026-10-22).** The catalog is used now:
+- Gallery pages, one per source, are built from it (10-042a, completed;
+  `src/generate-gallery-pages.lua`).
+- Gallery pictures appear on similar and different pages, each ranked by a
+  stand-in vector made from the posts written around it (Issue 9-013). That
+  replaced the plan to embed their file names (10-042c, superseded).
+- Still open: pictures among the poems on the chronological pages (10-042b),
+  a chronological list on the gallery (10-042d), and the shape-gifs source
+  (10-042e).
+
+The table below is the inventory taken when the issue was written; count the
+current one with `src/image-manager.lua` (stage 5) rather than reading it here.
+
+The image-manager (`src/image-manager.lua`) catalogs standalone images from configured directories into `assets/image-catalog.json`. When this issue was written the catalog was never consumed for display. Images were in:
 
 | Source | Count | Path | Has `randomize_order` |
 |--------|-------|------|----------------------|
@@ -81,7 +94,22 @@ Generate text embeddings from image filenames:
 | 10-042a | Gallery Pages | None |
 | 10-042b | Chronological Interleaving | 10-042a |
 | 10-042c | Filename Embeddings | 10-042b |
+| 10-042d | Gallery Chronological Image List | 10-042a |
 | 10-042e | Shape Gifs Gallery Source | 10-042a |
+
+## Suggested Implementation Steps
+
+The sub-issues are the steps; each holds its own detail. Build order:
+
+1. 10-042a, gallery pages (done): one page per image source and an index,
+   linked from the word cloud's menu.
+2. 10-042d and 10-042e, in either order: the gallery's chronological image
+   list, and the shape gifs as one more source. Both only need the gallery.
+3. 10-042b, chronological interleaving: standalone images placed among the
+   poems by timestamp, honouring the source's `randomize_order` setting.
+4. 10-042c, filename embeddings: an embedding per image made from its file
+   name, so images take part in the similar and different rankings.
+5. Check every line of Acceptance Criteria below on a full build, then close.
 
 ## Files to Modify
 

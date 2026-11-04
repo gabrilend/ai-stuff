@@ -1,0 +1,5 @@
+title: A plot of signals, read as lines standing off a board
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/22-the-cave-complex-signals/picture.png
+stage: 25
+---
+A chart has no depth, and the views say so: from the right and from above the whole thing is one thin board. The lines stand a hair off it only because the reading put them there.

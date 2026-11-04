@@ -1,16 +1,22 @@
 #!/usr/bin/env lua
+-- poem-validator.lua: Stage 4's check of the poem list.
+--
+-- WHAT IT DOES (for a CEO): reads assets/poems.json and reports what is in
+-- it -- how many poems, how many empty, duplicates, the spread of lengths,
+-- the "golden" poems of exactly 1024 characters -- and writes the
+-- validation report. main.lua --validate-only calls it in a build.
+--
+-- Usage: luajit src/poem-validator.lua [--dir PATH] [-I]
+--   --dir PATH project folder (default below); -I  ask before each step
 
--- {{{ local function setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- Script configuration
-local DIR = setup_dir_path()
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path below
+-- (libs/project-dir.lua, Issue 10-076).
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
@@ -273,7 +279,7 @@ end
 
 -- {{{ function M.validate_poems
 function M.validate_poems(poems_file, output_file)
-    print("Loading poems from: " .. relative_path(poems_file))
+    require("output").print("Loading poems from: " .. relative_path(poems_file))
     
     -- Load poems data
     local file = io.open(poems_file, "r")
@@ -290,7 +296,7 @@ function M.validate_poems(poems_file, output_file)
     end
     
     local poems = data.poems
-    print("Validating " .. #poems .. " poems...")
+    require("output").print("Validating " .. #poems .. " poems...")
     
     -- Analyze each poem
     local analyses = {}
@@ -299,11 +305,11 @@ function M.validate_poems(poems_file, output_file)
     end
     
     -- Detect duplicates
-    print("Checking for duplicate content...")
+    require("output").print("Checking for duplicate content...")
     local duplicates = detect_duplicates(poems)
 
     -- Generate statistics
-    print("Generating statistics...")
+    require("output").print("Generating statistics...")
     local statistics = generate_statistics(analyses)
 
     -- Create validation report
@@ -333,20 +339,20 @@ function M.validate_poems(poems_file, output_file)
     output:close()
     
     -- Print summary
-    print("\n=== VALIDATION SUMMARY ===")
-    print("Total Poems: " .. statistics.total_poems)
-    print("Non-empty Poems: " .. statistics.non_empty_poems)
-    print("Empty Poems: " .. statistics.empty_poems)
-    print("Average Length: " .. string.format("%.1f", statistics.average_length) .. " characters")
-    print("Median Length: " .. string.format("%.1f", statistics.median_length) .. " characters")
-    print("Fediverse Compatible (≤1024 chars): " .. statistics.fediverse_compatible)
-    print("Golden Poems (exactly 1024 chars): " .. statistics.golden_poems)
-    print("Duplicate Content: " .. #duplicates .. " pairs")
+    require("output").print("\n=== VALIDATION SUMMARY ===")
+    require("output").print("Total Poems: " .. statistics.total_poems)
+    require("output").print("Non-empty Poems: " .. statistics.non_empty_poems)
+    require("output").print("Empty Poems: " .. statistics.empty_poems)
+    require("output").print("Average Length: " .. string.format("%.1f", statistics.average_length) .. " characters")
+    require("output").print("Median Length: " .. string.format("%.1f", statistics.median_length) .. " characters")
+    require("output").print("Fediverse Compatible (≤1024 chars): " .. statistics.fediverse_compatible)
+    require("output").print("Golden Poems (exactly 1024 chars): " .. statistics.golden_poems)
+    require("output").print("Duplicate Content: " .. #duplicates .. " pairs")
     
     -- Add character distribution report
-    print("\n" .. generate_character_distribution_report(statistics))
+    require("output").print("\n" .. generate_character_distribution_report(statistics))
     
-    print("\nValidation report saved to: " .. relative_path(output_file))
+    require("output").print("\nValidation report saved to: " .. relative_path(output_file))
     return report
 end
 -- }}}
@@ -354,9 +360,9 @@ end
 -- {{{ function M.main
 function M.main(interactive_mode)
     if interactive_mode then
-        print("=== Poem Validation Tool ===")
-        print("1. Validate extracted poems.json")
-        print("2. Validate custom file")
+        require("output").print("=== Poem Validation Tool ===")
+        require("output").print("1. Validate extracted poems.json")
+        require("output").print("2. Validate custom file")
         io.write("Select option (1-2): ")
         local choice = io.read()
         
@@ -371,7 +377,7 @@ function M.main(interactive_mode)
             io.write("Enter output file path: ")
             output_file = io.read()
         else
-            print("Invalid choice")
+            require("output").print("Invalid choice")
             return
         end
         
@@ -395,7 +401,8 @@ if arg and arg[0] and arg[0]:match("poem%-validator%.lua$") then
         end
     end
 
-    M.main(interactive_mode)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("poem-validator.lua", M.main, interactive_mode)
 end
 
 return M

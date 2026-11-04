@@ -1,0 +1,5 @@
+title: The arch view: rings grown out from the console
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/20-arch-view-rings-from-the-console/picture.png
+stage: 25
+---
+The picture's main feature, the long golden oval, nearly vanished: drawn dim and thin, it shows only as a faint arc in the top view and a few specks in the angle. The reading kept the parts and lost the emphasis.
