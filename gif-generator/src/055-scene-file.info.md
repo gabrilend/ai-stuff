@@ -18,3 +18,5 @@ as a plain scene.
 
 Used by `049-shape-films.lua`, `052`, `053` (reading) and
 `056-make-shapes.lua` (writing).
+
+- **value_text(v, indent) → text** — one value as canonical scene text; the score writer writes a two-space score's camera, world, shapes and panes with it.
