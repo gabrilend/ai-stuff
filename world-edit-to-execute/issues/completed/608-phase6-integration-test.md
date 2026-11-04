@@ -223,3 +223,16 @@ phase 6 PR is merged, the demo should show all six passing.
 7. **`run-demo.sh` isn't changed.** Its `COMPLETED_PHASES` stays at 5
    while 602a, 603 and 606a are still open.
 
+
+### After the editor-and-client split (2026-11-04)
+
+The owner agreed to take out of this project what the split gave to the W
+client (609 and 609a, "Trimmed after the split"): a shared list is no
+longer applied for one game and taken off after; a received list that
+passes every check is kept as one of the player's asset packs. So the
+`download` scenario now checks that the list is kept as a pack of Ben's
+own and that every asset is there through a loader over that pack. Its
+check that the list was gone "after the game" was taken out with the code
+it covered, which lives on in the W client's issue 1110. The other checks
+(only the missing files come over, nothing comes over the second time)
+are unchanged; on the combined tree the count is 37 checks.

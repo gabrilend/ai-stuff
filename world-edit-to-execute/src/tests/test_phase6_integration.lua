@@ -164,7 +164,7 @@ scenario("download", "Assets from another player", { "share.list", "share.exchan
     local ready = {}
     local ana = exchange.new({ data = A, me = "ana", pack = PACK, transport = transport("ana") })
     local ben = exchange.new({ data = B, me = "ben", transport = transport("ben"),
-                               on_ready = function(P) ready[#ready + 1] = P end })
+                               on_ready = function(pack) ready[#ready + 1] = pack end })
     -- Ben already has the horn
     write(SCRATCH .. "/horn.wav", "RIFF....WAVE a horn")
     dedup.open(B .. "/blobs"):store_file(SCRATCH .. "/horn.wav")
@@ -177,13 +177,10 @@ scenario("download", "Assets from another player", { "share.list", "share.exchan
     deliver(ana, "ana")
     deliver(ben, "ben")
     test("only the two missing files came over", crossed.files == 1 and crossed.file_count == 2)
-    test("and the list was applied", #ready == 1)
-    local L = loader.new({ packs = {}, data = B, root = DIR })
-    ready[1]:attach(L)
+    test("and the list was kept as a pack of Ben's own", #ready == 1 and ready[1] == B .. "/asset-packs/share-" .. id)
+    local L = loader.new({ packs = { "share-" .. id }, data = B, root = DIR })
     test("every asset is there through the loader", colour(L:get("textures/grass.tga")) == "200,0,0"
         and colour(L:get("Textures\\Dirt.tga")) == "0,200,0" and L:get("sounds/horn.wav") == "RIFF....WAVE a horn")
-    ready[1]:revert(L)
-    test("after the game, it is gone again", L:get("textures/grass.tga") == nil)
     -- disconnect and reconnect: the same list again
     ana:sent(id)
     local files_before = crossed.files
@@ -192,7 +189,6 @@ scenario("download", "Assets from another player", { "share.list", "share.exchan
     ben:answer(id2, "yes")
     test("offered again: nothing is downloaded again (all stored)", crossed.files == files_before and crossed.want == 1
         and #ready == 2)
-    ready[2]:revert()
     L:close()
 end)
 -- }}}
