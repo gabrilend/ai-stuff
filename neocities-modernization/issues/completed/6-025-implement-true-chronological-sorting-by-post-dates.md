@@ -19,6 +19,11 @@
 
 ## Dependencies
 - Issue 026: Scripts directory integration (for accessing ZIP archive post dates)
+- 6-026a
+
+## Blocks
+
+- 6-026d, 6-028
 
 ## Implementation Details
 

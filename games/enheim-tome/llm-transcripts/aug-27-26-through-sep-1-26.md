@@ -7646,7 +7646,7 @@ message attached to entirely the wrong tree.
 
 ## The fix
 
-Amended the message in place. The commit is now `8fbf59d2`, still exactly 34
+Amended the message in place. The commit is now `de982944`, still exactly 34
 files, all `games/enheim-tome/`, nothing else. I used `--amend --only` with a
 clean index so it couldn't pick anything up, and verified hero-less-moba's 15
 files are still pending for that session.
@@ -7657,14 +7657,14 @@ Every commit I've made this session, checked for files outside its project:
 
 | Commit | Files outside enheim-tome |
 | --- | --- |
-| 8fbf59d2 — the written half, the day, the hidden layer | **0** |
-| 429182e6 — the levels above and below a block | **0** |
-| c25c7abb — the first three phases become blueprints | **0** |
-| 4389f128 — the map turns out to belong to somebody | **0** |
-| a0fdae02 — the pictures turn out to be somebody else's | **0** |
-| 5805919a — a design session becomes a place to build from | **0** |
-| 0160db98 — a city seen from a hill | **0** |
-| 31ce7160 — the two guard scripts | only `scripts/`, the two files I wrote |
+| de982944 — the written half, the day, the hidden layer | **0** |
+| 12da1a9c — the levels above and below a block | **0** |
+| 0b4af267 — the first three phases become blueprints | **0** |
+| b3437f68 — the map turns out to belong to somebody | **0** |
+| bb36440c — the pictures turn out to be somebody else's | **0** |
+| 3e9fa150 — a design session becomes a place to build from | **0** |
+| 13393584 — a city seen from a hill | **0** |
+| 4542b8bc — the two guard scripts | only `scripts/`, the two files I wrote |
 
 The history is clean. The only defect was that one message, and it's corrected.
 
@@ -7747,7 +7747,7 @@ and are still sitting there for them.
 Every one of my commits, audited: **eight commits, zero files outside their
 project.** The history was already clean. The single defect was that one
 message, now corrected in place with `--amend --only` on a verified-empty index.
-The commit is `8fbf59d2`, still 34 files, still all `games/enheim-tome/`.
+The commit is `de982944`, still 34 files, still all `games/enheim-tome/`.
 
 ## Where I actually went wrong
 
