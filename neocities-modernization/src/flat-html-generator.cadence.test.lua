@@ -12,9 +12,17 @@
 -- (scripts/sync-page-templates; input/ is ignored by git) and writes the page to
 -- a scratch folder.
 --
--- Run directly:  luajit src/flat-html-generator.cadence.test.lua [project-dir]
+-- Run directly:  luajit src/flat-html-generator.cadence.test.lua [--dir PATH]
 
-local DIR = arg and arg[1] or nil
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- folder above src/ is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local DIR = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir:sub(-1) == "/" and dir or (dir .. "/")
+end)()
 
 -- {{{ local function setup_path()
 local function setup_path()
@@ -138,7 +146,7 @@ end
 do
     os.execute('rm -rf "' .. SCRATCH .. '"')
     os.execute('mkdir -p "' .. SCRATCH .. '"')
-    local synced = os.execute('"' .. PROJECT .. 'scripts/sync-page-templates" "' .. PROJECT .. '" >/dev/null')
+    local synced = os.execute('"' .. PROJECT .. 'scripts/sync-page-templates" --dir "' .. PROJECT .. '" >/dev/null')
     check("the page templates are synced into input/pages", synced == 0 or synced == true)
 
     local ok, err = pcall(generator.generate_explore_page, SCRATCH, poems_data)
