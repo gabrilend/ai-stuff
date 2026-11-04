@@ -593,3 +593,45 @@ EOF
 - **Complexity**: High
 - **Dependencies**: Issue 051a
 - **Blocks**: 051c, 051d, 051e
+
+---
+
+## Status (2026-11-03): first slice built, open for the rest
+
+**Built:** `scripts/roadmap-from-history.lua`, with
+`scripts/roadmap-from-history.info.md` and
+`scripts/test-roadmap-from-history.sh` (37 checks, against the stand-in model
+in `scripts/libs/stand-in-model/`; no model was downloaded or run).
+
+- **Commit stream:** one `git log --numstat` over the folder (merges left
+  out): hash, date, subject, files and lines changed, paths.
+- **Boundaries, from heuristics alone:** time gaps, a version or release in
+  the commit before, a README update in the commit before, large commits,
+  the first commit in a new folder. Each has a weight; the strongest breaks
+  are kept, at most `--phases` phases, none under three commits.
+- **The model names and describes each phase**, one call per phase. With no
+  model, or `--no-model`, or a failed call, a phase keeps a plain name from
+  the folders it changed.
+- **Output:** Markdown, or `--json` (the roadmap.json shape:
+  `roadmap-from-history v1`, then the phases with name, description, dates,
+  first and last commit, areas, largest changes, and why each starts).
+  `--write` saves `docs/roadmap.md` and `docs/roadmap.json` only when
+  neither exists.
+
+**Decided while building (my own calls, open to change):**
+
+- The model does not move boundaries; it only names phases. A model that
+  places boundaries needs the triple-check below to be trusted, and the
+  heuristic boundaries are reproducible and explained in the output.
+- A version or release and a README update close a phase, so they count
+  toward a break after that commit, not before it.
+- No even three-way split when nothing breaks: one phase is the honest
+  answer.
+
+**Still open:**
+
+- The model proposing boundaries, with the triple-check consensus.
+- Feeding 051a's vision (kernel) into the prompts.
+- A commit limit and a cached stream for very large histories (500+
+  commits read fine in one pass, but the per-phase prompts cap subjects at
+  30).
