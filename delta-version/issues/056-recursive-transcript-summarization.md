@@ -1,7 +1,7 @@
 # Issue 056: Recursive Transcript Summarization & Table-of-Contents
 
 **Phase**: 0 - Tooling
-**Status**: Open (056a, 056b and 056c done; 056d to build)
+**Status**: Open (056a–d done; renames and a lasting summary block wait on the scripts project)
 **Priority**: High
 **Created**: 2026-07-06
 **Related**: 049 (LLM Transcript Abstraction Viewer), 049d (Ollama Processing Pipeline — superseded endpoint), 052 (Ollama Connection Config — closed as superseded, see `completed/`), 040g (Transcript Analysis Memory)
@@ -316,3 +316,13 @@ contents and the summary block. Renames are off by default, and even when
 turned on they wait until the shared rulebook accepts slug names (see
 `completed/056c-summary-applier.md`). 056d remains. It needs those two
 scripts-project changes to make renames and inline blocks last.
+
+**2026-11-03 — 056d built.** `scripts/summarize-overseer.sh` finds
+transcripts with no summary across the repositories in scope. It reads
+each session's own `cwd` and, with `run=on`, runs 056b and 056c on each
+(see `completed/056d-summary-overseer.md`). It previews by default.
+Exporting again and committing are separate settings, both off. 056 stays
+open for two scripts-project changes, without which these success
+criteria cannot be met:
+- teaching the shared rulebook and the exporter slug names, for renames;
+- having the exporter keep or skip the summary block.
