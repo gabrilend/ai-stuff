@@ -1,4 +1,4 @@
--- 041-gif-decode-test.lua - Proves the viewer's decoder reads gifs correctly.
+-- 051-gif-decode-test.lua - Proves the viewer's decoder reads gifs correctly.
 --
 -- In general terms: three independent witnesses check the decoder.
 --   1. Round trip: frames written by the gif-generator's own encoder are
@@ -13,7 +13,7 @@
 --      701b the counts were checked against a second walker; the studio now
 --      keeps one reader, and ImageMagick is its outside witness.)
 --
--- Usage: luajit src/041-gif-decode-test.lua <gif-generator dir> <gif folder> <scratch dir>
+-- Usage: luajit src/051-gif-decode-test.lua <gif-generator dir> <gif folder> <scratch dir>
 -- Prints one line per check and a summary; exits 1 if any check failed.
 
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/gif-generator"
@@ -21,7 +21,7 @@ local FOLDER = arg[2] or "/home/ritz/pictures/shape-gifs"
 local SCRATCH = arg[3] or "/tmp"
 
 local ffi = require("ffi")
-local gif = dofile(DIR .. "/src/040-gif-decode.lua")
+local gif = dofile(DIR .. "/src/050-gif-decode.lua")
 local encoder = dofile(DIR .. "/src/004-gif.lua")
 
 local passed, failed = 0, 0

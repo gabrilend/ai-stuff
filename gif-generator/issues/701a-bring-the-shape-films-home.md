@@ -69,17 +69,17 @@ gives byte-identical files, and every test that passed before passes after.
 Built on the branch `claude/701a-shape-films-home`, in one commit, every
 file moved with `git mv`:
 
-- `src/034-meshes.lua`, `035-choreography.lua`, `036-raster.lua`,
-  `037-fluid.lua`, `038-png.lua`, `039-shape-films.lua` (the tool, once
-  `readme-gallery.lua`); `040-gif-decode.lua` and `041-gif-decode-test.lua`
-  (the viewer's reader); `042-choreography-test.lua` and
-  `043-framing-test.lua`. Each has its `.info.md`; the counter reads 44.
+- `src/044-meshes.lua`, `045-choreography.lua`, `046-raster.lua`,
+  `047-fluid.lua`, `048-png.lua`, `049-shape-films.lua` (the tool, once
+  `readme-gallery.lua`); `050-gif-decode.lua` and `051-gif-decode-test.lua`
+  (the viewer's reader); `052-choreography-test.lua` and
+  `053-framing-test.lua`. Each has its `.info.md`; the counter reads 44.
 - `input/shapes/` holds the 34 scenes and `parts/`; `tests/shape-films/`
   the test scenes, the six fingerprints and the independent walker.
 - `viewer/` keeps `main.lua`, `conf.lua` and `decode-worker.lua` under
   those names, because LÖVE starts a folder by its `main.lua` and its
   threads by file name; this is the one place the numbered order could not
-  reach. The decoder they load is `src/040`.
+  reach. The decoder they load is `src/050`.
 - `render-all-shapes`, `test-shape-films`, `view-gifs` and
   `test-gif-viewer` sit at the project root beside `run`.
 - Issues 060 and 062 came across as 702 and 703, both still open as their

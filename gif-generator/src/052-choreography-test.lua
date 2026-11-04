@@ -1,4 +1,4 @@
--- 042-choreography-test.lua - checks the stage manager keeps its promises.
+-- 052-choreography-test.lua - checks the stage manager keeps its promises.
 --
 -- What this is, generally: the gallery promises every film loops without a
 -- seam, and that each word of the scene vocabulary does what its comment
@@ -10,13 +10,13 @@
 -- becoming, trails, parts, waves, curves and wind -- and checks that
 -- broken scenes are refused.
 --
--- Usage: luajit src/042-choreography-test.lua DIR   (DIR = the gif-generator project)
+-- Usage: luajit src/052-choreography-test.lua DIR   (DIR = the gif-generator project)
 -- Prints one line per check; exits 1 if any failed.
 
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/gif-generator"
-local meshes = dofile(DIR .. "/src/034-meshes.lua")
-local choreography = dofile(DIR .. "/src/035-choreography.lua")
-local fluid = dofile(DIR .. "/src/037-fluid.lua")
+local meshes = dofile(DIR .. "/src/044-meshes.lua")
+local choreography = dofile(DIR .. "/src/045-choreography.lua")
+local fluid = dofile(DIR .. "/src/047-fluid.lua")
 
 local HUES = {
     rose = { 1, 0.2, 0.45 }, ember = { 1, 0.42, 0.1 }, gold = { 1, 0.8, 0.15 },
@@ -528,7 +528,7 @@ check("refusal: streaks rushing half a time", refused_scene({ instances = { { me
     streaks = { count = 1, cycles = 1.5, far = 5, near = 1, length = 1, inner = 1, outer = 2 } }))
 
 print("the seventh-round words -- blobs, lights, bands, liquid -- hold")
-local raster = dofile(DIR .. "/src/036-raster.lua")
+local raster = dofile(DIR .. "/src/046-raster.lua")
 do
     local s = one({ tag = "wax", hue = "rose", scale = 0.4, blob = { group = "g", bands = 3, soft = 0.2 } })
     local item = choreography.pose(s, 0)[1]

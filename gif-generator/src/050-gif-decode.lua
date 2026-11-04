@@ -1,4 +1,4 @@
--- 040-gif-decode.lua - Turns a gif file into its frames, as plain pictures.
+-- 050-gif-decode.lua - Turns a gif file into its frames, as plain pictures.
 --
 -- In general terms: a gif is a stack of small pictures, each squeezed with
 -- a compression scheme (LZW) and drawn on top of the one before. This reads
@@ -22,7 +22,7 @@
 --   * a frame's rows may be stored out of order (interlacing)
 --
 -- Usage:
---   local gif = dofile(DIR .. "/src/040-gif-decode.lua")
+--   local gif = dofile(DIR .. "/src/050-gif-decode.lua")
 --   local info = gif.decode_file(path, {
 --       max_size   = 128,   -- optional: shrink so neither side exceeds this
 --       frame_step = 2,     -- optional: keep every 2nd frame, delays summed
@@ -458,11 +458,11 @@ end
 -- }}}
 
 -- {{{ Command line
--- Run directly, `luajit src/040-gif-decode.lua --facts file.gif` prints the
+-- Run directly, `luajit src/050-gif-decode.lua --facts file.gif` prints the
 -- facts line (the shell tests' reader). Loaded with dofile or by the viewer's
 -- threads, it only returns the module: `arg` then belongs to someone else,
 -- or is absent.
-if arg and arg[0] and arg[0]:match("040%-gif%-decode%.lua$") and arg[1] == "--facts" then
+if arg and arg[0] and arg[0]:match("050%-gif%-decode%.lua$") and arg[1] == "--facts" then
     local ok, result = pcall(function()
         local handle = io.open(arg[2] or "", "rb")
         if not handle then error("cannot open " .. tostring(arg[2]), 0) end
@@ -471,7 +471,7 @@ if arg and arg[0] and arg[0]:match("040%-gif%-decode%.lua$") and arg[1] == "--fa
         return M.facts_line(M.facts(data))
     end)
     if not ok then
-        io.stderr:write("040-gif-decode: " .. tostring(result) .. "\n")
+        io.stderr:write("050-gif-decode: " .. tostring(result) .. "\n")
         os.exit(1)
     end
     print(result)

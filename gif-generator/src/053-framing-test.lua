@@ -1,4 +1,4 @@
--- 043-framing-test.lua - checks that a scene keeps its promises about the picture.
+-- 053-framing-test.lua - checks that a scene keeps its promises about the picture.
 --
 -- What this is, generally: a moving camera can wander away from what it is
 -- filming. A scene may promise, in its `framing = { tag, at_least, margin }`,
@@ -18,14 +18,14 @@
 --     those tags are ever closer than d, centre to centre (balls on a hill
 --     never overlap)
 --
--- Usage: luajit src/043-framing-test.lua DIR [scene-name ...]
+-- Usage: luajit src/053-framing-test.lua DIR [scene-name ...]
 -- Prints one line per scene; exits 1 if any scene breaks its promise.
 
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/gif-generator"
-local meshes = dofile(DIR .. "/src/034-meshes.lua")
-local choreography = dofile(DIR .. "/src/035-choreography.lua")
-local fluid = dofile(DIR .. "/src/037-fluid.lua")
-local raster = dofile(DIR .. "/src/036-raster.lua")
+local meshes = dofile(DIR .. "/src/044-meshes.lua")
+local choreography = dofile(DIR .. "/src/045-choreography.lua")
+local fluid = dofile(DIR .. "/src/047-fluid.lua")
+local raster = dofile(DIR .. "/src/046-raster.lua")
 
 local HUES = {
     rose = { 1, 0.2, 0.45 }, ember = { 1, 0.42, 0.1 }, gold = { 1, 0.8, 0.15 },

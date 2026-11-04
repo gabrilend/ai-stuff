@@ -1,15 +1,15 @@
--- 044-round-trip-test.lua — proof that the one reader and the one writer
+-- 054-round-trip-test.lua — proof that the one reader and the one writer
 -- agree on every film: encode, decode, encode again, the same bytes.
 --
 -- What this is, generally: for each gif in a folder, the studio's reader
--- (040-gif-decode.lua) takes the file apart into its palette, its delay and
+-- (050-gif-decode.lua) takes the file apart into its palette, its delay and
 -- every frame's raw colour indices; the studio's encoder (004-gif.lua) puts
 -- them back together; the new file must equal the old one byte for byte.
 -- Only films this studio wrote can pass (another encoder packs its codes
 -- differently), so the folder is the shape films' own: the approved six by
 -- default, or the owner's library when it is named. Issue 701b, step 4.
 --
--- Usage: luajit src/044-round-trip-test.lua DIR [gif folder]
+-- Usage: luajit src/054-round-trip-test.lua DIR [gif folder]
 -- Prints one line per film and a summary; exits 1 if any failed.
 
 -- Scripts run from anywhere: hard-coded home, overridable by argument.
@@ -20,7 +20,7 @@ package.path = DIR .. "/src/?.lua;" .. package.path
 
 local ffi = require("ffi")
 local encoder = require("004-gif")
-local reader = dofile(DIR .. "/src/040-gif-decode.lua")
+local reader = dofile(DIR .. "/src/050-gif-decode.lua")
 
 local passed, failed = 0, 0
 
@@ -86,7 +86,7 @@ local function film_paths()
     table.sort(names)
     for _, name in ipairs(names) do
         os.execute(string.format("luajit %q %q %q --out=%q > /dev/null",
-            DIR .. "/src/039-shape-films.lua", DIR, name, out))
+            DIR .. "/src/049-shape-films.lua", DIR, name, out))
         paths[#paths + 1] = out .. "/" .. name .. ".gif"
     end
     return paths

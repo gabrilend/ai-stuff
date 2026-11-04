@@ -1,5 +1,5 @@
 #!/usr/bin/env luajit
--- 039-shape-films.lua - renders the shape films: animations of solid shapes.
+-- 049-shape-films.lua - renders the shape films: animations of solid shapes.
 --
 -- What this is, generally: the 3D half of this studio, first made for the
 -- repository's front page. Each animation is a short scene written as plain data -- which
@@ -9,12 +9,12 @@
 -- used anywhere.
 --
 -- How, generally: three separate workers pass the film along. The stage
--- manager (035-choreography.lua) says where every shape is at each moment.
--- The painter (036-raster.lua) draws that moment. This project's own encoder
+-- manager (045-choreography.lua) says where every shape is at each moment.
+-- The painter (046-raster.lua) draws that moment. This project's own encoder
 -- and palette (004-gif.lua, 002-palette.lua) pack the drawings into a GIF.
 --
 -- Usage:
---   039-shape-films.lua [DIR] [scene ...] [--out=DIR] [--still] [--stills=DIR] [--frames=N]
+--   049-shape-films.lua [DIR] [scene ...] [--out=DIR] [--still] [--stills=DIR] [--frames=N]
 --     DIR        the gif-generator project (default below); scenes live in
 --                its input/shapes/
 --     scene      a scene name from input/shapes/, or a path to a .lua scene
@@ -52,11 +52,11 @@ local OUT_DEFAULT = "/dev/shm/gif-generator/shape-film-candidates"
 local MAX_WORKERS = 4
 -- }}}
 
-local meshes = dofile(SRC .. "/034-meshes.lua")
-local choreography = dofile(SRC .. "/035-choreography.lua")
-local raster = dofile(SRC .. "/036-raster.lua")
-local png = dofile(SRC .. "/038-png.lua")
-local fluid = dofile(SRC .. "/037-fluid.lua")
+local meshes = dofile(SRC .. "/044-meshes.lua")
+local choreography = dofile(SRC .. "/045-choreography.lua")
+local raster = dofile(SRC .. "/046-raster.lua")
+local png = dofile(SRC .. "/048-png.lua")
+local fluid = dofile(SRC .. "/047-fluid.lua")
 local gif = dofile(SRC .. "/004-gif.lua")
 local palette = dofile(SRC .. "/002-palette.lua")
 local ffi = require("ffi")
@@ -235,7 +235,7 @@ local function film(name, options)
         os.execute(string.format("mkdir -p %q", shard_dir))
         local commands = {}
         for k = 0, jobs - 1 do
-            local parts = { "luajit", string.format("%q", SRC .. "/039-shape-films.lua"), string.format("%q", DIR),
+            local parts = { "luajit", string.format("%q", SRC .. "/049-shape-films.lua"), string.format("%q", DIR),
                             string.format("%q", path), "--shard=" .. k .. "/" .. jobs,
                             string.format("--shard-dir=%q", shard_dir), string.format("--out=%q", options.out) }
             if options.frames then parts[#parts + 1] = "--frames=" .. options.frames end

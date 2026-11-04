@@ -1,4 +1,4 @@
-# 035-choreography — the stage manager
+# 045-choreography — the stage manager
 
 Where every shape of a shape-film scene is at moment t, after its reactions;
 where the camera is and what it looks at; the stars, strokes, beams, streaks
@@ -15,5 +15,5 @@ and lights. Knows scenes, not pixels. Refuses a broken scene on load.
   the tests and scenes lean on.
 
 Every word of the scene vocabulary, and each function's fields, is written
-out in `039-shape-films.info.md` ("The parts", "Scene file", "Scene-level
+out in `049-shape-films.info.md` ("The parts", "Scene file", "Scene-level
 words", "The camera").

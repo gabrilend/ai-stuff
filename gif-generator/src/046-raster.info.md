@@ -1,4 +1,4 @@
-# 036-raster — the painter
+# 046-raster — the painter
 
 Draws one moment of a shape film through the view it is handed: depth
 buffer, banded lighting, glowing edges, 2x2 smoothing, soft blobs. Knows
@@ -14,4 +14,4 @@ encoder in `004-gif.lua`.
   framing test reuses.
 - **finish(canvas, index_of) → uint8 indices**
 
-Details in `039-shape-films.info.md`, under "The parts".
+Details in `049-shape-films.info.md`, under "The parts".
