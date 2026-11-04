@@ -5,7 +5,7 @@
 -- Used by test-menu-screen.sh.  (neocities-modernization issue 10-070.)
 -- Usage: luajit test-menu-screen-replay.lua SESSION_LOG [ROWS] [COLS] [all]
 -- Blank rows are left out, unless the fourth argument is "all": then every
--- row is printed, so line N of the output is screen row N (issue 045's
+-- row is printed, so line N of the output is screen row N (issue 059's
 -- layout test needs that).
 
 local log = assert(io.open(arg[1], "rb"), "cannot open " .. tostring(arg[1])):read("*a")

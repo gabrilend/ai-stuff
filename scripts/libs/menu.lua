@@ -1994,7 +1994,7 @@ end
 
 -- {{{ menu.layout
 -- Splits a rows x cols screen into the menu's three parts, as tui panels
--- (issue 045): the header box at the top, the footer box at the bottom, and
+-- (issue 059): the header box at the top, the footer box at the bottom, and
 -- the body between them, where the sections, the description and the
 -- preview go.  The header is always 4 rows (top, title, subtitle,
 -- separator).  The footer is 2 rows (separator, help line), or 3 when
@@ -2970,7 +2970,7 @@ function menu.render()
 
     tui.clear_back_buffer()
 
-    -- Issue 045: lay the screen out as panels; the footer's height depends
+    -- Issue 059: lay the screen out as panels; the footer's height depends
     -- on whether there is a shortcuts line to show this time.
     local _, _, has_shortcuts = footer_text()
     state.layout = menu.layout(state.rows, state.cols, { has_shortcuts = has_shortcuts })

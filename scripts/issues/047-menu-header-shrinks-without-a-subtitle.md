@@ -5,7 +5,7 @@
 - **Type**: Look change
 - **Status**: Open (filed, not to be built yet: it moves every menu)
 - **Created**: 2026-11-03
-- **Follows**: issue 045 (the menu's frame on tui panels)
+- **Follows**: issue 059 (the menu's frame on tui panels)
 
 ## Current Behavior
 

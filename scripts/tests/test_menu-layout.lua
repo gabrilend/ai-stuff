@@ -1,6 +1,6 @@
 #!/usr/bin/env luajit
 -- test_menu-layout.lua
--- Checks menu.layout in libs/menu.lua (issue 045): the menu's screen is
+-- Checks menu.layout in libs/menu.lua (issue 059): the menu's screen is
 -- split into a header panel, a body panel and a footer panel, and the body
 -- runs from under the header right down to the top of the footer.
 --

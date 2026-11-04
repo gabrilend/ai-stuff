@@ -225,7 +225,7 @@ do
     check("panel reset_style resets", cell.fg .. "," .. cell.bg .. "," .. cell.attrs, "0,0,0")
 end
 
--- fill keeps the current style; clear does not (issue 045, for #189)
+-- fill keeps the current style; clear does not (issue 059, for #189)
 do
     fresh()
     local p = tui.create_panel(2, 3, 4, 2)

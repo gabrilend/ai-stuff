@@ -305,7 +305,7 @@ fi
 ## Screen Layout
 
 Each redraw, `menu.layout(rows, cols, {has_shortcuts=...})` splits the screen
-into three tui panels (issue 045):
+into three tui panels (issue 059):
 
 - **header**: rows 1-4 (box top, title, subtitle, separator)
 - **footer**: the last 2 rows (separator, help line), or 3 when there are

@@ -5,12 +5,12 @@
 - **Type**: Refactor
 - **Status**: Open
 - **Created**: 2026-11-03
-- **Follows**: issue 045 (the menu's frame on tui panels)
+- **Follows**: issue 059 (the menu's frame on tui panels)
 - **Waits on**: PR #93 (`claude/menu-dropdown`), which rewrites `render_item`
 
 ## Current Behavior
 
-Since issue 045 the menu's header, footer and body are tui panels, and the
+Since issue 059 the menu's header, footer and body are tui panels, and the
 description and preview stop at the body's last row. The sections and items
 inside the body still draw on screen rows: `render_section` and
 `render_item` take a screen row, call `tui.write_str(row, ...)` directly,

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # test-menu-layout.sh -- runs small real menus in a pretend terminal and
-# checks where the header, the preview and the footer land (issue 045: the
+# checks where the header, the preview and the footer land (issue 059: the
 # menu's hand-placed layout moves onto tui panels).
 #
 # The point being pinned: the body (sections, description, preview) runs

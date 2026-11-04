@@ -1,4 +1,4 @@
-# Issue 045: The menu's hand-placed layout moves onto tui panels
+# Issue 059: The menu's hand-placed layout moves onto tui panels
 
 ## Status
 - **Priority**: Medium
@@ -108,3 +108,8 @@ Tests:
 - `tests/test_tui-panels.lua` gains 14 checks for `fill` and
   `display_width` (58 in all).
 - `libs/test-menu-screen.sh` still passes 7/0.
+
+## Renumbered
+
+**2026-11-04:** this issue was 045, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 059.

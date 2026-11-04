@@ -16,7 +16,7 @@ character (a space by default) in every cell in the current style, so a
 panel can be a coloured block; `clear` always leaves plain blanks. See
 `issues/completed/048-tui-panels.md` for the decisions.
 
-The Lua menu lays its screen out this way (issue 045): `menu.layout(rows,
+The Lua menu lays its screen out this way (issue 059): `menu.layout(rows,
 cols, opts)` returns header, body and footer panels.
 
 ## Text width
