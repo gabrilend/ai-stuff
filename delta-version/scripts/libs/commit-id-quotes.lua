@@ -64,6 +64,14 @@ function M.universe_add(universe, full_id)
       bucket = {}
       universe.by7[key] = bucket
    end
+   -- Adding an id the universe already holds changes nothing. A commit
+   -- added twice (from a file of old ids and again from rev-list) was once
+   -- two matches for every one of its prefixes, so it read as ambiguous and
+   -- was never translated (2026-11-03). Two paths: already held (left as
+   -- is), or new (added).
+   for _, held in ipairs(bucket) do
+      if held == full_id then return end
+   end
    bucket[#bucket + 1] = full_id
    universe.count = universe.count + 1
 end
