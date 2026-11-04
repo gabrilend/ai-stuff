@@ -1,5 +1,15 @@
 -- Tests for image-render.lua (Issue 9-013 renderer side).
 -- Run: luajit src/image-render.test.lua
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 package.path = "./src/?.lua;./libs/?.lua;" .. package.path
 local R = require("image-render")
 
@@ -26,10 +36,11 @@ local manifest = {
 
 R.inject_pseudo_poems(poems, manifest)
 
--- Class 2: existing post tagged in place, NOT duplicated.
+-- Class 2: an image-only post stays the ordinary post it is (owner, 2026-10-22),
+-- drawn with its text, warning and links, and is not duplicated.
 local p4
 for _, p in ipairs(poems.poems) do if p.poem_index == 4 then p4 = p end end
-check("class-2 post tagged is_image in place", p4 and p4.is_image == true and p4.image_class == 2)
+check("class-2 post is left an ordinary post", p4 and not p4.is_image and p4.image_class == nil)
 check("class-2 keeps its original attachments", p4 and p4.attachments[1].relative_path == "files/1/2/y.png")
 
 -- Class 3: appended as a new pseudo-poem with a usable attachment.
@@ -70,6 +81,22 @@ do
     check("text+image link labelled image.png", link:find(">image%.png</a>", 1) ~= nil)
     check("text+image link targets the media file (relative)", link:find("%.%./media/photo%.jpg", 1) ~= nil)
     check("pure-text poem gets no link", R.text_image_link({ content = "just words" }) == "")
+end
+
+-- What a screen reader hears for a picture in the box: its own description,
+-- else the box title (2026-10-22: every picture used to read as the title,
+-- "fediverse: image post", though 80 of 85 had a description).
+do
+    local box = R.format_image_entry({ display_title = "fediverse: image post", attachments = {
+        { relative_path = "a/one.png", description = 'a cat saying "hi" <3' },
+        { relative_path = "a/two.png", description = "   " },
+        { relative_path = "a/three.png" },
+    } })
+    check("a described picture is read by its description, quotes and < escaped",
+        box:find('alt="a cat saying &quot;hi&quot; &lt;3"', 1, true) ~= nil)
+    local _, titled = box:gsub('alt="fediverse: image post"', "")
+    check("a blank or missing description falls back to the box title (2 of 3)", titled == 2)
+    check("the description is also the hover title", box:find('title="a cat saying &quot;hi&quot; &lt;3"', 1, true) ~= nil)
 end
 
 print(string.format("\nimage-render: %d passed, %d failed", passed, failed))

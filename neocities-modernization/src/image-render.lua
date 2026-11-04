@@ -12,6 +12,10 @@
 
 local M = {}
 
+-- The one wrapping rule for source/file titles (libs/, pure Lua, so a worker's
+-- fresh Lua state can load it as easily as the main thread).
+local text_formatter = require("text-formatter")
+
 local manifest_cache = nil  -- per-process memoize (worker states each load once)
 
 -- {{{ function M.load_manifest()
@@ -68,30 +72,24 @@ end
 -- renderer's poem_index lookups resolve them. Idempotent: a second call is a
 -- no-op (guarded by a marker on poems_data), so it is safe to call after every
 -- poems.json load. Class 2 (image-only posts) ALREADY exist in poems_data with
--- their real poem_index -- we only TAG those in place; class 3 (standalone
--- catalog images, poem_index beyond the poem range) are genuinely new and get
--- appended.
+-- their real poem_index and are left as they are: they are drawn as the
+-- ordinary posts they are, with their text, content warning, pictures (each
+-- with its own description) and links -- owner, 2026-10-22: "every post with
+-- pictures should follow the example in the right column, the one with all
+-- the extra information" (scripts/render-image-post-comparison). Until then
+-- they were tagged to be drawn as a gallery picture box, which left all of
+-- that out. Class 3 (standalone catalog images, poem_index beyond the poem
+-- range) are genuinely new and get appended.
 function M.inject_pseudo_poems(poems_data, manifest)
     if not poems_data or not poems_data.poems then return poems_data end
     if poems_data._images_injected then return poems_data end
     poems_data._images_injected = true
     if not manifest then return poems_data end
 
-    -- Index existing poems so class-2 entries can be tagged in place.
-    local by_index = {}
-    for _, p in ipairs(poems_data.poems) do by_index[p.poem_index] = p end
-
     for key, rec in pairs(manifest) do
         local pidx = rec.poem_index or tonumber(key)
         if rec.class == 2 then
-            -- Tag the existing image-only post so the formatter draws it as an
-            -- image. Its attachments + content already live in poems_data.
-            local p = by_index[pidx]
-            if p then
-                p.is_image = true
-                p.image_class = 2
-                p.display_title = rec.category and (rec.category .. ": image post") or "image post"
-            end
+            -- an image-only post: already in poems_data, drawn as itself
         else
             -- Class 3: build a fresh pseudo-poem carrying the catalog image as a
             -- normal attachment. The attachment keeps the FULL relative_path (not
@@ -154,6 +152,16 @@ function M.text_image_link(poem)
 end
 -- }}}
 
+-- {{{ local function attribute_text()
+-- Text made safe for an HTML attribute: one line, control bytes dropped,
+-- & < > and " escaped (a description quoting code put a raw "<" into an
+-- attribute once; see poem-entry's pictures).
+local function attribute_text(text)
+    return (text:gsub("[\r\n]+", " "):gsub("[%z\1-\8\11\12\14-\31]", "")
+        :gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;"))
+end
+-- }}}
+
 -- {{{ function M.format_image_entry()
 -- Render a ranked IMAGE as a compact, CSS-free box: a marker + the
 -- source-qualified title, the image(s), then a closing rule. Self-contained
@@ -161,32 +169,51 @@ end
 -- main thread and in each effil worker without needing their private helpers.
 function M.format_image_entry(poem)
     local title = poem.display_title or "image"
-    local esc = title:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
     local imgs = {}
     for _, att in ipairs(poem.attachments or {}) do
         -- media_href namespaces art by source+subdir (so same-named pieces don't
         -- collide in output/media/) and url-encodes; Mastodon hashes stay flat.
         local src = MEDIA_BASE .. media_href(att.relative_path or att.url or "")
+        -- What a screen reader says for the picture: its own description
+        -- when it has one (an image-only post's, from the archive: 80 of 85
+        -- such pictures have one), else the title, which for a gallery
+        -- picture is its source and file name. Until 2026-10-22 every
+        -- picture here was described by the title alone, so an image-only
+        -- post read as "fediverse: image post".
+        local described = att.description or att.alt_text
+        local alt = attribute_text((described and described:match("%S")) and described or title)
         if att.width and att.height then
             imgs[#imgs + 1] = string.format(
-                '  <img src="%s" alt="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
-                src, esc, att.width, att.height)
+                '  <img src="%s" alt="%s" title="%s" loading="lazy" width="%d" height="%d" style="display:block; max-width:min(100%%,800px); height:auto">',
+                src, alt, alt, att.width, att.height)
         else
             imgs[#imgs + 1] = string.format(
-                '  <img src="%s" alt="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
-                src, esc)
+                '  <img src="%s" alt="%s" title="%s" loading="lazy" style="display:block; max-width:min(100%%,800px); height:auto">',
+                src, alt, alt)
         end
     end
     -- For a standalone catalog image, link the title to its spot on the
     -- chronological gallery page (Issue 9-013 gallery links). Image-only posts
     -- carry no gallery_anchor, so their title stays plain text.
-    local title_html = esc
-    if poem.gallery_anchor then
-        title_html = string.format('<a href="%s%s">%s</a>', GALLERY_BASE, poem.gallery_anchor, esc)
+    --
+    -- A long title ("gallery: folder: long-file-name.png") wraps to the 80-wide
+    -- column at a dash, slash, or ": " (text-formatter's wrap_file_header), and
+    -- each piece becomes its own link, so every line stays clickable. Wrapped on
+    -- the raw title and escaped per piece, so a cut never lands inside "&amp;".
+    -- The three-column lead is the picture marker (two columns) and a space.
+    local pieces = text_formatter.wrap_file_header("   ", title, 80, { colon = true })
+    local title_lines = {}
+    for i, piece in ipairs(pieces) do
+        local lead = (i == 1) and "&#x1F5BC; " or "   "
+        local text = piece:sub(4):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        if poem.gallery_anchor then
+            text = string.format('<a href="%s%s">%s</a>', GALLERY_BASE, poem.gallery_anchor, text)
+        end
+        title_lines[i] = string.format('<font color="#868E96"><b>%s%s</b></font>', lead, text)
     end
     return table.concat({
         "<hr>",
-        string.format('<font color="#868E96"><b>&#x1F5BC; %s</b></font>', title_html),
+        table.concat(title_lines, "\n"),
         table.concat(imgs, "\n"),
         "<hr>",
         "",

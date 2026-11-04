@@ -977,7 +977,7 @@ verification, not implementation.
 ## 9-014 — Tile diversity shader + FP16 → **implemented (both halves), not finalized**
 
 
-Two commits landed it (`0805518d` in-shader tiled scan, `e38847ba`
+Two commits landed it (`563d6dff` in-shader tiled scan, `8995dbeb`
 dispatch-per-tile + pipelining), and the code confirms **both** optimizations
 the ticket called for:
 
@@ -4915,7 +4915,7 @@ anything:
 
 
 Now it's clear: `checkout -b` **created** the branch (at the old master,
-08b692c9) but **didn't switch** to it, so my 3 commits went onto `master` —
+42b6d1d3) but **didn't switch** to it, so my 3 commits went onto `master` —
 which is your normal workflow anyway. The branch is a useless leftover (0 unique
 commits, sitting at the old position). Let me remove it:
 
@@ -4926,16 +4926,16 @@ commit:
 
 ```
 
-7b1836b6 pipeline orchestration — durable debug logs, honest freshness, stage
+411d0d0d pipeline orchestration — durable debug logs, honest freshness, stage
 order (run.sh)
 
-58a8d3d1 even out the semantic color map (config.lua,
+970f50c5 even out the semantic color map (config.lua,
 semantic-color-calculator.lua)
 
-5594df9c batched, token-exact embedding generation + crash hardening [10-050]
+c977987d batched, token-exact embedding generation + crash hardening [10-050]
 (13 files)
 
-08b692c9 ← your previous commit
+42b6d1d3 ← your previous commit
 
 ```
 

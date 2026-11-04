@@ -1,0 +1,5 @@
+title: The hub at noon without blur, figures large
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/12-the-hub-without-blur/picture.png
+stage: 25
+---
+With the blur gone the figures were read as large, and the right view shows them as a crowd standing to one side of the console, taller than its buttons. The picture's sense of a crowd pressing toward the viewer does not survive: from the side they are just standing.
