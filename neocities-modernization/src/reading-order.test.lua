@@ -16,9 +16,17 @@
 -- It builds real chronological and explore pages from made-up poems into a
 -- scratch folder (syncing page-templates/ into input/pages/ as run.sh does).
 --
--- Run directly:  luajit src/reading-order.test.lua [project-dir]
+-- Run directly:  luajit src/reading-order.test.lua [--dir PATH]
 
-local DIR = arg and arg[1] or nil
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- folder above src/ is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local DIR = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
 
 -- {{{ local function setup_path()
 local function setup_path()
@@ -35,6 +43,11 @@ end
 local PROJECT = setup_path()
 local R = require("reading-order")
 local generator = require("flat-html-generator")
+-- config.lua names no default model (owner, 2026-10-21); the pages name the
+-- one config.lua testing uses, as main's page tests do
+local testing = require("config-loader").load().testing
+require("inference-server-config").set_selected_server(testing.server)
+require("inference-server-config").set_selected_model(testing.model)
 
 local SCRATCH = "/tmp/neocities-modernization/tmp/reading-order-test"
 local passed, failed = 0, 0
@@ -122,7 +135,7 @@ local poems = {}
 for i = 1, 7 do
     local day = (i == 5) and 4 or i   -- poems 4 and 5 share 2024-01-04
     poems[i] = {
-        poem_index = i, id = i, category = "notes", title = "Poem " .. i,
+        poem_index = i, id = i, category = "notes", source_key = "notes-" .. i, title = "Poem " .. i,
         content = "words of poem " .. i,
         creation_date = string.format("2024-01-%02dT12:00:00Z", day),
     }
@@ -204,12 +217,14 @@ do
     local default_dir = fresh("default")
     local reverse_dir = fresh("reverse")
     local legacy_dir = fresh("legacy")
-    check("forward pages build", pcall(generator.generate_chronological_index_with_navigation,
-        poems_data, default_dir, 3, false))
-    check("reversed pages build", pcall(generator.generate_chronological_index_with_navigation,
-        poems_data, reverse_dir, 3, true))
-    check("pages build without the new argument", pcall(generator.generate_chronological_index_with_navigation,
-        poems_data, legacy_dir, 3))
+    -- one page worker (main's builder since Issue 8-058), then the order
+    local function build(dir, ...)
+        local ok, err = pcall(generator.generate_chronological_index_with_navigation, poems_data, dir, 3, 1, ...)
+        return ok, tostring(err)
+    end
+    check("forward pages build", build(default_dir, false))
+    check("reversed pages build", build(reverse_dir, true))
+    check("pages build without the new argument", build(legacy_dir))
 
     local same = true
     for p = 1, 3 do
@@ -248,7 +263,7 @@ end
 
 -- {{{ Case: the explore page states the order the build used
 do
-    local synced = os.execute('"' .. PROJECT .. 'scripts/sync-page-templates" "' .. PROJECT .. '" >/dev/null')
+    local synced = os.execute('"' .. PROJECT .. 'scripts/sync-page-templates" --dir "' .. PROJECT .. '" >/dev/null')
     check("the page templates are synced into input/pages", synced == 0 or synced == true)
     local a, b, c = fresh("explore-a"), fresh("explore-b"), fresh("explore-c")
     check("explore builds without the argument", pcall(generator.generate_explore_page, a, poems_data))
