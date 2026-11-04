@@ -39,7 +39,7 @@ reading a number here:
 
 | Issues | What | Note |
 |--------|------|------|
-| 051, 051a–g | Documentation generated from git history | Detailed; most of the reasoning steps could be done by Claude in a skill instead of an Ollama pipeline. |
+| 051, 051a–g | Documentation generated from git history | First slice built: `scripts/history-kernel.lua` (051a: first-commit facts from git, and a model-drafted vision that never replaces an existing one). 051b–g remain. |
 | 053, 053a–f | Cross-project roadmap coordinator | Same observation; 053b and 053f have a few boxes ticked. |
 | 049, 049a–d | Transcript viewer at several levels of detail | First slice built: `scripts/transcript-detail.lua` (049a, model-classed detail levels 1–5, verbatim). Abstraction levels, chapters and the batch pipeline remain (see 049's status note). Overlaps the transcript tooling in double-diaper-dungeon. |
 | 040, 040a–i | Self-revising CLAUDE.md | First slice built: `scripts/claudemd-revise.lua` (events, model-worded proposals, approve with backup, rollback, audit). The rest is listed in 040's status note. Overlaps Claude Code's own memory handling. |
