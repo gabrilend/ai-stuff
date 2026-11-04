@@ -6,7 +6,7 @@
 -- where font size represents word frequency (or optionally, centroid similarity)
 --
 -- Usage:
---   luajit src/wordcloud-generator.lua [DIR] [--all] [--words N]
+--   luajit src/wordcloud-generator.lua [--dir PATH] [--all] [--words N]
 --   luajit src/wordcloud-generator.lua --help
 --
 -- Options:
@@ -75,17 +75,17 @@ local function parse_args(args)
         elseif a:match("^--chrono%-per%-page=") then
             chrono_per_page = tonumber(a:match("=(.+)$"))
             i = i + 1
-        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
-        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
+        -- Issue 10-065: consume "--assets PATH" as a PAIR. This parser does not use
+        -- the value (utils.init_assets_root reads --assets out of `arg` itself), but
         -- it must still swallow it: the branch below claims any token that does
         -- not start with "-" as the positional project directory, so an
         -- unconsumed PATH would silently REPLACE the project root -- and since
         -- package.path is built from that root, the program would then fail to
         -- find its own libraries. Skipping a flag is not the same as skipping a
         -- flag and its argument.
-        elseif a == "--dir" then
+        elseif a == "--assets" then
             i = i + 2
-        -- Same trap as --dir above (Issue 10-065): these carry a VALUE, and the
+        -- Same trap as --assets above (Issue 10-065): these carry a VALUE, and the
         -- branch below claims any bare token as the project directory -- so an
         -- unconsumed model name became the project root and package.path was
         -- built from it. Consumed AND honoured: the run notepad that normally
@@ -99,13 +99,9 @@ local function parse_args(args)
             server = args[i + 1]; i = i + 2
         elseif a:match("^%-%-server=") then
             server = a:match("^%-%-server=(.+)$"); i = i + 1
-        elseif not a:match("^%-") then
-            -- Positional argument (DIR)
-            dir = a
-            i = i + 1
         else
-            -- Skip unknown flags (value-less ones; a flag that TAKES a value
-            -- needs its own branch above, or its value lands in `dir`).
+            -- Skip unknown flags (value-less ones). There are no bare words
+            -- here: the folder reader stopped the program on any (Issue 10-076).
             i = i + 1
         end
     end
@@ -119,13 +115,13 @@ end
 -- Plain print, not the run log: help is for the person at the terminal, and
 -- it runs before package.path can find libs/.
 if arg[1] == "--help" or arg[1] == "-h" then
-    print("Usage: luajit src/wordcloud-generator.lua [DIR] [--all] [--words N] [--chrono-per-page N] [--seed N] [--yes]")
+    print("Usage: luajit src/wordcloud-generator.lua [--dir PATH] [--all] [--words N] [--chrono-per-page N] [--seed N] [--yes]")
     print("")
     print("Generates a word cloud HTML page from the poetry collection.")
     print("Words are sized by frequency, with stop words filtered out.")
     print("")
     print("Options:")
-    print("  DIR                  Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+    print("  --dir PATH           Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
     print("  --all                Include all words (no max_words limit)")
     print("  --words N            Maximum words to display")
     print("  --chrono-per-page N  Chronological page size; MUST match the value the")
@@ -148,9 +144,17 @@ if arg[1] == "--help" or arg[1] == "-h" then
 end
 -- }}}
 
-local provided_dir, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
-      CLI_MODEL, CLI_SERVER, CLI_OUT = parse_args(arg)
-local DIR = setup_dir_path(provided_dir)
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). The reader is told
+-- which flags take a value, so those values are not stray; parse_args reads
+-- the program's own flags from what is left.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil), {
+        ["--out"] = true, ["--seed"] = true, ["--words"] = true, ["--chrono-per-page"] = true,
+        ["--assets"] = true, ["--model"] = true, ["--server"] = true,
+    })
+local _, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
+      CLI_MODEL, CLI_SERVER, CLI_OUT = parse_args(OWN_ARGS)
 
 -- {{{ Issue 10-058: resolve + apply the master seed ONCE at startup
 -- The word shuffle used to call math.randomseed(os.time()) inside the shuffle on

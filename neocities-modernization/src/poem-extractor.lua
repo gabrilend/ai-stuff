@@ -8,8 +8,8 @@
 -- main.lua --parse-only calls it in a build; other programs load it for its
 -- text helpers.
 --
--- Usage: luajit src/poem-extractor.lua [DIR] [-I]
---   DIR  project folder (default below); -I  ask before each step
+-- Usage: luajit src/poem-extractor.lua [--dir PATH] [-I]
+--   --dir PATH project folder (default below); -I  ask before each step
 
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
@@ -24,7 +24,12 @@ end
 -- }}}
 
 -- Script configuration
-local DIR = setup_dir_path(arg and arg[1])
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded (src/main.lua loads it);
+-- else the path in setup_dir_path (libs/project-dir.lua, Issue 10-076). It
+-- used to be the first word, even when another program loaded this one.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil))
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path

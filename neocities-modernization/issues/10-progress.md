@@ -62,6 +62,8 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-045 | Integrate Android phone pictures as source | Open | Low |
 | 10-065a | Programs run on their own ask for missing values | Completed (2026-10-25) | Medium |
 | 10-071 | Defaults live only in config.lua, never in the code | Open | Medium |
+| 10-077 | The download comes in pieces Neocities will take | In progress (built; waiting on one deploy) | High |
+| 10-078 | Fallbacks that change what a program does | Open (each waits on the owner's decision) | Medium |
 
 ### Completed Issues
 
@@ -108,6 +110,7 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-049 | Replace Ollama with llama.cpp (last leftovers removed) | Completed | 2026-10-22 |
 | 10-075 | Every run keeps a log in RAM (terminal, log or both, one output function) | Completed | 2026-10-23 |
 | 10-069 | One pre-flight gate: every cheap check a selected stage can fail, before any stage | Completed | 2026-10-25 |
+| 10-076 | Every program names its folders by flags (--dir, --assets); a stray word stops it; no folder is assumed | Completed | 2026-11-03 |
 
 These tables are hand-kept and fall behind. For current done and open counts per
 phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.

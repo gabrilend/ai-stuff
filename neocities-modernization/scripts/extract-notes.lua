@@ -10,9 +10,17 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
--- Get project directory from command line or use default
-local DIR = setup_dir_path(arg and arg[1])
-local OVERRIDE_SOURCE = arg and arg[2] -- Optional override for temporary extraction
+-- The project folder: --dir PATH, or the path above; the optional source to
+-- read instead of the usual one (a temporary extraction): --source PATH; a
+-- stray word stops the script (libs/project-dir.lua, Issue 10-076). Both used
+-- to be bare words, told apart by their order.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil), { ["--source"] = true })
+local OVERRIDE_SOURCE = nil
+for i = 1, #OWN_ARGS, 2 do
+    if OWN_ARGS[i] == "--source" then OVERRIDE_SOURCE = OWN_ARGS[i + 1]
+    else error("extract-notes: unknown option " .. OWN_ARGS[i]) end
+end
 
 -- Set up package path to find libs
 package.path = DIR .. "/libs/?.lua;" .. package.path

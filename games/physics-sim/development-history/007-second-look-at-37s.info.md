@@ -6,7 +6,7 @@ and photographed its window from outside.
 ## What made it
 
 - taken: 2026-10-21 14:01:07, 37 seconds after the game started
-- commit: 3b96088cd clean up your stuff more. it was very difficult to clean up your room. don't worry it's all there, it's just a little disorganized.
+- commit: f12d85693 clean up your stuff more. it was very difficult to clean up your room. don't worry it's all there, it's just a little disorganized.
 - source fingerprint (src/ and boards/): 7d626580581a08d2
 - run options: --name second-look --at 22 27 32 37 42 60
 - input: none; nobody pressed anything

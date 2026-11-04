@@ -4,7 +4,7 @@
 # 055 — turned-circles-mid-morning
 
 - **Picture:** 055-turned-circles-mid-morning.png
-- **Commit:** 619895b42 2026-10-10 centered-ui-design: the land as lit points, and hot-seat by spinning
+- **Commit:** 632aaea7d 2026-10-10 centered-ui-design: the land as lit points, and hot-seat by spinning
 - **Run:** `run --screenshot 20.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/012-made-by-formula.lua
@@ -15,7 +15,7 @@
 ## What changed
 
 Compared with picture 054:
-- commit: d4e5af531 -> 619895b42
+- commit: 0851eb669 -> 632aaea7d
 - changed: src/012-made-by-formula.lua
 - changed: src/013-the-world-renderer.lua
 - changed: src/017-the-tests.test.lua

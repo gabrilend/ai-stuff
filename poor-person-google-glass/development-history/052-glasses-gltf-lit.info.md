@@ -4,7 +4,7 @@
 # 052 — glasses-gltf-lit
 
 - **Picture:** 052-glasses-gltf-lit.png
-- **Commit:** e9924b358 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
+- **Commit:** 3e389566b 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
 - **Run:** `view-cad /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/described/glasses.gltf --drag 0.2 10 5 --screenshot 0.6 --views lit`
 - **Uncommitted at the time:**
   -  M scripts/run-tests

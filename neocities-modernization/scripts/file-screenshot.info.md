@@ -4,7 +4,7 @@ Files one picture into `development-history/`, the project's record of
 every picture it takes of itself, kept in order with the mistakes (the
 owner's rule: no screenshot is a throwaway).
 
-    scripts/file-screenshot [DIR] PICTURE NAME [--made-by TEXT]
+    scripts/file-screenshot [--dir PATH] PICTURE NAME [--made-by TEXT]
 
 ## What it writes, for picture number NNN
 

@@ -866,7 +866,7 @@ end
 --
 -- The two routes by which a commit is made print two shapes:
 --
---   commit-own-changes: committed 8a235a0fe on main in /mnt/mtwo/.../ai-stuff
+--   commit-own-changes: committed 7a29ea7a8 on main in /mnt/mtwo/.../ai-stuff
 --     Close four finished issues that had never been filed away
 --
 --   [main 6b80531] One service per mailbox, instead of one mailbox per machine
@@ -968,7 +968,7 @@ end
 -- {{{ commit_line
 -- The line a recorded commit becomes in the transcript:
 --
---   *[commit] 8a235a0fe in ai-stuff - Close four finished issues...*
+--   *[commit] 7a29ea7a8 in ai-stuff - Close four finished issues...*
 --
 -- One line, never wrapped, so a reader can take the hash and the subject from
 -- it without joining lines. The repository is named by its folder's name

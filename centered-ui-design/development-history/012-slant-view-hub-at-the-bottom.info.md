@@ -4,7 +4,7 @@
 # 012 — slant-view-hub-at-the-bottom
 
 - **Picture:** 012-slant-view-hub-at-the-bottom.png
-- **Commit:** df3d0ea23 2026-10-10 centered-ui-design: every screenshot is kept, with what changed
+- **Commit:** b93b2e70d 2026-10-10 centered-ui-design: every screenshot is kept, with what changed
 - **Run:** `run --screenshot 10` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   - M input/game-settings.lua
@@ -22,7 +22,7 @@
 ## What changed
 
 Compared with picture 011:
-- commit: 28036a9c7 -> df3d0ea23
+- commit: 9d73d0a76 -> b93b2e70d
 - changed: input/game-settings.lua
 - changed: src/001-read-the-input.lua
 - changed: src/003-the-far-camera.lua

@@ -20,8 +20,8 @@
 -- list to delete from.
 --
 -- Usage:
---   scripts/audit-orphan-files [DIR]          list orphans and dead clusters
---   scripts/audit-orphan-files [DIR] --why    also show who names each file
+--   scripts/audit-orphan-files [--dir PATH]          list orphans and dead clusters
+--   scripts/audit-orphan-files [--dir PATH] --why    also show who names each file
 --
 -- Exit status: 0 no orphans, 1 some found.
 
@@ -31,7 +31,11 @@ dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/
 package.path = (debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/?.lua;" .. package.path
 
 -- {{{ local DIR
-local DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
+-- The project folder: --dir PATH, or the path below; a stray word on the
+-- command line stops the program (libs/project-dir.lua, Issue 10-076).
+-- ARGS is every other word, for the option loop in main.
+local DIR, ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 -- }}}
 
 -- {{{ local candidate_patterns
@@ -170,12 +174,10 @@ end
 -- {{{ local function main
 local function main()
     local show_why = false
-    for _, a in ipairs(arg) do
-        -- --why adds the evidence; a bare word is the project directory
+    for _, a in ipairs(ARGS) do
+        -- --why adds the evidence; the project folder is --dir (read above)
         if a == "--why" then
             show_why = true
-        elseif not a:match("^%-") then
-            DIR = a
         else
             io.stderr:write("unknown option: " .. a .. "\n")
             os.exit(2)

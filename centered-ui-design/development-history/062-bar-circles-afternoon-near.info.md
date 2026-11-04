@@ -4,7 +4,7 @@
 # 062 — bar-circles-afternoon-near
 
 - **Picture:** 062-bar-circles-afternoon-near.png
-- **Commit:** f1cea4269 2026-10-10 centered-ui-design: the land painted by turned circles
+- **Commit:** 1abb118e6 2026-10-10 centered-ui-design: the land painted by turned circles
 - **Run:** `run --wheel-with 28 a -6 --screenshot 28.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

@@ -1,6 +1,6 @@
 # Conversation Summary: 8905e5c3-619d-4f53-947c-788145f430cc
 
-Generated on: 2026-10-05 01:49:02
+Generated on: 2026-11-03 11:55:00
 Models: claude-opus-5-5
 
 ## Contents
@@ -31,6 +31,10 @@ Models: claude-opus-5-5
    now on a web page you can scroll through:
    https://claude.ai/artifact/M41YiiUnFEinyPRGGQjoTm. Next, look through it and
    tell me which way makes the characters easier to recognize.
+7. 2026-10-05 01:58, after Request 8 - We're comparing image models for the
+   kanji pictures, and trying Chroma on the .88 machine made its ComfyUI stop
+   running. Next, someone needs to restart ComfyUI on .88 and tell me how much
+   memory that machine has.
 
 --------------------------------------------------------------------------------
 
@@ -556,15 +560,15 @@ yes please
 
 > Commit 1: the plans and docs.
 
-*[commit] 6e626eab1 in ai-stuff - kanji: a museum phase is planned, and two new ways to draw a character*
+*[commit] 96ae770ab in ai-stuff - kanji: a museum phase is planned, and two new ways to draw a character*
 
 > Now moving the finished issue to completed, then commit 2: the code.
 
-*[commit] d218ffee0 in ai-stuff - Issue 415 is complete: pictures can be cooked in another house*
+*[commit] a14390803 in ai-stuff - Issue 415 is complete: pictures can be cooked in another house*
 
 > Commit 3: the stethoscope script and its test, in the scripts project.
 
-*[commit] 958d28c76 in ai-stuff - scripts: a stethoscope, so one session can ask another a question*
+*[commit] 4c8816692 in ai-stuff - scripts: a stethoscope, so one session can ask another a question*
 
 The connection to the .88 machine is built and finished. Both new ways of
 drawing now run there, about 35 seconds per character. Outside works; inside

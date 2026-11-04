@@ -2,14 +2,14 @@
 # validate-output.test.sh (Issue 9-006) -- proves the whole-site checker
 # catches an over-wide line and a broken link, files each under the right
 # cause, and passes a clean site.  Builds two tiny handmade sites in RAM.
-# Run: bash scripts/validate-output.test.sh [project-dir]
+# Run: bash scripts/validate-output.test.sh [--dir PATH]
 
 set -u
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ -n "${1:-}" ]; then
-    DIR="$1"
-fi
-"$DIR/scripts/ensure-tmp-symlink" "$DIR" >/dev/null
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
+"$DIR/scripts/ensure-tmp-symlink" --dir "$DIR" >/dev/null
 SCRATCH="$DIR/tmp/shared-memory/validate-output-test"
 rm -rf "$SCRATCH"
 
@@ -35,7 +35,7 @@ LONG=$(printf 'x%.0s' $(seq 1 90))
 } > "$SITE/similar/0001-01.html"
 echo '<html><pre>fine</pre></html>' > "$SITE/chronological/01.html"
 
-out=$("$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$SITE" --report "$SCRATCH/broken.txt" 2>&1)
+out=$("$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$SITE" --report "$SCRATCH/broken.txt" 2>&1)
 check "broken site: fails" "$?" "1"
 check "counts two over-wide lines" "$(grep -c '^Over-wide lines: 2$' "$SCRATCH/broken.txt")" "1"
 check "the warning box is filed under cw" "$(grep -cE '^  cw +1 lines, widest 99$' "$SCRATCH/broken.txt")" "1"
@@ -67,7 +67,7 @@ REAL=$(luajit -e "
     print(B.golden_corner_box_nav_line(s, d, c, '#fff', 30))
 ")
 { echo '<html><pre>'; printf '%s\n' "$REAL"; echo '</pre></html>'; } > "$SHAPES/similar/real.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$SHAPES" --report "$SCRATCH/shapes-real.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$SHAPES" --report "$SCRATCH/shapes-real.txt" >/dev/null 2>&1
 check "every real frame piece passes" "$?" "0"
 
 SHORT=$(printf '═%.0s' $(seq 1 83))
@@ -75,7 +75,7 @@ SHORT=$(printf '═%.0s' $(seq 1 83))
 # ╘ + 10 ═ + ╧ + 59 ═ + ┴ (column 71) + 11 ─ + ┘
 MOVED="╘$(printf '═%.0s' $(seq 1 10))╧$(printf '═%.0s' $(seq 1 59))┴$(printf '─%.0s' $(seq 1 11))┘"
 { echo '<html><pre>'; echo "$SHORT"; echo "$MOVED"; echo '</pre></html>'; } > "$SHAPES/similar/bad.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$SHAPES" --report "$SCRATCH/shapes-bad.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$SHAPES" --report "$SCRATCH/shapes-bad.txt" >/dev/null 2>&1
 check "misshapen pieces: fails" "$?" "1"
 check "counts two misshapen pieces" \
     "$(grep -c 'with a junction out of place: 2$' "$SCRATCH/shapes-bad.txt")" "1"
@@ -90,7 +90,7 @@ PLAIN83="  $(printf 'x%.0s' $(seq 1 81))"                                  # 2 +
 PLAIN82="  $(printf 'x%.0s' $(seq 1 80))"                                  # 2 + 80: fine
 WALLED84="║ $(printf 'x%.0s' $(seq 1 80)) │"                              # a golden line: fine
 { echo '<html><pre>'; echo "$PLAIN83"; echo "$PLAIN82"; echo "$WALLED84"; echo '</pre></html>'; } > "$TEXTS/similar/t.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 1 --output "$TEXTS" --report "$SCRATCH/texts.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 1 --output "$TEXTS" --report "$SCRATCH/texts.txt" >/dev/null 2>&1
 check "a text line of 83 fails" "$?" "1"
 check "only the 83-wide text line is reported" "$(grep -c '^Over-wide lines: 1$' "$SCRATCH/texts.txt")" "1"
 # }}}
@@ -103,7 +103,7 @@ mkdir -p "$OTHER/gallery" "$OTHER/source"
 RULE=$(printf '─%.0s' $(seq 1 78))
 printf '<html><pre>\n%s\n%s\n</pre></html>\n' "$RULE" "$LONG$LONG" > "$OTHER/gallery/index.html"
 printf '<html><pre>\n%s\n</pre></html>\n' "$SHORT" > "$OTHER/source/quoted.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$OTHER" --report "$SCRATCH/other.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$OTHER" --report "$SCRATCH/other.txt" >/dev/null 2>&1
 check "gallery rule, long line and quoted short bar outside poem folders: pass" "$?" "0"
 # }}}
 
@@ -113,10 +113,10 @@ check "gallery rule, long line and quoted short bar outside poem folders: pass" 
 ARCH="$SCRATCH/arch"
 mkdir -p "$ARCH/source/archive/wordclouds"
 printf '<html><a href="../../../wordcloud/gone.html">gone</a></html>\n' > "$ARCH/source/archive/wordclouds/old.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$ARCH" --report "$SCRATCH/arch.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$ARCH" --report "$SCRATCH/arch.txt" >/dev/null 2>&1
 check "a dead word link in an archived cloud: not reported" "$?" "0"
 printf '<html><a href="nowhere.html">x</a></html>\n' > "$ARCH/source/page.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$ARCH" --report "$SCRATCH/arch2.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$ARCH" --report "$SCRATCH/arch2.txt" >/dev/null 2>&1
 check "a dead link in a source page outside archive/: still reported" "$?" "1"
 # }}}
 
@@ -127,10 +127,10 @@ check "a dead link in a source page outside archive/: still reported" "$?" "1"
 CODE="$SCRATCH/code"
 mkdir -p "$CODE"
 printf '<html><pre>&lt;a href="%%s"&gt;x&lt;/a&gt; and src="nowhere.png"</pre><a href="index.html">ok</a></html>\n' > "$CODE/index.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$CODE" --report "$SCRATCH/code.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$CODE" --report "$SCRATCH/code.txt" >/dev/null 2>&1
 check "an escaped href shown as code: not reported" "$?" "0"
 printf '<html><img alt="a long tag"\n src="missing.png"></html>\n' > "$CODE/split.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$CODE" --report "$SCRATCH/code2.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$CODE" --report "$SCRATCH/code2.txt" >/dev/null 2>&1
 check "a real tag split across lines: its missing src still reported" "$?" "1"
 # }}}
 
@@ -138,21 +138,21 @@ check "a real tag split across lines: its missing src still reported" "$?" "1"
 CLEAN="$SCRATCH/clean"
 mkdir -p "$CLEAN"
 printf '<html><pre>\n%s\nshort line\n</pre><a href="index.html">home</a></html>\n' "$BAR" > "$CLEAN/index.html"
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$CLEAN" --report "$SCRATCH/clean.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$CLEAN" --report "$SCRATCH/clean.txt" >/dev/null 2>&1
 check "clean site: passes" "$?" "0"
 # }}}
 
 # {{{ a missing site is refused
-"$DIR/scripts/validate-output" "$DIR" --jobs 2 --output "$SCRATCH/nowhere" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --jobs 2 --output "$SCRATCH/nowhere" >/dev/null 2>&1
 check "missing site: refused" "$?" "1"
 # }}}
 
 # {{{ a missing worker count is refused, not replaced by every processor
 # The checker used to run one worker per processor whatever --threads the run
 # was given (asked for 4, took 12). It now needs the count spelled out.
-"$DIR/scripts/validate-output" "$DIR" --output "$CLEAN" --report "$SCRATCH/nojobs.txt" >/dev/null 2>&1
+"$DIR/scripts/validate-output" --dir "$DIR" --output "$CLEAN" --report "$SCRATCH/nojobs.txt" >/dev/null 2>&1
 check "no --jobs: refused" "$?" "1"
-jobs_line=$("$DIR/scripts/validate-output" "$DIR" --jobs 3 --output "$CLEAN" --report "$SCRATCH/jobs.txt" 2>&1 | grep -c "on 3 processes")
+jobs_line=$("$DIR/scripts/validate-output" --dir "$DIR" --jobs 3 --output "$CLEAN" --report "$SCRATCH/jobs.txt" 2>&1 | grep -c "on 3 processes")
 check "--jobs 3: runs on 3 processes" "$jobs_line" "1"
 # }}}
 

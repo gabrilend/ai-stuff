@@ -11,7 +11,7 @@ cache; it does not talk to the server.
 Run by `run.sh` (`run_generate_picture_embeddings`, inside Stage 6 while the
 server is up), or by hand:
 
-    luajit src/picture-embeddings.lua [DIR] --model NAME --server NAME
+    luajit src/picture-embeddings.lua [--dir PATH] --model NAME --server NAME
 
 ## The cache: `<model's embeddings folder>/picture_embeddings.json`
 
@@ -56,7 +56,11 @@ Whether a post attachment is a picture (not a video or a sound).
 
 ### `M.fingerprints(paths, scratch) -> { [path] = md5 }`
 The md5 of every file, on every processor at once (`xargs -P`, `md5sum -z`).
-A file that cannot be read is an error naming it.
+Each batch of 64 writes its answers to its own file under
+`<scratch>/fingerprint-answers/`, read once all batches finish; sharing one
+pipe let batches cut into each other's answers and lose a few per run. A file
+that cannot be read is an error giving how many failed and naming the first;
+a batch that failed with every answer present is an error too.
 
 ### `M.cache_key(md5, long_side) -> string`
 `"<md5>@<long_side>"`.

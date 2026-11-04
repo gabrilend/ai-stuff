@@ -22,7 +22,7 @@
 -- nobody at the keyboard, a missing value is an error instead.
 --
 -- Usage:
---   luajit src/generate-word-pages.lua [DIR] [--embeddings-only|--html-only] [--all|--words N]
+--   luajit src/generate-word-pages.lua [--dir PATH] [--embeddings-only|--html-only] [--all|--words N]
 --   luajit src/generate-word-pages.lua --help
 -- }}}
 
@@ -92,17 +92,17 @@ local function parse_args(args)
         elseif a:match("^--chrono%-per%-page=") then
             chrono_per_page = tonumber(a:match("^--chrono%-per%-page=(.+)$"))
             i = i + 1
-        -- Issue 10-065: consume "--dir PATH" as a PAIR. This parser does not use
-        -- the value (utils.init_assets_root reads --dir out of `arg` itself), but
+        -- Issue 10-065: consume "--assets PATH" as a PAIR. This parser does not use
+        -- the value (utils.init_assets_root reads --assets out of `arg` itself), but
         -- it must still swallow it: the branch below claims any token that does
         -- not start with "-" as the positional project directory, so an
         -- unconsumed PATH would silently REPLACE the project root -- and since
         -- package.path is built from that root, the program would then fail to
         -- find its own libraries. Skipping a flag is not the same as skipping a
         -- flag and its argument.
-        elseif a == "--dir" then
+        elseif a == "--assets" then
             i = i + 2
-        -- Issue 10-065, same trap as --dir above: these take a VALUE, and the
+        -- Issue 10-065, same trap as --assets above: these take a VALUE, and the
         -- branch below claims any token not starting with "-" as the project
         -- directory. Left unconsumed, `--model embeddinggemma-300m` made
         -- "embeddinggemma-300m" the project root; package.path was built from it
@@ -125,12 +125,9 @@ local function parse_args(args)
             server = args[i + 1]; i = i + 2
         elseif a:match("^%-%-server=") then
             server = a:match("^%-%-server=(.+)$"); i = i + 1
-        elseif a:sub(1, 1) ~= "-" then
-            dir = a
-            i = i + 1
         else
-            -- Skip unknown flags (value-less ones; a flag that TAKES a value
-            -- needs its own branch above, or its value lands in `dir`).
+            -- Skip unknown flags (value-less ones). There are no bare words
+            -- here: the folder reader stopped the program on any (Issue 10-076).
             i = i + 1
         end
     end
@@ -139,9 +136,17 @@ local function parse_args(args)
 end
 -- }}}
 
-local parsed_dir, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
-      CLI_MODEL, CLI_SERVER, CLI_THREADS = parse_args(arg)
-local DIR = setup_dir_path(parsed_dir)
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). The reader is told
+-- which flags take a value, so those values are not stray; parse_args reads
+-- the program's own flags from what is left.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil), {
+        ["--words"] = true, ["--poems-per-page"] = true, ["--chrono-per-page"] = true,
+        ["--assets"] = true, ["--model"] = true, ["--threads"] = true, ["--server"] = true,
+    })
+local _, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
+      CLI_MODEL, CLI_SERVER, CLI_THREADS = parse_args(OWN_ARGS)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. DIR .. "/libs/vulkan-compute/lua/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
@@ -1338,13 +1343,13 @@ end
 -- {{{ Command line execution
 if arg and #arg >= 0 and debug.getinfo(3) == nil then
     if RUN_MODE == "help" then
-        require("output").print("Usage: luajit src/generate-word-pages.lua [DIR] [OPTIONS]")
+        require("output").print("Usage: luajit src/generate-word-pages.lua [--dir PATH] [OPTIONS]")
         require("output").print("")
         require("output").print("Generates similarity pages for word cloud words.")
         require("output").print("For each word, creates a page showing poems ranked by semantic similarity.")
         require("output").print("")
         require("output").print("Options:")
-        require("output").print("  DIR               Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
+        require("output").print("  --dir PATH        Project directory (default: /mnt/mtwo/programming/ai-stuff/neocities-modernization)")
         require("output").print("  --embeddings-only Generate word embeddings only (Stage 6 - expensive)")
         require("output").print("  --html-only       Generate HTML pages only (Stage 9 - fast, requires embeddings)")
         require("output").print("  --all             Include all words (no max_words limit)")

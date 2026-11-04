@@ -4,7 +4,7 @@
 # 017 — arch-view-rings-grown-from-the-console
 
 - **Picture:** 017-arch-view-rings-grown-from-the-console.png
-- **Commit:** 76f335172 2026-10-10 centered-ui-design: villagers walk on a sphere between two poles
+- **Commit:** 561bcd318 2026-10-10 centered-ui-design: villagers walk on a sphere between two poles
 - **Run:** `run --screenshot 10` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua
@@ -20,7 +20,7 @@
 ## What changed
 
 Compared with picture 016:
-- commit: 4631a8407 -> 76f335172
+- commit: 296f49543 -> 561bcd318
 - changed: input/game-settings.lua
 - changed: src/001-read-the-input.lua
 - changed: src/003-the-far-camera.lua

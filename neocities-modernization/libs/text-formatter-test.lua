@@ -12,9 +12,19 @@
 -- over the edge. Escaped ampersands (&amp;, five bytes for one column) and any
 -- non-ASCII punctuation (an em dash, three bytes for one column) do the same.
 --
--- Run directly:  luajit libs/text-formatter-test.lua [project-dir]
+-- Run directly:  luajit libs/text-formatter-test.lua [--dir PATH]
 
 -- {{{ local function setup_dir_path()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup_dir_path(provided)
     if provided then return provided end
     local this = debug.getinfo(1, "S").source:sub(2)
@@ -23,7 +33,7 @@ local function setup_dir_path(provided)
 end
 -- }}}
 
-local DIR = setup_dir_path(arg and arg[1])
+local DIR = setup_dir_path(PROJECT_DIR_ARG)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "libs/?.lua;" .. package.path
 local tf = require("text-formatter")
 

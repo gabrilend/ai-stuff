@@ -4,7 +4,7 @@
 # 080 — console-spinning-along-its-curve-mid-drag
 
 - **Picture:** 080-console-spinning-along-its-curve-mid-drag.png
-- **Commit:** b9333d8c3 2026-10-10 centered-ui-design: gradient sheen-points, and a sun that circles the hub
+- **Commit:** 372ebe4f6 2026-10-10 centered-ui-design: gradient sheen-points, and a sun that circles the hub
 - **Run:** `run --drag 24 1100 990 600 990 1.0 --screenshot 24.6` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/014-the-dashboard.lua
@@ -14,7 +14,7 @@
 ## What changed
 
 Compared with picture 079:
-- commit: d34c6296f -> b9333d8c3
+- commit: b4eb379a1 -> 372ebe4f6
 - changed: src/014-the-dashboard.lua
 - changed: src/015-the-view-plane.lua
 - changed: src/017-the-tests.test.lua

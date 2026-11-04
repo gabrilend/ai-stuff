@@ -287,5 +287,12 @@ symbeline-2/
 # and are kept out of history on purpose (untracked 2026-10-01).
 words-pdf/input/
 
+# Two more copies of the poems, untracked 2026-11-03 at the owner's word
+# ("let's untrack them"): the compiled file the website is built from, and
+# the old MVP's copy of words-pdf's input. They stay on disk; the history
+# rewrite (delta-version issue 063) takes them out of every commit.
+neocities-modernization/compiled.txt
+words-pdf/backup-mvp/input/
+
 # fetch-cloud-conversations: the repository-to-project map holds paths on this computer
 scripts/config/cloud-session-projects

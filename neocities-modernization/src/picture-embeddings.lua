@@ -19,8 +19,8 @@
 -- server takes one picture at a time (it is started with one slot,
 -- scripts/start-llamacpp-server.sh).
 --
--- Usage: luajit src/picture-embeddings.lua [DIR] --model NAME --server NAME
---   DIR            project folder (default below)
+-- Usage: luajit src/picture-embeddings.lua [--dir PATH] --model NAME --server NAME
+--   --dir PATH     project folder (default below)
 --   --model NAME   the embedding model (one with a vision_projector in
 --                  config.lua); required, as run.sh's --model is
 --   --server NAME  the inference server, by name from config.lua; required
@@ -31,10 +31,11 @@ if not _G.PICTURE_EMBEDDINGS_NO_MAIN then
 end
 
 -- {{{ local function parse_args()
--- DIR (positional) and the two required names. A missing name is an error:
--- the stage must say which model sees the pictures (Issue 10-065).
+-- The two required names. A missing name is an error: the stage must say
+-- which model sees the pictures (Issue 10-065). The project folder, --dir,
+-- is read before this, by libs/project-dir.lua (Issue 10-076).
 local function parse_args(args)
-    local dir, model, server = "/mnt/mtwo/programming/ai-stuff/neocities-modernization", nil, nil
+    local model, server = nil, nil
     local i = 1
     while args[i] do
         local a = args[i]
@@ -42,16 +43,21 @@ local function parse_args(args)
         elseif a:match("^%-%-model=") then model = a:match("=(.*)"); i = i + 1
         elseif a == "--server" then server = args[i + 1]; i = i + 2
         elseif a:match("^%-%-server=") then server = a:match("=(.*)"); i = i + 1
-        elseif a:match("^%-") then error("picture-embeddings: unknown option " .. a)
-        else dir = a; i = i + 1 end
+        else error("picture-embeddings: unknown option " .. a) end
     end
-    return dir, model, server
+    return model, server
 end
 -- }}}
 
 local DIR, MODEL, SERVER = "/mnt/mtwo/programming/ai-stuff/neocities-modernization", nil, nil
 if not _G.PICTURE_EMBEDDINGS_NO_MAIN then
-    DIR, MODEL, SERVER = parse_args(arg or {})
+    -- The project folder: --dir PATH, or the path above; a stray word stops
+    -- the stage, named (libs/project-dir.lua, Issue 10-076). It used to be
+    -- any bare word.
+    local own_args
+    DIR, own_args = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+        .read(arg or {}, DIR, { ["--model"] = true, ["--server"] = true })
+    MODEL, SERVER = parse_args(own_args)
 end
 
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
@@ -123,23 +129,53 @@ end
 -- paths   : array of absolute paths
 -- scratch : a RAM folder for the list handed to the workers
 -- returns : { [path] = md5 hex string }; a file that cannot be read is an error
+--
+-- Each batch of 64 writes its answers to a file of its own, and the files are
+-- read once every batch is done. They must not share one pipe: each md5sum
+-- copy sends its answers out in 4 KB pieces, a piece can end mid-answer, and
+-- another copy's piece then lands in the gap -- a few answers per run came
+-- back unreadable, a different few each time (2026-11-02; the "many pictures
+-- at once" case in picture-embeddings.test.lua is the check).
 function M.fingerprints(paths, scratch)
     if #paths == 0 then return {} end
-    os.execute("mkdir -p " .. shell_quote(scratch))
+    local answers = scratch .. "/fingerprint-answers"
+    -- emptied first, so no batch file from an earlier call is read as an answer
+    os.execute("rm -rf " .. shell_quote(answers))
+    os.execute("mkdir -p " .. shell_quote(answers))
     local list_path = scratch .. "/fingerprint-list"
     local f = assert(io.open(list_path, "wb"))
     for _, path in ipairs(paths) do f:write(path, "\0") end
     f:close()
     -- -z: each answer ends in a NUL and names are not escaped, so any file
-    -- name comes back as it went in
-    local p = assert(io.popen(string.format("xargs -0 -P %d -n 64 md5sum -z < %s",
-        processors(), shell_quote(list_path))))
+    -- name comes back as it went in. mktemp gives each batch a file name
+    -- nothing else is using, whichever processor it runs on.
+    local status = os.execute(string.format("xargs -0 -P %d -n 64 sh -c %s %s < %s",
+        processors(),
+        shell_quote('out=$(mktemp "$0/batch.XXXXXX") && md5sum -z "$@" > "$out"'),
+        shell_quote(answers), shell_quote(list_path)))
+    -- LuaJIT gives 0 here, or true when built with the Lua 5.2 extensions
+    local every_batch_finished = (status == 0 or status == true)
+    -- at least one batch ran (there is at least one path), so the pattern
+    -- always names a file
+    local p = assert(io.popen("cat " .. shell_quote(answers) .. "/batch.*"))
     local out = p:read("*a")
     p:close()
     local result = {}
     for hash, path in out:gmatch("(%x+)  (%Z+)%z") do result[path] = hash end
+    local missing = {}
     for _, path in ipairs(paths) do
-        if not result[path] then error("picture-embeddings: could not fingerprint " .. path) end
+        if not result[path] then missing[#missing + 1] = path end
+    end
+    -- Two ways to come up short, and both stop the stage: a picture with no
+    -- answer (named, so it can be looked at; md5sum has already said why on
+    -- the terminal), or a batch that failed although every picture has an
+    -- answer (an md5sum or mktemp that broke after writing).
+    if #missing > 0 then
+        error(string.format("picture-embeddings: could not fingerprint %d of %d pictures; the first is %s",
+            #missing, #paths, missing[1]))
+    end
+    if not every_batch_finished then
+        error("picture-embeddings: a fingerprint batch failed (status " .. tostring(status) .. ")")
     end
     return result
 end

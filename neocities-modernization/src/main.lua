@@ -7,8 +7,9 @@
 -- calls it once per stage (3, 4, 5 and 9); asking for no stage runs them
 -- all in order, and -I opens a menu instead.
 --
--- Usage: luajit src/main.lua [PROJECT_DIR] [MODE] [OPTIONS]
---   PROJECT_DIR          the project folder (default below)
+-- Usage: luajit src/main.lua [--dir PATH] [MODE] [OPTIONS]
+--   --dir PATH           the project folder (default below); any word that is
+--                        not a flag or a flag's value stops the program
 -- Modes (one at most; none = the whole pipeline):
 --   --parse-only         stage 3: the exports become assets/poems.json
 --   --validate-only      stage 4: check the poems, write the validation report
@@ -16,7 +17,7 @@
 --   --html-only          stage 9: draw every page into output/
 --   -I, --interactive    a menu of the stages
 -- Options:
---   --dir PATH           where assets/ lives (run.sh passes it)
+--   --assets PATH        where assets/ lives (run.sh passes it; was --dir)
 --   --force              redo a stage even when its output looks current
 --   --threads N          page workers for --html-only (asked for if missing)
 --   --pages LIST         similar/different pages per poem: 1, all, 1-10
@@ -31,37 +32,17 @@
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 -- {{{ Early argument parsing (before package.path setup)
--- Parse arguments to extract directory path, skipping flags like -I
--- This must happen before utils is loaded since package.path depends on DIR
-local function parse_dir_from_args(args)
-    if not args then return nil end
-    for i = 1, #args do
-        local a = args[i]
-        -- Skip flags (start with -)
-        if a and a:sub(1, 1) ~= "-" then
-            return a
-        end
-        -- Handle --dir=path or --dir path
-        if a == "--dir" and args[i + 1] then
-            return args[i + 1]
-        end
-        if a:match("^--dir=") then
-            return a:match("^--dir=(.+)")
-        end
-    end
-    return nil
-end
-
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
+-- The project folder: --dir PATH, or the path below; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). This must happen before
+-- utils is loaded, since package.path is built from the folder. It used to be
+-- the first bare word, so a flag's value that came before the folder was read
+-- as the folder; the reader is told which flags take a value instead.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, "/mnt/mtwo/programming/ai-stuff/neocities-modernization", {
+        ["--assets"] = true, ["--threads"] = true, ["--pages"] = true, ["--poems-per-page"] = true,
+        ["--chrono-per-page"] = true, ["--seed"] = true,
+    })
 -- }}}
-
--- Script configuration
-local DIR = setup_dir_path(parse_dir_from_args(arg))
 
 -- Load required libraries
 -- The TUI library lives in the shared scripts folder (updates propagate
@@ -79,7 +60,7 @@ end
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. TUI_LIBS .. "/?.lua;" .. system_path
 local utils = require("utils")
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 -- This must happen early, before any asset_path() calls
 utils.init_assets_root(arg)
 

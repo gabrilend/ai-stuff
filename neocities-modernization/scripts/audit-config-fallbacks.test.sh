@@ -9,8 +9,11 @@
 # owner's rule (defaults live only in config.lua, Issue 10-071) is kept by
 # the tests instead of by memory.
 #
-# Usage:  scripts/audit-config-fallbacks.test.sh [DIR]
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# Usage:  scripts/audit-config-fallbacks.test.sh [--dir PATH]
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 TOOL="$DIR/scripts/audit-config-fallbacks"
 SCRATCH="$DIR/tmp/shared-memory/audit-config-fallbacks-test"
 passed=0
@@ -38,7 +41,7 @@ LUA
 git -C "$SCRATCH" init -q
 git -C "$SCRATCH" add src/sample.lua
 
-report=$("$TOOL" "$SCRATCH" --declared)
+report=$("$TOOL" --dir "$SCRATCH" --declared)
 status=$?
 check "a fallback value is reported as a value" \
     "$(echo "$report" | grep -c 'value     config.pagination.size or 5')" "$report"
@@ -54,7 +57,7 @@ check "the totals count each kind" \
     "$(echo "$report" | grep -c '^1 fallback values, 1 absent sections treated as empty; 1 declared optional')" "$report"
 check "undeclared fallbacks fail the check" "$([ "$status" = 1 ] && echo 1)" "exit $status"
 
-project=$("$TOOL" "$DIR")
+project=$("$TOOL" --dir "$DIR")
 pstatus=$?
 check "this project has no undeclared fallback" "$([ "$pstatus" = 0 ] && echo 1)" "$project"
 

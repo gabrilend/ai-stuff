@@ -7,23 +7,17 @@
 -- averaging them (Issue 10-050). generate-embeddings.sh drives it in a
 -- build; run on its own it offers the same work from a menu.
 --
--- Usage: luajit src/similarity-engine.lua [DIR] [-I]
---   DIR  project folder (default below); -I  the menu
+-- Usage: luajit src/similarity-engine.lua [--dir PATH] [-I]
+--   --dir PATH project folder (default below); -I  the menu
 
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ local function setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
-
--- Script configuration  
-local DIR = setup_dir_path()
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path below
+-- (libs/project-dir.lua, Issue 10-076).
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
@@ -158,7 +152,7 @@ local function generate_embedding(text, endpoint, model_name)
     -- Issue 8-059: route through the project's RAM-backed tmp/shared-memory/
     -- tier so parallel checkouts of this repository do not collide on a single
     -- shared /tmp/ filename. (Data, not code — the noexec tier is correct.)
-    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" "%s"', DIR, DIR))
+    os.execute(string.format('"%s/scripts/ensure-tmp-symlink" --dir "%s"', DIR, DIR))
     local temp_file = DIR .. "/tmp/shared-memory/embedding_input.json"
     local payload = {
         model = model_name,

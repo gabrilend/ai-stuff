@@ -275,9 +275,9 @@ the owner decide.
 > Committing phase 2's work. First recording files my tools wrote (the ledger
 > only sees direct edits).
 
-*[commit] c80aed9cc in ai-stuff - The engine runs: a laptop twin proves phase 2's whole ceramic core*
+*[commit] aefdbe036 in ai-stuff - The engine runs: a laptop twin proves phase 2's whole ceramic core*
 
-> Phase 2 is committed (`c80aed9cc`). The warnings come from my own `git mv`,
+> Phase 2 is committed (`aefdbe036`). The warnings come from my own `git mv`,
 > which staged those paths in the shared index. I'll reset just those entries so
 > the index matches the commit.
 
@@ -351,9 +351,9 @@ the owner decide.
 > Now updating phase 3's issue files — rewriting each one's current behaviour
 > and adding answers to its open questions.
 
-*[commit] 214bec94e in ai-stuff - Programs can be written down: box sources, a generator, map files, a loader*
+*[commit] ad8ef90db in ai-stuff - Programs can be written down: box sources, a generator, map files, a loader*
 
-*[commit] 668af2f47 in ai-stuff - Carry the text box source and the build's default-goal lines the last commit left behind*
+*[commit] a6fff6381 in ai-stuff - Carry the text box source and the build's default-goal lines the last commit left behind*
 
 > The sibling engine project already has a Lua documentation-to-HTML builder.
 > Reading it to reuse as the base.
@@ -382,9 +382,9 @@ to map to original image.]
 
 > Committing the documentation site and builder.
 
-*[commit] 67121592b in ai-stuff - The documentation becomes one linked site, and every measured number links to its meaning*
+*[commit] 7442a48ee in ai-stuff - The documentation becomes one linked site, and every measured number links to its meaning*
 
-> Documentation site committed (`67121592b`). Moving on to phase 4 (SD card,
+> Documentation site committed (`7442a48ee`). Moving on to phase 4 (SD card,
 > FAT, filesystem boxes, compiling on the device). Reading its blueprints.
 
 > The phase 1 card driver exposes whole-block read and write, and the laptop has

@@ -4,7 +4,7 @@
 # 002 — crown-sketch-gltf-annotated
 
 - **Picture:** 002-crown-sketch-gltf-annotated.png
-- **Commit:** e9924b358 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
+- **Commit:** 3e389566b 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
 - **Run:** `view-cad /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf --drag 0.2 60 20 --screenshot 0.5 --views lit,annotated`
 - **Uncommitted at the time:**
   -  M src/008-say-goodbye.lua

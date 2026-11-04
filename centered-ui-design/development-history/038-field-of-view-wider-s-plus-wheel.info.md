@@ -4,7 +4,7 @@
 # 038 — field-of-view-wider-s-plus-wheel
 
 - **Picture:** 038-field-of-view-wider-s-plus-wheel.png
-- **Commit:** 8341309b1 2026-10-10 centered-ui-design: the console spins by hand, every arch drawn whole
+- **Commit:** 863b18019 2026-10-10 centered-ui-design: the console spins by hand, every arch drawn whole
 - **Run:** `run --wheel-with 24 s 5 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/003-the-far-camera.lua

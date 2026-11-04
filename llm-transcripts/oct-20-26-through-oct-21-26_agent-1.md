@@ -1,6 +1,6 @@
 # Conversation Summary: 5473c7d4-c170-4c2f-a125-44eb0d9926e2
 
-Generated on: 2026-10-21 14:48:50
+Generated on: 2026-11-03 11:54:26
 Models: claude-opus-5-5
 
 ## Contents
@@ -25,6 +25,10 @@ Models: claude-opus-5-5
    from writing outside their folder, and now splitting the permission question
    into "how long" and "how wide". Next, you confirm that design, including
    whether "Always + This file" allows only that exact file.
+6. 2026-10-21 14:51, after Request 19 - Agents are now blocked from writing
+   outside their project folder, and when they try you're asked Yes, This time,
+   Always or No. It's built, tested and committed. Next, check that the question
+   appears live the next time a session writes outside its folder.
 
 --------------------------------------------------------------------------------
 
@@ -852,7 +856,7 @@ output)</bash-stdout><bash-stderr></bash-stderr>
 > Preparing the commit for issue 042; checking how the preview command takes
 > paths.
 
-*[commit] d12fa0f57 in ai-stuff - scripts: a session may reach its own RAM scratch space, and may write nowhere else*
+*[commit] ae2508f5b in ai-stuff - scripts: a session may reach its own RAM scratch space, and may write nowhere else*
 
 The scratchpad-move hook is now switched on in `~/.claude/settings.json`. Your
 one-time permission covered that edit and is now used up. When a session ends,
@@ -861,7 +865,7 @@ if the folder it was running in has a `tmp` link. I haven't seen it run on a
 real session ending yet. The first session that closes in a folder with a `tmp`
 link will be the real check.
 
-I committed the work as `d12fa0f57`:
+I committed the work as `ae2508f5b`:
 - **Done and closed:** the RAM-folder hook for the read and edit tools. That
   plan is now in the completed issues folder.
 - **Included, but still open:** the move of all hook scripts into
@@ -1014,7 +1018,7 @@ output)</bash-stdout><bash-stderr></bash-stderr>
 
 > The answer hook read your Yes. Running the same edit again:
 
-*[commit] 287c0656c in ai-stuff - scripts: a refused outside write asks the person Yes, Always or No*
+*[commit] e63841b01 in ai-stuff - scripts: a refused outside write asks the person Yes, Always or No*
 
 > The commit landed. My own `git mv` left a stale staging entry for issue 043,
 > and the working file already matches the commit, so I'm clearing that entry.
@@ -1031,7 +1035,7 @@ afterwards.
 
 Both plans are now closed: the RAM-folder access hook, and the write-check work
 (shell and file-tool checks, scratchpad move, yes / always / no). The work is
-committed as `d12fa0f57` and `287c0656c`. My earlier `git mv` had left a
+committed as `ae2508f5b` and `e63841b01`. My earlier `git mv` had left a
 leftover entry in git's staging area, and the file already matched the commit,
 so I cleared it. The other uncommitted files in `scripts/` belong to other
 sessions and weren't touched.
@@ -1087,7 +1091,7 @@ okay can we update the yes / always / no to include a fourth option,
 
 > All passing. Closing issue 043 again and committing.
 
-*[commit] e16934e84 in ai-stuff - scripts: a fourth answer to an outside write, "This session"*
+*[commit] d61e40c9c in ai-stuff - scripts: a fourth answer to an outside write, "This session"*
 
 The question now has a fourth answer, **This session**, between Yes and Always.
 Four is the most answers the question box allows.
@@ -1111,7 +1115,7 @@ the question flow, 207 across all the hooks, 0 failures). I also fixed the line
 after the question: it now tells the agent to retry after Yes, This session or
 Always, not just Yes or Always.
 
-It's committed as `e16934e84`, and the write-check issue is closed again.
+It's committed as `d61e40c9c`, and the write-check issue is closed again.
 
 --------------------------------------------------------------------------------
 
@@ -1269,7 +1273,7 @@ replace them with project specific permissions? Then we should have room.
 
 > All pass. Closing issue 043 and committing.
 
-*[commit] 2029bc0b9 in ai-stuff - scripts: an outside write asks how long and how wide; Always stays in its project*
+*[commit] 5d12f0d18 in ai-stuff - scripts: an outside write asks how long and how wide; Always stays in its project*
 
 Always is now limited to one project, and the question is split into "how long"
 and "how wide", asked together in one box:
@@ -1309,7 +1313,7 @@ picked without choosing a width.
 and check that Always works in one project and not in another. The full test run
 for the hooks passes (207 cases, 0 failures).
 
-It's committed as `2029bc0b9`, and the write-check issue is closed again. The
+It's committed as `5d12f0d18`, and the write-check issue is closed again. The
 one untracked file left in `scripts/tests/` belongs to another session.
 
 --------------------------------------------------------------------------------
@@ -1352,7 +1356,7 @@ and we only need "yes" "always" "this-time" and "no"
 
 > All pass. Closing the issue and committing.
 
-*[commit] fd242a704 in ai-stuff - scripts: an outside write asks one question again -- Yes, This time, Always, No*
+*[commit] 05ff98a84 in ai-stuff - scripts: an outside write asks one question again -- Yes, This time, Always, No*
 
 It's back to one question with four answers:
 
@@ -1375,7 +1379,7 @@ outside its folder.
 - Questions already handed out in the old two-part format will just expire after
   30 minutes.
 
-It's committed as `fd242a704`, and the write-check issue is closed again.
+It's committed as `05ff98a84`, and the write-check issue is closed again.
 
 --------------------------------------------------------------------------------
 

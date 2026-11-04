@@ -4,7 +4,7 @@
 # 085 — villagers-standing-up-the-screen
 
 - **Picture:** 085-villagers-standing-up-the-screen.png
-- **Commit:** 2ae949951 2026-10-10 centered-ui-design: the console spins along its own curve, as the map does
+- **Commit:** c1fec5a53 2026-10-10 centered-ui-design: the console spins along its own curve, as the map does
 - **Run:** `run --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M scripts/run-tests

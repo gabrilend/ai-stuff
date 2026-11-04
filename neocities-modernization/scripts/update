@@ -81,9 +81,14 @@ is_extraction_fresh() {
 # }}}
 
 # Parse command line arguments for project directory and options
-SCRIPT_DIR=""
 FORCE_EXTRACT=false
 INCLUDE_BOOSTS=false
+# The project folder: --dir PATH, or the path in setup_dir_path; a stray word
+# stops the script (libs/project-dir.sh, Issue 10-076). It used to be any bare
+# word. What is left is this script's own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$(setup_dir_path "")" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
 while [[ $# -gt 0 ]]; do
     case $1 in
         --force|-f)
@@ -103,19 +108,12 @@ while [[ $# -gt 0 ]]; do
             INCLUDE_BOOSTS=false
             shift
             ;;
-        -*)
+        *)
             echo "Unknown option: $1" >&2
             exit 1
             ;;
-        *)
-            SCRIPT_DIR="$1"
-            shift
-            ;;
     esac
 done
-
-# Set up project directory
-DIR=$(setup_dir_path "$SCRIPT_DIR")
 
 # Check if extraction is needed (freshness check)
 if [ "$FORCE_EXTRACT" = false ] && is_extraction_fresh "$DIR"; then
@@ -132,7 +130,7 @@ echo "🔄 Starting content extraction with ZIP archive support..."
 # Guarantee the tmpfs-backed tmp/ symlink exists before any working directory
 # is created underneath it. Issue 8-059 unified the previous split between
 # temp/ and tmp/ into a single tmpfs path.
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}"
 
 # Create temporary extraction directory
 TEMP_EXTRACT_DIR="${DIR}/tmp/shared-memory/extract-$(date +%s)"
@@ -140,7 +138,7 @@ mkdir -p "${TEMP_EXTRACT_DIR}"
 
 # Extract ZIP archives to temporary locations
 echo "📦 Extracting ZIP archives..."
-lua "${DIR}/scripts/zip-extractor.lua" "${DIR}" "${TEMP_EXTRACT_DIR}" || {
+lua "${DIR}/scripts/zip-extractor.lua" --dir "${DIR}" --temp "${TEMP_EXTRACT_DIR}" || {
     echo "Error: ZIP extraction failed" >&2
     rm -rf "${TEMP_EXTRACT_DIR}"
     exit 1
@@ -184,7 +182,7 @@ if [ -f "${TEMP_EXTRACT_DIR}/fediverse/extract/outbox.json" ]; then
         BOOST_FLAG="--include-boosts"
         echo "   📤 Including fediverse boosts in extraction"
     fi
-    lua "${DIR}/scripts/extract-fediverse.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/fediverse" $BOOST_FLAG || stop_extraction "fediverse extraction"
+    lua "${DIR}/scripts/extract-fediverse.lua" --dir "${DIR}" --source "${TEMP_EXTRACT_DIR}/fediverse" $BOOST_FLAG || stop_extraction "fediverse extraction"
 else
     echo "ℹ️  No fediverse data found in archives"
 fi
@@ -192,7 +190,7 @@ fi
 # Check for messages data
 if [ -f "${TEMP_EXTRACT_DIR}/messages/extract/export.json" ]; then
     echo "💬 Extracting messages content..."
-    lua "${DIR}/scripts/extract-messages.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/messages" || stop_extraction "messages extraction"
+    lua "${DIR}/scripts/extract-messages.lua" --dir "${DIR}" --source "${TEMP_EXTRACT_DIR}/messages" || stop_extraction "messages extraction"
 else
     echo "ℹ️  No messages data found in archives"
 fi
@@ -200,7 +198,7 @@ fi
 # Check for notes data
 if [ -d "${TEMP_EXTRACT_DIR}/notes/extract" ] && [ "$(find "${TEMP_EXTRACT_DIR}/notes/extract" -type f | head -1)" ]; then
     echo "📝 Extracting notes content..."
-    lua "${DIR}/scripts/extract-notes.lua" "${DIR}" "${TEMP_EXTRACT_DIR}/notes" || stop_extraction "notes extraction"
+    lua "${DIR}/scripts/extract-notes.lua" --dir "${DIR}" --source "${TEMP_EXTRACT_DIR}/notes" || stop_extraction "notes extraction"
 else
     echo "ℹ️  No notes data found in archives"
 fi
@@ -208,7 +206,7 @@ fi
 # Also process notes from main directory if not from ZIP
 if [ -d "${DIR}/input/notes" ] && [ "$(find "${DIR}/input/notes" -type f -not -name '.*' | head -1)" ]; then
     echo "📝 Processing notes from main directory..."
-    bash "${DIR}/scripts/run-notes" "${DIR}" || stop_extraction "main notes processing"
+    bash "${DIR}/scripts/run-notes" --dir "${DIR}" || stop_extraction "main notes processing"
 fi
 
 # Check for Bluesky CAR files (find newest by mtime, not specific filenames)
@@ -216,7 +214,7 @@ fi
 CAR_FILE=$(find "${DIR}/input/bluesky" -name "*.car" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
 if [ -n "$CAR_FILE" ]; then
     echo "🦋 Extracting Bluesky content from $(basename "$CAR_FILE")..."
-    "${DIR}/scripts/extract-bluesky-data" "$CAR_FILE" "${DIR}/input/bluesky/files/poems.json" || stop_extraction "Bluesky extraction"
+    "${DIR}/scripts/extract-bluesky-data" --dir "${DIR}" --car "$CAR_FILE" --output "${DIR}/input/bluesky/files/poems.json" || stop_extraction "Bluesky extraction"
 else
     echo "ℹ️  No Bluesky CAR files found in input/bluesky/"
 fi

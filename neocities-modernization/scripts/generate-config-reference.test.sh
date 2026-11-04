@@ -5,15 +5,15 @@
 # that has no markers rather than overwriting it whole. It runs the real
 # generator against a throwaway project in RAM.
 #
-# Run: bash scripts/generate-config-reference.test.sh [project-dir]
+# Run: bash scripts/generate-config-reference.test.sh [--dir PATH]
 
 set -u
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ -n "${1:-}" ]; then
-    DIR="$1"
-fi
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" >/dev/null
 SCRATCH="${DIR}/tmp/shared-memory/generate-config-reference-test"
 rm -rf "${SCRATCH}"
 mkdir -p "${SCRATCH}/docs"
@@ -61,7 +61,7 @@ EOF
 } > "${DOC}"
 # }}}
 
-"${GENERATOR}" "${SCRATCH}" > /dev/null
+"${GENERATOR}" --dir "${SCRATCH}" > /dev/null
 check "text above the region is kept"          grep -q '^# Title written by hand$' "${DOC}"
 check "text below the region is kept"          grep -q '^## Guide written by hand$' "${DOC}"
 check "old generated text is replaced"         test "$(grep -c 'stale generated text' "${DOC}")" -eq 0
@@ -72,18 +72,18 @@ check "a setting gets its above-comment"       grep -q '^| `name` | "box" | A no
 check "a list is shown whole"                  grep -q '^Current value: list of 2$' "${DOC}"
 check "sections keep the file's order"         test "$(grep -n '^### ' "${DOC}" | head -1 | cut -d: -f2)" = "### alpha"
 
-"${GENERATOR}" "${SCRATCH}" --check > /dev/null
+"${GENERATOR}" --dir "${SCRATCH}" --check > /dev/null
 check "--check passes right after writing"     test $? -eq 0
 
 sed -i 's/width = 80/width = 81/' "${SCRATCH}/config.lua"
 BEFORE="$(md5sum < "${DOC}")"
-"${GENERATOR}" "${SCRATCH}" --check > /dev/null
+"${GENERATOR}" --dir "${SCRATCH}" --check > /dev/null
 status=$?
 check "--check exits 1 when config changed"    test "${status}" -eq 1
 check "--check writes nothing"                 test "$(md5sum < "${DOC}")" = "${BEFORE}"
 
 printf '# no markers here\n' > "${DOC}"
-"${GENERATOR}" "${SCRATCH}" > /dev/null 2>&1
+"${GENERATOR}" --dir "${SCRATCH}" > /dev/null 2>&1
 status=$?
 check "a doc without markers is refused"       test "${status}" -eq 2
 check "the refused doc is untouched"           test "$(cat "${DOC}")" = "# no markers here"

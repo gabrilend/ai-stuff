@@ -8,6 +8,10 @@
 -- scripts/validate-output runs many of these at once, one per processor, and
 -- merges what they found.  (Issue 9-006.)
 --
+-- project-dir: none -- an internal worker: scripts/validate-output hands it a
+-- width, a findings file and a batch of page paths through xargs, so its
+-- words are its data (a list thousands long), and it reads no project folder.
+--
 -- Usage: luajit scripts/validate-output-worker.lua MAX_WIDTH FINDINGS_FILE PAGE...
 --   MAX_WIDTH      widest allowed line inside a poem column, in visible
 --                  characters: the frame's width (84: a wall, a space, 80

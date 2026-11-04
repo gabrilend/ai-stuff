@@ -4,7 +4,7 @@
 # 089 — crown-sketch-gltf-joints
 
 - **Picture:** 089-crown-sketch-gltf-joints.png
-- **Commit:** 2620ab43a 2026-10-10 poor-person-google-glass: tolerance calculations, with a format to write them in
+- **Commit:** d18378df5 2026-10-10 poor-person-google-glass: tolerance calculations, with a format to write them in
 - **Run:** `view-cad /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf --drag 0.2 60 20 --screenshot 0.5 --views joints`
 - **Uncommitted at the time:**
   -  M scripts/run-tests
@@ -24,7 +24,7 @@
 ## What changed
 
 Compared with picture 088:
-- commit: d0c94b3e0 -> 2620ab43a
+- commit: c289005c1 -> d18378df5
 - changed: src/008-say-goodbye.lua
 - changed: src/010-the-viewer.lua
 - changed: src/019-a-calculation-and-its-checks.lua

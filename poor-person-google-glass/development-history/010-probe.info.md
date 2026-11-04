@@ -4,7 +4,7 @@
 # 010 — probe
 
 - **Picture:** 010-probe.png
-- **Commit:** e9924b358 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
+- **Commit:** 3e389566b 2026-10-10 poor-person-google-glass: a CAD viewer, and a phase of tools beneath the crown
 - **Run:** `view-cad (a separate probe program in tmp/, not view-cad)`
 - **Uncommitted at the time:**
   -  M src/008-say-goodbye.lua

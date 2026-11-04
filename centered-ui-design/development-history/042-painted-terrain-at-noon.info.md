@@ -4,7 +4,7 @@
 # 042 — painted-terrain-at-noon
 
 - **Picture:** 042-painted-terrain-at-noon.png
-- **Commit:** f99ef3260 2026-10-10 centered-ui-design: personal space, and two view dials turned by key and wheel
+- **Commit:** 6ecd6e142 2026-10-10 centered-ui-design: personal space, and two view dials turned by key and wheel
 - **Run:** `run --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua
@@ -17,7 +17,7 @@
 ## What changed
 
 Compared with picture 041:
-- commit: 8341309b1 -> f99ef3260
+- commit: 863b18019 -> 6ecd6e142
 - changed: input/game-settings.lua
 - changed: src/001-read-the-input.lua
 - changed: src/007-seeding-the-units.lua

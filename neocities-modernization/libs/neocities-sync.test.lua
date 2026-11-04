@@ -5,6 +5,16 @@
 -- control loop reacts correctly (halve on too-big, wait on 429, grow on success,
 -- stop on fatal) and that the diff/batching are right.
 
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 package.path = arg[0]:gsub("[^/]+%.lua$", "") .. "?.lua;" .. package.path
 local S = require("neocities-sync")
 

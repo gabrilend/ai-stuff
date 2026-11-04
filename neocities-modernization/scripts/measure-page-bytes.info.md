@@ -9,7 +9,7 @@ extra bytes of entities) and blank space.
 
 ## Usage
 
-`scripts/measure-page-bytes [DIR] [--site FOLDER]`
+`scripts/measure-page-bytes [--dir PATH] [--site FOLDER]`
 
 | option | meaning |
 | --- | --- |

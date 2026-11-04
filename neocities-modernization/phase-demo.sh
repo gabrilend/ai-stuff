@@ -21,7 +21,16 @@ setup_dir_path() {
 }
 # }}}
 
-DIR=$(setup_dir_path "$1")
+# The project folder: --dir PATH, or the path in setup_dir_path; a stray word
+# stops the script (libs/project-dir.sh, Issue 10-076). It used to be the
+# first word.
+source "$(dirname "$(readlink -f "$0")")/libs/project-dir.sh"
+project_dir_read "$(setup_dir_path "")" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
+if [ $# -gt 0 ]; then
+    echo "phase-demo.sh: unknown option $1" >&2
+    exit 1
+fi
 cd "$DIR" || exit 1
 
 # {{{ TUI Library
@@ -408,15 +417,15 @@ run_phase_demo() {
             if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
                 echo ""
                 echo "Step 1/3: Extracting content from archives..."
-                scripts/update "$DIR" || echo "Warning: Some extraction steps failed"
+                scripts/update --dir "$DIR" || echo "Warning: Some extraction steps failed"
 
                 echo ""
                 echo "Step 2/3: Processing poems and generating embeddings..."
-                echo "1" | lua src/main.lua "$DIR" > /dev/null 2>&1
+                echo "1" | lua src/main.lua --dir "$DIR" > /dev/null 2>&1
 
                 echo ""
                 echo "Step 3/3: Generating HTML output..."
-                echo "4" | lua src/main.lua "$DIR" > /dev/null 2>&1
+                echo "4" | lua src/main.lua --dir "$DIR" > /dev/null 2>&1
 
                 echo ""
                 echo "✅ Pipeline complete!"

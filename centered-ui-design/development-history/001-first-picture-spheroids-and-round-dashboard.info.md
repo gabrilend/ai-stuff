@@ -1,11 +1,11 @@
 <!-- made by scripts/capture-history on 2026-10-10 20:16, from the
-     game run as: run /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/cee707864/game-at-cee707864 --click 0.8 300 280 --screenshot 1.6 -->
+     game run as: run /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/0f753f833/game-at-0f753f833 --click 0.8 300 280 --screenshot 1.6 -->
 
 # 001 — first-picture-spheroids-and-round-dashboard
 
 - **Picture:** 001-first-picture-spheroids-and-round-dashboard.png
-- **Commit:** cee707864 2026-10-10 centered-ui-design: the first picture — spheroid units under a glass-and-metal dashboard
-- **Run:** `run --click 0.8 300 280 --screenshot 1.6` (from /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/cee707864/game-at-cee707864)
+- **Commit:** 0f753f833 2026-10-10 centered-ui-design: the first picture — spheroid units under a glass-and-metal dashboard
+- **Run:** `run --click 0.8 300 280 --screenshot 1.6` (from /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/history/0f753f833/game-at-0f753f833)
 
 ## What it shows
 

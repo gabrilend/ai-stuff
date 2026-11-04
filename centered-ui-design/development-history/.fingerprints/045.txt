@@ -1,4 +1,4 @@
-commit f99ef3260
+commit 6ecd6e142
 b702698b44fe9ed4494e9202589c23d496b49ee1  libs/ceramic/cera.c
 cd6b63fb663d0e3a15827a79841d327fec5118ca  libs/ceramic/cera.h
 4c05cba5b1ee3e18c3b27779fabcdc5116b0c4ed  src/001-read-the-input.lua

@@ -4,7 +4,7 @@
 # 097 — d-and-wheel-spread-the-rings
 
 - **Picture:** 097-d-and-wheel-spread-the-rings.png
-- **Commit:** 3cba5ed0a 2026-10-10 centered-ui-design: villagers turn to face their path along the curve
+- **Commit:** 26ccbb9ed 2026-10-10 centered-ui-design: villagers turn to face their path along the curve
 - **Run:** `run --wheel-with 24 d 6 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M scripts/run-tests

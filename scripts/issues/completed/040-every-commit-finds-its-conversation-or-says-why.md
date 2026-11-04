@@ -34,8 +34,8 @@ story page, built from the rebuilt transcripts against its mirror's
 history: **65 commits shown, 65 with a working button** — 63 into
 conversations, 2 into pages of her own words (`by-hand-17463e2`,
 `by-hand-c7d6693`) — and **5** from the Claude Code folder not shown.
-Exactly as step 8 predicted. Commits: ai-stuff `3445af732` (Parts A and B),
-`8aee90478` (C and D), `d7e6ca9e5`, `cf59a2c60`, `69b047fcf` (three fixes
+Exactly as step 8 predicted. Commits: ai-stuff `226e7390b` (Parts A and B),
+`fe49e4b40` (C and D), `d53d409d7`, `e40ac31d4`, `dedc2c90c` (three fixes
 below); double-diaper-dungeon `6c95f84ff`. The whole machine's archive was
 rebuilt twice behind a verified snapshot
 (`/tmp/transcript-corpus-backup-20261004-172305`), and no transcript on any
@@ -55,19 +55,19 @@ of the three disks records a commit twice (2,578 checked).
 - **"No double lines" has to know the whole session first.** The first
   build checked only lines already written, and five commits announced by a
   LATER command were written twice; every announced hash is now gathered
-  before any line is written (`d7e6ca9e5`, with a test).
+  before any line is written (`d53d409d7`, with a test).
 - **The archive rebuild missed sessions started through a link.** A session
   started in `/mnt/mtwo/programs/claude-code` (a shortcut to
   `/mnt/mtwo/.claude/claude-code`) is filed under the shortcut's name, and
   `rederive-transcripts` swept only each project's real name: 31 of that
   folder's conversations had never been rebuilt and one never written. The
-  rebuild now sweeps every spelling its surviving logs used (`cf59a2c60`,
+  rebuild now sweeps every spelling its surviving logs used (`e40ac31d4`,
   `tests/test-rederive-link-spelling.sh`). Across the machine, that folder
   was the only one affected.
 - **A session in which nobody spoke** (opening `/config` and closing it) was
   given a transcript with a header and nothing else, which the game's test
   of its transcripts caught. It now hands back no dates, so the exporter's
-  husk rule writes nothing and retires the old file (`69b047fcf`,
+  husk rule writes nothing and retires the old file (`dedc2c90c`,
   `tests/test_conversation-parser-empty-session.lua`).
 - The rebuild's reports count 105 conversations with a commit command that
   matched no single commit — refused commits, mostly, said once and left
@@ -80,7 +80,7 @@ finds the commits a reply made: `runs_a_commit(command)` says whether a
 shell command runs a commit, `commits_reported(msg, commands_by_id)` reads
 that command's printed output for git's announcement
 (`[main 1a2b3c4] Subject`) or `commit-own-changes`'
-(`commit-own-changes: committed 8a235a0fe on main in <repo>`), and
+(`commit-own-changes: committed 7a29ea7a8 on main in <repo>`), and
 `commit_line(commit)` writes `*[commit] <hash> - <subject>*` into the
 transcript. The site's table of contents (`transcript-site/contents/`) links
 a commit by that line. No line: a dimmed button, and the heading "no saved
@@ -100,7 +100,7 @@ the machine (`~/.claude/projects/`) found what happened to each of the other
 | D | `17463e2` ("human written notes"), `c7d6693` ("I wrote an issue file…") | **Made by her, by hand**, from her own terminal: no session ran a commit near those times, and neither message carries a `Co-Authored-By:` line, which every commit a session makes does. Only 6 of the game's commits lack that line. |
 
 A fifth problem turned up while measuring, and is **already fixed**
-(ai-stuff commit `99c9c63ff`): the table of contents read a commit's message
+(ai-stuff commit `7c8c66dd2`): the table of contents read a commit's message
 only up to the first line that looked like a file path, so `fa4e3a7`'s
 message was cut mid-sentence on the live page, and its `Mirrored-from:` line
 below the cut was lost, so the page knew it by the mirror's hash instead of

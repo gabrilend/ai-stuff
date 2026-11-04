@@ -13,8 +13,8 @@ so the reference is now built from those comments and cannot fall behind.
 
 ## Usage
 
-    scripts/generate-config-reference [DIR]           rewrite the doc's generated region
-    scripts/generate-config-reference [DIR] --check   exit 1 if the doc is out of date; write nothing
+    scripts/generate-config-reference [--dir PATH]           rewrite the doc's generated region
+    scripts/generate-config-reference [--dir PATH] --check   exit 1 if the doc is out of date; write nothing
 
 Exit status: 0 written or up to date, 1 `--check` found it out of date,
 2 `config.lua` could not be loaded or the doc lacks its markers.

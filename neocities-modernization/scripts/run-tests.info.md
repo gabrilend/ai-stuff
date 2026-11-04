@@ -6,7 +6,7 @@ build (after the pre-flight gate); one failure stops the build (Issue 10-010).
 
 ## Usage
 
-`scripts/run-tests [DIR] --jobs N [--match TEXT]`
+`scripts/run-tests [--dir PATH] --jobs N [--match TEXT]`
 
 | option | meaning |
 | --- | --- |

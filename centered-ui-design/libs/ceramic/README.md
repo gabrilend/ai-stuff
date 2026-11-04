@@ -7,7 +7,7 @@
 kept copy that world-edit-to-execute improved for a renderer's frame:
 
 - copied from `world-edit-to-execute/src/render/ceramic/engine/` at that
-  project's commit `61bb775ed` (2026-09-25), unchanged;
+  project's commit `bde303486` (2026-09-25), unchanged;
 - which started as minimal-soramech commit `059487d` (2026-09-12), with the
   changes listed in `fork-notes.md` (marked `FORK (issue 515g)` in the
   source): a task queue without a lock, batched hand-in

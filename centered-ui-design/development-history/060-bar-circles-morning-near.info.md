@@ -4,7 +4,7 @@
 # 060 — bar-circles-morning-near
 
 - **Picture:** 060-bar-circles-morning-near.png
-- **Commit:** f1cea4269 2026-10-10 centered-ui-design: the land painted by turned circles
+- **Commit:** 1abb118e6 2026-10-10 centered-ui-design: the land painted by turned circles
 - **Run:** `run --wheel-with 20 a -6 --screenshot 20.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua
@@ -16,7 +16,7 @@
 ## What changed
 
 Compared with picture 059:
-- commit: 619895b42 -> f1cea4269
+- commit: 632aaea7d -> 1abb118e6
 - changed: input/game-settings.lua
 - changed: src/001-read-the-input.lua
 - changed: src/013-the-world-renderer.lua

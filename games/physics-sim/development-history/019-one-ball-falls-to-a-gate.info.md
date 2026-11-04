@@ -7,7 +7,7 @@ cropped to 620x1020+133+140, shrunk to 40%, at 30 frames a second.
 ## What made it
 
 - made: 2026-10-21 15:07:32
-- commit: fa0244c21 physics-sim: a lodge at the front door, and the game's first pictures
+- commit: 76483586d physics-sim: a lodge at the front door, and the game's first pictures
 - source fingerprint (src/ and boards/): a4f73c0b2105f624
 - options: --frames 720 --from 3 --to 720 --crop 620x1020+133+140 --scale 40 --step 4
 - the scene, which lived only in RAM:

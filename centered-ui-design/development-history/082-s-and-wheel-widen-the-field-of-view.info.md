@@ -4,7 +4,7 @@
 # 082 — s-and-wheel-widen-the-field-of-view
 
 - **Picture:** 082-s-and-wheel-widen-the-field-of-view.png
-- **Commit:** 2ae949951 2026-10-10 centered-ui-design: the console spins along its own curve, as the map does
+- **Commit:** c1fec5a53 2026-10-10 centered-ui-design: the console spins along its own curve, as the map does
 - **Run:** `run --wheel-with 24 s 4 --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M scripts/run-tests
@@ -14,7 +14,7 @@
 ## What changed
 
 Compared with picture 081:
-- commit: b9333d8c3 -> 2ae949951
+- commit: 372ebe4f6 -> c1fec5a53
 - changed: src/016-the-game.lua
 - changed: src/main.lua
 

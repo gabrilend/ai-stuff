@@ -6,23 +6,17 @@
 -- the "golden" poems of exactly 1024 characters -- and writes the
 -- validation report. main.lua --validate-only calls it in a build.
 --
--- Usage: luajit src/poem-validator.lua [DIR] [-I]
---   DIR  project folder (default below); -I  ask before each step
+-- Usage: luajit src/poem-validator.lua [--dir PATH] [-I]
+--   --dir PATH project folder (default below); -I  ask before each step
 
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ local function setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
-
--- Script configuration
-local DIR = setup_dir_path()
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path below
+-- (libs/project-dir.lua, Issue 10-076).
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path

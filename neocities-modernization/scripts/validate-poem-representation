@@ -28,6 +28,12 @@ if DIR then
 else
     DIR = "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
 end
+-- The project folder: --dir PATH, or the folder found above; a stray word
+-- stops the script (libs/project-dir.lua, Issue 10-076). OWN_ARGS is every
+-- other word, for the two option readers below.
+local OWN_ARGS
+DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, DIR, { ["--output"] = true, ["--poems"] = true })
 
 -- the project's libraries (the logged print, the config loader)
 package.path = DIR .. "/libs/?.lua;" .. package.path
@@ -36,9 +42,9 @@ package.path = DIR .. "/libs/?.lua;" .. package.path
 local POEMS_JSON = DIR .. "/assets/poems.json"
 local OUTPUT_DIR = DIR .. "/output"
 -- --output / --poems point it at another site or poem list (the test does)
-for i = 1, #arg do
-    if arg[i] == "--output" and arg[i + 1] then OUTPUT_DIR = arg[i + 1] end
-    if arg[i] == "--poems" and arg[i + 1] then POEMS_JSON = arg[i + 1] end
+for i = 1, #OWN_ARGS do
+    if OWN_ARGS[i] == "--output" and OWN_ARGS[i + 1] then OUTPUT_DIR = OWN_ARGS[i + 1] end
+    if OWN_ARGS[i] == "--poems" and OWN_ARGS[i + 1] then POEMS_JSON = OWN_ARGS[i + 1] end
 end
 -- Issue 10-014: Migrated from input-sources.json to unified config.lua
 local CONFIG_FILE = DIR .. "/config.lua"
@@ -389,7 +395,7 @@ end
 
 -- {{{ Main
 local function main()
-    local options = parse_arguments(arg)
+    local options = parse_arguments(OWN_ARGS)
 
     if options.help then
         print_usage()

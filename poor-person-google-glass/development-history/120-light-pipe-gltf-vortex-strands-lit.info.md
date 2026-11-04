@@ -4,7 +4,7 @@
 # 120 — light-pipe-gltf-vortex-strands-lit
 
 - **Picture:** 120-light-pipe-gltf-vortex-strands-lit.png
-- **Commit:** 7389d1c1b 2026-10-10 poor-person-google-glass: models held like an artifact on a plinth, in a window that keeps its size
+- **Commit:** 23f182d02 2026-10-10 poor-person-google-glass: models held like an artifact on a plinth, in a window that keeps its size
 - **Run:** `view-cad /mnt/mtwo/programming/ai-stuff/poor-person-google-glass/output/models/light-pipe.gltf --stations --views lit --screenshot 0.3`
 - **Uncommitted at the time:**
   -  M src/005-gltf.lua

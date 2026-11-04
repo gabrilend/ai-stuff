@@ -4,7 +4,7 @@
 # 088 — crown-sketch-gltf-depth
 
 - **Picture:** 088-crown-sketch-gltf-depth.png
-- **Commit:** d0c94b3e0 2026-10-10 poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen
+- **Commit:** c289005c1 2026-10-10 poor-person-google-glass: objects described in words become models; pictures come from the program, not the screen
 - **Run:** `view-cad /dev/shm/poor-person-google-glass/shapes/crown-sketch.gltf --drag 0.2 60 20 --screenshot 0.5`
 - **Uncommitted at the time:**
   -  M scripts/file-screenshot

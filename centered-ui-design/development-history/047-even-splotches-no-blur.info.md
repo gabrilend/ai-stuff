@@ -4,7 +4,7 @@
 # 047 — even-splotches-no-blur
 
 - **Picture:** 047-even-splotches-no-blur.png
-- **Commit:** f99ef3260 2026-10-10 centered-ui-design: personal space, and two view dials turned by key and wheel
+- **Commit:** 6ecd6e142 2026-10-10 centered-ui-design: personal space, and two view dials turned by key and wheel
 - **Run:** `run --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

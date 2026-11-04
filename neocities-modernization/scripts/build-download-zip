@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # build-download-zip
 #
-# WHAT (for a CEO): builds the single "download everything" file offered on the
-# source browser -- one zip containing both the public website AND the source
-# code that generates it, so anyone can take the whole thing home and rebuild it.
+# WHAT (for a CEO): builds the "download everything" offered on the source
+# browser -- one archive containing both the public website AND the source code
+# that generates it, so anyone can take the whole thing home and rebuild it.
+# Neocities takes no file over 100 MB and the archive is a few GB, so it is
+# published in 90 MB pieces with a small page listing them, the way the owner's
+# older archives are (conversation-starters/conversation-starters; Issue 10-077).
 #
 # PRIVACY: the source files are exactly `git ls-files` (which obeys .gitignore,
 # so the raw private inputs -- the poem corpus, LLM transcripts, archives --
@@ -14,11 +17,14 @@
 # browser). The rendered site (output/, itself gitignored) is already the public
 # deployable, so it ships whole.
 #
-# HOW: assembles the archive in /dev/shm (RAM, and outside output/ so it can't zip
-# itself), keeps the finished file there, and links output/<NAME>.zip to it,
-# served at /similar-different/<NAME>.zip.
+# HOW: assembles the whole archive in RAM (tmp/shared-memory/, outside the
+# site so it cannot pack itself), copies it into a split archive of 90 MB
+# pieces, writes the page that lists them, and only then swaps the finished
+# folder in as output/download/ -- served at /similar-different/download/.
 #
-# Usage:  scripts/build-download-zip [DIR]
+# Usage:  scripts/build-download-zip [--dir PATH]
+#   --dir PATH   the project folder (default: the path set below). Every other
+#                word is an error (Issue 10-076).
 
 # --help: print the header above and exit, before any work (libs/script-help.sh)
 source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
@@ -26,34 +32,76 @@ script_help "$0" "$@"
 
 set -euo pipefail
 
+# {{{ arguments
+# ${DIR} is the project root; hard-coded for the normal case, --dir PATH for
+# another. A bare word stops the script: it is usually a flag that lost its
+# dashes, and taking it as the project folder hides the mistake
+# (libs/project-dir.sh, Issue 10-076). It takes no other options.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
+if [ "${#PROJECT_ARGS[@]}" -gt 0 ]; then
+    echo "[build-download-zip] ERROR: unknown option ${PROJECT_ARGS[0]}" >&2
+    exit 1
+fi
+# }}}
+
 # {{{ configuration
-# ${DIR} is the project root; hard-coded for the normal case, overridable as the
-# first argument so the script runs from anywhere.
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
 NAME="similar-different"
-# Build in RAM, outside output/, so the archive never tries to contain itself.
-# A zip is data (never executed), so it belongs in the shared-memory tier:
-# tmp/shared-memory/ -> /dev/shm/{project}, guaranteed RAM on any host.
-ZIP_TMP="${DIR}/tmp/shared-memory/${NAME}.zip.building"
-# The finished zip STAYS in RAM (owner, 2026-10-07: rewriting ~3 GB to disk on
-# every build "sucks", and it is uploaded right after the build). output/ gets
-# a symbolic link to it, which is what the pages link to and what
-# scripts/deploy-to-neocities uploads. RAM here is emptied at logout: after
-# that the link points at nothing, the page check reports it broken, and the
-# deploy refuses to run -- rebuild before uploading.
-FINAL="${DIR}/tmp/shared-memory/${NAME}.zip"
-LINK="${DIR}/output/${NAME}.zip"
+# Pieces of 92,159 KiB (94,370,816 bytes): under Neocities' 100 MB cap with
+# room to spare, one KiB short of 90 MiB.
+#
+# Why not exactly 90 MiB (the size of the owner's older split archives):
+# Info-ZIP zip 3.0's own join, "zip -s 0 pieces.zip --out whole.zip", loses
+# data when a piece is a whole number of its copy buffers. Its copy loop
+# (bfcopy in fileio.c) moves to the next piece only when a read comes up
+# short; a piece after the first holds nothing but continuing data, so when
+# its size divides evenly into buffers every read is full, the last one ends
+# exactly at the piece's end, the next read returns nothing, and the loop
+# stops -- without an error. Every byte after the second piece of a file
+# spanning three or more is dropped. The buffer is 16,384 bytes on Linux
+# (2,048 or 8,192 on some builds, tailor.h), and 90 MiB is 5,760 of them.
+# An odd number of KiB is never a multiple of 2,048, so it is safe on every
+# build. (Found 2026-11-03, Issue 10-077: of four sizes tried, the two that
+# divide by 16,384 lost data and the two that do not joined whole.)
+PIECE_SIZE="92159k"
+PIECE_BYTES=94370816
+# The whole archive is assembled in RAM, outside output/ (which is itself in
+# RAM, tmp/shared-memory/site, Issue 10-072), so it never tries to contain
+# itself. A zip is data (never executed), so it belongs in the shared-memory
+# tier.
+WHOLE="${DIR}/tmp/shared-memory/${NAME}.zip.building"
+# The pieces and their page are written here and moved into the site in one
+# step, so output/download/ is never half-written.
+BUILDING="${DIR}/tmp/shared-memory/${NAME}-download.building"
+PUBLISHED="${DIR}/output/download"
+# Before Issue 10-077 the archive was one file in RAM, linked from the site.
+# Both are removed on every run so neither can be uploaded again.
+OLD_FILE="${DIR}/tmp/shared-memory/${NAME}.zip"
+OLD_LINK="${DIR}/output/${NAME}.zip"
 # }}}
 
 # {{{ preflight
+# The piece size must not be a whole number of zip's smallest copy buffer
+# (2,048 bytes), or zip's own join drops data (see PIECE_SIZE above). A
+# change to the size that breaks this stops here, before any work.
+if [ $((PIECE_BYTES % 2048)) -eq 0 ]; then
+    echo "[build-download-zip] ERROR: PIECE_BYTES ($PIECE_BYTES) is a multiple of 2048; zip -s 0 would lose data joining the pieces. Use an odd number of KiB." >&2
+    exit 1
+fi
+if [ "$PIECE_SIZE" != "$((PIECE_BYTES / 1024))k" ]; then
+    echo "[build-download-zip] ERROR: PIECE_SIZE ($PIECE_SIZE) and PIECE_BYTES ($PIECE_BYTES) disagree" >&2
+    exit 1
+fi
 if [ ! -d "$DIR/output" ]; then
     echo "[build-download-zip] ERROR: $DIR/output not found -- generate the site first." >&2
     exit 1
 fi
 # Materialise the two-tier tmp/ (incl. tmp/shared-memory/) before writing into it.
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}"
-mkdir -p "$(dirname "$ZIP_TMP")"
-rm -f "$ZIP_TMP"
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}"
+mkdir -p "$(dirname "$WHOLE")"
+rm -f "$WHOLE"
+rm -rf "$BUILDING"
+mkdir -p "$BUILDING"
 # }}}
 
 # {{{ source files (allowlisted, git-tracked -> respects .gitignore)
@@ -71,18 +119,18 @@ SOURCE_LIST="$(git -C "$DIR" ls-files | awk -F/ '
     NF > 1 { if ($1 ~ /^(src|libs|scripts|issues|docs|notes|demos|archive)$/) print; next }
     { if ($0 ~ /\.(lua|sh|md|c|h|json|css|html|txt)$/) print }
 ')"
-printf '%s\n' "$SOURCE_LIST" | (cd "$DIR" && zip -q "$ZIP_TMP" -@)
+printf '%s\n' "$SOURCE_LIST" | (cd "$DIR" && zip -q "$WHOLE" -@)
 # }}}
 
 # {{{ LICENSE (added explicitly: it may not be committed yet, so git ls-files
 # would miss it, but it must travel with the bundle it governs)
 if [ -f "$DIR/LICENSE" ]; then
-    (cd "$DIR" && zip -q "$ZIP_TMP" LICENSE)
+    (cd "$DIR" && zip -q "$WHOLE" LICENSE)
 fi
 # }}}
 
 # {{{ readme.txt -- orient whoever unzips this (how to open it, what's inside)
-README_TMP="$(dirname "$ZIP_TMP")/readme.txt"
+README_TMP="$(dirname "$WHOLE")/readme.txt"
 cat > "$README_TMP" <<'EOF'
 similar-different -- the poetry site, plus the source that builds it.
 
@@ -104,24 +152,101 @@ ABOUT THE LINKS
   generators emit this form directly; there is no build step that "fixes" paths.
   To regenerate the whole site from this source, run run.sh.
 EOF
-(cd "$(dirname "$README_TMP")" && zip -q "$ZIP_TMP" readme.txt)
+(cd "$(dirname "$README_TMP")" && zip -q "$WHOLE" readme.txt)
 rm -f "$README_TMP"
 # }}}
 
 # {{{ the rendered site (output/ -> stored under output/ inside the zip)
-# Exclude any previous build's archive sitting in output/ -- otherwise each run's
-# 2.6G zip would swallow the last run's, doubling forever.
-(cd "$DIR" && zip -rq "$ZIP_TMP" output -x "output/${NAME}.zip")
+# Left out: the previous build's pieces and page (output/download/), and the
+# single archive's old link if it is still there -- otherwise each run's
+# archive would swallow the last run's, doubling forever.
+(cd "$DIR" && zip -rq "$WHOLE" output -x "output/download/*" "output/${NAME}.zip")
 # }}}
 
-# {{{ publish: finish in RAM, link it from output/ for serving
-# The rename happens only once the archive is complete, so the link never
-# points at a half-written zip. Whatever was at output/<NAME>.zip before -- the
-# previous link, or an older build's real file on disk -- is replaced by the link.
-mv -f "$ZIP_TMP" "$FINAL"
-rm -f "$LINK"
-ln -s "$FINAL" "$LINK"
-SIZE="$(du -h "$FINAL" | cut -f1)"
+# {{{ split into pieces
+# zip cannot add files to a split archive, so the whole one is built first and
+# then copied into pieces: NAME.z01, NAME.z02, ..., and NAME.zip last (the
+# piece that holds the table of contents, so it is the one a reader opens).
+zip -q "$WHOLE" -s "$PIECE_SIZE" --out "$BUILDING/${NAME}.zip"
+rm -f "$WHOLE"
+
+# the pieces in reading order: the numbered ones, then the .zip
+PIECES=()
+for piece in "$BUILDING/${NAME}".z[0-9]*; do
+    # an unmatched pattern stays literal: the archive was smaller than one
+    # piece, and the .zip below is then the only piece
+    if [ -e "$piece" ]; then
+        PIECES+=("$(basename "$piece")")
+    fi
+done
+PIECES+=("${NAME}.zip")
+
+# Every piece must be under the cap, or the deploy would stop on it again.
+TOTAL_BYTES=0
+for piece in "${PIECES[@]}"; do
+    bytes=$(stat -c %s "$BUILDING/$piece")
+    if [ "$bytes" -gt "$PIECE_BYTES" ]; then
+        echo "[build-download-zip] ERROR: $piece is $bytes bytes, over the $PIECE_BYTES-byte piece size" >&2
+        exit 1
+    fi
+    TOTAL_BYTES=$((TOTAL_BYTES + bytes))
+done
+# }}}
+
+# {{{ the page that lists the pieces
+# The site's colours come from one place (src/page-theme.lua, config.lua
+# html_theme), read through Lua so this page cannot drift from the others.
+# The project folder reaches Lua as an argument, never pasted into its source.
+BODY_TAG="$(luajit - "$DIR" <<'LUA'
+local dir = arg[1]
+package.path = dir .. "/libs/?.lua;" .. dir .. "/src/?.lua;" .. package.path
+require("config-loader").set_project_root(dir)
+io.write(require("page-theme").body_tag())
+LUA
+)"
+COUNT_PIECES=${#PIECES[@]}
+TOTAL_MB=$((TOTAL_BYTES / 1048576))
+PAGE="$BUILDING/index.html"
+{
+    echo "<!-- made by scripts/build-download-zip (Issue 10-077), every build: the list of the download's pieces -->"
+    echo "<!DOCTYPE html>"
+    echo "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+    echo "<title>download everything</title></head>"
+    echo "$BODY_TAG"
+    echo "<pre>"
+    echo "download everything: the whole site, plus the source that builds it."
+    echo ""
+    echo "you need all ${COUNT_PIECES} files (${TOTAL_MB} MB together), sorry."
+    echo "neocities won't take files larger than 100 MB, so it comes in pieces."
+    echo ""
+    # zip and unzip first: they are on nearly every machine. unzip alone does
+    # not read a split archive, so zip joins the pieces into one first. (That
+    # join is safe only because PIECE_SIZE is an odd number of KiB; see its
+    # comment above.)
+    echo "put them all in the same folder, then join them into one .zip and"
+    echo "open it like any other:"
+    echo "    zip -s 0 ${NAME}.zip --out ${NAME}-whole.zip"
+    echo "    unzip ${NAME}-whole.zip"
+    echo "or open ${NAME}.zip with 7-Zip, which finds the other pieces itself."
+    echo ""
+    number=1
+    for piece in "${PIECES[@]}"; do
+        echo "  <a href=\"${piece}\">${number}</a>  ${piece}"
+        number=$((number + 1))
+    done
+    echo ""
+    echo "<a href=\"../wordcloud.html\">back to the poetry site</a>"
+    echo "</pre>"
+    echo "</body></html>"
+} > "$PAGE"
+# }}}
+
+# {{{ publish: swap the finished folder into the site
+# Only now, with every piece checked and the page written, does the old
+# download leave the site; the folder appears in one rename.
+rm -rf "$PUBLISHED"
+mv "$BUILDING" "$PUBLISHED"
+rm -f "$OLD_LINK" "$OLD_FILE"
 COUNT="$(printf '%s\n' "$SOURCE_LIST" | grep -c . || true)"
-echo "[build-download-zip] built $FINAL ($SIZE, in RAM), linked from $LINK: $COUNT source files + the rendered site"
+echo "[build-download-zip] built $PUBLISHED: ${COUNT_PIECES} pieces of up to 90 MB (${TOTAL_MB} MB), $COUNT source files + the rendered site"
 # }}}

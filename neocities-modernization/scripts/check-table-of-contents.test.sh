@@ -5,15 +5,15 @@
 # command written in backticks for a path. Runs the real checker against a
 # throwaway project in RAM.
 #
-# Run: bash scripts/check-table-of-contents.test.sh [project-dir]
+# Run: bash scripts/check-table-of-contents.test.sh [--dir PATH]
 
 set -u
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ -n "${1:-}" ]; then
-    DIR="$1"
-fi
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" >/dev/null
 SCRATCH="${DIR}/tmp/shared-memory/check-table-of-contents-test"
 rm -rf "${SCRATCH}"
 mkdir -p "${SCRATCH}/docs/saved_files" "${SCRATCH}/notes"
@@ -47,7 +47,7 @@ git -C "${SCRATCH}" init -q
 git -C "${SCRATCH}" add -A
 # }}}
 
-"${DIR}/scripts/check-table-of-contents" "${SCRATCH}" > "${SCRATCH}/report.txt"
+"${DIR}/scripts/check-table-of-contents" --dir "${SCRATCH}" > "${SCRATCH}/report.txt"
 status=$?
 if [ "${status}" -eq 1 ]; then pass=$((pass+1)); echo "  ok   - exits 1 with findings"
 else fail=$((fail+1)); echo "  FAIL - exit status ${status}, want 1"; fi

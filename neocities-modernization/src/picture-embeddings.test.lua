@@ -8,13 +8,23 @@
 -- places is sent once, a picture no longer on the site leaves the cache, and
 -- a new size remakes everything.
 --
--- Run directly:  luajit src/picture-embeddings.test.lua [project-dir]
+-- Run directly:  luajit src/picture-embeddings.test.lua [--dir PATH]
 
 -- {{{ local function setup()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup()
     local this = debug.getinfo(1, "S").source:sub(2)
     local src_dir = this:match("(.*/)") or "./"
-    local dir = (arg[1] or src_dir:gsub("src/$", "")):gsub("/$", "")
+    local dir = (PROJECT_DIR_ARG or src_dir:gsub("src/$", "")):gsub("/$", "")
     package.path = dir .. "/libs/?.lua;" .. dir .. "/src/?.lua;" .. package.path
     return dir
 end
@@ -101,6 +111,48 @@ do
     check("a copy has its original's fingerprint", hashes[big] == hashes[twin])
     local ok, err = pcall(pictures.fingerprints, { SCRATCH .. "/missing.png" }, SCRATCH)
     check("a missing picture is an error naming it", not ok and tostring(err):find("missing.png", 1, true), err)
+end
+-- }}}
+
+-- {{{ Case: many pictures at once, every answer comes back, every time
+-- The fingerprints are worked out by many md5sum copies at once. When they
+-- all wrote into one shared pipe, each copy's 4 KB buffer could break off
+-- mid-answer and another copy's buffer land in the gap, so a handful of
+-- answers per run came back unreadable -- a different handful each time
+-- (2026-11-02: 8 to 11 of 701 pictures, five runs, five different counts).
+-- Long names make each batch of answers bigger than one buffer, which is
+-- what made the old way break; five rounds make a lucky pass unlikely.
+do
+    local many_dir = SCRATCH .. "/many"
+    os.execute(string.format("mkdir -p %q", many_dir))
+    local many = {}
+    for i = 1, 600 do
+        local path = string.format("%s/a-long-picture-name-so-each-batch-of-answers-outgrows-one-buffer-%04d.png",
+            many_dir, i)
+        local f = assert(io.open(path, "wb"))
+        f:write("picture ", i)
+        f:close()
+        many[i] = path
+    end
+    local all_rounds_whole = true
+    local detail = nil
+    for round = 1, 5 do
+        local ok, hashes = pcall(pictures.fingerprints, many, SCRATCH)
+        if not ok then
+            all_rounds_whole = false
+            detail = "round " .. round .. ": " .. tostring(hashes)
+            break
+        end
+        local p = assert(io.popen(string.format("md5sum %q", many[600])))
+        local expected = p:read("*a"):match("^(%x+)")
+        p:close()
+        if hashes[many[600]] ~= expected then
+            all_rounds_whole = false
+            detail = "round " .. round .. ": the last picture's fingerprint is " .. tostring(hashes[many[600]])
+            break
+        end
+    end
+    check("600 pictures fingerprinted five times over: none lost, none garbled", all_rounds_whole, detail)
 end
 -- }}}
 

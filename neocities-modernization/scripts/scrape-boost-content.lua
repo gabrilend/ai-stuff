@@ -8,7 +8,7 @@
 -- for use by extract-fediverse.lua during poem extraction.
 --
 -- Usage:
---   lua scripts/scrape-boost-content.lua [DIR] [--force]
+--   lua scripts/scrape-boost-content.lua [--dir PATH] [--force]
 --
 -- The --force flag will re-scrape URIs even if they are already cached.
 
@@ -25,20 +25,26 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
--- Script configuration
-local DIR = setup_dir_path(arg and arg[1])
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076). It used to be the first word
+-- that was not a flag.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil))
 local FORCE_RESCRAPE = false
 local DRY_RUN = false
 local MAX_SCRAPE = nil  -- Limit number of URIs to scrape (for testing)
 
 -- Parse arguments
-for i = 1, #arg do
-    if arg[i] == "--force" then
+for i = 1, #OWN_ARGS do
+    if OWN_ARGS[i] == "--force" then
         FORCE_RESCRAPE = true
-    elseif arg[i] == "--dry-run" then
+    elseif OWN_ARGS[i] == "--dry-run" then
         DRY_RUN = true
-    elseif arg[i]:match("^--max=(%d+)$") then
-        MAX_SCRAPE = tonumber(arg[i]:match("^--max=(%d+)$"))
+    elseif OWN_ARGS[i]:match("^--max=(%d+)$") then
+        MAX_SCRAPE = tonumber(OWN_ARGS[i]:match("^--max=(%d+)$"))
+    else
+        io.stderr:write("scrape-boost-content: unknown option " .. OWN_ARGS[i] .. "\n")
+        os.exit(1)
     end
 end
 

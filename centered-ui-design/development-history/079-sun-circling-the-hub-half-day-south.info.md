@@ -4,7 +4,7 @@
 # 079 — sun-circling-the-hub-half-day-south
 
 - **Picture:** 079-sun-circling-the-hub-half-day-south.png
-- **Commit:** d34c6296f 2026-10-10 centered-ui-design: sheen-points with two colours each, and a lake the engine ripples
+- **Commit:** b4eb379a1 2026-10-10 centered-ui-design: sheen-points with two colours each, and a lake the engine ripples
 - **Run:** `run --screenshot 36.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M src/012-made-by-formula.info.md

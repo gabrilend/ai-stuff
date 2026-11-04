@@ -4,7 +4,7 @@
 # 054 — lit-dots-mid-morning
 
 - **Picture:** 054-lit-dots-mid-morning.png
-- **Commit:** d4e5af531 2026-10-10 centered-ui-design: painted terrain for judging distance, and runs the person cannot nudge
+- **Commit:** 0851eb669 2026-10-10 centered-ui-design: painted terrain for judging distance, and runs the person cannot nudge
 - **Run:** `run --screenshot 20.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

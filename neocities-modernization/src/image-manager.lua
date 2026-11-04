@@ -8,36 +8,12 @@
 -- and a fingerprint of its contents. main.lua --catalog-only calls it in a
 -- build.
 --
--- Usage: luajit src/image-manager.lua [DIR] [-v]
---   DIR  project folder (default below); -v  more detail
+-- Usage: luajit src/image-manager.lua [--dir PATH] [-v]
+--   --dir PATH project folder (default below); -v  more detail
 
 -- --help: print the header above and exit, when run as a program (libs/script-help.lua)
 dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- {{{ setup_dir_path
-local function setup_dir_path(provided_dir)
-    -- Skip if provided_dir is a flag (starts with -)
-    if provided_dir and provided_dir:sub(1, 1) ~= "-" then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
-
--- {{{ parse_dir_from_args
--- Parse arguments to extract directory path, skipping flags like --verbose
-local function parse_dir_from_args(args)
-    if not args then return nil end
-    for i = 1, #args do
-        local a = args[i]
-        -- Skip flags (start with -)
-        if a and a:sub(1, 1) ~= "-" then
-            return a
-        end
-    end
-    return nil
-end
--- }}}
 
 -- {{{ parse_seed_from_args
 -- Issue 10-058: pull the build's master seed out of the shared arg vector. run.sh
@@ -59,8 +35,14 @@ local function parse_seed_from_args(args)
 end
 -- }}}
 
--- Script configuration
-local DIR = setup_dir_path(parse_dir_from_args(arg))
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started (where --seed takes a value), or from its parent's when
+-- loaded (src/main.lua loads it for the picture catalogue); else the path
+-- below (libs/project-dir.lua, Issue 10-076). It used to take the first bare
+-- word of the global arg either way.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization",
+        { ["--seed"] = true })
 -- Issue 10-058: master seed (nil unless run.sh / the operator passed --seed).
 local MASTER_SEED = parse_seed_from_args(arg)
 
@@ -78,7 +60,7 @@ local unified_config = config_loader.load()
 local sources_loader = require("sources-loader")
 sources_loader.set_project_root(DIR)
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 utils.init_assets_root(arg)
 
 -- ANSI color codes for terminal output

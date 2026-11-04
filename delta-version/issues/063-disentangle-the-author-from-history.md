@@ -17,13 +17,76 @@ checker would look for in this project)
 
 ## Current Behavior
 
-Nothing is rewritten yet. Planned 2026-10-01.
+**Swapped and published; waiting on GitHub Support** (2026-11-03). The owner
+gave the word ("Just remove the files as best you can"). The rewrite was made
+in a scratch mirror on `/mnt/kaun`, passed every gate below, and the owner
+ran the publish script herself, because Claude Code's safety check refuses a
+force-push from a session: `main` (now `f24bf609`), the 237 `claude/*`
+branches and the 9 kept tags were replaced, the archive tag deleted, and this
+machine's `main` moved onto the new history. The open pull requests followed
+their branches. Before it, a full mirror of GitHub's state, pull-request refs
+included, was kept at `/mnt/kaun/scratch/ai-stuff-github-backup-2026-11-03.git`.
+Then the quoted ids were translated (steps 6 and 7, below). The owner's
+request to GitHub Support (delete pull request #1, dereference the old
+commits behind the force-push links, run garbage collection) is filed; this
+issue is complete when it is answered. Remaking the GitHub repository was proposed and refused
+by the owner ("I do not want to do that"); the swap stays a force-push (see
+Intended Behavior). The redactions of issue 003a are
+not part of this pass: the mail state lives inside `words-pdf/input/`, which
+is removed whole, so no byte-level redaction is needed for it.
+
+**The inventory** (step 1), found by path in every commit of every ref,
+GitHub's 237 `claude/*` branches included. The owner did not know of most of
+the neocities part:
+
+| Path | What it held | Tracked |
+|---|---|---|
+| `neocities-modernization/input/` | 977 files: pictures sent in messages, pictures never posted, drawings and poem pictures, notes (Reddit comments among them), a Bluesky account export, extracted poems | 2025-12-15 to 2026-06-29 |
+| `neocities-modernization/assets/`, `output/` | generated poem data and a generated copy of the poem site | until 2025-12-23 |
+| `neocities-modernization/excluded-poems.txt`, `config/excluded-poems.txt` | the lists of poems kept off the site | early history |
+| `words-pdf/input/` | 510 files: poems, notes, the mail tool's state | until 2026-10-01 |
+| `neocities-modernization/compiled.txt`, `words-pdf/backup-mvp/input/` | the compiled poems, twice | until 2026-11-03 (ignored that day) |
+
+**The prepared rewrite** (`git filter-repo --invert-paths` on those eight
+paths, in a `--no-local` mirror; a plain local clone raced a background
+repack and lost a pack file mid-copy):
+
+- 1,567 paths removed; none reachable from any ref afterwards.
+- `main`'s newest tree identical apart from the two poem copies.
+- All 2,120 surviving commits on `main` keep author, committer, both dates
+  and subject.
+- 25 commits across all refs (12 on `main`) held nothing else and are
+  dropped, among them "Five notes, and a folder of letters" and the notes
+  added between 2026-08-11 and 2026-09-09.
+- filter-repo translates abbreviated ids in commit messages itself; its map
+  is `filter-repo/commit-map` in the mirror, kept as
+  `delta-version/archive/disentangle/commits.map`.
+
+**The quoted ids** (open question 1 answered: one combined map). The two
+rewrites' maps are joined into `delta-version/archive/disentangle/chained.map`,
+oldest id to today's, so a quote from before the graft, between the
+rewrites, or of a commit made just before this one lands on today's commit.
+Tracked text files were translated in place with `commit-id-quotes.lua
+translate` against every old commit id (the GitHub backup's and this
+repository's), except the transcript patches, the maps themselves, the saved
+pull-request record, and files another session had open: about 1,900 quotes
+in 707 files, among them the development-history fingerprints, which record
+the commit each picture was taken at. Each conversation with a session log
+got its id patch refreshed from the chained map (`transcript-patches
+translate-ids`). Once no ref held the old history, the patch tool could no
+longer tell an old id was a commit, so every patched conversation failed to
+save; a list of old ids was tried and dropped as debt the same day. The tool
+now treats every id a map or patch names as a commit, so each patch carries
+what it needs, in any repository. The conversations that had fallen behind
+their session logs were then saved again. Ten older ones differ from a fresh
+save only in an older exporter's line wrapping; their logs have not
+changed, so the exporter leaves them.
 
 The owner's poems and the mail tool's private state are in git history, on
 a public GitHub repository (`gabrilend/ai-stuff`):
 
 - **`words-pdf/input/`** has been tracked since the trunk's first commit
-  (`15268505`, 2025-12-15). It held 510 files: the poems, the notes, and the
+  (`472e9b9d`, 2025-12-15). It held 510 files: the poems, the notes, and the
   mail tool's folder `notes/rmail/`. On 2026-10-01 it stopped being tracked
   and was added to `.gitignore`. The files stay on disk; history still holds
   every earlier version.
@@ -71,9 +134,22 @@ After the rewrite:
 - **`archive/main-before-history-graft` is deleted,** on GitHub and here (the
   owner's decision, 2026-10-01). Its old ids still translate through
   `delta-version/archive/history-graft/commits.map`.
-- **Orphaned commits left on GitHub** are accepted as they are. GitHub
-  removes unreferenced commits on its own schedule, and the owner chose not
-  to ask for a purge.
+- **What GitHub keeps after the force-push.** Found 2026-11-03: GitHub
+  keeps every pull request's refs (`refs/pull/N/head`), and only GitHub
+  Support can delete them. ai-stuff has 237 pull requests: 236 open drafts
+  and one merged (#1, "Implement WC3 gameplay systems and world editor
+  integration"). Force-pushing the cleaned `claude/*` branches moves each
+  open pull request to its clean commits, but each one's timeline keeps a
+  link to the old commits, and #1's ref keeps the old history for good.
+  Deleting and remaking the repository would remove all of that; the owner
+  refused it ("I do not want to do that"). What is left is accepted, or
+  removed later by a request to GitHub Support, the owner's choice. Every
+  pull request's details are saved in
+  `delta-version/archive/disentangle/pull-requests.json` all the same.
+- **No old clone pushes again.** Any session holding a clone of the old
+  history (a cloud session, a worktree) would carry the old commits back
+  on its first push. Every such session is stopped before the swap and
+  starts again from a fresh clone afterwards.
 
 ## Suggested Implementation Steps
 
@@ -116,8 +192,9 @@ After the rewrite:
    (compare-and-swap against the recorded old tip). Move the carried tags.
    Delete `archive/main-before-history-graft`. The working tree is not
    touched; its files already match.
-9. **Publish:** delete the archive tag on GitHub, then force-push `main` and
-   the moved tags (`--force-with-lease` against the recorded origin/main).
+9. **Publish:** delete the archive tag on GitHub, then force-push `main`,
+   every `claude/*` branch and the moved tags (`--force-with-lease` against
+   the recorded origin refs). The open pull requests follow their branches.
 10. **Afterwards:** translate ids in files written since prepare. Check
     `git status` matches the status from before the swap. Update issue 031's
     note that the archive tag is kept.

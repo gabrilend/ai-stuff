@@ -1,6 +1,6 @@
 # Conversation Summary: 03f2f12d-4bd0-4379-8052-1028e8cb0e7e
 
-Generated on: 2026-10-11 00:15:27
+Generated on: 2026-11-03 11:54:41
 Models: claude-opus-5-5
 
 ## Contents
@@ -50,6 +50,11 @@ Models: claude-opus-5-5
     centered-ui-design game, made from its pictures and game state. Next, I need
     three answers from you: AI model or our own synthesizer, live or pre-made
     tracks, and which game variables the music should follow.
+12. 2026-10-11 00:21, after Request 35 - We're building game music from the
+    project's pictures, with the looking and the music made inside ComfyUI on
+    the machine nearby, and it needs two model files that aren't there yet.
+    Next: put ACE-Step and Qwen2.5-VL on that machine, and tell me which game
+    variables to use.
 
 --------------------------------------------------------------------------------
 
@@ -3295,7 +3300,7 @@ to map to original image.]
 
 > Gallery is published; now committing the gallery tool and its 25 examples.
 
-*[commit] 00492b539 in ai-stuff - scripts: see-in-3d gets a gallery -- twenty-five pictures beside what they were read to be*
+*[commit] 4bf1088b4 in ai-stuff - scripts: see-in-3d gets a gallery -- twenty-five pictures beside what they were read to be*
 
 The gallery is published: **https://claude.ai/artifact/BN8a2ZmTqd4N8b5hG1mTvJ**.
 It's private, so only you can open it until you share it. All 25 sheets are
@@ -4517,7 +4522,7 @@ picture is ambiguous.
 > whether the skills folder is tracked by git, then committing the imagine work
 > along with it.
 
-*[commit] c60fa2a5a in ai-stuff - scripts: see-in-3d can imagine a view as a picture, on any Stable Diffusion server*
+*[commit] 8fbf4525e in ai-stuff - scripts: see-in-3d can imagine a view as a picture, on any Stable Diffusion server*
 
 The see-in-3d tool is now a skill, and it's already live: it appears in my list
 of available skills, so I'll reach for it on my own.

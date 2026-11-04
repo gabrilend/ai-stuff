@@ -4,7 +4,7 @@
 # 068 — angle-shaded-circles-noon
 
 - **Picture:** 068-angle-shaded-circles-noon.png
-- **Commit:** 4cd59af74 2026-10-10 centered-ui-design: bar-chart circles to watch the turn, and drags that carry
+- **Commit:** b8ff3dc2a 2026-10-10 centered-ui-design: bar-chart circles to watch the turn, and drags that carry
 - **Run:** `run --screenshot 24.5` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

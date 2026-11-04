@@ -4,7 +4,7 @@
 # 019 — arch-view-opposite-quadrant-out-of-sight
 
 - **Picture:** 019-arch-view-opposite-quadrant-out-of-sight.png
-- **Commit:** 76f335172 2026-10-10 centered-ui-design: villagers walk on a sphere between two poles
+- **Commit:** 561bcd318 2026-10-10 centered-ui-design: villagers walk on a sphere between two poles
 - **Run:** `run --screenshot 10` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 - **Uncommitted at the time:**
   -  M input/game-settings.lua

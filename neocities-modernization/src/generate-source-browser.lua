@@ -17,7 +17,7 @@
 -- shown; other binaries are listed but not inlined.
 --
 -- Usage:
---   luajit src/generate-source-browser.lua [DIR]
+--   luajit src/generate-source-browser.lua [--dir PATH]
 -- Output:
 --   output/source/index.html              -- the tree + welcome
 --   output/source/<path>.html             -- one page per published file
@@ -33,16 +33,12 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
--- {{{ parse_args()
-local function parse_args(args)
-    for _, a in ipairs(args or {}) do
-        if not a:match("^%-") then return a end
-    end
-    return nil
-end
--- }}}
-
-local DIR = setup_dir_path(parse_args(arg))
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path in
+-- setup_dir_path (libs/project-dir.lua, Issue 10-076). It used to be the
+-- first bare word.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), setup_dir_path(nil))
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local utils = require("utils")
 -- Issue 10-055: render Markdown (.md, .info.md, and extensionless prose like the
@@ -369,7 +365,7 @@ local function page_shell(title, sidebar, content)
 <a class="site-link" href="%%LINKPREFIX%%../wordcloud.html">&#8617;&#160;back to the poetry site</a>
 <div class="tree">%s</div>
 <a class="output-link" href="%%LINKPREFIX%%../wordcloud.html#poem-index">output/&#160;&#8594;&#160;every generated page</a>
-<a class="download-link" href="%%LINKPREFIX%%../similar-different.zip" download>&#11015;&#160;download everything (site&#160;+&#160;source)</a>
+<a class="download-link" href="%%LINKPREFIX%%../download/index.html">&#11015;&#160;download everything (site&#160;+&#160;source)</a>
 </nav>
 <main id="main">%s</main>
 </div>

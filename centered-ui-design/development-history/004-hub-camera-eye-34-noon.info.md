@@ -4,7 +4,7 @@
 # 004 — hub-camera-eye-34-noon
 
 - **Picture:** 004-hub-camera-eye-34-noon.png
-- **Commit:** 457e0f594 2026-10-10 centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor
+- **Commit:** ee27a5535 2026-10-10 centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor
 - **Run:** `run --screenshot 4` (from /mnt/mtwo/programming/ai-stuff/centered-ui-design)
 
 ## What it shows

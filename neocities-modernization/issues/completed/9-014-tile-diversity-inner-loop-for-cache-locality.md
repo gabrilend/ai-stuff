@@ -18,7 +18,7 @@ was found still open).** All three levers below are in the stage-8 path:
   (`diversity_full.comp`) stays as the batch shader.
 - **Pipelining**: `vkc_dispatch_async` / `vkc_wait_async_all` in
   `libs/vulkan-compute/src/vk_compute.c`, two command buffers in flight.
-Commits 0805518d7 (in-shader tiles) and e38847bae (dispatch per tile and
+Commits 563d6dff7 (in-shader tiles) and 8995dbeb5 (dispatch per tile and
 pipelining). Output is the same walk as before, step for step.
 
 **What the build still paid, found 2026-10-22.** Stage 8 still took about

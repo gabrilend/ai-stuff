@@ -10,8 +10,11 @@
 # check (scripts/validate-output) cannot see -- a page that was never written
 # has no broken line and, if nothing links to it, no broken link.
 #
-# Usage:  scripts/validate-poem-representation.test.sh [DIR]
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# Usage:  scripts/validate-poem-representation.test.sh [--dir PATH]
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 TOOL="$DIR/scripts/validate-poem-representation"
 S="$DIR/tmp/shared-memory/validate-poem-representation-test"
 passed=0

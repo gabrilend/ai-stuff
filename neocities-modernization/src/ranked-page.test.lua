@@ -7,13 +7,23 @@
 --   download-links   : the download line names the export the worker writes (8-013)
 --   page-links       : navigation links only pages that are written (10-036)
 --   progress-bars    : a bar fills by place on the writing timeline (8-045)
--- Run: luajit src/ranked-page.test.lua [project-dir]
+-- Run: luajit src/ranked-page.test.lua [--dir PATH]
 
 -- {{{ local function setup_path()
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 local function setup_path()
     local this = debug.getinfo(1, "S").source:sub(2)
     local src_dir = this:match("(.*/)") or "./"
-    local project_dir = arg[1] or src_dir:gsub("src/$", "")
+    local project_dir = PROJECT_DIR_ARG and (PROJECT_DIR_ARG .. "/") or src_dir:gsub("src/$", "")
     package.path = project_dir .. "/src/?.lua;" .. project_dir .. "/libs/?.lua;" .. package.path
 end
 -- }}}

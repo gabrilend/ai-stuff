@@ -1,6 +1,6 @@
 # Conversation Summary: bf7987de-b3b0-4fe0-b11e-51f9b6577005
 
-Generated on: 2026-10-21 21:30:18
+Generated on: 2026-11-03 11:54:29
 Models: claude-opus-5-5
 
 ## Contents
@@ -39,6 +39,10 @@ Models: claude-opus-5-5
    fan-site lodge, and I'm looking at moving physics-sim's gif filmer into
    gif-generator. Next, you decide whether a film's ratings live in the project
    beside the gif or in the studio.
+9. 2026-10-21 21:33, after Request 25 - The `./say` gif tool is built and
+   committed: unknown words teach themselves, a director session draws, and you
+   chat to refine the gif. Next, run `./say` with real sessions, and tell me
+   whether to cap how many word sessions run at once.
 
 --------------------------------------------------------------------------------
 
@@ -1340,10 +1344,10 @@ to map to original image.]
 > the stylesheets, the pictures and their notes, the build script, the moved
 > issue, and the goodbye note.
 
-*[commit] fa0244c21 in ai-stuff - physics-sim: a lodge at the front door, and the game's first pictures*
+*[commit] 76483586d in ai-stuff - physics-sim: a lodge at the front door, and the game's first pictures*
 
 physics-sim now has a lodge: six connected rooms that act as its README. It's
-committed as `fa0244c21` in ai-stuff, and that commit holds only this session's
+committed as `76483586d` in ai-stuff, and that commit holds only this session's
 files. Run `games/physics-sim/lodge/build`, then open
 `docs/HTML/lodge/index.html`.
 
@@ -1673,9 +1677,9 @@ to map to original image.]
 > The issue checker now reports 79 findings, up from 8. Checking whether my
 > changes caused that.
 
-*[commit] 22e88ff7a - physics-sim: the game films its own moments, and the lodge becomes a fan site*
+*[commit] 2f40fdb23 - physics-sim: the game films its own moments, and the lodge becomes a fan site*
 
-Both are done, with commits `fa0244c21` (the first lodge) and `22e88ff7a` (this
+Both are done, with commits `76483586d` (the first lodge) and `2f40fdb23` (this
 round).
 
 ## The physics-sim lodge, remade
@@ -1983,9 +1987,9 @@ open up to display the gif too)
 
 > Issues check clean. Claiming the files my scripts wrote, then committing.
 
-*[commit] b4fda71db - gif-generator: say what you want to see, and unknown words teach themselves*
+*[commit] 72267806d - gif-generator: say what you want to see, and unknown words teach themselves*
 
-I've built `./say` in gif-generator and committed it as `b4fda71db`. Every part
+I've built `./say` in gif-generator and committed it as `72267806d`. Every part
 passes its tests, but they use stand-ins for Claude and the viewer. **It has not
 yet run with real Claude sessions or a real window.** That first run should be
 yours to type, since it starts real sessions.

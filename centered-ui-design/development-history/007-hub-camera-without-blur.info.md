@@ -4,7 +4,7 @@
 # 007 — hub-camera-without-blur
 
 - **Picture:** 007-hub-camera-without-blur.png
-- **Commit:** 457e0f594 2026-10-10 centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor
+- **Commit:** ee27a5535 2026-10-10 centered-ui-design: a camera at the hub, light from spinning dials, a console on the floor
 - **Run:** `run --screenshot 4` (from /tmp/claude-1000/-mnt-mtwo-programming-ai-stuff-centered-ui-design/151ddaeb-59f4-466e-abd5-8862afcb9075/scratchpad/variants/no-blur)
 
 ## What it shows
