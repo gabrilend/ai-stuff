@@ -1,0 +1,5 @@
+title: The guide's room, from the words that describe it
+picture: none
+stage: 25
+---
+From words, not a picture. The front view fails the room's one rule, that everyone may look in: the glass front was made to glow so it would read as glass, and a glowing face is solid, so from the front the room is a pale blue wall. The paintbrush has no see-through material. The right view, through the open side, shows the desk, the open ledger, and the shut box with its key.

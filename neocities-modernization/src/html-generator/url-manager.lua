@@ -29,6 +29,7 @@ end
 function M.generate_poem_url(poem_id, category, options)
     options = options or {}
     category = category or "poems"
+    -- optional: a call option, not a setting; absent means the plain category
     local use_golden = options.use_golden_category or false
     
     -- Handle golden poem categorization
