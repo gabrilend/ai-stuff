@@ -320,12 +320,54 @@ can be built into the maps themselves with the editor, which stays here."
 | The extractors (WC3 files into a converted map), through the W client's C readers | The custom model system (packs, resolver, scores) | Holds the truth |
 | The custom map browser, drawn as an HTML page onto a flat pane in the W client ("maybe we just render the browser to HTML and cast it onto a flat UI pane in the W client? And our Azerothcore project ... can do the same.") | Pictures drawn without a window (previews) | |
 
-**2026-10-07: the editor is a mode of the W client.** "let's make the
-editor a mode of the W client." Its code stays here and is worked on
-here; the W client loads it and draws for it, so there is one renderer.
-This project's renderer (`src/render/`) retires only once the W client's
-editor mode opens, edits, saves and test-plays a map (W client issue
-1109).
+**2026-10-07: the editor is a mode of the W client** (superseded
+2026-11-04, below). "let's make the editor a mode of the W client." Its
+code stays here and is worked on here; the W client loads it and draws
+for it, so there is one renderer. This project's renderer (`src/render/`)
+retires only once the W client's editor mode opens, edits, saves and
+test-plays a map (W client issue 1109).
+
+**2026-11-04: the editor keeps its own renderer; Test Map opens the W
+client.** The owner: "world-edit-to-execute should be in charge of the
+data extraction from wc3. It should be a map-editor for wc3 and World of
+Warcraft, sorta like Noggit except with the capability of the
+world-edit.exe from warcraft3. It has a lua renderer right now, but we're
+building a C renderer for in-game - the lua renderer is only for the
+editor, not the client." And: "there should be a button to test the map
+that opens the w-client. The map editor should have a renderer (lua) that
+displays the map and such so you can edit it of course."
+
+So there are two renderers, each with one audience. The Lua one here draws
+what is being edited; the C one in the W client draws what is being
+played. Neither retires the other. The editor stops being a game: this
+project's map viewer (play mode, the F5 run of its Lua simulation) gives
+way to the Test Map button, which converts the map being edited and opens
+it in the W client against a local AzerothCore (W client issue 1109,
+reshaped to that).
+
+| world-edit-to-execute | The W client | AzerothCore |
+|-----------------------|--------------|-------------|
+| The extractors: WC3 files into a converted map | Drawing for play, in C | Runs a map's rules while people play |
+| The editor, for WC3 maps and WoW maps (Noggit's reach, world-edit.exe's depth), drawn by this project's Lua renderer | What Test Map opens | Holds the truth |
+| Packs and the asset lookup for the editor (`src/assets/loader.lua`), the Lua twin the W client's C lookup is checked against | Packs and the asset lookup for play (its 105a), the same manifest format | |
+| Sharing map-and-model lists, from the editor (issue 609) | Using a shared list during a game: the prompt, applying it for one game, taking it off after | |
+| A small launcher for browsing maps, models and shared lists, and the same catalogue as a page in an ordinary web browser (issue 1001) | | |
+| Wire-frames where the editor has no model (issue 602) | Wire-frames where the player has no model (its 105a, step 4) | |
+
+**Who sees a wire-frame.** The owner: "The wire-frame rendering should be
+in the custom-client for when we don't have a model, but that should be
+only for when the map doesn't provide one, or when the map provides one
+that's from a proprietary source and the viewer/player doesn't have access
+to it - for example a player who hasn't bought WC3 should probably see
+wireframes if they're playing on a default Blizzard map." The W client's
+lookup order already says this: the player's packs, then what the server
+delivered with the map, then the player's own Blizzard install, then the
+wire-frame. The rule depends on one thing the
+W client doesn't state yet: a server never delivers a file whose source is
+Blizzard's. Then a player without WC3 falls through to the wire-frame for
+every stock model, and a map's own imported model reaches everyone (open
+question 16). The editor draws wire-frames too (the
+owner, same day), for the same two cases.
 
 **2026-10-07: one reader per format, in C.** "Let's just deprecate the
 lua version and keep the C version." Each Lua reader here is retired
@@ -379,6 +421,21 @@ issue that holds it can be called complete.
     the W client's shape, with no main loop: workers run every part as
     stations, and render threads (one per OpenGL context) only draw. W
     client issue 110 and its sub-issues.
+16. ~~**Does a server ever hand out Blizzard's files?**~~ Answered
+    2026-11-04: never. The owner: "well yes they aren't our files so we
+    can't distribute them. We're building an architecture around them,
+    that allows them to fit inside should the user provide them. This is
+    why we started with data extractors, they are the most important part
+    to understanding the nature of the structure we need to build." So
+    the server's step of the W client's lookup carries only files that
+    aren't Blizzard's: a map author's own ground, placements and imports.
+    A Blizzard map is Blizzard's file too, ground and all, so it is
+    played from the player's own copy; a player without WC3 has no copy
+    to play. The wire-frames that player sees are on maps whose own parts
+    travel (a community map) standing on stock models they lack. The
+    question as asked: does a player without WC3 get a default Blizzard
+    map's converted ground with wire-frames standing on it, or is the map
+    not offered to them at all?
 
 ---
 
@@ -398,3 +455,4 @@ issue that holds it can be called complete.
 | 2026-09-23 | Owner's answers: borrowed art with a similarity score; custom client as host; reused animation sets. Added W05a, W05b |
 | 2026-09-23 | custom-client rewritten as the W client; shared reader library; seal (W05c); replace every asset kind; lineage |
 | 2026-10-07 | The client's move into the W client started: the crosswalk, WC3's pictures read in C; open questions 13-15 |
+| 2026-11-04 | The editor keeps its Lua renderer and edits WoW maps too; Test Map opens the W client; sharing belongs to the editor, using a list in a game to the W client; who sees a wire-frame |
