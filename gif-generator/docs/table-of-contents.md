@@ -64,6 +64,11 @@ docs/
 strategems/
 └── pipeline-of-snapshots . the producer-snapshot-workers pattern,
                             recorded for reuse
+
+../skills/gif-studio/
+└── SKILL.md .............. the skill an assistant loads to make
+                            pictures here; every example in it is
+                            filmed by ./test-shape-films
 ```
 
 Conventions: source files carry a project-wide reading-order index in
