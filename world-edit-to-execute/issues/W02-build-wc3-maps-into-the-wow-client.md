@@ -86,7 +86,25 @@ not into new issues.
   on the way (every Frozen Throne map with units failed to parse). Left:
   the model paths checked against the owner's client, the SQL on the
   owner's AzerothCore, Noggit and the stock client.
-- W02c-W02h: not yet written.
+- `W02c-map-registration-and-output-forms.md` (2026-11-04): written by
+  hand the same way. **Built** the same day as background work, on W02b's
+  branch:
+  - the map's rows in Map, AreaTable, LoadingScreens, CreatureDisplayInfo,
+    CreatureModelData, FactionTemplate and Faction (`src/wowbuild/dbc.lua`,
+    layouts as data);
+  - an id scheme of 100 slots a build folder (map ids 900-999; open
+    question 3 answered for now);
+  - a loading screen made from the map;
+  - the forms: the W client's overlay (`DBFilesClient/`, `map.lua`,
+    `world/creatures-<id>.tsv`), the server's `server/dbc.sql` and merged
+    `server/dbc/`, and `patch-W.MPQ` through StormLib;
+  - everything read back through the W client's own readers.
+
+  Left: every column layout checked against a source or the owner's
+  stock files; the stock client, the SQL on AzerothCore and the
+  extractors on the owner's machine; the W client's side (the changes
+  listed in W02c's notes, for custom-client).
+- W02d-W02h: not yet written.
 
 ## Progress
 
@@ -106,6 +124,17 @@ not into new issues.
   units) is in `conversion-report.lua`. Line 7 holds: the build carries
   paths, SQL and the map's own imports only. Open question 4 is answered
   for now by a hand-seeded table (W02b's decision 4).
+- *2026-11-04 (W02c):* the map is registered.
+  - Its rows are in the client's tables (the W client's reader reads every
+    column as written) and in the server's copies.
+  - `patch-W.MPQ` is written, and StormLib and the W client's archive
+    reader read every file of it back.
+  - Line 7 holds: stock tables are read from the player's folder at build
+    time, and their rows go only into the build folder.
+  - Open question 3 is answered for now (W02c's decision 1: map ids
+    900-999, a slot per map in a build folder).
+  - Lines 2-5 still wait for the owner's machine, W02d (the server's
+    ground) and the W client's side (W02c's notes).
 
 ## Acceptance Criteria
 
@@ -133,6 +162,7 @@ not into new issues.
    **Install found on this machine:** `/mnt/mtwo/games/warcraft-iii/prefix/drive_c/users/ritz/Warcraft-III/` holds `war3.mpq` (Reign of Chaos) only. Most custom maps are Frozen Throne maps, whose stock tables live in `war3x.mpq`, with patch overrides in `War3Patch.mpq`; neither is installed there. The Frozen Throne disc image and patch are in `/mnt/mtwo/games/warcraft-iii/torrent-version/`. The stock-table reader must read the archives in patch order (patch over expansion over base), the same chain rule as the WoW client.
 6. ~~Who runs a converted map's rules in the W client?~~ Answered 2026-09-23: AzerothCore, through W02e. Multiplayer comes with the server; every WC3 rule the shim touches must be re-expressed as server logic.
 3. Which range of map ids is ours? (Must not collide with Blizzard's rows or other custom patches the owner uses.)
+   *Answered for now 2026-11-04 (W02c, the owner's to overturn):* 900-999, one per slot of a build folder (100 maps). Every other id a map takes (zone, loading screen, displays, factions, creature entries and guids) is a block of the same slot. Map ids stay three digits because AzerothCore's mmaps generator reads a map id from a `.map` file's first three characters. A stock row inside these blocks is reported when the stock tables are given. See `W02c-map-registration-and-output-forms.md`, decision 1.
 4. Custom units need a WoW model per WC3 unit type. Who fills the WC3 → WoW table first: a hand-seeded table for the melee races, or W05's forge?
    *Answered for now 2026-11-04 (W02b, the owner's to overturn):* a hand-seeded table first (`src/wowbuild/models.lua`: the melee races' common units, creeps, tree walls, rocks and plants), every row unchecked; W05's forge fills the baseline set under the same names, and a row may name its own baseline model once one exists.
 8. Should the map and model fetcher (issue 603) also run inside the W client, as a map list in WC3 map mode? Deferred here from 603 by the owner (2026-09-26): "we should answer that question when we're working on the WoW client. I don't see why not, but maybe I will when we're working over there."

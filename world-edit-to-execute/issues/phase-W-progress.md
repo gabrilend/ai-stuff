@@ -15,6 +15,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | W02 | [Build WC3 maps into the WoW client](./W02-build-wc3-maps-into-the-wow-client.md) | open | W01 |
 | W02a | [Terrain to ADT writer](./W02a-terrain-to-adt-writer.md) | built 2026-11-04; open: texture paths and Noggit to check on the owner's machine | W01 (checking only) |
 | W02b | [Doodads and units to placements](./W02b-doodads-and-units-to-placements.md) | built 2026-11-04; open: model paths, the SQL on AzerothCore and the stock client to check on the owner's machine | W02a |
+| W02c | [Map registration and output forms](./W02c-map-registration-and-output-forms.md) | built 2026-11-04; open: table layouts, the stock client, the SQL on AzerothCore to check on the owner's machine; the W client's side (custom-client) | W02a, W02b |
 | W03 | [Show WoW models with WC3 unit behavior](./W03-show-wow-models-with-wc3-unit-behavior.md) | open | W01, 508, 601, 602 |
 | W04 | [Compare the real client against the open client](./W04-compare-the-real-client-against-the-open-client.md) | open | W02, W03 |
 | W05 | [Asset forge: find or generate a replacement model](./W05-asset-forge-find-or-generate-a-replacement-model.md) | open | W03, 604 |

@@ -1,8 +1,9 @@
 # Datapath: a WC3 map, played inside the WoW client
 
 **Feature:** W02 (build WC3 maps into the WoW client)
-**Status:** Stage 2 (terrain, W02a) built 2026-11-04 in `src/wowbuild/`,
-run by `src/cli/wow-convert.lua`; the other stages designed, not built.
+**Status:** Stages 2-4 and 6 (terrain W02a, placements W02b, registration
+and packing W02c) built 2026-11-04 in `src/wowbuild/`, run by
+`src/cli/wow-convert.lua`; the other stages designed, not built.
 Update this file when any W02 sub-issue changes the flow.
 
 ---
@@ -45,9 +46,9 @@ Update this file when any W02 sub-issue changes the flow.
 | 1 | Parse | `.w3x` path (string) | Map object: terrain grid, doodad table, unit table, regions, cameras, triggers (Lua tables) | Phases 1-3 (done) |
 | 2 | Terrain | terrain grid: tilepoints (W+1)×(H+1), each with height (float, WC3 units), ground texture index (uint 0-15), cliff level (uint), water flag + level (float) | one WDT (which ADT tiles exist, 64×64 flag grid), one WDL (far-off heights) + up to 16 ADTs, each 256 chunks of 145 height floats, ≤4 texture layers with 64×64 alpha maps (uint8), liquid blocks (MH2O); `conversion-report.lua` with fold and unmapped counts | W02a (built) |
 | 3 | Placements | doodad table (type id 4-char string, x/y/z float, facing radians, scale xyz); unit table (type id, owner player uint, position, facing) | doodads: M2/WMO placement records inside the ADT (`MDDF`/`MODF` blocks: file index, unique id uint32, position 3×float, rotation 3×float degrees, scale uint16 where 1024 = 1.0). Units: SQL rows for creature templates and spawns (`server/world.sql`); every doodad, unit and start location in `placements.lua` | W02b (built) |
-| 4 | Registration | map name, size, WC3 tileset | a new row in `Map.dbc` (map id uint32, directory string = folder under `World\Maps\`), rows for `AreaTable.dbc` and `LoadingScreens.dbc` | W02c |
+| 4 | Registration | map name (w3i, strings), start locations, W02b's displays and factions, the build folder's other maps, optionally the player's stock `.dbc` folder | rows in `Map.dbc` (map id uint32 900-999, directory string = folder under `World\Maps\`), `AreaTable.dbc` (one zone; every ADT chunk's area id), `LoadingScreens.dbc` (a BLP2 made from the map), `CreatureDisplayInfo.dbc`/`CreatureModelData.dbc`, `FactionTemplate.dbc`/`Faction.dbc`; written as the overlay's `DBFilesClient/`, `server/dbc.sql`, merged `server/dbc/`; `map.lua` (id, start, WC3 → WoW transform) and `world/creatures-<id>.tsv` for the W client | W02c (built) |
 | 5 | Scripts | JASS AST → Lua (phase 3 transpiler) | a Lua file per map for the server's ALE engine plus a shim that implements JASS natives (`CreateUnit`, `TriggerRegisterTimerEvent`, …) with ALE calls | W02e |
-| 6 | Pack | files from 2-4 | `patch-W.MPQ` (an MPQ archive the client loads after its own patches, so its files win) | W02c |
+| 6 | Pack | files from 2-4 | `patch-W.MPQ` (an MPQ archive, version 2 with a listfile, the client loads after its own patches, so its files win): every map's ground files and loading screen, and the merged tables when stock tables are given | W02c (built) |
 | 7 | Server data | client `Data/` + the patch | `maps/*.map` (height + liquid grid the server uses for ground height), `vmaps/` (collision for line of sight), `mmaps/` (navigation mesh for creature pathing), `dbc/` | W02d |
 | 8 | Launch/load | a chosen `.w3x`, launcher config (paths) | running server + client, character on the new map | W02f |
 | 9 | Play | player input | orders to the server through the control addon | W02g |
@@ -104,9 +105,42 @@ Units become one creature template per WC3 type and faction (AzerothCore
 keeps a creature's faction in its template), one faction per WC3 force plus
 Neutral Hostile and Neutral Passive, one display id per model and size, and
 one spawn per placed unit. The SQL writes only what the map uses (W02h) and
-can be run again; its ids sit behind `@MAP`, `@ENTRY` and `@GUID` until
-W02c picks map ids. Decisions and what is unchecked:
+can be run again; its ids sit behind `@MAP`, `@ENTRY` and `@GUID`, set
+from W02c's scheme (map 900 + slot). Decisions and what is unchecked:
 `issues/W02b-doodads-and-units-to-placements.md`.
+
+## Stages 4 and 6 as built (W02c)
+
+```
+ W02a/W02b's job ──▶ wowbuild/registration ──▶ World/Maps/<dir>/registration.lua (slot, ids, rows)
+ (name, starts,      (slot, ids, rows)          │
+  displays,          wowbuild/loadscreen ──────▶ World/Maps/<dir>/<dir>_loading.blp
+  factions)                                     ▼
+ every map's registration.lua in the build ──▶ wowbuild/output ──┬──▶ DBFilesClient/<Table>.dbc (these maps' rows only)
+ the player's stock .dbc folder (optional) ──▶ (wowbuild/dbc)    ├──▶ server/dbc.sql, server/dbc/<Table>.dbc (merged)
+                                                                  ├──▶ patch-W.MPQ (StormLib)
+                                                                  └──▶ map.lua, world/creatures-<id>.tsv
+```
+
+How the ids work:
+
+- Each map in a build folder takes a slot, 0-99, and keeps it by its
+  directory.
+- Every id is a block of that slot: map 900 + slot, zone 9000 + 10·slot,
+  displays 50000 + 1000·slot, factions 3000 + 100·slot, creature entries
+  and guids.
+- All the folder's maps go into every table, because a table replaces
+  another whole.
+
+What each reader gets:
+
+- **The W client** reads the overlay's tables per row, before its own. It
+  learns which map to open from `map.lua`.
+- **The stock client and the extractors** read `patch-W.MPQ`. It carries
+  the stock rows too, when the player's stock tables are given.
+
+Decisions, what is unchecked (every column layout is from memory), and the
+changes the W client needs: `issues/W02c-map-registration-and-output-forms.md`.
 
 ## Correction to earlier research
 

@@ -597,7 +597,7 @@ else
         if n == 1 then
             -- the whole command on it, files on disk, the report read back as data
             local build = TMP .. "/build"
-            local report = wowbuild.convert(path, build, { terrain = terrain })
+            local report = wowbuild.convert(path, build, { terrain = terrain, stock_dbc = false, patch = false })
             local dir = build .. "/World/Maps/" .. report.map_directory
             local f = io.open(dir .. "/" .. report.map_directory .. ".wdt", "rb")
             test(label .. ": the WDT is in the build folder under World/Maps", f ~= nil)
@@ -662,10 +662,14 @@ do
     p:close()
     local only = #kinds > 0
     -- (since W02b also the placement list, .lua, and the creatures' SQL; the
-    -- map's own imports are W02b's tests' to check)
-    for _, k in ipairs(kinds) do if k ~= "adt" and k ~= "wdt" and k ~= "wdl" and k ~= "lua" and k ~= "sql" then only = false end end
+    -- map's own imports are W02b's tests' to check. Since W02c the tables
+    -- with this map's rows only (.dbc; no stock tables were given), the
+    -- creature list (.tsv), the loading screen drawn from the map itself
+    -- (.blp) and patch-W.MPQ (left out here); W02c's tests check them)
+    local allowed = { adt = true, wdt = true, wdl = true, lua = true, sql = true, dbc = true, tsv = true, blp = true, MPQ = true }
+    for _, k in ipairs(kinds) do if not allowed[k] then only = false end end
     if #kinds == 0 then skip("build folder contents", "no map was converted")
-    else test("the build holds ADT, WDT, WDL, the report, the placement list and the SQL only (no textures)", only, table.concat(kinds, " ")) end
+    else test("the build holds ADT, WDT, WDL, the report, the placement list, the SQL and W02c's own tables only (no textures of Blizzard's)", only, table.concat(kinds, " ")) end
 end
 -- }}}
 
