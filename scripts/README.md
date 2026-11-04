@@ -118,7 +118,7 @@ Scans filesystem hierarchy and generates a text-based tree. Supports cron schedu
 
 | File | Description |
 |------|-------------|
-| `menu.sh` | Original bash menu implementation |
+| `menu.sh` | Original bash menu implementation; a list taller than the screen scrolls inside its box, with a scrollbar |
 | `checkbox.sh` | Checkbox selection component |
 | `input.sh` | Text input component |
 | `multistate.sh` | Multi-state toggle component |

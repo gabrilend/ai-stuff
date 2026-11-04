@@ -59,6 +59,16 @@ MENU_RENDER_ROW=0
 MENU_RENDER_GLOBAL_INDEX=0
 MENU_ITEMS_END_ROW=0                  # Row after last item (for description area)
 
+# Viewport: when the list is taller than the room between the header and the
+# description area, only a window of it is drawn, MENU_BODY_ROWS lines long,
+# starting MENU_SCROLL_OFFSET lines into the list, with a scrollbar in the
+# last column. "Lines" count section titles, underlines and the blank line
+# after each section as well as items.
+MENU_SCROLL_OFFSET=0                  # first list line drawn
+MENU_BODY_ROWS=0                      # list lines the screen has room for
+MENU_LIST_LINES=0                     # list lines in all
+MENU_SCROLLING=0                      # 1 when the list does not fit
+
 # Item position cache for incremental updates
 declare -A MENU_ITEM_ROWS              # "section:item_idx" -> screen row
 declare -A MENU_ITEM_GLOBAL_IDX        # "section:item_idx" -> global index (1-based)
@@ -102,6 +112,7 @@ menu_init() {
     MENU_ITEM_ROWS=()
     MENU_ITEM_GLOBAL_IDX=()
     MENU_ITEM_IDS=()
+    MENU_SCROLL_OFFSET=0
     MENU_NEEDS_FULL_REDRAW=1
     MENU_PREV_SECTION=-1
     MENU_PREV_ITEM=-1
@@ -693,11 +704,21 @@ menu_render() {
     local row=0
     MENU_RENDER_GLOBAL_INDEX=0  # Track global item number for [1-9] jump
 
+    # Only items drawn this time have a row; an item scrolled out of view must
+    # not keep the row it had, or an incremental update would draw it there.
+    MENU_ITEM_ROWS=()
+    MENU_ITEM_GLOBAL_IDX=()
+    MENU_ITEM_IDS=()
+
     # Header
     menu_render_header
-    row=$MENU_RENDER_ROW
 
-    # Sections
+    # Decide which window of the list is shown
+    menu_update_viewport
+
+    # Sections, counted in list lines from 0; menu_render_section turns a
+    # list line into a screen row and skips the lines outside the window.
+    row=0
     for ((s = 0; s < ${#MENU_SECTIONS[@]}; s++)); do
         local section_id="${MENU_SECTIONS[$s]}"
         local is_current=$([[ $s -eq $MENU_CURRENT_SECTION ]] && echo 1 || echo 0)
@@ -706,8 +727,14 @@ menu_render() {
         ((++row))  # Space between sections
     done
 
-    # Store where items end (for description area positioning)
-    MENU_ITEMS_END_ROW=$row
+    # Store where items end (for description area positioning): right after
+    # the list when it fits, right after the window when it scrolls.
+    if [[ "$MENU_SCROLLING" == "1" ]]; then
+        MENU_ITEMS_END_ROW=$((MENU_HEADER_HEIGHT + MENU_BODY_ROWS))
+    else
+        MENU_ITEMS_END_ROW=$((MENU_HEADER_HEIGHT + row))
+    fi
+    menu_render_scrollbar
 
     # Description area (below items, above footer)
     menu_render_description_area
@@ -748,6 +775,106 @@ menu_render() {
 }
 # }}}
 
+# {{{ menu_update_viewport
+# Works out how many list lines fit between the header and the description
+# area, and moves the window just far enough that the cursor's item is in it.
+# The list is counted in lines: each section is its title, an underline, one
+# line per item and a blank line after it. Moving up into a section scrolls
+# its title back into view too when the title and the item fit together, so a
+# section is not shown headless when that can be helped.
+# Sets: MENU_BODY_ROWS, MENU_LIST_LINES, MENU_SCROLLING, MENU_SCROLL_OFFSET
+menu_update_viewport() {
+    MENU_BODY_ROWS=$((TUI_ROWS - MENU_FOOTER_HEIGHT - MENU_DESC_MAX_LINES - 1 - MENU_HEADER_HEIGHT))
+    [[ $MENU_BODY_ROWS -lt 1 ]] && MENU_BODY_ROWS=1
+
+    local lines=0 section_line=0 current_line=0 s count items
+    for ((s = 0; s < ${#MENU_SECTIONS[@]}; s++)); do
+        items="${MENU_SECTION_ITEMS[${MENU_SECTIONS[$s]}]:-}"
+        count=0
+        if [[ -n "$items" ]]; then
+            local -a arr
+            IFS=',' read -ra arr <<< "$items"
+            count=${#arr[@]}
+        fi
+        if [[ $s -eq $MENU_CURRENT_SECTION ]]; then
+            section_line=$lines
+            current_line=$((lines + 2 + MENU_CURRENT_ITEM))
+        fi
+        lines=$((lines + 2 + count + 1))
+    done
+    MENU_LIST_LINES=$lines
+
+    if [[ $MENU_LIST_LINES -le $MENU_BODY_ROWS ]]; then
+        MENU_SCROLLING=0
+        MENU_SCROLL_OFFSET=0
+        return
+    fi
+    MENU_SCROLLING=1
+    # The blank line after the last section is only there to set the list off
+    # from the description; a window that scrolls to it would end on nothing,
+    # so a scrolling list stops at its last item.
+    MENU_LIST_LINES=$((lines - 1))
+
+    if [[ $current_line -lt $MENU_SCROLL_OFFSET ]]; then
+        MENU_SCROLL_OFFSET=$current_line
+        if [[ $((current_line - section_line)) -lt $MENU_BODY_ROWS ]]; then
+            MENU_SCROLL_OFFSET=$section_line
+        fi
+    elif [[ $current_line -ge $((MENU_SCROLL_OFFSET + MENU_BODY_ROWS)) ]]; then
+        MENU_SCROLL_OFFSET=$((current_line - MENU_BODY_ROWS + 1))
+    fi
+
+    local last=$((MENU_LIST_LINES - MENU_BODY_ROWS))
+    [[ $MENU_SCROLL_OFFSET -gt $last ]] && MENU_SCROLL_OFFSET=$last
+    [[ $MENU_SCROLL_OFFSET -lt 0 ]] && MENU_SCROLL_OFFSET=0
+}
+# }}}
+
+# {{{ menu_screen_row
+# Turns a list line into the screen row it is drawn on, or -1 when the line is
+# outside the window.
+# Sets: MENU_SCREEN_ROW (global, to avoid a subshell)
+menu_screen_row() {
+    local line="$1"
+    if [[ $line -lt $MENU_SCROLL_OFFSET ]] || \
+       [[ $line -ge $((MENU_SCROLL_OFFSET + MENU_BODY_ROWS)) ]]; then
+        MENU_SCREEN_ROW=-1
+    else
+        MENU_SCREEN_ROW=$((MENU_HEADER_HEIGHT + line - MENU_SCROLL_OFFSET))
+    fi
+}
+# }}}
+
+# {{{ menu_render_scrollbar
+# Draws the scrollbar in the last column beside the window, only while the
+# list scrolls: a dim track the height of the window, and a thumb whose size
+# is the share of the list shown and whose place is where the window sits.
+menu_render_scrollbar() {
+    [[ "$MENU_SCROLLING" == "1" ]] || return 0
+
+    local rows=$MENU_BODY_ROWS
+    local thumb=$(( (rows * rows + MENU_LIST_LINES - 1) / MENU_LIST_LINES ))
+    [[ $thumb -lt 1 ]] && thumb=1
+    [[ $thumb -gt $rows ]] && thumb=$rows
+    local travel=$((rows - thumb))
+    local range=$((MENU_LIST_LINES - rows))
+    local top=0
+    if [[ $range -gt 0 ]]; then
+        top=$(( (MENU_SCROLL_OFFSET * travel + range / 2) / range ))
+    fi
+
+    local i
+    for ((i = 0; i < rows; i++)); do
+        tui_goto "$((MENU_HEADER_HEIGHT + i))" "$((TUI_COLS - 1))"
+        if [[ $i -ge $top ]] && [[ $i -lt $((top + thumb)) ]]; then
+            printf '%s' "█"
+        else
+            printf '%s' "${TUI_DIM}│${TUI_RESET}"
+        fi
+    done
+}
+# }}}
+
 # {{{ menu_render_header
 menu_render_header() {
     local width=$((TUI_COLS - 2))
@@ -778,15 +905,24 @@ menu_render_section() {
 
     local title="${MENU_SECTION_TITLES[$section_id]}"
     local items="${MENU_SECTION_ITEMS[$section_id]:-}"
+    # row counts list lines (see menu_update_viewport); screen is where that
+    # line lands on the screen, or -1 when it is outside the window.
     local row=$start_row
+    local screen
 
     # Section title
-    tui_goto "$row" 2
-    tui_bold "$title"
+    menu_screen_row "$row"; screen=$MENU_SCREEN_ROW
+    if [[ $screen -ge 0 ]]; then
+        tui_goto "$screen" 2
+        tui_bold "$title"
+    fi
     ((++row))
 
-    tui_goto "$row" 2
-    tui_hline "${#title}" "─"
+    menu_screen_row "$row"; screen=$MENU_SCREEN_ROW
+    if [[ $screen -ge 0 ]]; then
+        tui_goto "$screen" 2
+        tui_hline "${#title}" "─"
+    fi
     ((++row))
 
     # Items
@@ -800,11 +936,19 @@ menu_render_section() {
                 highlight=1
             fi
 
+            # Counted even when hidden, so the numbers stay the same as the
+            # window moves.
             ((++MENU_RENDER_GLOBAL_INDEX))
+
+            menu_screen_row "$row"; screen=$MENU_SCREEN_ROW
+            if [[ $screen -lt 0 ]]; then
+                ((++row))
+                continue
+            fi
 
             # Store item position in cache for incremental updates
             local cache_key="${section_id}:${i}"
-            MENU_ITEM_ROWS[$cache_key]=$row
+            MENU_ITEM_ROWS[$cache_key]=$screen
             MENU_ITEM_GLOBAL_IDX[$cache_key]=$MENU_RENDER_GLOBAL_INDEX
             MENU_ITEM_IDS[$cache_key]="$item_id"
 
@@ -816,7 +960,7 @@ menu_render_section() {
                 fi
             fi
 
-            menu_render_item "$item_id" "$row" "$highlight" "$MENU_RENDER_GLOBAL_INDEX"
+            menu_render_item "$item_id" "$screen" "$highlight" "$MENU_RENDER_GLOBAL_INDEX"
             ((++row))
         done
     fi
@@ -1217,6 +1361,9 @@ menu_incremental_update() {
         "$new_check" \
         "${TUI_INVERSE}${new_label}${TUI_RESET}" \
         "$new_suffix"
+
+    # The \033[K above cleared the two rows to their ends, scrollbar included
+    menu_render_scrollbar
 
     # Update description area to show new item's description
     menu_render_description_area

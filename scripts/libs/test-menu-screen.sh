@@ -13,6 +13,10 @@
 #     cursor moves (scripts issue 004): its footer used to end the screen's
 #     last row with a newline, which scrolled the screen up one row, so each
 #     incremental update landed one row below the item it redrew.
+#   - A bash menu taller than the screen scrolls inside its own box (scripts
+#     round-3 viewport): the header and footer stay put, the list shows a
+#     window around the cursor, and a scrollbar in the last column says where
+#     the window is. Checked at 40 rows with 40 items in two sections.
 #
 # How: `script` gives the menu a real terminal (sized with stty), keys are
 # typed on a timer, the session is recorded, and test-menu-screen-replay.lua
@@ -88,24 +92,45 @@ menu_run
 tui_cleanup
 EOF
 chmod +x "$WORK/bash-menu.sh"
+
+# A bash menu taller than its screen: 30 letters and 10 numbers, 46 lines of
+# list in all, shown at 40 rows where the list has 28 rows to draw in.
+{
+    printf '#!/usr/bin/env bash\nLIBS_DIR="%s"\n' "$LIBS_DIR"
+    printf 'for lib in tui checkbox multistate input menu; do source "$LIBS_DIR/$lib.sh"; done\n'
+    printf 'tui_init\nmenu_init\nmenu_set_title "Bash tall menu" "keys are typed by the test"\n'
+    printf 'menu_add_section "letters" "multi" "Letters"\n'
+    for i in $(seq -w 1 30); do
+        printf 'menu_add_item "letters" "l%s" "L%s" "checkbox" "0" "letter %s"\n' "$i" "$i" "$i"
+    done
+    printf 'menu_add_section "numbers" "multi" "Numbers"\n'
+    for i in $(seq -w 1 10); do
+        printf 'menu_add_item "numbers" "n%s" "N%s" "checkbox" "0" "number %s"\n' "$i" "$i" "$i"
+    done
+    printf 'menu_run\ntui_cleanup\n'
+} > "$WORK/bash-tall.sh"
+chmod +x "$WORK/bash-tall.sh"
 # }}}
 
 # {{{ run_menu <name> <keys...>
-# Types each key one second apart after the menu has had time to draw, then
-# q to leave; prints the replayed final screen.
+# Types each key KEY_DELAY seconds apart (default one) after the menu has had
+# time to draw, then q to leave; prints the replayed final screen. The pretend
+# terminal is ROWS rows tall (default 30) and 100 columns wide.
 run_menu() {
     local name="$1"; shift
     local script_file="$WORK/menu.sh"
     case "$name" in
         radio*) script_file="$WORK/radio.sh" ;;
+        bash-tall*) script_file="$WORK/bash-tall.sh" ;;
         bash*) script_file="$WORK/bash-menu.sh" ;;
     esac
+    local rows="${ROWS:-30}"
     {
         sleep 2
-        for key in "$@"; do printf '%s' "$key"; sleep 1; done
+        for key in "$@"; do printf '%s' "$key"; sleep "${KEY_DELAY:-1}"; done
         printf 'q'; sleep 1
-    } | timeout 20 script -qfc "stty rows 30 cols 100; $script_file" "$WORK/$name.log" >/dev/null 2>&1
-    luajit "$LIBS_DIR/test-menu-screen-replay.lua" "$WORK/$name.log" 30 100 > "$WORK/$name.screen"
+    } | timeout 40 script -qfc "stty rows $rows cols 100; $script_file" "$WORK/$name.log" >/dev/null 2>&1
+    luajit "$LIBS_DIR/test-menu-screen-replay.lua" "$WORK/$name.log" "$rows" 100 > "$WORK/$name.screen"
 }
 # }}}
 
@@ -148,6 +173,54 @@ check "after two moves each item is drawn once, in order, the cursor on the thir
 run_menu bash-updown j j k
 check "and moving back up redraws them in place" \
     "$(items_of bash-updown | tr '\n' '|')" "1 Alpha|2▸Bravo|3 Charlie|4 Delta|"
+# }}}
+
+# {{{ a bash menu taller than the screen scrolls inside its box
+# The list window is the rows between the header's ╠ line and the
+# description's ── line; at 40 rows it has 28. `script` adds a trailer that
+# scrolls the finished screen up, so everything is found relative to those
+# lines rather than by row number.
+body_of()    { awk '/^╠/ && !on && !done { on = 1; next } on && /^─/ { on = 0; done = 1 } on' "$WORK/$1.screen"; }
+tall_items() { body_of "$1" | grep -E '^[0-9*]( |▸)\[' | grep -oE '[LN][0-9]{2}' | tr '\n' ' ' | sed 's/ $//'; }
+tall_cursor(){ body_of "$1" | grep '▸' | grep -oE '[LN][0-9]{2}'; }
+bar_end()    { # bar_end <name> <body row>: the scrollbar character ending that row
+    local line; line="$(body_of "$1" | sed -n "$2p" | sed 's/ *$//')"
+    case "$line" in *█) printf '█' ;; *│) printf '│' ;; *) printf '?' ;; esac
+}
+letters() { local i out=""; for i in $(seq -w "$1" "$2"); do out="$out L$i"; done; printf '%s' "${out# }"; }
+numbers() { local i out=""; for i in $(seq -w "$1" "$2"); do out="$out N$i"; done; printf '%s' "${out# }"; }
+
+ROWS=40 run_menu bash-tall-start
+check "a tall menu draws its list in a 28-row window at 40 rows" \
+    "$(body_of bash-tall-start | wc -l)" "28"
+check "the window opens on the first 26 letters, cursor on the first" \
+    "$(tall_items bash-tall-start)|$(tall_cursor bash-tall-start)" "$(letters 01 26)|L01"
+check "the section title is in the window" \
+    "$(body_of bash-tall-start | grep -c '^  Letters')" "1"
+check "the description and the footer follow the window, in that order" \
+    "$(grep -nE '^  letter 01|\[q\] Quit' "$WORK/bash-tall-start.screen" | cut -d: -f2- | grep -oE 'letter 01|Quit' | tr '\n' ' ')" "letter 01 Quit "
+check "the scrollbar's thumb is at the top: first row █, last row │" \
+    "$(bar_end bash-tall-start 1)$(bar_end bash-tall-start 28)" "█│"
+
+ROWS=40 KEY_DELAY=0.2 run_menu bash-tall-step j j j j j j j j j j j j j j j j j j j j j j j j j j
+check "stepping past the last row scrolls one line: L01-L27, cursor on L27" \
+    "$(tall_items bash-tall-step)|$(tall_cursor bash-tall-step)" "$(letters 01 27)|L27"
+
+ROWS=40 run_menu bash-tall-bottom G
+check "G scrolls to the end: L16-L30 then the numbers, cursor on N10" \
+    "$(tall_items bash-tall-bottom)|$(tall_cursor bash-tall-bottom)" "$(letters 16 30) $(numbers 01 10)|N10"
+check "the second section's title is in the window" \
+    "$(body_of bash-tall-bottom | grep -c '^  Numbers')" "1"
+check "the scrollbar's thumb is at the bottom: first row │, last row █" \
+    "$(bar_end bash-tall-bottom 1)$(bar_end bash-tall-bottom 28)" "│█"
+
+ROWS=40 run_menu bash-tall-top G g
+check "g scrolls back to the top, title and all" \
+    "$(tall_items bash-tall-top)|$(tall_cursor bash-tall-top)|$(body_of bash-tall-top | grep -c '^  Letters')" \
+    "$(letters 01 26)|L01|1"
+
+check "a menu that fits draws no scrollbar" \
+    "$(grep -cE '(█|│) *$' "$WORK/bash-down.screen")" "0"
 # }}}
 
 rm -rf "$WORK"
