@@ -1,7 +1,7 @@
 # Issue 053b: Component Similarity Detection
 
 **Phase**: 0 - Tooling
-**Status**: Open
+**Status**: In progress (tiers 1-4 built; tier 5 open)
 **Priority**: High
 **Created**: 2026-02-23
 **Parent**: Issue 053 (TODONE - Cross-Project Roadmap Coordinator)
@@ -375,14 +375,14 @@ todone-similarity.sh --show-reasoning   # Include LLM reasoning
 
 ## Acceptance Criteria
 
-- [ ] Groups components with identical normalized names (Tier 1)
-- [ ] Groups known synonyms from dictionary (Tier 2)
-- [ ] Catches typos via fuzzy matching (Tier 3)
-- [ ] Uses Ollama for uncertain cases (Tier 4)
+- [x] Groups components with identical normalized names (Tier 1)
+- [x] Groups known synonyms from dictionary (Tier 2)
+- [x] Catches typos via fuzzy matching (Tier 3)
+- [x] Uses Ollama for uncertain cases (Tier 4) (the local llama.cpp model)
 - [ ] Falls back to Opus for complex analysis (Tier 5)
-- [ ] Outputs clusters with confidence scores
-- [ ] Identifies library candidates (3+ projects)
-- [ ] Tracks analysis statistics by tier
+- [x] Outputs clusters with confidence scores
+- [x] Identifies library candidates (3+ projects) (`--min=3`; the default is 2, as in todone.lua)
+- [x] Tracks analysis statistics by tier
 
 ---
 
@@ -406,3 +406,24 @@ The synonym dictionary should be expanded over time as new patterns emerge. Cons
 ## Status (2026-11-02)
 
 Tiers 1 (spelling) and 2 (the synonym list, `config/component-synonyms.conf`) are built in `scripts/todone.lua`. Tiers 3-4 (fuzzy matching, a model check of uncertain pairs) and confidence scores are still open.
+
+**2026-11-03.** Tiers 3-4 and confidence scores are built in
+`scripts/todone-similarity.lua`, which reads `todone.lua --json --each`
+(with `.info.md` and `test-todone-similarity.sh`, 34 checks). Decisions:
+
+- A separate script reading todone's JSON, as this issue's CLI section has
+  it, so todone.lua itself is unchanged and a re-run of the clustering costs
+  no model calls for the component lists.
+- Tier 3 joins names 1 letter apart (5+ letters) or 2 apart (9+ letters),
+  so short names such as gui and tui stay apart.
+- Tier 4 asks only about uncertain pairs (a shared word, one name inside the
+  other, or 3 letters apart), at most 20 per run. Only a yes merges, at 0.85.
+  A maybe (0.5), an unclear answer or an error is listed for a person, not
+  merged, so a weak answer never joins two components.
+- A member's confidence is the weakest link to the cluster's first member.
+- Tiers 1-2 use the same rule and synonym file as todone.lua; the code is
+  repeated here (about 25 lines) because the shared `libs/component-names.lua`
+  is still in review in another branch. Once both are in, this can use it.
+
+Still open: tier 5 (a large model with code context), `--format=matrix` and
+`--show-reasoning`.
