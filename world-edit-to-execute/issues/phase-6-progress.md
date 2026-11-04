@@ -22,11 +22,11 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 606 | [Hot-Reload System](./completed/606-hot-reload-system.md) | completed | 601 |
 | 606a | [Hot-Reload Swaps in the Renderer, Sound and UI](./606a-hot-reload-swaps-in-renderer-sound-and-ui.md) | open | 606 |
 | 607 | [File Server Application](./superseded/607-file-server-application.md) | retired (superseded/) | 603, 604 |
-| 608 | [Phase 6 Integration Test](./608-phase6-integration-test.md) | open | 601, 602, 603, 604, 605, 606, 606a, 2026, 09, 26 |
+| 608 | [Phase 6 Integration Test](./completed/608-phase6-integration-test.md) | completed | 601, 602, 603, 604, 605, 606, 606a, 2026, 09, 26 |
 | 609 | [Shared Map-and-Model List](./completed/609-shared-map-and-model-list.md) | completed | 604, 605 |
 | 609a | [Shared Lists Over rmail, and the One Prompt](./completed/609a-shared-list-over-rmail-and-the-prompt.md) | completed | 609 |
 | 609b | [rmail Glue and the Lobby Prompt](./609b-rmail-glue-and-the-lobby-prompt.md) | open | 609a |
 
-Completed 5, open 6, retired 1, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 6, open 5, retired 1, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

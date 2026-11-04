@@ -157,12 +157,14 @@ lua src/tests/test_phase6_integration.lua --summary
 
 ## Acceptance Criteria
 
-- [ ] All 5 scenarios pass
-- [ ] Test fixtures are small and fast (< 5 seconds total)
-- [ ] Mock server works without network (in-process)
-- [ ] Phase demo runs all tests with clear output
-- [ ] No external dependencies (no real servers needed)
-- [ ] Tests clean up after themselves (no leftover temp files)
+- [x] All 5 scenarios pass (and the fallback's, as a sixth), on a tree
+      with every phase 6 branch combined; see the notes
+- [x] Test fixtures are small and fast (< 5 seconds total): under 0.1 s
+      of processor time, under 1 s in all
+- [x] Mock server works without network (in-process)
+- [x] Phase demo runs all tests with clear output
+- [x] No external dependencies (no real servers needed)
+- [x] Tests clean up after themselves (no leftover temp files)
 
 ## Related Documents
 
@@ -176,3 +178,62 @@ lua src/tests/test_phase6_integration.lua --summary
 - Consider fuzz testing for protocol robustness
 - Hot-reload test needs to actually modify files, be careful with temp dirs
 - May want "visual demo" in addition to automated tests (show wire-frame mode, etc.)
+
+## Implementation Notes (2026-11-03)
+
+- `src/tests/test_phase6_integration.lua` has six scenarios:
+  `map_loading`, `fallback`, `download`, `dedup`, `storage` and
+  `hotreload`. Run one with `--scenario=NAME`, or all of them (with a
+  summary) with no flag or `--summary`.
+- `issues/completed/demos/run_phase6.sh` is the phase demo. It runs each
+  scenario under its own heading, then the summary.
+
+**How it was checked.** Phase 6 is spread over two stacks of open pull
+requests: the storage stack (#30 → #64 → #88, #121) and the loader stack
+(#30 → #66 → #79 → #138 → #186, and #109 → #148 → #158 → #175, #166).
+No one branch holds every part. This test was run on a scratch tree that
+combines every branch, built with `git merge-tree`; nothing was merged
+or pushed that way. There, all six scenarios pass (38 checks). On its
+own branch (609a), the scenarios whose modules aren't there yet say
+"skipped" and name the missing module, rather than failing. Once every
+phase 6 PR is merged, the demo should show all six passing.
+
+### Decisions made while building
+
+1. **"Server download" is the shared-list exchange (609a), run
+   in-process.** The file server (607) was retired. A list is the
+   manifest, a want is "here is what I already have", and the files
+   message is the download. An offer of the same list again downloads
+   nothing, which is the reconnect check. 603's fetcher, which reads
+   local files only, has its own tests.
+2. **"Two servers with overlapping assets" are two asset packs** in the
+   storage manager (605). Deleting one is deleting a "server".
+3. **No committed fixtures.** Every fixture is written into a temporary
+   folder at run time: a few TGAs, a WAV and some bytes. The one binary
+   used is a test map already in `assets/` (DAoW 2.1). The issue's
+   `fixtures/` and `mocks/` folders aren't needed.
+4. **The test maps hold no sounds**, so a pack brings a tiny PCM WAV.
+   Its header (PCM, mono, 22050 Hz) is checked after it has come
+   through the loader.
+5. **The wire-frame fallback is a sixth scenario**, since the issue's
+   demo lists it on its own.
+6. **A scenario whose part isn't here yet is skipped, not failed.** The
+   summary names the missing module, so the test can land before the
+   rest of phase 6 does.
+7. **`run-demo.sh` isn't changed.** Its `COMPLETED_PHASES` stays at 5
+   while 602a, 603 and 606a are still open.
+
+
+### After the editor-and-client split (2026-11-04)
+
+The owner agreed to take out of this project what the split gave to the W
+client (609 and 609a, "Trimmed after the split"): a shared list is no
+longer applied for one game and taken off after; a received list that
+passes every check is kept as one of the player's asset packs. So the
+`download` scenario now checks that the list is kept as a pack of Ben's
+own and that every asset is there through a loader over that pack. Its
+check that the list was gone "after the game" was taken out with the code
+it covered, which lives on in the W client's issue 1110. The other checks
+(only the missing files come over, nothing comes over the second time)
+are unchanged. The combined tree above should now count 37 checks, one
+fewer than before (not run again for this change).
