@@ -325,3 +325,20 @@ EXPORT VALIDATION: WC3
   - Lightweight export excludes assets.
   - The format is version-control friendly.
 - **Still open:** mode-specific data, since there's no WoW layer yet.
+
+## Open Questions
+
+1. ~~With WoW gameplay mode gone, what does the editor save?~~ Answered
+   2026-09-26: **`.w3x`, for now.** The owner: "We are already building
+   compatibility for that system so we might as well." The editor writes
+   plain WC3 maps through StormLib; the `.wex`, `.wexl` and `.wowmap`
+   formats above are not built. This issue's design is to be rewritten
+   around that when Phase 9 starts.
+2. Which WC3 version does a saved map target: the one it was loaded as, or
+   a chosen one? (Asked 2026-09-26.)
+3. **Keep the unified format, or retire it?** A Claude web session built it
+   (911c, the third part of the notes above) on 2026-09-30, working from a
+   2026-09-24 checkout that predates answer 1. Both histories were joined on
+   2026-10-01 and the owner chose the web session's text where they clashed,
+   so this issue now carries both the answer that `.wex` is not built and
+   the report that it is. (Asked 2026-10-01.)

@@ -4,6 +4,9 @@
 -- Generates a single HTML page showcasing golden poems at various progress levels
 -- to demonstrate the adaptive junction characters (╧ vs ┴)
 
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
+
 -- {{{ local function setup_dir_path
 local function setup_dir_path(provided_dir)
     if provided_dir then
@@ -13,7 +16,10 @@ local function setup_dir_path(provided_dir)
 end
 -- }}}
 
-local DIR = setup_dir_path(arg and arg[1])
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- script (libs/project-dir.lua, Issue 10-076).
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil))
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 
 local utils = require("utils")
@@ -182,24 +188,24 @@ end
 
 -- {{{ main
 local function main()
-    print("[INFO] Loading poems data...")
+    require("output").print("[INFO] Loading poems data...")
     local poems_data = utils.read_json_file(DIR .. "/assets/poems.json")
     if not poems_data then
-        print("[ERROR] Could not load poems data")
+        require("output").print("[ERROR] Could not load poems data")
         return
     end
 
-    print("[INFO] Loading poem colors...")
+    require("output").print("[INFO] Loading poem colors...")
     local poem_colors_data = utils.read_json_file(DIR .. "/assets/embeddings/embeddinggemma_latest/poem_colors.json")
     local poem_colors = poem_colors_data and poem_colors_data.poem_colors or {}
 
-    print("[INFO] Generating corner box demo page...")
+    require("output").print("[INFO] Generating corner box demo page...")
     local output_file = DIR .. "/output/corner-box-demo.html"
 
     if generate_demo_page(poems_data, poem_colors, output_file) then
-        print("[INFO] Demo page generated: " .. output_file)
+        require("output").print("[INFO] Demo page generated: " .. output_file)
     else
-        print("[ERROR] Failed to generate demo page")
+        require("output").print("[ERROR] Failed to generate demo page")
     end
 end
 -- }}}

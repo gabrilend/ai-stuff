@@ -25,13 +25,13 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 | Issue | Description | Status | Priority |
 |-------|-------------|--------|----------|
-| 8-001 | Unified website generation pipeline | In Progress | High |
-| 8-002 | Implement multi-threaded HTML generation | In Progress | High |
+| 8-001 | Unified website generation pipeline | Completed (2026-10-25) | High |
+| 8-002 | Implement multi-threaded HTML generation | Completed (2026-10-25) | High |
 | 8-016 | Validate poem representation in pagination | Open | Medium |
-| 8-020 | Hybrid pagination strategy (45GB constraint) | In Progress | High |
-| 8-031 | Convert between similarity matrix formats | Open | Low |
+| 8-020 | Hybrid pagination strategy (45GB constraint) | Completed (2026-10-25) | High |
+| 8-031 | Convert between similarity matrix formats | Superseded 2026-10-22 (one format remains) | Low |
 | 8-034 | Refactor to triangular individual files only | Open | Low |
-| 8-058 | Eliminate main thread / worker code duplication | Open | Medium |
+| 8-058 | Eliminate main thread / worker code duplication | Completed (2026-10-25) | Medium |
 
 ### Completed Issues
 
@@ -178,7 +178,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 
 ### Issue Details
 
-**8-001: Unified Website Generation Pipeline** - IN PROGRESS (Phases 1-6 complete)
+**8-001: Unified Website Generation Pipeline** - COMPLETED (2026-10-25: every poem's similar and different pages checked on the 2026-10-23 build)
 - ✅ Phase 1: HTML Integration - complete
 - ✅ Phase 2: Parallel HTML Generation - complete
 - ✅ Phase 3: Embedding Integration - complete (2025-12-25)
@@ -197,7 +197,7 @@ Phase 8 focuses on completing the website generation pipeline so that `run.sh` p
 - **Pending**: Full HTML regeneration with boost formatting (8-057)
   - Run `./run.sh --generate-html` after merging boost formatting changes
 
-**8-002: Implement Multi-threaded HTML Generation** - IN PROGRESS
+**8-002: Implement Multi-threaded HTML Generation** - COMPLETED (2026-10-25: every page is a job on the worker pool)
 - ✅ Created `scripts/generate-html-parallel` using effil library
 - ✅ Similarity page generation working (10 pages/sec with 4 threads)
 - ✅ Batch-based thread pool with progress reporting

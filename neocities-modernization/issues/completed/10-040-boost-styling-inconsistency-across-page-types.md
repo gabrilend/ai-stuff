@@ -143,6 +143,10 @@ The issue may be:
 
 **Phase**: 10 - Developer Experience & Tooling
 
+## Blocks
+
+- 10-041
+
 ## Implementation Notes (2026-03-25)
 
 **Root cause**: The chronological page generator (`generate_chronological_index_with_navigation`) didn't check for `is_boost_poem()`. It used `format_content_with_warnings` for all poems, treating boosts like regular posts.

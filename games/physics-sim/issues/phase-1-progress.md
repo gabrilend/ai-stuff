@@ -21,13 +21,24 @@ Core infrastructure: build system, threadpool, parallel processing, and configur
 | 111 | Create performance benchmark       | completed | -          |
 | 112 | Compile time config                | completed | -          |
 | 113 | Config file self-edit              | completed | 112 ✓      |
+| 114 | The lodge (front door, README)     | in-progress | -        |
+| 114a | Picture the game                  | completed | -          |
+| 114b | Lodge generator                   | completed | -          |
+| 114c | The rooms                         | completed | 114a ✓, 114b ✓, 115 ✓ |
+| 115 | Scene mode: stage a moment and film it | completed | -     |
 
 ## Progress Summary
 
-**Completed:** 13/13 issues
-**Awaiting work:** 0
-**Blocked:** 0
-**Phase status:** complete
+Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
+/mnt/mtwo/programming/ai-stuff/games/physics-sim -m`.
+
+**Phase status:** in progress. The infrastructure of March is complete; the
+lodge (114) is built as a pachinko fan site and its three parts are done;
+the game can stage and film a single moment (115). The lodge stays open
+until the project's source browser exists for its workshop door, and on two
+questions: whether the game's three warning-and-carry-on fallbacks should
+become errors, and how the stale tickets the issue checker lists should be
+put right.
 
 ## Technical Notes
 
@@ -51,6 +62,22 @@ Core infrastructure: build system, threadpool, parallel processing, and configur
 ### Configuration (112, 113)
 - Compile-time configuration options (112)
 - Config file self-edit: running `./config` opens it in $EDITOR (113)
+
+### The lodge (114)
+- Hand-written rooms in `lodge/pages/`, built by `lodge/build` into
+  `docs/HTML/lodge/`; the rooms are the project's README
+- `scripts/picture-the-game` photographs the game or the editor unattended
+  and files each picture with notes into `development-history/`
+- Lesson: the game's window takes the keyboard when it opens, so unattended
+  pictures are only trustworthy while nobody types
+
+### Scene mode (115)
+- `--scene FILE`, `--record DIR`, `--frames N`; input ignored in a scene;
+  `output/goodbye` written on every clean exit
+- `scripts/film-a-scene` turns a scene into a gif in `development-history/`;
+  `scripts/test-scene-mode` checks the refusals
+- Lesson: a filmed scene must step a fixed sixtieth of a second per frame,
+  or slow frame saving changes the physics being filmed
 
 ## Issue-Level Dependencies
 
