@@ -87,16 +87,23 @@ against one compositor thread among them).
 `src/system/110-foreground.c`, `src/boxes/111-foreground.c`,
 `program_app_of` in 068. Test: `twin/tests/112` (26 checks).
 
+- **606** the four drawers: the system's, beside the surface table,
+  sliding in from their edge in six frames and drawn over everything.
+  Each step exposes where the drawer was, so the foreground's surfaces
+  and the background come back as the cover lifts. Opened and closed
+  from C for now; the center buttons are 607.
+
+`src/system/113-drawers.c`, called from 603's frame. Test:
+`twin/tests/114` (26 checks).
+
 ## Open issues
 
 Sorted by what each one waits on (scoped once phase 5's twin halves
 were built, against main as it stood then). "Unmerged" names the open
 pull request a blocker is waiting in.
 
-**Buildable on the twin now.** The compositor is portable: the twin's
-screens are memory a test can read back or save as a picture.
-
-- **606** — the drawer surface and its slide, once 601–603 are in.
+**Buildable on the twin now.** None left: 601–604 and 606 are built
+above, and every other issue waits on a pull request or the device.
 
 **Blocked on an unmerged pull request.**
 

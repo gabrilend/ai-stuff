@@ -14,6 +14,7 @@
 #include "104-surfaces.h"
 #include "107-compositor.h"
 #include "110-foreground.h"
+#include "113-drawers.h"
 
 /* {{{ overlaps */
 static int overlaps(int x, int y, int w, int h, const struct surface_rect *r)
@@ -57,11 +58,12 @@ static void copy_surface(struct platform_screen sc, const struct surface_view *v
 /* {{{ compositor_screen */
 struct compositor_frame compositor_screen(int screen)
 {
-    struct compositor_frame f = { 0, 0 };
+    struct compositor_frame f = { 0, 0, 0 };
     struct surface_view   views[SURFACE_MAX];
     struct surface_rect   drawn[SURFACE_MAX + 1];
     struct surface_rect   uncovered;
     int n_drawn = 0;
+    drawers_advance(screen);            /* before the gather, so what they leave is painted now (606) */
     int n = surface_gather(screen, views, SURFACE_MAX, &uncovered);
     int32_t foreground = screen_get_foreground(screen);
     struct platform_screen sc = platform_screen(screen);
@@ -96,7 +98,9 @@ struct compositor_frame compositor_screen(int screen)
         n_drawn++;
         f.copied++;
     }
-    if (n_drawn > 0) {
+    /* The drawers last, over everything (606). */
+    f.drawers = drawers_draw(screen, sc, drawn, n_drawn);
+    if (n_drawn > 0 || f.drawers > 0) {
         platform_screen_present(screen);
     }
     return f;
@@ -106,11 +110,12 @@ struct compositor_frame compositor_screen(int screen)
 /* {{{ compositor_frame */
 struct compositor_frame compositor_frame(void)
 {
-    struct compositor_frame total = { 0, 0 };
+    struct compositor_frame total = { 0, 0, 0 };
     for (int s = 0; s < PLATFORM_SCREEN_COUNT; s++) {
         struct compositor_frame f = compositor_screen(s);
         total.copied += f.copied;
         total.painted += f.painted;
+        total.drawers += f.drawers;
     }
     return total;
 }
