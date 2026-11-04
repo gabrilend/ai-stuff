@@ -1,5 +1,12 @@
 # Bricking risks and recovery — Soren DS development safety
 
+> **Not for sale.** Soren DS is a design and a prototype only. It will
+> not be sold, shipped or installed on any consumer device until every
+> layer of code beneath it can be read, built and replaced by us. On
+> the RG DS, closed Rockchip firmware runs below the kernel, and part
+> of it stays resident at a higher privilege level. See
+> `notes/safety/001-not-for-sale.md`.
+
 This document enumerates every way the Anbernic RG DS could be made
 unusable as a result of our development, ranks each scenario by how
 likely it is to happen and how bad it would be, explains the

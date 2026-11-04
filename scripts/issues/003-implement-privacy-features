@@ -74,6 +74,9 @@ as publishing the second, and nothing should treat them alike.
 
 ## Related
 
+- `003a-redaction-capability.md` — the stripping system described above,
+  widened to any published text: tracked notices of what was cut and why,
+  with the cut bytes kept in a private store outside git
 - `double-diaper-dungeon/issues/10-003-the-transcript-renderer.md` — the
   renderer. Was issue 029 here; moved, because it renders one project's
   conversations into one project's website

@@ -26,6 +26,7 @@ Delta-Version is the meta-project responsible for git repository management and 
 | **A05** | TOC Updater | ⏳ Pending | TBD |
 | **A06** | Parser Coverage Report | Moved back to `world-edit-to-execute/issues/` — it only applies there | — |
 | **A07** | Phase A Integration Test | ⏳ Pending | Depends on A01–A05 |
+| **A08** | See It in 3D | ✅ Completed 2026-10-10: a screenshot, a short scene saying what it is in space, four views of it | `scripts/see-in-3d` |
 
 ### Completed Tools
 
@@ -220,6 +221,7 @@ These issues provide foundational utilities and can be implemented independently
   - *Status*: First version completed 2024-12-15; reopened and completed again 2026-09-22
 
 ## In Progress
+- **Issue 066**: Fans that follow a signal — one delivery contract (a single setting, or a stream in numbered chunks rmail-attachment style) moving a fan; first fan external, on another machine. Nothing built. Built in parallel as `centered-ui-design` phase 10.
 - **Issue 042a**: The integration audits still unbuilt — the three `check-utilities.sh` flags (`--issue-standards`, `--transcripts`, `--tui-audit`) that print "not yet implemented". Carried out of 042 so 042 could close.
 - **Issue 055**: Commit gated by issue completion — rewritten 2026-09-22 so the design can work (a gate only sees the command text) and narrowed to sit beside the shared line-ledger commit gate rather than duplicate it. Nothing built yet.
 - **Issue 056**: Recursive transcript summarisation — 056a (llama.cpp client) exists; 056b–d unbuilt.
@@ -231,6 +233,16 @@ These issues provide foundational utilities and can be implemented independently
 - **Issue 051, first slice (051a)** (2026-11-02): `scripts/history-kernel.lua` reads a project's first commits, its README as first committed, its build files and how far it has come, from git alone (`--json`). The local model drafts `notes/vision.md` from those facts, and an existing vision is never replaced. Tested against the stand-in model.
 - **Issue 049, first slice (049a)** (2026-11-02): `scripts/transcript-detail.lua` has the local model class each transcript exchange and keeps, word for word, the sections at or above a detail level (1–4; 5 is the original). It marks the gaps, never hides a section it could not class, and reuses saved classes. Tested against the stand-in model.
 - **Issue 040, first slice** (2026-11-02): `scripts/claudemd-revise.lua` records events, has the local model word repeated ones as proposed CLAUDE.md guidelines, and applies one only on `approve --target=FILE`. A backup is taken first, `rollback` refuses if the file has been edited since, and `audit.tsv` keeps the history. Tested against `scripts/libs/stand-in-model/`, a stand-in llama.cpp server (C) whose answers come from a fixed-rule brain. 040 itself stays open for the rest.
+- **Issue 065**: The reading walk, ialmstla (2026-10-10) — all eight pieces: the map, recorded reasons, chapters, the walk without an AI, the guide's room, its cipher, the guide, and the walk as web pages and an OLED view (065h: scripts/reading-walk-pages.lua). Built in parallel as `centered-ui-design` phase 9.
+- **Issue 065g**: The guide (2026-10-10) — with `--guide`, a local AI decides where "next" goes, stepping back to a stop this one is built from when the reader's own requests suggest a part is not landing, and returning afterwards; it never asks the reader anything; an unusable answer hands the choice to the reader. Tried with llama3.2 through ollama. Implemented: scripts/libs/reading-guide.lua, scripts/reading-walk.lua
+- **Issue 065f**: The guide's cipher (2026-10-10) — version one: the logistic map past its chaos threshold mixed with nearest-prime picks, a fresh nonce per message, a marker that catches a wrong key; trails written one encrypted note per line, listed and dated in the room's ledgers. Home-made, and says so. Implemented: scripts/libs/guide-cipher.lua, scripts/libs/guide-trail.lua, scripts/test-guide-cipher.sh
+- **Issue 065e**: The guide's room (2026-10-10) — a no-login account and a folder per guide, made only after a typed "yes", every step shown first; three tab-separated ledgers (made public, kept to itself, changes) checked for real files, time order and listing-before-change. Implemented: scripts/reading-walk-guide-room.lua, scripts/libs/guide-room.lua, scripts/test-guide-room.sh
+- **Issues 065a–d**: The reading walk without an AI (2026-10-10)
+  - A map of stops from fold markers in index order, described by each file's `.info.md` page (or, marked, by the source comment), with uses found by word lookup and private names kept to their own file
+  - Recorded reasons only where written down — comment paragraphs and issue paragraphs with a marker phrase — and "no alternative was recorded here" otherwise
+  - Each stop's chapter: the commit that first added its file
+  - A terminal walk by list of options (next, uses, why, code, skip, skip file, back, quit); "yeah yeah" is a skip and always gives the summary
+  - Implemented: scripts/reading-walk-map.lua, scripts/reading-walk.lua, scripts/test-reading-walk.sh
 - **Issue 031**: Import Project Histories, reopened — the six projects' pre-monorepo histories are joined under the trunk's first commit, published 2026-09-22; worktrees and side branches are retired.
 - **Issue 042**: Project integration checker (`scripts/check-utilities.sh`) — moved to completed 2026-09-22; its deferred audits continue as 042a.
 - **Issue 043**: Issue initialization workflow (`scripts/initialize-issue.sh`) — moved to completed 2026-09-22 (all acceptance criteria were met in January).
