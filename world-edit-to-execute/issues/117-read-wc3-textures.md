@@ -81,4 +81,4 @@ All in the shared reader, in the custom client's project, unless noted:
 - `issues/116-read-wc3-models.md`
 - `issues/516-draw-wc3-models-in-engine.md`
 - `issues/W01-read-the-wow-client-archives.md`
-- `issues/601-asset-loader-resolution.md`
+- `issues/completed/601-asset-loader-resolution.md`

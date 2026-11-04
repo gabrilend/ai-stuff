@@ -56,6 +56,43 @@ selects it."
 - Assets with a public source URL may be fetched from there instead, when the
   receiver prefers; the sharer never has to host anything.
 
+**Where each part runs (2026-11-04).** The owner: "The custom model
+sharing capability should be for the editor, but we can have a small
+'launcher style' system that users can open to view and browse and such.
+They could also be viewed and browsed through the browser." So:
+
+- **This project (the editor's side):** building a list from the user's
+  packs and a map, sending it over rmail, receiving one, checking every
+  file's hash, storing it, and keeping it as one of the user's packs.
+- **The launcher and the web page (issue 1001):** browsing lists beside
+  the maps and models they belong to.
+- **The W client (the game's side):** using a list while a game runs: the
+  prompt, the layer in front of the player's packs for that one game, and
+  taking it off afterwards or keeping it. Playing happens there (issue
+  913), so the parts of this design that say "for that game" are built in
+  the W client, through its asset lookup (its 105a), as its issue 1110.
+  It reuses this project's list format and rmail road rather than a
+  second copy (W client docs/012, answer 6).
+
+**A list travels only with its map (2026-11-04).** The owner: "we only
+send models and such when the map that includes them is shared. This
+happens either intentionally 'check out my map' or when the map is hosted
+'come check out my map' (see the difference?) so we don't need to check
+the rmail inbox every 5 seconds." So there is no standalone list and no
+inbox watched on a timer:
+
+- **"Check out my map"**: giving someone a map to keep. The map file and
+  the sender's list go together in one rmail message; the receiver's
+  editor or launcher (this project) asks once, then stores both. Built
+  here.
+- **"Come check out my map"**: hosting a map for others to join. The
+  host's list comes with the join and is asked about while joining.
+  Built in the W client (its 1110), with the rules pull request #227
+  worked out (that code ran in this project's map viewer, so it moves
+  there as a design): one question, answered only by a click; Yes, No,
+  "Always from this player", "Always for this map"; one bad file refuses
+  the whole list; the models are taken off after the game unless kept.
+
 List format (a Lua table):
 
 | Field | Type | Meaning |
@@ -84,7 +121,10 @@ List format (a Lua table):
 - [x] "Always accept from this player" makes the next list apply without a prompt
 - [x] Hash mismatches are refused and reported
 
-The rmail glue and the in-game prompt are 609a.
+The rmail glue and the in-game prompt are 609a. (Since 2026-11-04 the
+in-game prompt, and using a list for one game, are the W client's, its
+1110; this project asks once when a map is given to keep. See "Where each
+part runs" above and "After the editor-and-client split" below.)
 
 ## Open Questions
 
@@ -93,9 +133,9 @@ The rmail glue and the in-game prompt are 609a.
    table changes how the game plays, which the owner's rule ("gameplay
    doesn't depend on art") keeps out of a list; a map that ships its own
    data carries it inside the map, whose hash the list names.
-2. Where are lists published besides direct sharing in a lobby: next to a map in the map browser (1001)?
-   **Answered while building: not yet.** A list is a file; 1001 can show
-   lists beside maps once it exists.
+2. ~~Where are lists published besides direct sharing in a lobby: next to a map in the map browser (1001)?~~ Answered 2026-11-04: in the launcher and in an ordinary web browser, both issue 1001's (the owner: "a small 'launcher style' system that users can open to view and browse and such. They could also be viewed and browsed through the browser").
+   (Noted while building, 2026-11-02: a list is a file, so 1001 can show
+   lists beside maps once it exists.)
 
 ## Related Documents
 
@@ -103,6 +143,8 @@ The rmail glue and the in-game prompt are 609a.
 - `issues/603-fetch-maps-and-models-from-public-sites.md` (fetching from public sites; its earlier transfer design, replaced by rmail, is kept at its end), `issues/completed/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
 - `issues/W05d-clean-room-describe-build-check-loop.md` (the criteria set: gameplay never reads art)
 - `/mnt/mtwo/games/azeroth-core/custom-client/issues/105a-loose-overlays-and-asset-resolver.md`
+- `issues/1001-catalogue-of-freely-posted-maps-and-models.md` (the launcher and web page where lists are browsed), `issues/913-test-map-opens-the-w-client.md` (where playing happens)
+- `docs/wow-client-bridge.md` ("2026-11-04: the editor keeps its own renderer")
 
 ## Implementation Notes
 
@@ -153,3 +195,24 @@ The rmail glue and the in-game prompt are 609a.
    is 503b's.
 7. **Trust is stored per player data folder** as a plain table read the
    same safe way.
+
+### After the editor-and-client split (2026-11-04)
+
+What was built here, read against "Where each part runs" and "A list
+travels only with its map" above:
+
+- **Still this project's (the editor's side):** the list format and its
+  safe reader (`list.lua`: `build`, `encode`, `decode`, `check`,
+  `missing`, `bundle`), checking every file's hash (`profile.verify`),
+  keeping a received list as one of the user's packs (`profile.keep`),
+  the remembered choices for the one question asked when a map is given
+  to keep, and `src/cli/share.lua`.
+- **Now the W client's (its 1110):** using a list for one game and taking
+  it off after. `profile.apply`, `attach` and `revert`, and the loader's
+  `push_layer` / `pop_layer` (decision 5), are where those rules were
+  worked out and tested; the W client builds them in its own asset
+  lookup (its 105a), reusing this list format. The acceptance lines about
+  "that game" were checked here, in this project's loader.
+- **A list travels only with its map.** `list.build` already names the
+  map by its hash; sending the map file in the same rmail message as the
+  list is the rmail glue's (609a, then 609b).
