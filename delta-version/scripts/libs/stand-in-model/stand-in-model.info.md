@@ -16,6 +16,6 @@ tool depends on it.
 
 Tasks the brain knows:
 - `propose-guideline` (040)
-- `transcript-view` (049)
+- `classify-section` (049)
 - `vision` (051)
 - `components` (053)

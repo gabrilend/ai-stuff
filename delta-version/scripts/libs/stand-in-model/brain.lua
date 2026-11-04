@@ -11,7 +11,10 @@
 -- Tasks:
 --   propose-guideline   "- " and the first line of the user text, without
 --                       its "- " or "N x " prefix or a "(kind)" at its end
---   transcript-view     "[ABSTRACTION, detail N] " and the chunk's first line
+--   classify-section    one importance word for a transcript section, by
+--                       the first marker it holds: "decided" ESSENTIAL,
+--                       "implemented" IMPORTANT, "because" USEFUL, "let me
+--                       try" VERBOSE, else NOISE
 --   vision              a vision document built from the "subject: " lines
 --   components          the known component names the user text mentions,
 --                       one per line, in a fixed vocabulary
@@ -66,10 +69,14 @@ local task = system:match("^Task: ([%w%-]+)%.") or ""
 if task == "propose-guideline" then
     local line = first_line(user):gsub("^%- ", ""):gsub("^%d+ x ", ""):gsub("%s*%([%a ]+%)$", "")
     reply("- " .. line)
-elseif task == "transcript-view" then
-    local abstraction = system:match("Abstraction: (%a+)") or "?"
-    local detail = system:match("Detail level: (%d)") or "?"
-    reply(string.format("[%s, detail %s] %s", abstraction, detail, first_line(user)))
+elseif task == "classify-section" then
+    local lower = user:lower()
+    local word = "NOISE"
+    for _, rule in ipairs({ { "decided", "ESSENTIAL" }, { "implemented", "IMPORTANT" },
+                            { "because", "USEFUL" }, { "let me try", "VERBOSE" } }) do
+        if lower:find(rule[1], 1, true) then word = rule[2] break end
+    end
+    reply(word)
 elseif task == "vision" then
     local subjects = {}
     for subject in user:gmatch("subject: ([^\n]+)") do subjects[#subjects + 1] = subject end
