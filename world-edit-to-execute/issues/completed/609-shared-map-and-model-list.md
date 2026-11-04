@@ -249,4 +249,4 @@ Kept, and reshaped where it leaned on what was removed:
   `test_share.lua` has 53 tests.
 - **A list travels only with its map.** `list.build` already names the
   map by its hash; sending the map file in the same rmail message as the
-  list is the rmail glue's (609a).
+  list is the rmail glue's (609a, then 609b).
