@@ -9,7 +9,11 @@ claudemd-revise.lua suggest            # events seen 3+ times -> proposals, word
 claudemd-revise.lua list               # pending proposals, each with why
 claudemd-revise.lua approve P001 --target=$HOME/.claude/CLAUDE.md
 claudemd-revise.lua rollback P001 --target=$HOME/.claude/CLAUDE.md
-claudemd-revise.lua history
+claudemd-revise.lua history --id=P001     # or --action=approved, --since=2026-11-01
+claudemd-revise.lua show P001             # its events, proposal and timeline
+claudemd-revise.lua diff P001             # what its approval changed
+claudemd-revise.lua report --since=2026-11-01
+claudemd-revise.lua verify                # the audit trail's integrity checks
 ```
 
 - **Events** come in three kinds: correction, instruction and convention.
@@ -33,5 +37,24 @@ claudemd-revise.lua history
   `~/.local/share/claudemd-revisions`, outside any repository, because events
   can hold anything said in a session. `--state=DIR` moves it.
 
-Tested by `test-claudemd-revise.sh` (31 checks) against the stand-in model
+**The audit trail (issue 040d):**
+- **`history`** prints the trail. It can be narrowed to one proposal, one
+  action, or the rows on or after a date.
+- **`show`** traces one guideline from the events it was worded from,
+  through its proposal, to every audit row about it.
+- **`diff`** shows what an approval changed: the backup against the file
+  the approval wrote. That file is rebuilt from the backup and checked
+  against the checksum recorded at the time.
+- **`report`** counts events by kind, proposals by status, and actions.
+- **`verify`** checks the trail and exits 1 on any problem:
+  - every row is whole;
+  - rows are in date order;
+  - each row names a known proposal;
+  - each proposal's trail starts with its proposal;
+  - each status agrees with its last action;
+  - every approval's backup is still there.
+
+  A target edited since its approval is noted, but is not a problem.
+
+Tested by `test-claudemd-revise.sh` (57 checks) against the stand-in model
 in `libs/stand-in-model/`.

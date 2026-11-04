@@ -410,3 +410,33 @@ end
 ## Status (2026-11-02)
 
 Covered at its simplest by `scripts/claudemd-revise.lua`: an append-only `audit.tsv`, shown by `history`. Querying and diffs between versions are still open.
+
+## Status (2026-11-03): queries, provenance, diffs and checks built; open for the rest
+
+Built into `scripts/claudemd-revise.lua`, and tested in
+`test-claudemd-revise.sh` (57 checks, 24 of them new):
+
+- **`history`** can be narrowed with `--id`, `--action` and `--since`.
+- **`show ID`** gives a guideline's provenance: the events behind it, its
+  proposal, and its timeline.
+- **`diff ID`** shows what the approval changed. The file it wrote is
+  rebuilt from the backup and checked against the checksum recorded then.
+  This is the "state at a revision".
+- **`report [--since]`** counts events by kind, proposals by status, and
+  actions.
+- **`verify`** runs the integrity checks:
+  - log integrity: every row whole;
+  - timeline integrity: rows in date order;
+  - chain integrity: rows name proposals, and statuses agree with their
+    last action;
+  - backup integrity: backups present.
+
+  A target edited since its approval is noted, not failed.
+
+**Decided while building (my own calls):** the storage stays as the first
+slice made it, with `audit.tsv` and no JSON-lines logs. Changing the format
+would orphan any trail already kept. `audit.tsv` is append-only already.
+
+**Still open:** backup rotation, checkpoints, conflict analysis, and
+proposals as an append-only log (their status is rewritten in place
+today).

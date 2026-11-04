@@ -169,6 +169,65 @@ function test_rollback() {
 }
 # }}}
 
+# -- {{{ test_audit
+# Issue 040d: querying the trail, a guideline's provenance, what an
+# approval changed, a summary, and the integrity checks.
+function test_audit() {
+    run history --id=P002
+    check "history --id: one proposal's rows" "$(same "$(wc -l <<< "$OUT")" 3)"
+    run history --action=rejected
+    check "history --action: one action's rows" \
+        "$(if [ "$(wc -l <<< "$OUT")" = 1 ] && grep -qF "P003" <<< "$OUT"; then echo yes; else echo no; fi)"
+    run history --since=2099-01-01
+    check "history --since a later date: none, said so" "$(has_line "$OUT" "No history matches.")"
+    run history --since=yesterday
+    check "--since that is not a date: refused (2)" "$(same "$CODE" 2)"
+
+    run show P001
+    check "show: the guideline and its status" "$(has_line "$OUT" "P001  approved")"
+    check "... the three events behind it" "$(has_line "$OUT" "events behind it (3):")"
+    check "... and its timeline" \
+        "$(if grep -qE '^  .*proposed' <<< "$OUT" && grep -qE '^  .*approved' <<< "$OUT"; then echo yes; else echo no; fi)"
+    run show P003
+    check "show: a direct proposal says so" "$(has_line "$OUT" "filed directly")"
+    run show P009
+    check "show: an unknown id is refused (1)" "$(same "$CODE" 1)"
+
+    run diff P001
+    check "diff: what the approval added" "$(has_line "$OUT" "+- Use vimfolds in every function.")"
+    check "... checked against the checksum taken then (0)" "$(same "$CODE" 0)"
+    check "... and nothing left behind" "$(same "$(ls -A "$STATE/backups" | grep -c '^\.diff')" 0)"
+    run diff P003
+    check "diff: a proposal never approved is refused (1)" "$(same "$CODE" 1)"
+
+    run report
+    check "report: events by kind" "$(has_line "$OUT" "events     5 (convention 1, correction 3, instruction 1)")"
+    check "... proposals by status" "$(has_line "$OUT" "proposals  3 (approved 1, rejected 1, rolled-back 1)")"
+    check "... and actions" "$(has_line "$OUT" "actions    7")"
+    run report --since=2099-01-01
+    check "report --since a later date: nothing counted" "$(has_line "$OUT" "events     0")"
+
+    run verify
+    check "verify: a sound trail passes (0)" "$(same "$CODE" 0)"
+    check "... and notes a target edited since its approval" "$(has_line "$OUT" "has been edited since it was approved")"
+
+    local good="$STATE"
+    STATE="$SCRATCH/broken-state"
+    cp -r "$good" "$STATE"
+    sed -i "s|$good/|$STATE/|g" "$STATE/audit.tsv"
+    rm -f "$STATE"/backups/P001-*.md
+    printf '2000-01-01 00:00:00\tapproved\tP009\t-\tbackup x after 00\n' >> "$STATE/audit.tsv"
+    sed -i 's/^P003\t\([^\t]*\)\trejected/P003\t\1\tpending/' "$STATE/proposals.tsv"
+    run verify
+    check "verify: problems found (1)" "$(same "$CODE" 1)"
+    check "... a missing backup" "$(has_line "$OUT" "is missing")"
+    check "... a row naming no proposal" "$(has_line "$OUT" "names P009, which is not a proposal")"
+    check "... a row out of date order" "$(has_line "$OUT" "dated before the line above it")"
+    check "... a status that disagrees with the trail" "$(has_line "$OUT" "P003: its status is pending, but its last action was rejected")"
+    STATE="$good"
+}
+# }}}
+
 # -- {{{ main
 function main() {
     setup
@@ -178,6 +237,7 @@ function main() {
     test_suggest
     test_approve
     test_rollback
+    test_audit
     stand_in_stop
     [ -n "$KEEP" ] || rm -rf "$SCRATCH"
     echo
