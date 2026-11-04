@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+
+# ensure-site-in-ram
+#
+# WHAT IT DOES (for a CEO): the website this project builds is about 4.7 GB of
+# pages, rewritten in full on every build, almost always with the same bytes as
+# before. Writing that to the disk every time wears the disk out for nothing.
+# This makes the site's folder live in memory instead: output/ becomes a
+# signpost into the project's RAM folder, so every program that writes
+# "output/..." writes into memory without being changed. The few folders a
+# build does not remake stay on disk, each reached from inside the memory copy
+# by a signpost of its own. Memory is emptied when the owner logs out; that
+# costs a rebuild, nothing more. (Issue 10-072.)
+#
+# The layout it makes:
+#
+#   output                                  -> tmp/shared-memory/site        (relative; RAM)
+#   tmp/shared-memory/site/media            -> ${DIR}/assets/site-media       (absolute; disk)
+#
+# output's link is relative so it follows the project's own tmp/ link chain
+# (scripts/ensure-tmp-symlink): tmp/ -> /tmp/<project>/, and inside it
+# shared-memory/ -> /dev/shm/<project>/. The links inside are absolute because
+# they sit in RAM and point back at the project folder on disk.
+#
+# Idempotent and self-healing, like ensure-tmp-symlink: it creates what is
+# missing (the RAM site folder is missing after every logout) and repoints a
+# link that aims at the wrong place. It refuses loudly when a real folder sits
+# where a link belongs, because those bytes are someone's.
+#
+# Usage:
+#   scripts/ensure-site-in-ram [--dir PATH]             make sure the layout exists
+#   scripts/ensure-site-in-ram [--dir PATH] --migrate   one-time move from a real
+#                                                output/ folder (see below)
+#
+# --migrate, for a project whose output/ is still a real folder on disk:
+#   1. each folder in KEPT_ON_DISK moves to its disk home (a rename on the
+#      same disk, so it is instant and copies nothing);
+#   2. the rest of output/ is DELETED -- every other file in it is remade by
+#      the next build (owner, 2026-10-20: "delete it now then");
+#   3. the layout above is made.
+#
+# Requires: tmp/shared-memory/ already exists (run.sh calls ensure-tmp-symlink
+# first). Exits 1 with a message on any refusal.
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
+
+set -eu
+
+# {{{ DIR resolution
+# The project folder: --dir PATH, or the path below; a stray word stops the
+# script (libs/project-dir.sh, Issue 10-076). It used to be any argument that
+# did not start with "--". What is left is this script's own flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
+MIGRATE=false
+for arg in "$@"; do
+    case "$arg" in
+        --migrate) MIGRATE=true ;;
+        *) echo "ensure-site-in-ram: unknown option $arg" >&2; exit 1 ;;
+    esac
+done
+# }}}
+
+# {{{ paths
+SHM_DIR="${DIR}/tmp/shared-memory"
+SITE_RAM="${SHM_DIR}/site"              # the site's real folder, in RAM
+SITE_LINK="${DIR}/output"               # what every program writes to
+SITE_LINK_TARGET="tmp/shared-memory/site"
+# }}}
+
+# {{{ KEPT_ON_DISK
+# Folders of the site that a build does NOT remake, as "name-in-site:disk-home"
+# (disk home relative to DIR). Everything else in the site is rebuilt each run.
+#   media            -- the pictures, 1.5 GB, copied in only when one changes
+#                       (src/flat-html-generator.lua, the media flattening step)
+# (The embedding-model comparison pages, model-evaluation, were the second;
+# their tool was retired on 2026-10-25, owner's choice.)
+# A new folder that the build does not remake belongs in this list, or a
+# logout loses it and a pruning deploy deletes it from the live site.
+KEPT_ON_DISK=(
+    "media:assets/site-media"
+)
+# }}}
+
+# {{{ refuse()
+refuse() {
+    echo "ensure-site-in-ram: ERROR: $*" >&2
+    exit 1
+}
+# }}}
+
+# {{{ ensure_link()
+# Make ${1} a link to ${2}: create when missing, repoint a link that aims
+# elsewhere (a link holds no data, so re-aiming it loses nothing), refuse a
+# real file or folder.
+ensure_link() {
+    local link_path="${1}"
+    local want_target="${2}"
+    if [ -L "${link_path}" ]; then
+        # already a link: right target -> nothing to do; wrong -> repoint
+        if [ "$(readlink "${link_path}")" != "${want_target}" ]; then
+            echo "ensure-site-in-ram: repointing ${link_path}: '$(readlink "${link_path}")' -> '${want_target}'" >&2
+            rm "${link_path}"
+            ln -s "${want_target}" "${link_path}"
+        fi
+        return 0
+    fi
+    # a real file or folder where the link belongs: someone's bytes, refuse
+    if [ -e "${link_path}" ]; then
+        refuse "${link_path} is a real folder or file, not a link. If it is the old" \
+               "on-disk site, run: scripts/ensure-site-in-ram --migrate"
+    fi
+    # nothing there yet: make the link
+    ln -s "${want_target}" "${link_path}"
+}
+# }}}
+
+# {{{ migrate()
+# One-time move from an on-disk output/ folder. Every kept folder is checked
+# before anything moves, so a refusal leaves the old site exactly as it was.
+migrate() {
+    # already a link (or nothing there): nothing to migrate
+    if [ -L "${SITE_LINK}" ] || [ ! -e "${SITE_LINK}" ]; then
+        echo "ensure-site-in-ram: output/ is not a real folder; nothing to migrate" >&2
+        return 0
+    fi
+    local entry name home
+    # first pass: refuse before moving anything if a disk home is taken
+    for entry in "${KEPT_ON_DISK[@]}"; do
+        name="${entry%%:*}"; home="${DIR}/${entry#*:}"
+        if [ -d "${SITE_LINK}/${name}" ] && [ -e "${home}" ]; then
+            refuse "${home} already exists; ${name}/ would be mixed into it"
+        fi
+    done
+    # second pass: move each kept folder home
+    for entry in "${KEPT_ON_DISK[@]}"; do
+        name="${entry%%:*}"; home="${DIR}/${entry#*:}"
+        if [ -d "${SITE_LINK}/${name}" ]; then
+            # present in the old site: move it to its disk home
+            mkdir -p "$(dirname "${home}")"
+            mv "${SITE_LINK}/${name}" "${home}"
+            echo "ensure-site-in-ram: kept ${name}/ on disk at ${home}"
+        fi
+        # absent: nothing to keep; the layout step makes an empty home
+    done
+    # everything left is rebuilt by the next build
+    rm -rf "${SITE_LINK}"
+    echo "ensure-site-in-ram: deleted the rest of the old on-disk site (the next build remakes it)"
+}
+# }}}
+
+[ -d "${SHM_DIR}" ] || refuse "${SHM_DIR} does not exist; run scripts/ensure-tmp-symlink first"
+
+if $MIGRATE; then
+    migrate
+fi
+
+# The site link comes first: if a real output/ folder is in the way, the run
+# must stop before it creates anything, or a refused run would leave empty
+# disk homes behind that then block --migrate from moving folders into them.
+ensure_link "${SITE_LINK}" "${SITE_LINK_TARGET}"
+mkdir -p "${SITE_RAM}"
+for entry in "${KEPT_ON_DISK[@]}"; do
+    name="${entry%%:*}"; home="${DIR}/${entry#*:}"
+    mkdir -p "${home}"
+    ensure_link "${SITE_RAM}/${name}" "${home}"
+done

@@ -567,4 +567,5 @@ menu_add_dependency "wordcloud_words" "wordcloud_all" "1" "true" \
 - **Phase**: 8 (Website Completion)
 - **Estimated Complexity**: Medium (word extraction easy, embedding integration moderate)
 - **Dependencies**: Issue 8-008 (centroid system), embedding infrastructure
+- **Blocks**: 8-046
 - **Affects**: New output files (wordcloud/*.html), pipeline stage

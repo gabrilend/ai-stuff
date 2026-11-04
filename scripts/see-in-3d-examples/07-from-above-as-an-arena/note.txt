@@ -1,0 +1,6 @@
+title: The same view from above, read as a stepped arena
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/07-from-above-as-an-arena/picture.png
+stage: 8
+group: One picture from above, read two ways
+---
+The same top view as the board, nearly pixel for pixel, and a different object from every other side: a ring of tall tiers around a sunken centre. A picture taken from straight above cannot decide between the two; only a second picture from the side could. The tiers come out as separate teeth because a ring here is made of boxes.
