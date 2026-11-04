@@ -7,7 +7,7 @@ Part of 701. Depends on: 701a. Blocks: 701d.
 A shape scene is a Lua table returned by an ordinary Lua file: meshes,
 about ten motion kinds, spin, pulse, morph, parts, blobs, trails, reactions,
 ground, strokes, beams, a track, streaks, lights, fluid, framing and
-clearance promises, and a camera with seven motions (`src/039-shape-films.info.md`,
+clearance promises, and a camera with seven motions (`src/049-shape-films.info.md`,
 from "Scene file" to "Tests"). It runs as real code: `input/shapes/blob-lava-lamp.lua` builds
 its blobs with a loop and `math.cos`, and `input/shapes/wizard-beam.lua` loads a
 part with `dofile`. A mistake stops the run at the first one found.

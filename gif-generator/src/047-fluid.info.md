@@ -1,4 +1,4 @@
-# 037-fluid — the liquid
+# 047-fluid — the liquid
 
 A small liquid sloshing in an invisible tilting box, worked out once ahead
 of filming so every frame and every worker sees the same drops. The same
@@ -10,4 +10,4 @@ recipe and seed always give the same drops.
   every frame of one loop.
 - **tilt_matrix(tilt, t)** — the box's turn at loop moment t.
 
-Details in `039-shape-films.info.md`, under "The parts".
+Details in `049-shape-films.info.md`, under "The parts".

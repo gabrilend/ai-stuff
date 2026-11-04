@@ -1,4 +1,4 @@
-# 034-meshes — the shape cabinet
+# 044-meshes — the shape cabinet
 
 The solid shapes a shape-film scene can place: each word builds a mesh of
 triangles, wound outward and checked as it is built. Knows triangles only.
@@ -11,4 +11,4 @@ triangles, wound outward and checked as it is built. Knows triangles only.
 - **reshape(vertex, p) → x, y, z** — a vertex bent by a shape's reshaping.
 
 The words, their parameters and the checks are written out in full in
-`039-shape-films.info.md`, under "The parts".
+`049-shape-films.info.md`, under "The parts".

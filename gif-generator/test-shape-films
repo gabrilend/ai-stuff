@@ -26,7 +26,7 @@
 DIR="/mnt/mtwo/programming/ai-stuff/gif-generator"
 [ -n "${1:-}" ] && [ -d "$1" ] && DIR="$1"
 
-TOOL="$DIR/src/039-shape-films.lua"
+TOOL="$DIR/src/049-shape-films.lua"
 FACTS="$DIR/tests/shape-films/gif-facts.lua"
 SCRATCH="/dev/shm/gif-generator/shape-films-test"
 
@@ -242,7 +242,7 @@ function test_framing() {
     # Scenes that promise to keep their subjects in the picture (`framing`)
     # are walked frame by frame through the painter's own projection.
     local report
-    report=$(luajit "$DIR/src/043-framing-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/053-framing-test.lua" "$DIR")
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - framing: /; s/^  FAIL - /  FAIL - framing: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))
     FAIL=$((FAIL + $(echo "$report" | grep -c '^  FAIL')))
@@ -254,7 +254,7 @@ function test_choreography() {
     # Every scene loops without a seam, and each word of the vocabulary does
     # what it says -- asked of the stage manager directly, no pixels.
     local report
-    report=$(luajit "$DIR/src/042-choreography-test.lua" "$DIR")
+    report=$(luajit "$DIR/src/052-choreography-test.lua" "$DIR")
     local code=$?
     echo "$report" | grep -E '^  (ok|FAIL)' | sed 's/^  ok   - /  ok   - stage: /; s/^  FAIL - /  FAIL - stage: /'
     PASS=$((PASS + $(echo "$report" | grep -c '^  ok')))

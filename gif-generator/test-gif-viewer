@@ -18,7 +18,7 @@ SCRATCH="$DIR/tmp/shared-memory/gif-viewer-test"
 mkdir -p "$SCRATCH"
 
 echo "gif-viewer: the reader"
-luajit "$DIR/src/041-gif-decode-test.lua" "$DIR" "$FOLDER" "$SCRATCH"
+luajit "$DIR/src/051-gif-decode-test.lua" "$DIR" "$FOLDER" "$SCRATCH"
 reader_status=$?
 
 echo ""

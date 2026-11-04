@@ -1,4 +1,4 @@
-# 040-gif-decode — the gif reader
+# 050-gif-decode — the gif reader
 
 The one complete GIF decoder in the studio: plain LuaJIT, no LÖVE, usable
 on its own. Reads every feature a gif can carry (a frame's own palette,
@@ -13,4 +13,4 @@ can shrink and skip frames while it reads. The viewer's workers
   `frame_step`, `on_frame(index, pixels, width, height, delay_cs)`.
 
 The options and the shape of `info` are written out in
-`viewer/viewer.info.md`, under "040-gif-decode.lua".
+`viewer/viewer.info.md`, under "050-gif-decode.lua".
