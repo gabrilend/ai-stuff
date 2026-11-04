@@ -1,7 +1,7 @@
 # Issue 056: Recursive Transcript Summarization & Table-of-Contents
 
 **Phase**: 0 - Tooling
-**Status**: Open (in progress)
+**Status**: Open (056a done; recommendation for the rest below, waiting on the owner)
 **Priority**: High
 **Created**: 2026-07-06
 **Related**: 049 (LLM Transcript Abstraction Viewer), 049d (Ollama Processing Pipeline — superseded endpoint), 052 (Ollama Connection Config — superseded endpoint), 040g (Transcript Analysis Memory)
@@ -268,3 +268,37 @@ not pleasantries.
 - CLAUDE.md project-initialization should register each new project in
   `config/transcript-summary-repos.conf` so non-ai-stuff repos are covered automatically. (User to
   add the CLAUDE.md rule.)
+
+---
+
+## Recommendation (2026-11-02)
+
+**Decided (2026-11-02):** option C is taken: 056b first, against the stand-in model, then 056c with renames off by default, turned on by a config setting. Ritz asked that open questions be answered without waiting on him, so this recommendation stands as the decision.
+
+**Where it stands.** 056a, the chat client, is done and closed (checked
+against the stand-in model; see its file under `completed/`). 056b, 056c
+and 056d are not built.
+
+**What is safe to build next: 056b, the summarizer.** It reads one
+transcript and prints a title, slug, blurb and summary. It writes nothing
+into any repository, so it can be built and tested against the stand-in
+model the same way issues 040, 049, 051 and 053 were, with no download and
+no real model.
+
+**What needs the owner first: 056c and 056d.** Together they rename every
+saved conversation in every configured repository (`git mv` to
+`<slug>-<date>.md`), rewrite references to the old names, and run on a
+schedule. That reshapes how every project's `llm-transcripts/` folder
+looks, and a summary written by an 8B model becomes the file's name. The
+options:
+
+| Option | What happens to a transcript | Cost |
+|---|---|---|
+| **A. As specified** | renamed to `<slug>-<date>.md`; blurb prepended; table of contents updated | every link and provenance lookup has to follow the rename; a poor title is baked into the file name |
+| **B. Summaries without renames** | keeps its date name; blurb prepended; the table of contents carries the title and the link | the folder still lists bare dates, but nothing that points at a transcript breaks |
+| **C. B first, A later** | B now; a separate, previewed rename pass once the owner has read some titles | two steps instead of one |
+
+**Recommended: C.** Build 056b, then 056c as option B. Turn on renames only
+after the owner has seen what titles the model actually writes. The overseer
+(056d) should run by hand first, with cron added once a few runs have been
+read.

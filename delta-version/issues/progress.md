@@ -229,6 +229,11 @@ These issues provide foundational utilities and can be implemented independently
 (Issue 008, listed here until September 2026, is in `completed/`.)
 
 ## Recently Completed
+- **Older open issues decided** (2026-11-02):
+  - 058 (front page rewrites its own figures) is closed: no questions remained and the authorship slots are wired.
+  - 056a (llama.cpp chat client) is closed after a check of every success criterion against the stand-in model. That check found the stand-in's `/tokenize` reply in the wrong shape, which was fixed on the 040 branch.
+  - 059, 060, 061 and 062 have their engineering questions decided in their files. 060's three look-and-feel questions wait on the owner. 061 and 062 wait on a real flash drive and on the owner trying the viewer.
+  - 039, 052, 056 and 070 carry written recommendations with options, each now taken as the decision (see PRIORITY.md).
 - **Duplicate issue numbers** (2026-11-02): 001, 037 and 038 each named two different issues. The one the record does not use was renumbered to the next free id, leaving a `moved-` pointer: the 001 master issue is now 068, TUI dirty tracking (was 037) is 069, and TUI panel abstraction (was 038) is 070 (first 065–067, which main has since given to other issues). References updated; `validate-issues` no longer reports a shared id.
 - **Issue 005**: Configure branch isolation — closed 2026-11-02 as superseded: the per-project branches it configured were retired (031 grafted their histories onto main; 046 settled main-only work), so the optional sparse-checkout step has nothing to apply to.
 - **Issue 065**: The reading walk, ialmstla (2026-10-10) — all eight pieces: the map, recorded reasons, chapters, the walk without an AI, the guide's room, its cipher, the guide, and the walk as web pages and an OLED view (065h: scripts/reading-walk-pages.lua). Built in parallel as `centered-ui-design` phase 9.

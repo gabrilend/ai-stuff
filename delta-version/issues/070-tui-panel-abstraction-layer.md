@@ -212,3 +212,28 @@ issue, this one, took the next free number. A pointer is left at
 `moved-038-tui-panel-abstraction-layer.md`.
 
 **2026-11-04:** first renumbered to 067; by then main had given 065, 066 and 067 to other issues (the reading walk, fans that follow a signal, the project lifetime timeline), so this became 070.
+
+## Recommendation (2026-11-02)
+
+**Decided (2026-11-02):** option A is taken: the panels belong in `scripts/libs/tui.lua`, which the scripts project is changing now, so the work is routed there. Nothing is built from delta-version. Ritz asked that open questions be answered without waiting on him, so this recommendation stands as the decision.
+
+Not built, because the code this issue changes is not delta-version's. The
+panel layer belongs in `scripts/libs/tui.lua`, which is the shared
+`scripts/` project's library. Its users are `scripts/libs/menu.lua` (the
+shared Lua menu), `input-dialog.lua`, `verdict-viewer.lua`,
+neocities-modernization's `src/main.lua`, and delta-version's
+`history-viewer.lua`. A change there reaches every one of them.
+
+**Options:**
+
+| Option | What it means |
+|---|---|
+| **A. Hand it to the scripts project** | Build panels in `tui.lua` there, with that project's tests. delta-version then moves `history-viewer.lua` onto panels (step 9) as its own small issue. |
+| **B. Panels local to history-viewer** | A small panel table inside `history-viewer.lua`. Nothing shared changes, but the menu and the verdict viewer keep doing their own sums. |
+| **C. Defer** | Wait until a second screen needs a scrolling sub-region. |
+
+**Recommended: A.** The menu is the most-used program on `tui.lua` and
+already lays out a header, a list and a footer by hand, so it gains as much as
+the history viewer. Building the layer once in the shared library avoids two
+copies. Until the scripts project takes it, this issue stays open here as
+the record of the design.

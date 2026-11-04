@@ -79,3 +79,43 @@ The `busy-streets/` directory in frontier projects provides a path back to civil
 
 ## Priority
 Medium - Quality of life improvement for multi-drive setups
+
+## Recommendation (2026-11-02)
+
+**Decided (2026-11-02):** option B is taken: listed roots, opt-in pushing, no symlinks. Pushing previews by default and writes only when a config setting turns it on, the same opt-in shape as issue 022. Ritz asked that open questions be answered without waiting on him, so this recommendation stands as the decision.
+
+Not built. This would reshape what delta-version reaches for and what it may
+push, so here are the options for the owner.
+
+**What the spec asks for.** A filesystem-wide `find` for every folder named
+`ai-stuff`, then history import on what it finds, an exclusion list for
+projects that must never be pushed publicly, and two-way symlinks
+(`the-frontier/`, `busy-streets/`).
+
+**Concerns.**
+
+- A filesystem-wide search reads every mounted disk, including other users'
+  folders, backups and removable drives. It is slow, and it finds copies the
+  owner may not mean, such as an old backup of ai-stuff.
+- The exclusion list is a safety control, but it is opt-out. A project the
+  owner forgot to list would be imported and could be pushed.
+- Symlinks inside the monorepo pointing at outside folders follow you into
+  `git add -A`, tar, rsync and the compository (061), unless every tool skips
+  them.
+- Project discovery (#62) already reads one root. Adding more roots there is
+  a small step.
+
+**Options:**
+
+| Option | What it means |
+|---|---|
+| **A. As specified** | Search the whole filesystem; opt-out exclusion list; two-way symlinks. |
+| **B. Listed roots, opt-in pushing** | A config file names each extra `ai-stuff` root by path. Discovery and history import read those roots. A project found outside the main root is never pushed unless it is listed as publishable. There are no symlinks; the menu and census show those projects from their real paths. |
+| **C. Defer** | Keep one root until a second machine or drive actually holds projects. |
+
+**Recommended: B.** It keeps the useful part, one view of every project,
+while removing the whole-disk scan and the risk of a forgotten exclusion.
+The frontier and busy-streets names could still label the two groups in the
+menu. If the owner wants A, the search should still be limited to mounted
+filesystems the owner names, and the exclusion list should default to "do
+not push".

@@ -1,7 +1,7 @@
 # Issue 056a: llama.cpp Chat Client Library
 
 **Phase**: 0 - Tooling
-**Status**: Open (in progress)
+**Status**: Completed (2026-11-02)
 **Priority**: High (foundation for 056b/c/d)
 **Created**: 2026-07-06
 **Parent**: 056 (Recursive Transcript Summarization)
@@ -75,3 +75,33 @@ A small, generic Lua library `scripts/libs/llama-chat-client.lua` that:
 - `--prompt "..."` returns a completion.
 - Unreachable endpoint yields a clear error, not a hang or a silent nil.
 - Uses vimfolds, the `${DIR}` convention, and has an `.info.md` companion.
+
+---
+
+## What Happened
+
+**2026-11-02 — checked against the stand-in model and closed.** The
+client (`scripts/libs/llama-chat-client.lua` and its `.info.md`) had been
+built in July but the issue was never closed. It was run against the
+stand-in model from issue 040's slice
+(`scripts/libs/stand-in-model/`, on the 040 branch), which answers the same
+three requests a llama.cpp server does:
+
+| Success criterion | Result |
+|---|---|
+| `--ping` truthful, non-zero when down | reachable: exit 0. Dead port: `UNREACHABLE`, exit 1 |
+| `--tokens "hello world"` prints an integer | `2`; empty text prints `0` with no request |
+| `--prompt "..."` returns a completion | the stand-in's reply, exit 0 |
+| Unreachable endpoint gives a clear error, no hang | `error: unreachable: ... (curl: (7) ...)`, exit 1, at once |
+| Ill-formed UTF-8 is cleaned before sending | bytes `ff fe` sent; the server parsed the request |
+| vimfolds, `${DIR}`, `.info.md` | present |
+
+**Found:** the stand-in answered `/tokenize` as `{"count":N}`. llama.cpp
+answers `{"tokens":[...]}`, which is what this client counts, so the
+stand-in was wrong, not the client. It was fixed on the 040 branch
+(commit `1fc3d3f`), and that branch's test now runs this client's
+`--ping` and `--tokens` against the stand-in.
+
+**Not done here:** a run against the real llama.cpp server
+(`words-pdf/scripts/start-llamacpp-server.sh`). No model was downloaded or
+started.

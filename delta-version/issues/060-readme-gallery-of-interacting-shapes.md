@@ -1,11 +1,11 @@
 # Issue 060: A Library of Interacting Shapes (first meant for the front page)
 
-**Status**: In progress (all 34 films kept in the owner's library; README section dropped by the owner; four open questions below)
+**Status**: In progress (all 34 films kept in the owner's library; README section dropped by the owner; two engineering questions decided 2026-11-02, three look-and-feel questions waiting on the owner)
 **Priority**: Low
 **Created**: 2026-09-23
 **Type**: New tool (`scripts/readme-gallery/`)
 **Related**: neocities-modernization issue 10-042e (a gallery page of these
-films on the neocities site); `058-front-page-rewrites-its-own-figures.md`
+films on the neocities site); `completed/058-front-page-rewrites-its-own-figures.md`
 (the front page these were first meant for); `gif-generator` (whose GIF
 encoder and glow palette this reuses, as libraries, unmodified)
 
@@ -423,3 +423,28 @@ new file, not new code.
   scene, would need the gif generator's worker-thread pipeline. Is
   rendering each scene in its own process enough, given that the
   gallery is always rendered as a batch?
+
+## Decisions on the open questions (2026-11-02)
+
+Three of the five questions are about how a film looks: the liquid's loop
+blend, the gem arms, and the magic missiles' paths. They are the owner's
+call, and the films stay as they are until the owner answers. The other
+two are engineering questions, decided here:
+
+- **Size and loop length: chosen per scene.** The README section was
+  dropped, so the films no longer have to read as one set on one page. The
+  gallery page in neocities issue 10-042e can scale them to one display
+  size without re-rendering.
+- **Parallelism: one process per scene is enough.** The gallery is always
+  rendered as a batch, so scenes already run side by side. Threads inside
+  a scene would only help when one scene is re-rendered alone, and would
+  tie this tool to the gif generator's worker pipeline.
+
+### Still waiting on the owner
+
+- the liquid's loop blend (keep the 10-frame blend, a longer blend, a
+  longer loop, or a liquid pinned to the box);
+- whether the gems are the sleeves' beading (as built) or the arms
+  themselves;
+- the missiles: precomputed curves (as built) or steered flight blended
+  into its start.
