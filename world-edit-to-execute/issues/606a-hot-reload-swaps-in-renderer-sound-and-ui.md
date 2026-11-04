@@ -49,12 +49,15 @@ is the editor's; the map viewer's play mode gives way to Test Map.
 3. Models: rebuild the meshes of a changed model; reset its animation.
 4. Sounds: swap the sound in place once the audio library is in.
 5. UI: rebuild the UI tree from a changed layout once UI layouts are read.
-6. A corner message (console overlay) for each reload and error.
+6. A corner message (console overlay) for each reload and error. (Lua
+   side done 2026-11-03: `live.lua`'s lines and `live.draw`; unseen.)
 7. ~~Make stored files read-only, and a storage command that turns a
    pack's link into a copy for editing.~~ Done in 604a (PR #121), decided
    by Ritz on 2026-11-02.
 8. A viewer or editor flag (`--hot-reload`) that makes a hot-reloader and
-   polls it each frame.
+   polls it each frame. (Done on the Lua side 2026-11-03, as
+   `WC3_HOT_RELOAD=1`: `assets/live.lua`, wired into the editor; unseen.
+   The map viewer's was taken out on 2026-11-04, see below.)
 
 ## Acceptance Criteria
 
@@ -123,5 +126,49 @@ Decisions made while building:
 8. **A tileset saved in a new shape** (plain to extended) gets its new
    pixels, but the ground keeps its old layout until it is laid again.
 9. **Not wired yet: a `--hot-reload` flag** (step 8). Polling each frame
-   from the viewer needs a screen to check; left for step 8.
+   from the viewer needs a screen to check; left for step 8. (Since done:
+   below.)
+
+### Steps 8 and 6, the Lua side (2026-11-03)
+
+Decided for Ritz on 2026-11-03: the C part (`tex_update`) and anything
+needing a screen stay parked; the switch's Lua side is built and tested
+against the fake renderer.
+
+- `assets/live.lua`: a hot-reloader for a running viewer, polled once a
+  frame. It hands textures to the model cache and the ground, and keeps
+  the corner's lines.
+- The map viewer and the editor: `hot:tick()` in `scene_tick`, and
+  `live.draw` in `scene_ui`. Both are **unseen**.
+- 12 more tests in `src/tests/test_renderer_loader.lua` (49 in all).
+
+After the editor-and-client split (2026-11-04): the switch in the editor
+is the wanted half ("Where it shows", above); the map viewer's served a
+play mode that gives way to Test Map (913, PR #239), so with the owner's
+yes it was taken out in a commit of its own. `demo/wc3map/main.lua` is
+back as it was before this issue (`ground.apply`, no `hot`), and
+`live.lua`'s words and its info file speak of the editor. `live.lua`, the
+editor's wiring and their 49 tests stay. A pack changing while a game is
+played is the W client's (its 105a and 1110).
+
+Decisions made while building:
+
+10. **An environment switch, not a `--hot-reload` flag.** The scene
+    viewer hands a scene one argument (the map's path), and every other
+    viewer switch is an environment variable (`WC3_MODELS`, `WC3_TILES`
+    ...). So it is `WC3_HOT_RELOAD=1`, with `poll` or `inotify` to pick
+    the watcher. A real flag needs `scene_viewer.c` to pass more
+    arguments, and that is C.
+11. **The corner says why nothing changed.** Until `tex_update` exists,
+    a reload reads "read X, not shown: the renderer can't replace a
+    texture yet", rather than staying quiet.
+12. **Lines stay six seconds; at most five are kept.** Errors are drawn in
+    red, at the bottom left, so they stay clear of the HUD's top bar.
+    Unseen.
+13. ~~**The viewer draws the ground with `ground.textures` and
+    `ground.lay`** (what `ground.apply` does), so it can keep the ids that
+    hot-reload needs.~~ Taken out with the viewer's switch (2026-11-04);
+    the editor already lays its ground that way.
+14. **Off when the packs couldn't be read.** If the editor fell back to
+    the map's handle, there is nothing to watch.
 

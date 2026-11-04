@@ -158,10 +158,11 @@ function C:retexture(path, img)
 end
 
 -- An on_reload for assets/hotreload.lua that swaps each reloaded texture
--- into CACHE.
+-- into CACHE. The callback gives whether a texture was swapped.
 function gpu.on_reload(cache)
     return function(path, value)
-        if type(value) == "table" and value.rgba then cache:retexture(path, value) end
+        if type(value) == "table" and value.rgba then return cache:retexture(path, value) end
+        return false
     end
 end
 -- }}}

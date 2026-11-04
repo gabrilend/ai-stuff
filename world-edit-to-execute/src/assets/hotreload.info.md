@@ -60,3 +60,26 @@ Both need `render.tex_update(id, w, h, rgba)`, which `render/models.c`
 doesn't have yet; without it they swap nothing and say so (false). Only
 the Lua side is tested (`src/tests/test_renderer_loader.lua`, a fake
 renderer); nothing here has been seen on a screen.
+
+## In the editor (`live.lua`, 606a step 8)
+
+Off unless asked for. Like the editor's other switches, it is set in the
+environment, because the scene viewer that runs it takes only one
+argument (the map):
+
+    WC3_HOT_RELOAD=1 src/render/run-editor map.w3x
+    WC3_HOT_RELOAD=poll ...        # or inotify: pick the watcher
+
+| Function | Gives |
+|----------|-------|
+| `live.from_env(L, opts[, env])` | a hot-reloader for the editor, or nil when `WC3_HOT_RELOAD` is unset, `0` or `off` |
+| `live.new(L, opts)` | the same, unconditionally. `opts`: `models` (a gpu cache), `ground` (`{render, ids, terrain, report}`), `backend`, `clock`, `poll_interval`, `quiet`, `print` |
+| `R:tick()` | once a frame; how many files were read |
+| `R:lines()` | the corner's lines from the last 6 seconds, newest last (step 6) |
+| `live.draw(R, render[, height])` | those lines, bottom left, through `render.ui_text` |
+| `R:status()` | `H:status()` plus `swapped` and `unshown` |
+
+Until `render.tex_update` exists, each reload is read but not shown, and
+the corner says so. Wired into `editor/main.lua`, but **unseen**. (The
+map viewer, `demo/wc3map/main.lua`, had it too until 2026-11-04: served
+play there gives way to Test Map.)

@@ -267,6 +267,63 @@ do
 end
 -- }}}
 
+-- {{{ The editor's switch (step 8) and the corner's lines (step 6)
+print("\n=== WC3_HOT_RELOAD in the editor ===")
+do
+    local live = require("assets.live")
+    local LV = loader.new({ packs = { "mine" }, data = DATA, root = DIR, assets = A })
+    test("off unless asked for", live.from_env(LV, {}, {}) == nil and live.from_env(LV, {}, { WC3_HOT_RELOAD = "0" }) == nil)
+    local t, said = 0, {}
+    local RV = fake_render(true)
+    local cv = gpu.new(RV, LV)
+    local tid = cv:texture({ path = "Textures\\Shield.tga", replaceable = 0 })
+    local terrain = { ground_tilesets = { "Tgrs" } }
+    local gids, _, grep = ground.textures(RV, LV, terrain)
+    local hot = live.from_env(LV, { models = cv, ground = { RV, gids, terrain, grep }, clock = function() return t end,
+                                     poll_interval = 0.5, quiet = 0.1, print = function(l) said[#said + 1] = l end },
+                              { WC3_HOT_RELOAD = "poll" })
+    test("WC3_HOT_RELOAD=poll turns it on, with that watcher", hot and hot:status().backend == "poll")
+    local function settle()
+        for _ = 1, 30 do t = t + 0.1; if hot:tick() > 0 then return true end end
+        return false
+    end
+    write(MINE .. "/Textures/Shield.tga", RED)
+    test("a saved texture is read on a tick", settle())
+    local up = RV.calls.updated[#RV.calls.updated]
+    test("and swapped into its model texture", up and up.id == tid and rgb(up.rgba) == "255,0,0")
+    test("the corner says so", hot:lines()[1] == "[hot-reload] reloaded Textures/Shield.tga" and said[1] == hot:lines()[1],
+        tostring(hot:lines()[1]))
+    if BLP then
+        write(MINE .. "/TerrainArt/Test/Grass.blp", BLP .. "")
+        os.execute("touch -d '+1 second' " .. sh(MINE .. "/TerrainArt/Test/Grass.blp"))
+        test("a saved tileset is read", settle())
+        test("and swapped into the ground's texture", RV.calls.updated[#RV.calls.updated].id == gids[1])
+    end
+    write(MINE .. "/Textures/Shield.tga", "not a picture")
+    settle()
+    local last = hot:lines()[#hot:lines()]
+    test("a broken save: the corner says the old one stays", last and last:match("can't reload") and last:match("old one stays"),
+        tostring(last))
+    t = t + live.SHOW_FOR + 1
+    test("the corner's lines go after a few seconds", #hot:lines() == 0)
+    local texts = {}
+    hot:say("one")
+    local drawn = live.draw(hot, { ui_text = function(text, x, y) texts[#texts + 1] = { text, x, y } end }, 600)
+    test("drawn bottom left through ui_text", drawn == 1 and texts[1][1] == "[hot-reload] one" and texts[1][3] == 576)
+    test("no text in the renderer: nothing drawn", live.draw(hot, {}) == 0)
+    -- without tex_update the corner says why nothing changed
+    local RN = fake_render(false)
+    local cn = gpu.new(RN, LV)
+    cn:texture({ path = "Textures\\Shield.tga", replaceable = 0 })
+    local hot2 = live.new(LV, { models = cn, clock = function() return t end, backend = "poll", print = function() end })
+    write(MINE .. "/Textures/Shield.tga", BLUE)
+    hot2.H:reload("Textures/Shield.tga")
+    test("without tex_update: read, and the corner says it can't be shown yet",
+        hot2:lines()[1]:match("not shown: the renderer can't replace a texture yet") and hot2:status().unshown == 1)
+    hot:close(); hot2:close(); LV:close()
+end
+-- }}}
+
 L:close()
 os.execute("rm -rf " .. sh(SCRATCH))
 

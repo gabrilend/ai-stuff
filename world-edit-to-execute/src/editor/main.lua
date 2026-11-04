@@ -55,11 +55,12 @@ end
 -- {{{ the ground
 local view = { terrain = E.terrain, sample = map_scene.sampler(E.terrain) }
 local ground = require("assets.ground")
-local tiles_ids, tiles_ext
+local tiles_ids, tiles_ext, tiles_report
 if os.getenv("WC3_TILES") ~= "0" then
     local r
     tiles_ids, tiles_ext, r = ground.textures(render, A, E.terrain, { standins = os.getenv("WC3_TILES") == "standin" })
     print(string.format("[editor] %d ground tilesets: %d from the map or install, %d stand-ins", r.tilesets, r.real, r.standin))
+    tiles_report = r
 end
 local function build_ground(textured)
     local t = E.terrain
@@ -87,6 +88,11 @@ local gpu = require("assets.gpu")
 local animate = require("demo.wc3map.animate")
 local MODELS = A and os.getenv("WC3_MODELS") ~= "0"
 local model_cache = MODELS and gpu.new(render, A)
+-- hot-reload (issue 606a), when WC3_HOT_RELOAD=1 and the packs were read.
+-- Unseen: no screen to check it on.
+local hot = A and A.packs and require("assets.live").from_env(A, {
+    models = model_cache or nil,
+    ground = tiles_ids and { render, tiles_ids, E.terrain, tiles_report } or nil }) or nil
 local live_types = setmetatable({}, { __index = function(_, kind) return E:object_table(kind) end })
 local model_ids = {}
 local function model_of(o)
@@ -250,6 +256,7 @@ local objects_at = 0
 local last_steps, last_draw
 local sim = 0
 function scene_tick(dt)
+    if hot then hot:tick() end
     sim = sim + dt
     while actions[1] and actions[1].at <= sim do scripted(table.remove(actions, 1).what) end
 end
@@ -369,7 +376,10 @@ function scene_paint()
     kit.emit_prims(prims, render, true, 0)
 end
 
-function scene_ui() ui:draw(render) end
+function scene_ui()
+    ui:draw(render)
+    if hot then require("assets.live").draw(hot, render) end
+end
 function scene_status() return "editor" end
 function scene_key(_) end
 function scene_ground(x, y)
