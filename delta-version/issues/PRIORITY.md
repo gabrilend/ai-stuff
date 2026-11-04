@@ -42,17 +42,17 @@ notes for 070. (052 has since closed as superseded.)
 
 | Issue | What | Decided |
 |-------|------|-------------|
-| **056** (056b–d) | Recursive transcript summarisation | 056a is done. Build 056b (summariser) against the stand-in model next. Then build 056c *without* renaming files: a blurb plus a table of contents. Turn renames on only after the owner has read some model-written titles. |
+| **056** (056c–d) | Recursive transcript summarisation | 056a and 056b are done. 056c adds the blurb and table of contents, with renames off by default and turned on by a config setting. 056d is the overseer. |
 | **070** (was 038) | TUI panel abstraction | Build it in the shared `scripts/libs/tui.lua`, owned by the scripts project. The Lua menu is its biggest user and gains as much as the history viewer. Then move delta-version's history viewer onto it. |
 
 ## TIER 3: Large specifications, nothing built
 
 | Issues | What | Note |
 |--------|------|------|
-| 051, 051a–g | Documentation generated from git history | Detailed; most of the reasoning steps could be done by Claude in a skill instead of an Ollama pipeline. |
-| 053, 053a–f | Cross-project roadmap coordinator | Same observation; 053b and 053f have a few boxes ticked. |
-| 049, 049a–d | Transcript viewer at several levels of detail | Overlaps the transcript tooling in double-diaper-dungeon (transcript-to-HTML). |
-| 040, 040a–i | Self-revising CLAUDE.md | Overlaps Claude Code's own memory and CLAUDE.md handling. |
+| 051, 051a–g | Documentation generated from git history | First slice built: `scripts/history-kernel.lua` (051a: first-commit facts from git, and a model-drafted vision that never replaces an existing one). 051b–g remain. |
+| 053, 053a–f | Cross-project roadmap coordinator | First slice built: `scripts/todone.lua` (components several projects plan, named by the model, matched by spelling and a synonym list). Fuzzy tiers, the shared roadmap and outputs remain (see 053's status note). |
+| 049, 049a–d | Transcript viewer at several levels of detail | First slice built: `scripts/transcript-detail.lua` (049a, model-classed detail levels 1–5, verbatim). Abstraction levels, chapters and the batch pipeline remain (see 049's status note). Overlaps the transcript tooling in double-diaper-dungeon. |
+| 040, 040a–i | Self-revising CLAUDE.md | First slice built: `scripts/claudemd-revise.lua` (events, model-worded proposals, approve with backup, rollback, audit). The rest is listed in 040's status note. Overlaps Claude Code's own memory handling. |
 | 044 | Project directory tree generator | Ready; low urgency. |
 | 052 | Ollama connection configuration | Requires the owner's verbose confirmation before any change. |
 | 017–022 | Ticket distribution system | 016 (markup) is done; the chain after it is unbuilt. |

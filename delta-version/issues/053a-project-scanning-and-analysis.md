@@ -355,3 +355,9 @@ todone-scan.sh --show-phases      # List all phases across projects
 This scanner forms the foundation for all TODONE analysis. The quality of downstream similarity detection and roadmap generation depends entirely on accurate, comprehensive data extraction here.
 
 The component extraction is intentionally broad - it's better to capture potential components and filter later than to miss important ones. The similarity detection phase (053b) will handle grouping and deduplication.
+
+---
+
+## Status (2026-11-02)
+
+Covered at its simplest by `scripts/todone.lua`: open issue titles and roadmap headings per project. Deeper analysis (source files, dependency manifests) is still open.

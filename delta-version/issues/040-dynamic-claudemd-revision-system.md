@@ -190,3 +190,37 @@ local conflicts = claudemd.check_conflicts({
 - This system embodies the principle: "the system learns from doing, not just from being told"
 - Consider integration with Claude's native memory features if available
 - The "graduated confidence" concept prevents unstable churn in guidelines
+
+---
+
+## Status (2026-11-02): first slice built, the rest open
+
+**Built:** `scripts/claudemd-revise.lua`, the smallest version that works
+end to end. It is tested against a stand-in model (`scripts/libs/stand-in-model/`);
+no model was downloaded or run.
+
+- **Events (part of 040a):** three kinds, correction, instruction and
+  convention, recorded by any script with `event`. Pattern detection here is
+  just "the same wording seen N times".
+- **Proposals (part of 040b):** `suggest` asks the local model, through
+  `libs/llama-chat-client.lua`, to word each repeated event as one
+  guideline. `propose` lets a script file one directly. The API layer is the
+  command line; there is no server.
+- **Revision engine (040c):** `approve` writes only to the file named by
+  `--target`, with a backup first. `rollback` restores the backup only if the
+  file is unchanged since, so a hand edit is never lost.
+- **Audit trail (040d):** `audit.tsv` records every proposal, approval,
+  rejection and rollback.
+- **Consent:** nothing changes a CLAUDE.md except `approve` on one proposal.
+
+**Still open:**
+
+- **040a:** a richer event taxonomy, and detecting events from session
+  transcripts instead of having them recorded.
+- **040b:** a real API server.
+- **040e:** checking a new guideline against the existing ones for
+  conflicts, beyond the exact-duplicate check.
+- **040f:** an interactive review screen.
+- **040g, 040h, 040i:** transcript memory, the worldbuilding oracle and the
+  cooperation bridge. None started.
+

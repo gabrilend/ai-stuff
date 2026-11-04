@@ -511,3 +511,33 @@ Phases typically end when:
 This tool embodies the philosophy that **code is narrative**. Every commit tells part of a story, and this tool extracts that story into human-readable documentation. The "arc" from kernel to success is not just a metaphor - it's a literal path through the commit graph that can be charted, visualized, and documented.
 
 The LLM integration enables intelligent phase detection that goes beyond simple heuristics. By using tool-calls as a structured API, the generation process becomes reproducible and auditable - every decision can be traced back to specific prompts and responses.
+
+---
+
+## Status (2026-11-02): first slice built (051a), the rest open
+
+**Built:** `scripts/history-kernel.lua`, initial-commit analysis and goal
+extraction (051a). It is tested against a stand-in model
+(`scripts/libs/stand-in-model/`); no model was downloaded or run.
+
+- **The facts, from git alone (`--json`):**
+  - the first N commits touching the project folder, each with its date,
+    subject and the start of its message;
+  - the README as first committed;
+  - the build files;
+  - the commit count and the latest commit.
+- **The draft:** the local model drafts `notes/vision.md` from those facts,
+  as "the original idea" and "what it grew into". `--write` never replaces
+  an existing vision.
+
+**Still open:**
+
+- **051b:** roadmap generation.
+- **051c:** issue files from the roadmap.
+- **051d:** completion status detection.
+- **051e:** phase demos.
+- **051f:** install scripts.
+- **051g:** the module network.
+
+Each of these builds on the facts 051a now gathers.
+

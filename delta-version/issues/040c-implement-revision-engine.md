@@ -337,3 +337,9 @@ end
 - Preserve original formatting where possible
 - Guideline IDs are stable across revisions (don't renumber)
 - Consider future: section headers, nested structure
+
+---
+
+## Status (2026-11-02)
+
+Covered for single guidelines by `scripts/claudemd-revise.lua`: approval with a backup first, and a rollback that refuses if the file changed since. Multi-line or structural revisions are still open.

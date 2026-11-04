@@ -855,3 +855,9 @@ end
 - Issue 049d: Provides the Ollama client used for classification
 - Issue 049b: Receives filtered output for abstraction transformation
 - Issue 035f: Established triple-check pattern for LLM consistency
+
+---
+
+## Status (2026-11-02)
+
+Built as `scripts/transcript-detail.lua`: classification by the local model, thresholds for levels 1-5, verbatim output with gap markers, unclassed sections kept, and a reusable class file. Left open until the 049 viewer it feeds exists; the "classification report" is the `--report` option.

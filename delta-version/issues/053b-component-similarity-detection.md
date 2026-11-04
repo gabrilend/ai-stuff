@@ -400,3 +400,9 @@ todone-similarity.sh --show-reasoning   # Include LLM reasoning
 The tiered approach is crucial for cost efficiency. Most components will cluster via Tiers 1-3 (instant, free). Only truly ambiguous cases require LLM analysis, and Opus is reserved for final validation of high-value clusters.
 
 The synonym dictionary should be expanded over time as new patterns emerge. Consider making it a configuration file that can be updated without code changes.
+
+---
+
+## Status (2026-11-02)
+
+Tiers 1 (spelling) and 2 (the synonym list, `config/component-synonyms.conf`) are built in `scripts/todone.lua`. Tiers 3-4 (fuzzy matching, a model check of uncertain pairs) and confidence scores are still open.

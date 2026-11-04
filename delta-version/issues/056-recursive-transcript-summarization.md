@@ -1,7 +1,7 @@
 # Issue 056: Recursive Transcript Summarization & Table-of-Contents
 
 **Phase**: 0 - Tooling
-**Status**: Open (056a done; recommendation for the rest below, waiting on the owner)
+**Status**: Open (056a and 056b done; 056c and 056d to build, as decided below)
 **Priority**: High
 **Created**: 2026-07-06
 **Related**: 049 (LLM Transcript Abstraction Viewer), 049d (Ollama Processing Pipeline — superseded endpoint), 052 (Ollama Connection Config — closed as superseded, see `completed/`), 040g (Transcript Analysis Memory)
@@ -302,3 +302,11 @@ options:
 after the owner has seen what titles the model actually writes. The overseer
 (056d) should run by hand first, with cron added once a few runs have been
 read.
+
+## What Happened
+
+**2026-11-02 — 056b built.** `scripts/summarize-transcript.lua` is the
+recursive summariser, tested against the stand-in model (see
+`completed/056b-recursive-map-reduce-summarizer.md`). Slices hold whole
+exchanges rather than single turns, so a request is never summarised apart
+from its answer. 056c and 056d remain.
