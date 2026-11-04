@@ -362,12 +362,27 @@ to it - for example a player who hasn't bought WC3 should probably see
 wireframes if they're playing on a default Blizzard map." The W client's
 lookup order already says this: the player's packs, then what the server
 delivered with the map, then the player's own Blizzard install, then the
-wire-frame. The rule depends on one thing the
-W client doesn't state yet: a server never delivers a file whose source is
-Blizzard's. Then a player without WC3 falls through to the wire-frame for
-every stock model, and a map's own imported model reaches everyone (open
-question 16). The editor draws wire-frames too (the
+wire-frame. A server never delivers a file whose source is Blizzard's
+(open question 16, answered). The editor draws wire-frames too (the
 owner, same day), for the same two cases.
+
+**Our own models are the default; Blizzard's plug in.** The owner, the
+same day: "we're going to be creating our own assets that have 'feature
+parity' with the blizzard models, but which are aesthetically distinct.
+We have a whole pipeline for this set up ... we're going to have sensible
+defaults, and if users want, they can plug in their Blizzard assets,
+since they should be compatible." The pipeline is the asset forge (W05:
+find or generate a replacement; W05a, the similarity score; W05b,
+borrowed skeletons and animation sets; W05c, the "default client
+compatible" seal; W05d, the clean-room loop; W05e, body plans; W06, one
+style for every model). Its output is the **baseline standard model set**
+the W client's docs/012 waits for ("which will be a requirement until we
+develop our own baseline standard model set"). With it, the lookup reads:
+the player's packs, the server's files, the player's own Blizzard
+install if they plugged it in, the baseline set, and only then the
+wire-frame. A player without WC3 sees the baseline set's models; a
+wire-frame means nothing at all matched, neither a model of the map's
+own, nor theirs, nor ours.
 
 **2026-10-07: one reader per format, in C.** "Let's just deprecate the
 lua version and keep the C version." Each Lua reader here is retired
@@ -429,13 +444,20 @@ issue that holds it can be called complete.
     to understanding the nature of the structure we need to build." So
     the server's step of the W client's lookup carries only files that
     aren't Blizzard's: a map author's own ground, placements and imports.
-    A Blizzard map is Blizzard's file too, ground and all, so it is
-    played from the player's own copy; a player without WC3 has no copy
-    to play. The wire-frames that player sees are on maps whose own parts
-    travel (a community map) standing on stock models they lack. The
-    question as asked: does a player without WC3 get a default Blizzard
-    map's converted ground with wire-frames standing on it, or is the map
-    not offered to them at all?
+    Stock models a map uses are drawn from the player's own install if
+    they plugged it in, or from the baseline standard model set the asset
+    forge makes (the owner, same day: "we're going to have sensible
+    defaults, and if users want, they can plug in their Blizzard assets";
+    see "Our own models are the default" above). The question as asked:
+    does a player without WC3 get a default Blizzard map's converted
+    ground with wire-frames standing on it, or is the map not offered to
+    them at all? (The map file's own part of this is question 17.)
+17. **A Blizzard map's own file.** Asked 2026-11-04. The baseline set
+    covers a default map's models, but the map itself (its ground,
+    placements, triggers) is Blizzard's file too. Is a default Blizzard
+    map played only from the player's own copy, or does the project make
+    its own maps standing in for them, the way the baseline set stands in
+    for the models?
 
 ---
 
@@ -455,4 +477,4 @@ issue that holds it can be called complete.
 | 2026-09-23 | Owner's answers: borrowed art with a similarity score; custom client as host; reused animation sets. Added W05a, W05b |
 | 2026-09-23 | custom-client rewritten as the W client; shared reader library; seal (W05c); replace every asset kind; lineage |
 | 2026-10-07 | The client's move into the W client started: the crosswalk, WC3's pictures read in C; open questions 13-15 |
-| 2026-11-04 | The editor keeps its Lua renderer and edits WoW maps too; Test Map opens the W client; sharing belongs to the editor, using a list in a game to the W client; who sees a wire-frame |
+| 2026-11-04 | The editor keeps its Lua renderer and edits WoW maps too; Test Map opens the W client; sharing belongs to the editor, using a list in a game to the W client; who sees a wire-frame; our own baseline model set is the default and Blizzard's plug in; open question 17 |
