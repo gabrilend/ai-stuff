@@ -14,6 +14,13 @@ on that screen. Moving and resizing are asked for the same way and
 checked the same way. Surfaces on a screen stack back to front in the
 order they were granted.
 
+Every surface carries a damage bit (602): the owner marks it after
+writing pixels, and the compositor (603) takes it — reads and clears it
+in one step — before copying the surface forward, so it copies only
+what changed and never loses a mark made while it copies. A surface
+starts marked, and a resize or move marks it again: each changes what
+the screen should show.
+
 A handle names one grant: it carries a count that changes every time
 its slot is reused, so a handle kept after its surface was released
 never reaches whatever was granted in that slot next.
@@ -94,4 +101,29 @@ int surface_list(int screen, int32_t *out, int max)
 
 Every surface on `screen`, back to front: up to `max` handles into
 `out`. Answers how many there are.
+
+### surface_mark_dirty
+
+```c
+int surface_mark_dirty(int32_t handle)
+```
+
+The damage bit. Mark it after writing the pixels (release: the writes
+come before the mark for whoever sees it). Is-dirty looks without
+clearing. Take answers whether it was marked and clears it, in one
+step: call it before copying, never clear after, or a mark made during
+the copy is lost. Each answers SURFACE_NO_HANDLE for a handle that
+names nothing; is-dirty and take otherwise answer 1 or 0.
+
+### surface_is_dirty
+
+```c
+int surface_is_dirty(int32_t handle)
+```
+
+### surface_take_dirty
+
+```c
+int surface_take_dirty(int32_t handle)
+```
 

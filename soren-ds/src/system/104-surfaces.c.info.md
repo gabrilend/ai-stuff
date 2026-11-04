@@ -61,3 +61,21 @@ int surface_facts(int32_t handle, struct surface_facts *out)
 int surface_list(int screen, int32_t *out, int max)
 ```
 
+### surface_mark_dirty
+
+```c
+int surface_mark_dirty(int32_t handle)
+```
+
+### surface_is_dirty
+
+```c
+int surface_is_dirty(int32_t handle)
+```
+
+### surface_take_dirty
+
+```c
+int surface_take_dirty(int32_t handle)
+```
+

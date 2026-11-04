@@ -61,6 +61,14 @@ stand in for the device's framebuffers.
 `src/system/104-surfaces.c`. Test: `twin/tests/105` (32 checks, four
 threads asking for overlapping rectangles among them).
 
+- **602** the damage bit: owners mark a surface after writing it; the
+  compositor takes the mark (reads and clears in one step) before
+  copying, so a mark made during the copy is never lost. Grants,
+  resizes and moves mark it.
+
+Also `104-surfaces.c`. Test: `twin/tests/106` (18 checks, three writers
+against one compositor thread among them).
+
 ## Open issues
 
 Sorted by what each one waits on (scoped once phase 5's twin halves
@@ -70,7 +78,6 @@ pull request a blocker is waiting in.
 **Buildable on the twin now.** The compositor is portable: the twin's
 screens are memory a test can read back or save as a picture.
 
-- **602** — the damage bit, on 601's surfaces.
 - **603** — the compositor's tick, a timer like the input frame's,
   copying damaged surfaces back to front; on the twin into its screens.
 - **604** — one foreground per screen, filtering 603's copy.
