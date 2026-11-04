@@ -413,3 +413,18 @@ function handle_configuration_migration() {
 - Integration with CLAUDE.md conventions maintained throughout
 - System ready for production deployment across all projects
 - Automated triggers reduce manual maintenance overhead
+
+---
+
+## Status (2026-11-02)
+
+016–021 are built: `scripts/distribute-ticket.lua` (dry run, ledger, undo),
+its menu `scripts/ticket-menu.sh`, and the suite `scripts/test-ticket-chain.sh`.
+This issue was left unbuilt on purpose, waiting on one decision from the
+owner. Its centre is the "automatic triggers during repository operations":
+git hooks that file tickets when commits or merges happen. That changes what
+a commit does for every project in the monorepo, so it is not something to
+add without being asked. Without the triggers, the master script would only
+put the two existing tools behind one name. If the triggers are not wanted,
+this issue can be closed as covered by 019 and 020.
+
