@@ -1,4 +1,4 @@
-# Issue 043: The exporter keeps a summary block and a slug name
+# Issue 057: The exporter keeps a summary block and a slug name
 
 ## Status
 - **Priority**: Medium
@@ -65,3 +65,8 @@ Decisions:
   (`TRANSCRIPT_SUMMARY_MARKER`, `TRANSCRIPT_SUMMARY_END`). They are the same
   strings as `apply-summary.sh`'s `SUMMARY_MARKER` and `SEPARATOR`.
   delta-version was not edited.
+
+## Renumbered
+
+**2026-11-04:** this issue was 043, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 057.
