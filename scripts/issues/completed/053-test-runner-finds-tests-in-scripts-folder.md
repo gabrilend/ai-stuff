@@ -1,4 +1,4 @@
-# Issue 039: test-runner finds tests kept in a project's scripts/ folder
+# Issue 053: test-runner finds tests kept in a project's scripts/ folder
 
 ## Current Behavior
 
@@ -57,3 +57,8 @@ Built on branch `claude/test-runner-scripts-folder`.
   runner 5 of the 18 checks fail.
 - `--list` on the real checkout now shows delta-version's six tests and
   neocities-modernization's two `.sh` tests; soren-ds still has none found.
+
+## Renumbered
+
+**2026-11-04:** this issue was 039, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 053.
