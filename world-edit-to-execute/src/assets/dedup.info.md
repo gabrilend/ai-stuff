@@ -28,6 +28,7 @@ loaded on first use. Linux and other POSIX systems only (links through the FFI).
 | `store:link(hash, dest)` | a stored hash, the link to make | DEST's absolute path; makes its folders; replaces a link, never a real file |
 | `store:release(dest)` | a link made by `link` | true when it was a reference; the link is removed |
 | `store:references(hash)` / `refcount(hash)` | a hash | the links that lead to it now (sorted) / how many |
+| `dedup.hash(bytes)` / `dedup.hash_file(path)` | bytes, or a file | the hash it would be stored under, without storing it |
 | `store:list()` | — | every stored hash, oldest first, from the index |
 | `store:refcounts()` | — | `{hex -> live links}` for every linked blob, in one pass |
 | `store:orphans()` | — | the hashes `gc()` would remove now (no links, not pinned) |
