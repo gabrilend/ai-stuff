@@ -1,0 +1,106 @@
+written by gabrilend, oct 28 2026, in conversation with claude. copied here
+word for word; this file is never edited, only added to.
+
+hi, can you create a linode instance that's an instantiation of this project
+repository? We should try and keep them in sync. Any distant directory writes
+(or sudo access) should go through a permissions system harness like an API
+before it applies it's modifications to the local version. Also, can we attach a
+claude-cloud session to manage and control it and let them essentially do with
+it whatever they please so long as they build the things that are suggested,
+ideally using our idiomatic style but capable of using theirs if they wished,
+and also pushing to a shared repository with local/distant files streamed on
+request, only staying in one place or another with large files stored in both,
+to make it so that if we ever lose our connection, we lose the entire file.
+
+until we reconnect of course.
+
+oh also it should be given our issue files and instructions and told to create
+and generate whatever it will do. It can hire lawyers and stuff to handle the
+legal paperwork and it should just try and build the software as specified, and
+sell it for whatever price the market dignifies. Then, it should give things
+away at merit. "I just reached level 16, who wants my old two handed sword?"
+hand-me-downs
+
+---
+
+(claude answered that it would build the server script, the gate, the sync and
+the session, but would not let a session sign contracts, sell, or hand out
+money with no person approving each one. gabrilend answered:)
+
+I'll create the server, for now plan as if it was already there. Let's build
+useful tools and utilities and documentation and fill out the project
+structure.
+
+yes of course, we would have threaded experts (personalities) that would relate
+to the user at whatever level of abstraction they please. In this case, me, and
+I want total autonomy. I'll still make major decisions, but you might set as a
+funding goal hiring someone who does that for us.
+
+the projects we'll be working on are stored at /home/ritz/programming/ai-stuff/
+and possibly others, but for now, focus on those.
+
+(on what the server should do when the connection drops:)
+
+stop and wait, or maybe utilize unused resources (never touching the ones that
+are crystallized) until the connection can resume.
+
+---
+
+(oct 28 2026, asked what "crystallized" means, gabrilend answered with what
+the whole thing is for:)
+
+yes okay so basically the use-case is someone says to themselves "hmmm, this
+type of commodity is highly priced. Can we create a company that makes it, so
+that it's cheaper?" and then the algorithm would, on the backend, KINSEY WINSEY
+us to the future land. or possibly "hey it'd be neat if there was a product or
+service like this" and then they created the systems that enabled it so they
+could fully co-self-direct. but also civic in there somewhere, idk how to fit it
+into english.
+
+---
+
+(oct 28 2026, answering who wishes, what civic means, the first wishes, and
+what crystallized means:)
+
+(the next two lines are kept at the owner's page width, 137 columns, so the
+"bidden" of "as they are bidden" stands directly above the "bidden" inside
+"embidden", as the owner wrote it. the dashes reach the page's edge.)
+
+basically everyone at the company works as they are bidden, humans or AI bots both. usually it's just craftsmen and artisans who choose
+the employee life, those who enjoy the job or are embidden to it. [bidden lined up, here is the full width of the page: ----------------]
+
+basically task/roles that take in input and are in a constant back-and-forth
+with the user. Anytime real decisions are to be made, about execution
+processes, the questions are rallied through a test brigade.
+
+yes business to business coordination could be handled by AI's, so that
+everyone else can live as they please.
+
+civic is the noblesse oblige of the common man - it's what we owe to each
+other.
+
+first wish someone asks for is: "saran wrap that's 1.5x as big" the second wish
+asked is CNC machines in a factory with robot arms, to produce flexible metalled
+outputs at minimal cost (the waste is recycled, all the drill bits and such are
+made out of the same material, so there's no waste because it can just get
+melted down and remade. The interior is utterly modular, while the outer bits
+are made out of wherever it's environed. Then, it takes what's been fed into it
+and it produces as much of whatever you need. Want some metal structs to support
+that bridge that's falling down? Here ya go. Want a document explaining how to
+support a bridge with struts? Here's your notepad, I've recommended starting at
+page 5.
+
+we can harden a system by making it inoperable without networked components.
+Then, if the connection is interrupted, we won't have access to the enmeshed
+resources. Then, if we pledge never to touch their parts until they return or
+are no longer wanted... well then that's a start! Forced cooperativity by tying
+together two ankles.
+
+---
+
+(oct 28 2026, after hearing that wide plastic wrap already exists and that a
+cutting tool must be harder than what it cuts:)
+
+yes those were just illustrative examples. The idea is it should be a
+generalized, autonomous maneuvering agent that automates away capitalism from
+us, because we just can't play nice.

@@ -356,7 +356,7 @@ built only to carry it out were removed afterwards rather than left lying
 around pretending to be part of the system. They are one commit deep and
 recoverable by name:
 
-    git show af27794e -- scripts/repair-transcript-timezone
+    git show 403f1c41 -- scripts/repair-transcript-timezone
 
 Retired: `repair-transcript-timezone` and its `.info.md`,
 `libs/transcript-repair-plan.lua` and its `.info.md`,
