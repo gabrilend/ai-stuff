@@ -104,6 +104,7 @@ src/
 ├── render/                          C + raylib renderer (threading, slots, terrain, input, UI, profiler)
 ├── render.lua                       Lua side of the renderer bridge
 ├── demo/                            Map renderer and testing-room demos
+├── wowbuild/                        W02: a WC3 map built into WoW 3.3.5a's files (terrain: W02a)
 └── tests/                           Test suite (run with src/cli/run-tests.sh)
 │
 issues/                              Issue files (not listed here; see progress files)
@@ -123,6 +124,7 @@ issues/                              Issue files (not listed here; see progress 
 | validate-issues | `/home/ritz/programming/ai-stuff/scripts/validate-issues` | Issue tree consistency, next free issue number |
 | progress-dashboard.lua | `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua` | Done/open counts per phase |
 | mapdump.lua | `src/cli/mapdump.lua` | Dump a map's metadata |
+| wow-convert.lua | `src/cli/wow-convert.lua` | W02's converter: a `.w3x` into WoW's files in a build folder (terrain only so far) |
 | quest-generator.lua | `src/cli/quest-generator.lua` | Gamified task documentation generator |
 | TUI library | `/home/ritz/programming/ai-stuff/scripts/libs/` | Shared terminal UI |
 
