@@ -10,15 +10,15 @@
 # extractor never emits a note from inside the mailbox, even when a copy is
 # sitting in input/.
 #
-# Run: bash scripts/notes-tooling-exclusion.test.sh [project-dir]
+# Run: bash scripts/notes-tooling-exclusion.test.sh [--dir PATH]
 
 set -u
-DIR="/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-if [ -n "${1:-}" ]; then
-    DIR="$1"
-fi
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 
-"${DIR}/scripts/ensure-tmp-symlink" "${DIR}" >/dev/null
+"${DIR}/scripts/ensure-tmp-symlink" --dir "${DIR}" >/dev/null
 SCRATCH="${DIR}/tmp/shared-memory/notes-tooling-exclusion-test"
 rm -rf "${SCRATCH}"
 mkdir -p "${SCRATCH}"
@@ -95,12 +95,38 @@ check "source mailbox untouched" "$(test -f "${FAKE_NOTES}/rmail/contacts" && ec
 # {{{ the extractor never reads inside the mailbox, even when a copy exists
 mkdir -p "${FAKE_PROJECT}/input/notes/rmail/inbox"
 printf 'should never be a poem\n' > "${FAKE_PROJECT}/input/notes/rmail/inbox/waiting"
-extract_output="$(lua "${DIR}/scripts/extract-notes.lua" "${FAKE_PROJECT}" 2>&1)"
+extract_output="$(lua "${DIR}/scripts/extract-notes.lua" --dir "${FAKE_PROJECT}" 2>&1)"
 check "extractor succeeds" "$?" "0"
 poems_json="${FAKE_PROJECT}/input/notes/files/poems.json"
 check "one note extracted" "$(grep -c '"category":"notes"' "${poems_json}")" "1"
 check "no mailbox file extracted" "$(grep -c 'should never be a poem' "${poems_json}")" "0"
 check "extractor names the skipped folder" "$(printf '%s' "${extract_output}" | grep -c 'skipped: rmail')" "1"
+# }}}
+
+# {{{ notes are numbered by date, not by the folder's listing order (8-019)
+# Created in one order, dated in another, named in a third: the ids must
+# follow the dates, oldest first, and a shared date falls back to the name.
+rm -rf "${FAKE_PROJECT}/input/notes"
+mkdir -p "${FAKE_PROJECT}/input/notes"
+for name in middle-b newest oldest middle-a; do
+    printf 'a poem called %s\n' "${name}" > "${FAKE_PROJECT}/input/notes/${name}"
+done
+touch -d '2021-01-01 00:00:00' "${FAKE_PROJECT}/input/notes/oldest"
+touch -d '2023-06-01 00:00:00' "${FAKE_PROJECT}/input/notes/middle-a"
+touch -d '2023-06-01 00:00:00' "${FAKE_PROJECT}/input/notes/middle-b"
+touch -d '2026-09-01 00:00:00' "${FAKE_PROJECT}/input/notes/newest"
+lua "${DIR}/scripts/extract-notes.lua" --dir "${FAKE_PROJECT}" >/dev/null 2>&1
+check "date-order extraction succeeds" "$?" "0"
+order="$(luajit -e "
+    package.path = '${DIR}/libs/?.lua;' .. package.path
+    local f = io.open('${FAKE_PROJECT}/input/notes/files/poems.json')
+    local d = require('dkjson').decode(f:read('*a')); f:close()
+    table.sort(d.poems, function(a, b) return a.id < b.id end)
+    local names = {}
+    for _, p in ipairs(d.poems) do names[#names + 1] = p.id .. '=' .. p.source_file end
+    io.write(table.concat(names, ' '))
+")"
+check "ids follow the dates, the name breaks a tie" "${order}" "0001=oldest 0002=middle-a 0003=middle-b 0004=newest"
 # }}}
 
 # {{{ a stale exclusion (folder not in the source) refuses the sync

@@ -1,27 +1,26 @@
 #!/usr/bin/env lua
 
--- Semantic color calculation system for neocities-modernization
--- Generates color embeddings and precomputes poem-to-color mappings
+-- semantic-color-calculator.lua: Stage 6's colours -- each poem's colour.
+--
+-- WHAT IT DOES (for a CEO): embeds a set of words for each of the site's
+-- colours (config.lua color_associations), averages them into one point
+-- per colour, and gives every poem the colour it sits nearest, writing
+-- poem_colors.json for the progress bars and word cloud. run.sh runs it
+-- in Stage 6.
+--
+-- Usage: luajit src/semantic-color-calculator.lua [--dir PATH] [-I]
+--   --dir PATH  project folder (default below); -I  ask before each step
 
--- {{{ local function setup_dir_path
-local function setup_dir_path(provided_dir)
-    if provided_dir then
-        return provided_dir
-    end
-    return "/mnt/mtwo/programming/ai-stuff/neocities-modernization"
-end
--- }}}
+-- --help: print the header above and exit, when run as a program (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle_if_run(arg, debug.getinfo(1, "S").source:sub(2))
 
--- Script configuration - handle args properly to avoid -I interfering with DIR
-local DIR = setup_dir_path()
-if arg then
-    for _, arg_val in ipairs(arg) do
-        if arg_val ~= "-I" and not arg_val:match("^%-") then
-            DIR = arg_val
-            break
-        end
-    end
-end
+-- The project folder: --dir PATH, from this program's command line when it
+-- was started, or from its parent's when loaded; else the path below
+-- (libs/project-dir.lua, Issue 10-076). It used to take the first bare word
+-- of the global arg even when loaded, so a parent's stray word could become
+-- this module's project folder.
+local DIR = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read_if_run(arg, debug.getinfo(1, "S").source:sub(2), "/mnt/mtwo/programming/ai-stuff/neocities-modernization")
 
 -- Load required libraries
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
@@ -52,7 +51,7 @@ local fuzzy = require("fuzzy-computing")
 local text_chunking = require("text-chunking")
 inference_config.set_project_root(DIR)
 
--- Initialize asset path configuration (CLI --dir takes precedence over config)
+-- Initialize asset path configuration (CLI --assets takes precedence over config)
 utils.init_assets_root(arg)
 
 local M = {}
@@ -272,7 +271,10 @@ function M.precompute_poem_colors(poems_data, poem_embeddings_data, color_embedd
     output_data.color_distribution = color_counts
     
     utils.write_json_file(output_file, output_data)
-    
+    -- Issue 8-019: the colours are filed by poem number; record which
+    -- numbering, beside the file, and stages 9 and 10 check it
+    require("numbering-stamp").write(output_file, require("numbering-stamp").of_embeddings(poem_embeddings_data))
+
     utils.log_info(string.format("Precomputed colors for %d poems", processed_count))
     utils.log_info("Color distribution:")
     for color, count in pairs(color_counts) do
@@ -286,11 +288,11 @@ end
 -- {{{ function M.main
 function M.main(interactive_mode)
     if interactive_mode then
-        print("Semantic Color Calculator - Interactive Mode")
-        print("1. Generate color embeddings only")
-        print("2. Precompute poem colors (requires existing embeddings)")
-        print("3. Generate color embeddings + precompute poem colors")
-        print("4. Test color calculation on single poem")
+        require("output").print("Semantic Color Calculator - Interactive Mode")
+        require("output").print("1. Generate color embeddings only")
+        require("output").print("2. Precompute poem colors (requires existing embeddings)")
+        require("output").print("3. Generate color embeddings + precompute poem colors")
+        require("output").print("4. Test color calculation on single poem")
         io.write("Select option (1-4): ")
         local choice = io.read()
         
@@ -311,7 +313,7 @@ function M.main(interactive_mode)
         end
         
         if choice == "1" or choice == "3" then
-            print("Generating color embeddings...")
+            require("output").print("Generating color embeddings...")
             local color_embeddings = M.generate_color_embeddings(
                 color_config.color_names, 
                 "embeddinggemma:latest"
@@ -334,7 +336,7 @@ function M.main(interactive_mode)
         end
         
         if choice == "2" or choice == "3" then
-            print("Loading poem embeddings...")
+            require("output").print("Loading poem embeddings...")
             local poems_data = utils.read_json_file(poems_file)
             local embeddings_data = utils.read_json_file(embeddings_file)
             
@@ -342,7 +344,7 @@ function M.main(interactive_mode)
             local color_embeddings_data = utils.read_json_file(color_embeddings_file)
             
             if poems_data and embeddings_data and color_embeddings_data then
-                print("Precomputing poem colors...")
+                require("output").print("Precomputing poem colors...")
                 M.precompute_poem_colors(
                     poems_data,
                     embeddings_data, 
@@ -383,18 +385,18 @@ function M.main(interactive_mode)
                             color_embeddings_data.embeddings
                         )
                         
-                        print(string.format("Poem %d (%s):", poem_id, poem_data.category or "unknown"))
-                        print("Content preview:", poem_data.content:sub(1, 100) .. "...")
-                        print(string.format("Semantic color: %s (similarity: %.3f)", color, similarity))
+                        require("output").print(string.format("Poem %d (%s):", poem_id, poem_data.category or "unknown"))
+                        require("output").print("Content preview:", poem_data.content:sub(1, 100) .. "...")
+                        require("output").print(string.format("Semantic color: %s (similarity: %.3f)", color, similarity))
                         
                         -- Show all color similarities
-                        print("All color similarities:")
+                        require("output").print("All color similarities:")
                         for color_name, color_embedding in pairs(color_embeddings_data.embeddings) do
                             local sim = cosine_similarity(poem_embedding, color_embedding)
-                            print(string.format("  %s: %.3f", color_name, sim))
+                            require("output").print(string.format("  %s: %.3f", color_name, sim))
                         end
                     else
-                        print("Could not find poem or embedding for ID:", poem_id)
+                        require("output").print("Could not find poem or embedding for ID:", poem_id)
                     end
                 end
             end
@@ -405,8 +407,9 @@ function M.main(interactive_mode)
 end
 -- }}}
 
--- Command line execution
-if arg then
+-- Command line execution: only when this file is the program that was
+-- started (another program loading it also has an arg table)
+if arg and arg[0] and arg[0]:match("semantic%-color%-calculator%.lua$") then
     -- Check for interactive flag
     local interactive = false
     for _, arg_val in ipairs(arg) do
@@ -416,7 +419,8 @@ if arg then
         end
     end
     
-    M.main(interactive)
+    -- start, end and any stopping error go to the run's log (Issue 10-075)
+    require("output").guard("semantic-color-calculator.lua", M.main, interactive)
 end
 
 return M

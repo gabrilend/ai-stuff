@@ -1,6 +1,14 @@
 #!/bin/bash
-# Notes extraction runner script
-# Processes notes directory and generates JSON output
+# run-notes -- turns the notes folder into poems JSON.
+#
+# Runs scripts/extract-notes.lua over input/notes. Called by scripts/update
+# during the build's update stage.
+#
+# Usage:  scripts/run-notes [--dir PATH]
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 set -euo pipefail
 
@@ -14,26 +22,19 @@ setup_dir_path() {
 }
 # }}}
 
-# Parse command line arguments for project directory
-SCRIPT_DIR=""
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -*)
-            echo "Unknown option: $1" >&2
-            exit 1
-            ;;
-        *)
-            SCRIPT_DIR="$1"
-            shift
-            ;;
-    esac
-done
-
-# Set up project directory
-DIR=$(setup_dir_path "$SCRIPT_DIR")
+# The project folder: --dir PATH, or the path in setup_dir_path; a stray word
+# stops the script (libs/project-dir.sh, Issue 10-076). It used to be any bare
+# word. It takes no other flags.
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "$(setup_dir_path "")" "" "$@"
+set -- "${PROJECT_ARGS[@]}"
+if [ $# -gt 0 ]; then
+    echo "Unknown option: $1" >&2
+    exit 1
+fi
 
 echo "📝 Processing notes directory..."
-lua "${DIR}/scripts/extract-notes.lua" "${DIR}" || {
+lua "${DIR}/scripts/extract-notes.lua" --dir "${DIR}" || {
     echo "Error: Notes extraction failed" >&2
     exit 1
 }

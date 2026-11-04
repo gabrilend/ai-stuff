@@ -56,10 +56,10 @@
 - **Achievement**: Maintained essential life infrastructure during development
 - **Impact**: Sustainable development practices and work-life balance
 
-#### **Issue 010**: `010-embeddinggemma-model-compatibility-issue.md` ✅
-- **Status**: COMPLETED (Moved to completed directory 2025-12-14)
-- **Achievement**: Resolved EmbeddingGemma model compatibility - model working perfectly
-- **Impact**: Reliable embedding generation with preferred model (768-dimension vectors)
+#### **Issue 010**: `1-010-embeddinggemma-model-compatibility-issue.md` 🔄
+- **Status**: REOPENED 2026-10-07 (first completed 2025-12-14)
+- **Achievement so far**: EmbeddingGemma 1 works (first under Ollama, now as a llama.cpp GGUF)
+- **Open work**: install and test EmbeddingGemma 2 (released 2026-10-06); needs a newer llama.cpp build
 
 #### **Issue 011**: `011-ollama-embedding-model-testing-documentation.md` ✅
 - **Status**: COMPLETED (Moved to completed directory 2025-12-14)
@@ -196,7 +196,7 @@ The unexpected inclusion of life maintenance tasks (Issue 006) demonstrates the 
 ---
 
 ## **✅ ALL ISSUES MOVED TO COMPLETED DIRECTORY**
-- **1-010**: EmbeddingGemma Model Compatibility Issue ✅ (2025-12-14)
+- **1-010**: EmbeddingGemma Model Compatibility Issue ✅ (2025-12-14) — reopened 2026-10-07 for EmbeddingGemma 2, back in `issues/`
 - **1-011**: Ollama Embedding Model Testing Documentation ✅ (2025-12-14)
 
 **Phase 1 is now 100% complete with all issues archived.**
