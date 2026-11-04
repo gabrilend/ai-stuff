@@ -1,5 +1,7 @@
 # Issue #039: Multi-Location ai-stuff Directory Integration
 
+**Status**: Completed (2026-11-02), as decided: listed roots, opt-in pushing, no symlinks
+
 ## Current Behavior
 The `reconstruct-history.sh` script and `list-projects.sh` only scan a single hardcoded location for projects. There may be multiple `ai-stuff` directories across different drives or locations that contain projects needing history reconstruction.
 
@@ -119,3 +121,38 @@ The frontier and busy-streets names could still label the two groups in the
 menu. If the owner wants A, the search should still be limited to mounted
 filesystems the owner names, and the exclusion list should default to "do
 not push".
+
+## What Happened
+
+**2026-11-02 — built as decided (option B).**
+
+- **Listed roots were already there.** Issue 024 gave
+  `config/external-projects.conf` an `[external_directories]` section, and
+  `list-projects.sh` lists the projects under each root by default. Every
+  tool that lists projects through it, `reconstruct-history.sh --scan`
+  included, already reads the extra roots. No filesystem search was added.
+- **Publishable flag.** A new `[publishable]` section names, as
+  `root_name/project=on`, the only extra-root projects that may be pushed. A
+  project with no line, or any value but on, stays local. Main-folder
+  projects are published with the monorepo and are not listed.
+- **Pushing is opt-in, the same shape as issue 022.** The new
+  `scripts/publish-projects.sh` previews by default. For each extra-root
+  project it prints whether the project may be published, its upstream, how
+  many commits are waiting, and the exact `git push` command. It pushes only
+  when `[publishing] push=on`, and even then only listed projects. Nothing is
+  fetched. The real config ships with `push=off` and no roots.
+- **Scan column.** `reconstruct-history.sh --scan` shows a **Public**
+  column: `main`, `yes` or `no`. That covers step 5. The column is the scan's
+  only change; nothing that rewrites history was run.
+- **Shared piece.** `scripts/libs/publishable.sh` reads the configuration
+  and answers `project_publishable PATH`.
+- **Not built, by decision:** the whole-disk search, the exclusion list, and
+  the `the-frontier/` and `busy-streets/` symlinks with their `.gitignore`
+  lines.
+- **Found while building.** Bash's `read` merges a run of tab separators, so
+  an empty field (a project with no remote) shifted the ones after it. The
+  fields are joined with the unit separator (0x1f) instead.
+
+Tests: `scripts/test-publish-projects.sh` passes 29/29, in a RAM folder with
+bare repositories standing in for remotes. Nothing was installed or run on
+the owner's machines.

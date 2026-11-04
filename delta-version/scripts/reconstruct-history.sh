@@ -3278,6 +3278,11 @@ scan_projects() {
     echo "Scanning projects for reconstruction candidates..."
     echo ""
 
+    # Whether each project may be pushed (issue 039): "main" for the main
+    # folder, "yes" or "no" for a project under a configured extra root.
+    # shellcheck source=libs/publishable.sh
+    source "${DIR}/delta-version/scripts/libs/publishable.sh"
+
     local -a projects
     mapfile -t projects < <("$projects_script" --abs-paths)
 
@@ -3287,8 +3292,8 @@ scan_projects() {
     fi
 
     # Print header
-    printf "  %-28s %-14s %7s %6s %6s  %-12s\n" \
-        "Project" "State" "Commits" "Files" "Issues" "Action"
+    printf "  %-28s %-14s %7s %6s %6s  %-6s %-12s\n" \
+        "Project" "State" "Commits" "Files" "Issues" "Public" "Action"
     printf "  %s\n" "────────────────────────────────────────────────────────────────────────────────"
 
     local candidates=0
@@ -3366,13 +3371,16 @@ scan_projects() {
         fi
 
         # Print row
-        printf "  %-28s %-14s %7s %6s %6s  %s\n" \
-            "${name:0:28}" "$state" "$commits" "$files" "$issues" "$action_display"
+        printf "  %-28s %-14s %7s %6s %6s  %-6s %s\n" \
+            "${name:0:28}" "$state" "$commits" "$files" "$issues" \
+            "$(project_publishable "$project")" "$action_display"
     done
 
     echo ""
     printf "  %s\n" "────────────────────────────────────────────────────────────────────────────────"
     echo "  Summary: $candidates candidates out of $total projects"
+    echo "  Public: main = published with the monorepo; yes/no = an extra root's"
+    echo "  project, listed or not under [publishable] (see publish-projects.sh)"
     echo ""
 
     if [[ $candidates -gt 0 ]]; then
