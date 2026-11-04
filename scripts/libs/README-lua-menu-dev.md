@@ -123,7 +123,7 @@ menu_add_item "log" "level" "Level" "multistate" "info" "debug,info,warn,error"
 - **options**: Comma-separated list, passed in the description's place (the
   6th argument), as above. menu.sh's form also works: value
   `"json,xml,csv:json"` with the options and the default together, leaving
-  the description free (issue 044).
+  the description free (issue 058).
 - **Keyboard**: SPACE/RIGHT cycle forward, LEFT cycles backward
 - **No index shortcut**: Multistate items don't receive index numbers
 

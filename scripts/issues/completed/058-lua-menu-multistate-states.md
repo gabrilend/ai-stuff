@@ -1,4 +1,4 @@
-# Issue 044: lua-menu.sh multistate items get their states
+# Issue 058: lua-menu.sh multistate items get their states
 
 ## Status
 - **Priority**: Medium
@@ -53,3 +53,8 @@ Decisions:
 - **generate-embeddings.sh is not edited.** It belongs to
   neocities-modernization, and its picker starts cycling with no change
   there. Its processing-mode radio list is left as it is.
+
+## Renumbered
+
+**2026-11-04:** this issue was 044, a number main gave a different issue in
+the 2026-11-03 push, so it moved to the next free number, 058.

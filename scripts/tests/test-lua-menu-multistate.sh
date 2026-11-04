@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test-lua-menu-multistate.sh
 # Checks that lua-menu.sh hands a multistate item its list of states, so the
-# Lua menu has something to cycle through (issue 044). Before, the list was
+# Lua menu has something to cycle through (issue 058). Before, the list was
 # always sent empty: the item showed "<[]>" and h/l/space did nothing useful.
 #
 # Two ways of giving the states are accepted, and both are checked:
