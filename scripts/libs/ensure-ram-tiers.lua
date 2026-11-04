@@ -71,4 +71,12 @@ function M.restore(project_dir, scripts_dir)
 end
 -- }}}
 
+-- {{{ function M.convert()
+-- For a person's own tools only: replaces a non-standard tmp when nothing
+-- would be lost (see convert mode in the bash library).
+function M.convert(project_dir, scripts_dir)
+    run_library("--convert", project_dir, scripts_dir)
+end
+-- }}}
+
 return M

@@ -8,10 +8,19 @@ Create a reusable Vulkan compute infrastructure to replace CPU-bound vector oper
 
 ## Current Behavior
 
-- Diversity sequence pre-computation uses effil threading library with catastrophic performance
-- Similarity matrix generation is single-threaded Lua
-- All vector operations are CPU-bound
-- Processing times measured in hours for large datasets
+Built (2026-10-20 reading of the sub-issues): the Vulkan environment, the
+compute wrapper, the cosine distance shader, the GPU diversity-sequence
+algorithm, the Lua/C layer and batch-parallel diversity sequences (9-001a to
+9-001e and 9-001g, all completed). Diversity sequences and the similarity
+matrix (9-002) are computed on the GPU, and the GPU is required.
+
+Remaining: 9-001f, removing the effil threading library. It is already gone
+from the similarity and diversity paths; the parallel HTML page builder and
+`run.sh`'s setup for it still use it.
+
+Before this issue (kept for the record): diversity pre-computation used effil
+with catastrophic performance, the similarity matrix was single-threaded Lua,
+and processing took hours.
 
 ## Intended Behavior
 
@@ -30,6 +39,20 @@ Create a reusable Vulkan compute infrastructure to replace CPU-bound vector oper
 | 9-001d | Implement diversity sequence GPU algorithm | High |
 | 9-001e | Create Lua/C integration layer | Medium |
 | 9-001f | Remove effil dependency | Low |
+| 9-001g | Batch-parallel diversity sequences | (added later) |
+
+## Suggested Implementation Steps
+
+The sub-issues are the steps, in this order (each holds its own detail):
+
+1. 9-001a, environment → 9-001b, compute wrapper → 9-001c, cosine shader
+   (done).
+2. 9-001d, diversity sequences on the GPU, then 9-001g, many sequences per
+   dispatch (done).
+3. 9-001e, the Lua/C layer the pipeline calls (done).
+4. 9-001f, remove effil: replace the HTML page builder's effil workers, then
+   drop effil's setup from `run.sh` and the build. When it is done, this
+   issue is complete.
 
 ## Architecture
 

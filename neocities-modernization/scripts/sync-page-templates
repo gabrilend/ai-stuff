@@ -15,13 +15,20 @@
 # them on every build, so edits made directly in input/pages/ would be lost.
 #
 # Usage:
-#   scripts/sync-page-templates [DIR]
-# DIR defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
+#   scripts/sync-page-templates [--dir PATH]
+# --dir PATH defaults to the hard-coded project root; pass it (as run.sh does) to be safe.
+
+# --help: print the header above and exit, before any work (libs/script-help.sh)
+source "$(dirname "$(readlink -f "$0")")/../libs/script-help.sh"
+script_help "$0" "$@"
 
 set -eu
 
 # {{{ paths
-DIR="${1:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# The project folder: --dir PATH, or the path below; a stray word on the
+# command line stops the script (libs/project-dir.sh, Issue 10-076).
+source "$(dirname "$(readlink -f "$0")")/../libs/project-dir.sh"
+project_dir_read "/mnt/mtwo/programming/ai-stuff/neocities-modernization" "" "$@"
 SRC="${DIR}/page-templates"
 DEST="${DIR}/input/pages"
 # }}}

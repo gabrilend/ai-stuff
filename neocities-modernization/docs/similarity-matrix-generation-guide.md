@@ -280,5 +280,7 @@ For issues or questions:
 **Last Updated**: November 3, 2025  
 **Version**: 1.0  
 **Related Documents**: 
-- [Embedding Generation Guide](embedding-generation-guide.md)
-- [Phase 2 Implementation Issues](../issues/phase-2/)
+- [Data Flow Architecture](data-flow-architecture.md) — how embeddings are
+  generated (a separate embedding generation guide was planned, never written)
+- [Phase 2 progress](../issues/2-progress.md) — the phase 2 issues (they were
+  once in an `issues/phase-2/` folder, since flattened into `issues/`)
