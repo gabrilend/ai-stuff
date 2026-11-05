@@ -60,7 +60,15 @@ The canvas server on kuvalu (port set in `input/canvas-server`):
 | `GET /canvas/N` | version N from history, or `404` |
 | `GET /` | the HTML viewer page (`issues/803-the-html-page.md`) |
 
-Anything else is `404`.
+Anything else is `404`. A method other than `GET` on these routes is `405`.
+A request larger than `max-request-bytes` is `413`. One that takes longer
+than `request-seconds` to arrive is `408`. A connection beyond
+`max-connections` is `503`. Every answer closes its connection (no
+keep-alive), so a viewer opens a new one for each request. All of these are
+set in `input/canvas-server`. Built in `src/025-canvas-server.lua`
+(issue 204). Until the HTML page (803) brings the encrypted canvas
+(`docs/network.md`), the canvas is sent as plain text, and `GET /` is a
+`404` saying so.
 
 From outside the home network, this server is the only thing that can be
 reached: the router forwards one port to it, the "narrow cause-way"
