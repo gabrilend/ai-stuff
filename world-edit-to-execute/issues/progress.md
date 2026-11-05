@@ -636,7 +636,7 @@ Phase 8 issues kept in this project:
 | 801e | Lobby UI | Built and tested headless; not yet seen on a real screen | 801c, Phase 5 |
 | 801f | Asset mirror integration | The mirror's list and its message built; transfers wait on rmail (609) | 801b |
 | 801g | CLI server application | Built and tested; waits on the owner's look | 801b, 801f |
-| 801h | Integration tests | Pending | 801a-g |
+| 801h | Integration tests | Built: the six scenarios pass, with NAT simulated and pack downloads waiting on rmail | 801a-g |
 | 802 | Render system moved onto the shared thread-pool library | Waits on 515f (question Q-6) | my-libs threadpool |
 
 ### Dependency Graph
