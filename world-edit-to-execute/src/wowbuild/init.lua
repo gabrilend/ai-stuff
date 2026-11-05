@@ -123,6 +123,9 @@ wowbuild.GROUND_FILE = "war3map.w3e"
 -- and its info file the same way: the W client reads the map's water tint
 -- and fog from it (custom-client 081's water plan, step 3)
 wowbuild.INFO_FILE = "war3map.w3i"
+-- and its pathing map: the W client walls off WC3's unwalkable cells on
+-- converted ground, WC3's own equivalent of collision (custom-client 1109)
+wowbuild.PATHING_FILE = "war3map.wpm"
 wowbuild.STAGES_NOT_BUILT = {
     "W02d server data for new maps",
     "W02e's server loader and the remaining natives (steps 1-2 built: the coverage report, the transpiled script, 574 natives)",
@@ -239,6 +242,7 @@ function wowbuild.read_map(map_path)
     map.script, map.script_name = triggers.read_script(archive)
     map.ground = get("war3map.w3e")
     map.info_bytes = get("war3map.w3i")
+    map.pathing = get("war3map.wpm")
     map.has_file = function(path) if archive:has(path) then return path end end
     map.read_file = function(path) return archive:extract(path) end
     map.close = function() archive:close() end
@@ -358,8 +362,9 @@ end
 -- is there; false: none), patch (false: no patch-W.MPQ), terrain (a
 -- parsed terrain, for tests: map_path is then only a label), map (the
 -- parts wowbuild.read_map gives, for tests; without terrain and map the
--- map file is read), ground and info_bytes (the war3map.w3e and
--- war3map.w3i bytes to copy beside map.lua, for tests; default the map's own)
+-- map file is read), ground, info_bytes and pathing (the war3map.w3e,
+-- war3map.w3i and war3map.wpm bytes to copy beside map.lua, for tests;
+-- default the map's own)
 function wowbuild.convert(map_path, build_dir, opts)
     opts = opts or {}
     assert(type(build_dir) == "string" and build_dir ~= "", "convert: no build folder")
@@ -497,9 +502,10 @@ function wowbuild.convert(map_path, build_dir, opts)
     files[#files + 1] = { path = wowbuild.MAP_FILE, bytes = #map_text }
     -- the ground file beside it, as the map holds it; one from an earlier
     -- conversion goes, so the root's ground is always map.lua's map's
-    -- (and the info file likewise)
+    -- (and the info and pathing files likewise)
     for _, f in ipairs({ { wowbuild.GROUND_FILE, opts.ground or map.ground },
-                         { wowbuild.INFO_FILE, opts.info_bytes or map.info_bytes } }) do
+                         { wowbuild.INFO_FILE, opts.info_bytes or map.info_bytes },
+                         { wowbuild.PATHING_FILE, opts.pathing or map.pathing } }) do
         local file, bytes = f[1], f[2]
         os.remove(build_dir .. "/" .. file)
         if bytes then

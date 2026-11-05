@@ -131,6 +131,7 @@ Build folder, added to W02a's and W02b's:
 | `map.lua` | which map to open: id, folder, name, zone, the start, the WC3 → WoW transform, the folder's maps (data) | the W client's test-map run (1109's open question 4) |
 | `war3map.w3e` | the map's own ground file, copied whole (added 2026-11-05) | the W client's WC3-tileset ground (custom-client 078) |
 | `war3map.w3i` | the map's own info file, copied whole (added 2026-11-05) | the W client's WC3 water tint and fog (custom-client 081's plan, step 3) |
+| `war3map.wpm` | the map's own pathing map, copied whole (added 2026-11-05) | the W client's walls on WC3's unwalkable cells (custom-client 1109) |
 | `world/creatures-<id>.tsv` | the spawns, in 035-creatures.h's format | the W client's `--world` |
 | `server/dbc.sql` | `REPLACE INTO <table>_dbc` for six tables | AzerothCore's world database |
 | `server/dbc/<Table>.dbc` | the stock tables with these maps' rows added (only when stock tables are given; no LoadingScreens) | AzerothCore's `dbc` folder |
@@ -440,3 +441,18 @@ Checked: `test_wow_registration.lua` 70 pass (7 skipped),
 `test_wow_placements.lua` 72, `test_wow_terrain.lua` 70,
 `test_wow_triggers.lua` 138.
 
+
+### 2026-11-05: the pathing map beside it too
+
+The W client walls off WC3's unwalkable cells on converted ground, since
+WC3's pathing map is its own equivalent of collision (custom-client 1109,
+decided 2026-11-05). The converter now copies `war3map.wpm` to
+`<build>/war3map.wpm` (`wowbuild.PATHING_FILE`) the same way as the
+ground and info files: byte for byte, replacing an earlier map's, absent
+when the map has none, and not into `patch-W.MPQ`. Tests pass the bytes
+in with `opts.pathing`. The client reads the cells; the converter leaves
+them as the map holds them.
+
+Checked: `test_wow_registration.lua` 71 pass (7 skipped),
+`test_wow_placements.lua` 72 (5 skipped), `test_wow_terrain.lua` 70 (14
+skipped), `test_wow_triggers.lua` 138.
