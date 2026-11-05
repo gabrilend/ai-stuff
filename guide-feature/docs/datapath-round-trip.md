@@ -64,6 +64,11 @@ The current design of one round. The issues that change it update this file.
 A refused arrival is moved to `tmp/shared-memory/arrivals-refused/` with a
 log line naming the reason. It is never dropped silently.
 
+The blitter takes arrivals oldest first, by the unix time in their names
+(`<sender>-<unix time>-<random>`), then by name. A name starting with `.` is
+a file still being written; a file named `stop` is the blitter's clean stop
+(issue 107).
+
 ## What lives where
 
 | Data | Where | Type |

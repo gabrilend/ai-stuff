@@ -1,0 +1,20 @@
+# The blitter's settings (src/016-blitter.lua). Every value it runs with is
+# here; nothing has a default in code. Text goes in double quotes; numbers
+# and sizes are bare.
+
+# The canvas, columns x rows. Fixed when the blitter starts.
+canvas-size    = 60x20
+
+# How arriving voice canvases become the shared canvas: "newest" blits each
+# voice's changes as they arrive. ("distill" is issue 601, not built yet.)
+# Read again on every arrival.
+merge-mode     = "newest"
+
+# What happens to a word a write cuts into: "blank-whole" blanks what is
+# left of it (the owner's rule); "keep-fragments" leaves the letters, as a
+# terminal would. Read again on every arrival.
+collision-rule = "blank-whole"
+
+# How many versions a mark lasts before it is dropped (used by the marks,
+# issue 201).
+mark-lifetime  = 12

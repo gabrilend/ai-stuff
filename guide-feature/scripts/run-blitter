@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# run-blitter - runs the blitter, so that Ctrl-C or a TERM signal stops it
+# cleanly.
+#
+# The blitter itself stops cleanly when a file named `stop` appears in its
+# arrivals folder: it finishes the arrivals before it and writes its goodbye
+# receipt. LuaJIT cannot catch a signal, so this script catches it instead and
+# drops the stop file, then waits for the blitter to say goodbye.
+#
+# Usage:
+#   scripts/run-blitter           the project at its usual place
+#   scripts/run-blitter <dir>     the project at <dir>
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+if [ -n "${1:-}" ]; then
+    DIR="$1"
+fi
+ARRIVALS="${DIR}/tmp/shared-memory/arrivals"
+
+luajit "${DIR}/src/016-blitter.lua" --dir "${DIR}" &
+BLITTER=$!
+
+stop_cleanly() {
+    mkdir -p "${ARRIVALS}"
+    : > "${ARRIVALS}/stop"
+}
+trap stop_cleanly INT TERM
+
+# wait returns early when a trapped signal arrives, so wait again until the
+# blitter itself has ended.
+while kill -0 "${BLITTER}" 2>/dev/null; do
+    wait "${BLITTER}"
+    STATUS=$?
+done
+exit "${STATUS:-0}"

@@ -46,3 +46,9 @@ moves the phase toward its goals.)
   cut words go to the collision rule (`blank-whole`, `keep-fragments`). A
   report lists every cell written and blanked. With 101-106, everything the
   blitter loop (107) needs is built.
+- **107, the blitter loop** (2026-11-05): `src/016-blitter.lua` takes voice
+  canvases from `tmp/shared-memory/arrivals/` oldest first, refuses bad ones
+  with a reason (moved to `arrivals-refused/`), blits the rest into new
+  versions kept in memory, publishes each to the log, and says goodbye on a
+  stop file or (through `scripts/run-blitter`) a signal. What remains of
+  phase 1 is its demo (108).
