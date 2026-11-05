@@ -8,7 +8,8 @@ empty string). Every field of the tables here is 4 bytes: u32, i32, f32, a
 text offset (str), or a localised text (loc: 16 offsets, one a client
 language, then a mask: 17 fields).
 
-The layouts are data (dbc.LAYOUTS), one per table W02c writes, for build
+The layouts are data (dbc.LAYOUTS), one per table W02c writes (and the
+four light tables W02i writes: wowbuild.light), for build
 12340 (3.3.5a). Field order and counts come from memory of AzerothCore's
 DBCfmt.h and the community's 3.3.5a table descriptions; no source in this
 project or the W client's lists them. So every layout is `checked = false`,
@@ -118,11 +119,45 @@ dbc.LAYOUTS = {
                      { "Name", "loc" }, { "Description", "loc" } }),
         count = 57, checked = false, server_table = "faction_dbc",
     },
+    -- the light (W02i, wowbuild.light): the client's only, as written here
+    -- (no server_table: whether AzerothCore reads them is unchecked); the
+    -- W client's 026-light.c reads them through its 074 tables, by its 097
+    -- layouts, which give the same widths (15, 9, 34, 34)
+    Light = {
+        fields = L({ { "ID", "u32" }, { "ContinentID", "u32" }, { "X", "f32" }, { "Y", "f32" }, { "Z", "f32" },
+                     { "FalloffStart", "f32" }, { "FalloffEnd", "f32" }, { "LightParamsID", "u32", 8 } }),
+        count = 15, checked = false,
+        seen = { [1] = "ID", [2] = "ContinentID", [3] = "X", [4] = "Y", [5] = "Z", [6] = "FalloffStart",
+                 [7] = "FalloffEnd", [8] = "LightParamsID1", [9] = "LightParamsID2", [10] = "LightParamsID3",
+                 [11] = "LightParamsID4", [12] = "LightParamsID5" },
+        seen_by = "the W client's 026-light.c (light_open: a light's place, radii and five sets)",
+    },
+    LightParams = {
+        fields = L({ { "ID", "u32" }, { "HighlightSky", "u32" }, { "LightSkyboxID", "u32" }, { "CloudTypeID", "u32" },
+                     { "Glow", "f32" }, { "WaterShallowAlpha", "f32" }, { "WaterDeepAlpha", "f32" },
+                     { "OceanShallowAlpha", "f32" }, { "OceanDeepAlpha", "f32" } }),
+        count = 9, checked = false,
+        seen = { [1] = "ID", [3] = "LightSkyboxID", [6] = "WaterShallowAlpha", [7] = "WaterDeepAlpha",
+                 [8] = "OceanShallowAlpha", [9] = "OceanDeepAlpha" },
+        seen_by = "the W client's 026-light.c (params_at: the water's opacity; light_at: the skybox)",
+    },
+    LightIntBand = {
+        fields = L({ { "ID", "u32" }, { "Num", "u32" }, { "Time", "u32", 16 }, { "Data", "u32", 16 } }),
+        count = 34, checked = false,
+        seen = { [1] = "ID", [2] = "Num", [3] = "Time1", [18] = "Time16", [19] = "Data1", [34] = "Data16" },
+        seen_by = "the W client's 026-light.c (band_at: moments and colours)",
+    },
+    LightFloatBand = {
+        fields = L({ { "ID", "u32" }, { "Num", "u32" }, { "Time", "u32", 16 }, { "Data", "f32", 16 } }),
+        count = 34, checked = false,
+        seen = { [1] = "ID", [2] = "Num", [3] = "Time1", [18] = "Time16", [19] = "Data1", [34] = "Data16" },
+        seen_by = "the W client's 026-light.c (band_at: moments and distances)",
+    },
 }
 
 -- the order tables are written in, and their files' names
 dbc.TABLES = { "Map", "AreaTable", "LoadingScreens", "CreatureDisplayInfo", "CreatureModelData",
-               "FactionTemplate", "Faction" }
+               "FactionTemplate", "Faction", "Light", "LightParams", "LightIntBand", "LightFloatBand" }
 function dbc.file(name) return "DBFilesClient\\" .. name .. ".dbc" end
 
 -- {{{ expand: a layout's 4-byte columns (a loc field is 17)

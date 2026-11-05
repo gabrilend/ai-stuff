@@ -24,6 +24,10 @@ is base + slot x width:
   entry            creature_template.entry               9000000     10000   9000000-9999999
   guid             creature.guid                         1000000     50000   1000000-5999999
   area_bit         AreaTable.AreaBit (the explored-zones bit; under 4096)  4095 - slot
+  light            Light.dbc (the map's default light, W02i)  20000       1       20000-20099
+  light_params     LightParams.dbc (W02i)                20000       4       20000-20399
+  light_int_band   LightIntBand.dbc: a set's 18 bands    359983      72      359983-367182
+  light_float_band LightFloatBand.dbc: a set's 6 bands   119995      24      119995-122394
 
 Why these: map ids keep three digits because AzerothCore's mmaps
 generator reads a map id from the first three characters of each .map
@@ -31,7 +35,8 @@ file's name (W02d runs it), and the 3.3.5a tables end at 724 (from memory,
 unchecked). Every other block starts above the stock tables' highest ids as
 remembered (AreaTable about 4990, LoadingScreens about 260, CreatureDisplayInfo
 about 32000, CreatureModelData about 3000, FactionTemplate about 2240, Faction
-about 1200: all unchecked) and inside the server's limits (a creature's
+about 1200, Light and LightParams a few thousand, so their bands under
+about 60000 and 20000: all unchecked) and inside the server's limits (a creature's
 entry and guid are 24 bits in its object id; creature.map is a 16-bit
 column; the server's map files keep areas as 16 bits). Guids start low so
 the server's own counter, which starts after the highest guid, keeps
@@ -61,6 +66,13 @@ registration.SCHEME = {
     faction = { base = 3000, width = 100 },
     entry = { base = 9000000, width = 10000 },
     guid = { base = 1000000, width = 50000 },
+    -- the light (W02i, wowbuild.light): a map's default light and its
+    -- parameter sets; the band rows' numbers follow from a set's (set x 18
+    -- - 17 + band, set x 6 - 5 + band), so their blocks are the sets' own
+    light = { base = 20000, width = 1 },
+    light_params = { base = 20000, width = 4 },
+    light_int_band = { base = 20000 * 18 - 17, width = 4 * 18 },
+    light_float_band = { base = 20000 * 6 - 5, width = 4 * 6 },
 }
 registration.AREA_BIT_TOP = 4095          -- PLAYER_EXPLORED_ZONES: 128 x 32 bits
 registration.FILE = "registration.lua"   -- in World/Maps/<dir>/, beside the ground
@@ -70,6 +82,7 @@ registration.TABLE_KIND = {
     Map = "map", AreaTable = "area", LoadingScreens = "loading_screen",
     CreatureDisplayInfo = "display", CreatureModelData = "display",
     FactionTemplate = "faction", Faction = "faction",
+    Light = "light", LightParams = "light_params", LightIntBand = "light_int_band", LightFloatBand = "light_float_band",
 }
 
 -- {{{ registration.ids
@@ -176,7 +189,7 @@ end
 -- factions); ids: registration.ids(slot) (with area_bit settled);
 -- opts: directory, strings (parsers.wts's), picture (the loading screen's
 -- archive path). Returns { Map = { row }, AreaTable = ..., ... } and a
--- table of notes.
+-- table of notes; the light's (wowbuild.light) are the second value.
 function registration.rows(info, C, ids, opts)
     local resolve = require("wowbuild.creatures").resolve_string
     local name = registration.clean_text(resolve(info and info.name, opts.strings), 120)
@@ -232,7 +245,11 @@ function registration.rows(info, C, ids, opts)
             Name = registration.clean_text(f.name, 120), Description = "",
         }
     end
-    return rows
+
+    -- the light: the map's default, with its own fog and water tint (W02i)
+    local light_rows, light_said = require("wowbuild.light").rows(info, ids, opts.yards_per_unit)
+    for name, list in pairs(light_rows) do rows[name] = list end
+    return rows, light_said
 end
 -- }}}
 
