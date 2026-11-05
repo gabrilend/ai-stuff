@@ -52,6 +52,15 @@ local function L(fields)
     return out
 end
 
+-- columns the W client reads (`seen`, field numbers from 1). Its 074-tables.c
+-- finds every table's rows by field 1, the id; a light band's moments and
+-- values are read all sixteen of each by 026-light.c's band_at (fields
+-- 3-18 and 19-34, as many as Num says)
+local BY_ID = { [1] = "ID" }
+local BY_ID_SEEN_BY = "the W client's 074-tables.c (a row found by its id)"
+local BAND_SEEN = { [1] = "ID", [2] = "Num" }
+for k = 1, 16 do BAND_SEEN[2 + k] = "Time" .. k BAND_SEEN[18 + k] = "Data" .. k end
+
 dbc.LAYOUTS = {
     Map = {
         fields = L({ { "ID", "u32" }, { "Directory", "str" }, { "InstanceType", "u32" }, { "Flags", "u32" },
@@ -71,11 +80,12 @@ dbc.LAYOUTS = {
                      { "ExplorationLevel", "u32" }, { "AreaName", "loc" }, { "FactionGroupMask", "u32" },
                      { "LiquidTypeID", "u32", 4 }, { "MinElevation", "f32" }, { "AmbientMultiplier", "f32" },
                      { "LightID", "u32" } }),
-        count = 36, checked = false, server_table = "areatable_dbc",
+        count = 36, checked = false, seen = BY_ID, seen_by = BY_ID_SEEN_BY, server_table = "areatable_dbc",
     },
     LoadingScreens = {
         fields = L({ { "ID", "u32" }, { "Name", "str" }, { "FileName", "str" }, { "HasWideScreen", "u32" } }),
         count = 4, checked = false,           -- the client's only: the server doesn't load it
+        seen = BY_ID, seen_by = BY_ID_SEEN_BY,
     },
     CreatureDisplayInfo = {
         fields = L({ { "ID", "u32" }, { "ModelID", "u32" }, { "SoundID", "u32" }, { "ExtendedDisplayInfoID", "u32" },
@@ -109,7 +119,7 @@ dbc.LAYOUTS = {
         fields = L({ { "ID", "u32" }, { "Faction", "u32" }, { "Flags", "u32" }, { "FactionGroup", "u32" },
                      { "FriendGroup", "u32" }, { "EnemyGroup", "u32" }, { "Enemies", "u32", 4 },
                      { "Friend", "u32", 4 } }),
-        count = 14, checked = false, server_table = "factiontemplate_dbc",
+        count = 14, checked = false, seen = BY_ID, seen_by = BY_ID_SEEN_BY, server_table = "factiontemplate_dbc",
     },
     Faction = {
         fields = L({ { "ID", "u32" }, { "ReputationIndex", "i32" }, { "ReputationRaceMask", "u32", 4 },
@@ -117,7 +127,7 @@ dbc.LAYOUTS = {
                      { "ReputationFlags", "u32", 4 }, { "ParentFactionID", "u32" },
                      { "ParentFactionMod", "f32", 2 }, { "ParentFactionCap", "u32", 2 },
                      { "Name", "loc" }, { "Description", "loc" } }),
-        count = 57, checked = false, server_table = "faction_dbc",
+        count = 57, checked = false, seen = BY_ID, seen_by = BY_ID_SEEN_BY, server_table = "faction_dbc",
     },
     -- the light (W02i, wowbuild.light): the client's only, as written here
     -- (no server_table: whether AzerothCore reads them is unchecked); the
@@ -144,13 +154,13 @@ dbc.LAYOUTS = {
     LightIntBand = {
         fields = L({ { "ID", "u32" }, { "Num", "u32" }, { "Time", "u32", 16 }, { "Data", "u32", 16 } }),
         count = 34, checked = false,
-        seen = { [1] = "ID", [2] = "Num", [3] = "Time1", [18] = "Time16", [19] = "Data1", [34] = "Data16" },
+        seen = BAND_SEEN,
         seen_by = "the W client's 026-light.c (band_at: moments and colours)",
     },
     LightFloatBand = {
         fields = L({ { "ID", "u32" }, { "Num", "u32" }, { "Time", "u32", 16 }, { "Data", "f32", 16 } }),
         count = 34, checked = false,
-        seen = { [1] = "ID", [2] = "Num", [3] = "Time1", [18] = "Time16", [19] = "Data1", [34] = "Data16" },
+        seen = BAND_SEEN,
         seen_by = "the W client's 026-light.c (band_at: moments and distances)",
     },
 }
