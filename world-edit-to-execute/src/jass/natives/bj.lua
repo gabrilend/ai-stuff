@@ -63,7 +63,8 @@ return function(V, N, T)
     -- states
     N.SetPlayerStateBJ = function(p, s, v)
         if s == "PLAYER_STATE_RESOURCE_GOLD" or s == "PLAYER_STATE_RESOURCE_LUMBER" then
-            local k = s == "PLAYER_STATE_RESOURCE_GOLD" and "gathered_gold" or "gathered_lumber"
+            -- counted where GetPlayerState(p, PLAYER_STATE_GOLD_GATHERED) reads it
+            local k = s == "PLAYER_STATE_RESOURCE_GOLD" and "gold_gathered" or "lumber_gathered"
             p[k] = (p[k] or 0) + math.max(0, v - N.GetPlayerState(p, s))
         end
         N.SetPlayerState(p, s, v)

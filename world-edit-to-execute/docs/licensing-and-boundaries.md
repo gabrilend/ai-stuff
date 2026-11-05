@@ -65,7 +65,10 @@ the licences as written, not legal advice.
   even if the rest moves to the RGPL. That means the JASS-native shim (W02e),
   any C++ AzerothCore module for WC3 orders, and SQL/Lua shipped as a server
   module. Keep it in its own folder with its own LICENSE so a later switch
-  elsewhere doesn't catch it.
+  elsewhere doesn't catch it. *That folder is `server-side/` (2026-11-04,
+  W02e): its `LICENSE` is the AGPL v3 text, the shim is
+  `server-side/ale/wc3shim/`, and it requires nothing outside the folder;
+  the converter reads only its list of natives, as data.*
 - **The move to the RGPL (2026-09-23).** The projects are moving to the
   owner's RGPL. It can't be combined with GPL v3 code (the draft drops that
   permission) or with AGPL v3 code (AGPL forbids adding the RGPL's extra

@@ -5,10 +5,12 @@ The map editor's Test Map (issue 913) runs it as
 `<convert...> <map.w3x> <build folder>`; set the editor's
 `test_map.convert` to `{ "luajit", "<project>/src/cli/wow-convert.lua" }`.
 
-**Builds today** the terrain (W02a), the doodads and units (W02b) and the
+**Builds today** the terrain (W02a), the doodads and units (W02b), the
 map's registration in the client's and server's tables with `patch-W.MPQ`
-(W02c). W02's later sub-issues (server data, triggers, the world database)
-add their parts to this same command.
+(W02c), and the first step of its triggers on the server (W02e: the script
+transpiled for the shim in `server-side/ale/wc3shim/`, and the report of
+which natives the shim has). W02's later sub-issues (server data, the rest
+of the triggers, the world database) add their parts to this same command.
 
 ## Using it
 
@@ -50,8 +52,11 @@ luajit src/cli/wow-convert.lua [--strict] [--name NAME] [--textures FILE] [--mod
 | `server/dbc.sql` | the tables' rows for AzerothCore's `<table>_dbc` copies |
 | `server/dbc/<Table>.dbc` | the stock tables with these maps' rows added (with stock tables only) |
 | `patch-W.MPQ` | every map's ground files and loading screen, and the merged tables (with stock tables), for the stock client and AzerothCore's extractors |
+| `server/triggers/<dir>/war3map.lua` | the map's script, transpiled to Lua for the server's shim (W02e) |
+| `server/triggers/<dir>/map-data.lua` | what the shim reads of the build: map id, the WC3 -> WoW transform, templates, factions, spawns, the script's globals, typed stand-ins, constants (data) |
+| `server/triggers/<dir>/natives-report.lua` | every native and Blizzard.j function the script calls, how often, whether the shim has it, what the project's own runtime does with it; the unit types the script makes with no creature template (data) |
 | `placements.lua` | every doodad, unit and start location and what became of it (data) |
-| `conversion-report.lua` | data: files, placement, layer counts, texture folds, unmapped types, the registration, warnings, the stages not built yet |
+| `conversion-report.lua` | data: files, placement, layer counts, texture folds, unmapped types, the registration, the triggers' coverage counts, warnings, the stages not built yet |
 
 A summary goes to stdout (Test Map keeps it as `convert.log`).
 

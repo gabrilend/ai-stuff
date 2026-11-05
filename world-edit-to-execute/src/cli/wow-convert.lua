@@ -32,23 +32,27 @@
 --   --dir DIR       this project's folder (default: found from this file)
 --   --help
 --
--- Builds today the terrain (W02a), the placements (W02b) and the map's
--- registration (W02c): the map's WDT, WDL and ADT files under
+-- Builds today the terrain (W02a), the placements (W02b), the map's
+-- registration (W02c) and the first step of its triggers (W02e): the map's
+-- WDT, WDL and ADT files under
 -- <build folder>/World/Maps/<name>/, its doodads in those ADTs, its units as
 -- the server's creatures in <build folder>/server/world.sql, the map's own
 -- imported models at their own paths, its rows in the client's tables
 -- (DBFilesClient/, the W client's overlay; server/dbc.sql and server/dbc/
 -- for AzerothCore; patch-W.MPQ for the stock client and the extractors),
 -- map.lua (the map Test Map opens), world/creatures-<id>.tsv, its loading
--- screen, placements.lua and conversion-report.lua. The later parts of W02
--- add to this same command as they are built: server data (W02d),
--- triggers (W02e), the world database (W02h).
+-- screen, placements.lua and conversion-report.lua; and for the server's
+-- trigger shim (server-side/ale/wc3shim/), server/triggers/<name>/: the
+-- script transpiled, the data the shim reads, and natives-report.lua, the
+-- natives the script calls and which of them the shim has. The later parts
+-- of W02 add to this same command as they are built: server data (W02d),
+-- the rest of the triggers (W02e), the world database (W02h).
 --
 -- Exit status: 0 built; 1 the map couldn't be converted (the reason on
 -- stderr); 2 the options were wrong. A summary goes to stdout.
 --
 -- Issues: issues/W02a-terrain-to-adt-writer.md, issues/W02b-doodads-and-units-to-placements.md,
--- issues/W02c-map-registration-and-output-forms.md
+-- issues/W02c-map-registration-and-output-forms.md, issues/W02e-triggers-on-the-server.md
 
 local function usage(out)
     out:write([[
@@ -56,13 +60,14 @@ usage: wow-convert.lua [--strict] [--name NAME] [--textures FILE] [--models FILE
                       [--slot N | --map-id N] [--stock-dbc DIR | --no-stock] [--no-patch]
                       [--dir DIR] <map.w3x> <build folder>
 Builds a WC3 map into WoW 3.3.5a's files in the build folder.
-Today the terrain (issue W02a), the placements (W02b) and the map's
-registration (W02c): WDT, WDL and ADTs (with the doodads) under
+Today the terrain (issue W02a), the placements (W02b), the map's
+registration (W02c) and the triggers' first step (W02e): WDT, WDL and ADTs (with the doodads) under
 World/Maps/<name>/, the units as creatures in server/world.sql, the map's
 own models, its rows in the client's tables (DBFilesClient/; server/dbc.sql
 and server/dbc/; patch-W.MPQ), map.lua, world/creatures-<id>.tsv,
-placements.lua and conversion-report.lua. W02's later parts (server data,
-triggers) add to this command.
+placements.lua, conversion-report.lua, and server/triggers/<name>/ (the
+script transpiled for the server's shim, its data, the natives report).
+W02's later parts (server data, the rest of the triggers) add to this command.
 Exit status: 0 built, 1 conversion failed, 2 bad options.
 ]])
 end
@@ -113,6 +118,7 @@ package.path = DIR .. "src/?.lua;" .. DIR .. "src/?/init.lua;" .. package.path
 local wowbuild = require("wowbuild")
 if opts.name and not wowbuild.valid_name(opts.name) then bad("--name: letters, digits and _ only, 1-48 long") end
 
+opts.dir = DIR   -- the shim's list of natives (W02e) is read from this project's folder
 local ok, report = pcall(wowbuild.convert, paths[1], paths[2], opts)
 if not ok then
     io.stderr:write("wow-convert: " .. tostring(report) .. "\n")
