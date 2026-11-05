@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+#
+# refresh-vendored - copies each single-file library this project keeps its
+# own copy of from its local upstream again, and shows what changed.
+#
+# Every copied file in libs/ sits beside a note, libs/<file>.upstream, with
+# the source's path, the source's commit at copy time (the last commit that
+# touched the file), the date, and "changes:" - "none", or what this project
+# changed in its copy (docs/vendored-code.md). For each note:
+#
+#   - the source's newest commit for that file is found in its own git
+#     repository; the same commit as the note says means up to date;
+#   - otherwise the upstream's own changes since the note's commit are shown
+#     (git diff), then:
+#       * a copy with "changes: none" is replaced by the source as committed;
+#       * a copy with changes of its own is merged three ways (git
+#         merge-file): the upstream's changes are carried into this project's
+#         copy. A clean merge replaces the copy; a merge with conflicts is
+#         left beside it as libs/<file>.merge, and the copy and its note are
+#         not touched, so a person settles it;
+#   - the difference in this project's copy is shown, and the note's commit
+#     and date are rewritten.
+#
+# It never runs on its own. Updating a copy is a deliberate act: read what
+# it prints, keep or adapt, and commit.
+#
+# Usage:
+#   scripts/refresh-vendored [--check] [--dir ROOT] [FILE ...]
+#     --check   only say which copies are behind; change nothing
+#     FILE      only these copies (as named in libs/, like dkjson.lua)
+#
+# Exit status: 0 when everything is up to date or was refreshed, 1 when a
+# merge left conflicts or a source could not be read, 2 for bad arguments.
+
+set -u
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+CHECK=0
+ONLY=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --dir)   DIR="$2"; shift 2 ;;
+        --check) CHECK=1; shift ;;
+        -h|--help)
+            sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0 ;;
+        -*)      echo "refresh-vendored: unknown option $1" >&2; exit 2 ;;
+        *)       ONLY+=("$1"); shift ;;
+    esac
+done
+
+STATUS=0
+SCRATCH="$(mktemp -d)"
+trap 'rm -f "${SCRATCH}"/base "${SCRATCH}"/theirs "${SCRATCH}"/merged "${SCRATCH}"/note; rmdir "${SCRATCH}"' EXIT
+
+# {{{ field NOTE NAME - one "name: value" line of a note
+field() {
+    sed -n "s/^$2:[[:space:]]*//p" "$1" | head -n 1
+}
+# }}}
+
+# {{{ wanted NAME - whether this copy was asked for
+wanted() {
+    [ ${#ONLY[@]} -eq 0 ] && return 0
+    local one
+    for one in "${ONLY[@]}"; do
+        [ "${one}" = "$1" ] && return 0
+    done
+    return 1
+}
+# }}}
+
+# {{{ rewrite_note NOTE COMMIT - the note with its new commit and date
+rewrite_note() {
+    sed -e "s/^commit:.*/commit: $2/" -e "s/^copied:.*/copied: $(date +%F)/" \
+        "$1" > "${SCRATCH}/note"
+    cat "${SCRATCH}/note" > "$1.part" && mv "$1.part" "$1"
+}
+# }}}
+
+for NOTE in "${DIR}"/libs/*.upstream; do
+    [ -e "${NOTE}" ] || continue
+    COPY="${NOTE%.upstream}"
+    NAME="${COPY##*/}"
+    wanted "${NAME}" || continue
+
+    SOURCE="$(field "${NOTE}" source)"
+    OLD="$(field "${NOTE}" commit)"
+    CHANGES="$(field "${NOTE}" changes)"
+    if [ -z "${SOURCE}" ] || [ -z "${OLD}" ]; then
+        echo "${NAME}: its note has no source: or commit: line; skipped"
+        STATUS=1
+        continue
+    fi
+    REPO="$(git -C "$(dirname "${SOURCE}")" rev-parse --show-toplevel 2>/dev/null)"
+    if [ -z "${REPO}" ] || [ ! -f "${SOURCE}" ]; then
+        echo "${NAME}: the upstream ${SOURCE} is not a file in a git repository here; skipped"
+        STATUS=1
+        continue
+    fi
+    REAL_SOURCE="$(cd "$(dirname "${SOURCE}")" && pwd -P)/$(basename "${SOURCE}")"
+    REL="${REAL_SOURCE#"$(cd "${REPO}" && pwd -P)"/}"
+    NEW="$(git -C "${REPO}" log -1 --format=%H -- "${REL}")"
+    if [ -z "${NEW}" ]; then
+        echo "${NAME}: ${SOURCE} has no commits; skipped"
+        STATUS=1
+        continue
+    fi
+    if [ "${NEW}" = "${OLD}" ]; then
+        echo "${NAME}: up to date (${NEW:0:9})"
+        continue
+    fi
+
+    echo "${NAME}: the upstream moved from ${OLD:0:9} to ${NEW:0:9}"
+    if [ "${CHECK}" -eq 1 ]; then
+        continue
+    fi
+    echo "--- the upstream's own changes ---"
+    git -C "${REPO}" --no-pager diff "${OLD}" "${NEW}" -- "${REL}"
+
+    git -C "${REPO}" show "${NEW}:${REL}" > "${SCRATCH}/theirs"
+    if [ "${CHANGES#none}" != "${CHANGES}" ]; then
+        cp "${SCRATCH}/theirs" "${SCRATCH}/merged"
+    else
+        if ! git -C "${REPO}" show "${OLD}:${REL}" > "${SCRATCH}/base" 2>/dev/null; then
+            echo "${NAME}: the note's commit ${OLD:0:9} is not in ${REPO}; settle it by hand"
+            STATUS=1
+            continue
+        fi
+        cp "${COPY}" "${SCRATCH}/merged"
+        if ! git merge-file -L "this project" -L "upstream ${OLD:0:9}" \
+                -L "upstream ${NEW:0:9}" "${SCRATCH}/merged" "${SCRATCH}/base" \
+                "${SCRATCH}/theirs"; then
+            cp "${SCRATCH}/merged" "${COPY}.merge"
+            echo "${NAME}: the upstream's changes conflict with this project's;"
+            echo "  the merge with conflict marks is libs/${NAME}.merge."
+            echo "  ${NAME} and its note are unchanged."
+            STATUS=1
+            continue
+        fi
+    fi
+
+    echo "--- the change to this project's copy ---"
+    diff -u "${COPY}" "${SCRATCH}/merged"
+    cat "${SCRATCH}/merged" > "${COPY}.part" && mv "${COPY}.part" "${COPY}"
+    rewrite_note "${NOTE}" "${NEW}"
+    echo "${NAME}: refreshed to ${NEW:0:9}; read the differences above, then commit"
+done
+
+exit "${STATUS}"

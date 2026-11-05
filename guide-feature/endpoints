@@ -1,0 +1,30 @@
+# endpoints - every language model and embedding model guide-feature uses,
+# and which one each part uses (docs/endpoints.md).
+#
+# Read again at the start of every turn, so editing a use. line switches
+# that role on its next turn, with nothing restarted. Only kuvalu keeps
+# this file; kuvalu names each voice's endpoint in the canvas it sends.
+#
+# The two servers are this project's own llama.cpp servers on kuvalu
+# (issue 401a). Their ports are proposed here, not yet confirmed: 401a
+# checks them against what kuvalu already listens on (ss -ltn) before
+# starting anything there. Their model files are chosen with the owner in
+# 401a and written here as NAME.model then.
+
+# -- the endpoints ----------------------------------------------------
+kuvalu-chat.url       = "http://192.168.1.100:21223"
+kuvalu-chat.kind      = "chat"
+kuvalu-chat.port      = 21223      # proposed; confirmed in 401a
+kuvalu-chat.timeout   = 300        # seconds for one request; a whole canvas can be slow
+
+kuvalu-embed.url      = "http://192.168.1.100:21224"
+kuvalu-embed.kind     = "embedding"
+kuvalu-embed.port     = 21224      # proposed; confirmed in 401a
+kuvalu-embed.timeout  = 60
+
+# -- who uses which ---------------------------------------------------
+use.fg-sora-1  = "kuvalu-chat"
+use.fg-sora-2  = "kuvalu-chat"
+use.fg-sora-3  = "kuvalu-chat"
+use.distiller  = "kuvalu-chat"
+use.embedder   = "kuvalu-embed"

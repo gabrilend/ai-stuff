@@ -1,0 +1,282 @@
+#!/usr/bin/env luajit
+-- 047-stand-in-llama.lua - a stand-in llama.cpp server, for tests only.
+--
+-- In plain terms: the model caller (046) and the turn's asking loop (404)
+-- talk to llama.cpp servers over HTTP. Those servers (issue 401a) run on the
+-- owner's machine with real models; this project installs neither here. So
+-- the tests start this instead: a small server on 127.0.0.1 that answers the
+-- same routes in the same shapes llama-server does, with scripted replies.
+-- It listens on the loopback address only, never anything else, and writes
+-- the port the system gave it to a file, so tests never fight over a port.
+--
+-- The routes, as llama-server answers them:
+--   GET  /v1/models             {"object":"list","data":[{"id":...}]}
+--   POST /v1/chat/completions   {"choices":[{"message":{"role":"assistant",
+--                                 "content":...}}], "usage":{...}}
+--   POST /tokenize              {"tokens":[...]}  (one token per word here)
+--   POST /v1/embeddings         {"data":[{"index":0,"embedding":[...]}]}
+--                               (listed last first; index says which text)
+-- A chat server answers /v1/embeddings with 501 and an embedding server
+-- answers /v1/chat/completions with 501, as llama-server does with and
+-- without --embeddings. Errors are llama-server's {"error":{...}} body.
+--
+-- Chat replies come from a JSON file, a list taken in order; the last one is
+-- repeated when the list runs out. Each is a string (the reply), or a table:
+--   { "content": "...", "delay": 2 }        answered after 2 seconds
+--   { "status": 500, "error": "..." }       a server error
+-- Every request is appended to a JSON-lines file, so a test can read what the
+-- caller sent (the whole conversation, every time).
+--
+-- usage:
+--   luajit 047-stand-in-llama.lua --kind chat|embedding --port-file FILE
+--          [--replies FILE] [--requests FILE] [--dimensions N] [--parent PID]
+--   --parent: leave once that process is gone (a test that died)
+
+-- {{{ local DIR
+local SOURCE = debug.getinfo(1, "S").source
+local DIR = string.match(SOURCE, "^@(.+)/src/[^/]*$")
+    or (string.match(SOURCE, "^@src/[^/]*$") and ".")
+    or "/mnt/mtwo/programming/ai-stuff/guide-feature"
+-- }}}
+
+local socket = require("socket")
+local ffi = require("ffi")
+pcall(ffi.cdef, "int kill(int pid, int sig);")
+local json = dofile(DIR .. "/libs/dkjson.lua")
+
+local M = {}
+
+-- {{{ M.ADDRESS
+-- The only address this ever listens on.
+M.ADDRESS = "127.0.0.1"
+-- }}}
+
+-- {{{ local function words()
+local function words(text)
+    local list = {}
+    for word in string.gmatch(text or "", "%S+") do list[#list + 1] = word end
+    return list
+end
+-- }}}
+
+-- {{{ local function hash()
+-- A small, stable number for a word: its token id and its embedding bucket.
+local function hash(text)
+    local h = 5381
+    for index = 1, #text do
+        h = (h * 33 + string.byte(text, index)) % 2147483647
+    end
+    return h
+end
+-- }}}
+
+-- {{{ function M.tokens()
+-- One token per word: enough for counting, and easy to check by eye.
+function M.tokens(text)
+    local list = {}
+    for _, word in ipairs(words(text)) do list[#list + 1] = hash(word) % 32000 end
+    return list
+end
+-- }}}
+
+-- {{{ function M.embedding()
+-- A vector of `dimensions` numbers made from the words, of length 1: the same
+-- text always gives the same vector, and texts sharing words lie close.
+function M.embedding(text, dimensions)
+    local vector = {}
+    for index = 1, dimensions do vector[index] = 0 end
+    for _, word in ipairs(words(text)) do
+        local bucket = hash(string.lower(word)) % dimensions + 1
+        vector[bucket] = vector[bucket] + 1
+    end
+    local length = 0
+    for index = 1, dimensions do length = length + vector[index] ^ 2 end
+    length = math.sqrt(length)
+    if length > 0 then
+        for index = 1, dimensions do vector[index] = vector[index] / length end
+    end
+    return vector
+end
+-- }}}
+
+-- {{{ local function error_body()
+local function error_body(status, message, kind)
+    return status, { error = { code = status, message = message, type = kind } }
+end
+-- }}}
+
+-- {{{ function M.new()
+-- A server's state: its kind, its replies, and where requests are written.
+function M.new(opts)
+    assert(opts.kind == "chat" or opts.kind == "embedding", "--kind chat or embedding")
+    local server = { kind = opts.kind, replies = opts.replies or {}, taken = 0,
+                     requests = opts.requests, dimensions = opts.dimensions or 8 }
+    return setmetatable(server, { __index = M })
+end
+-- }}}
+
+-- {{{ function M:next_reply()
+function M:next_reply(messages)
+    self.taken = self.taken + 1
+    local reply = self.replies[math.min(self.taken, #self.replies)]
+    if reply == nil then
+        local last = messages[#messages] and messages[#messages].content or ""
+        reply = "stand-in reply: " .. (string.match(last, "^[^\n]*") or "")
+    end
+    if type(reply) == "string" then reply = { content = reply } end
+    return reply
+end
+-- }}}
+
+-- {{{ function M:answer()
+-- What one request gets: a status and a table to send as JSON. Pure, so the
+-- tests can call it without a socket.
+function M:answer(method, path, body_text)
+    local body = nil
+    if method == "POST" then
+        body = json.decode(body_text or "")
+        if type(body) ~= "table" then
+            return error_body(400, "the body is not JSON", "invalid_request_error")
+        end
+    end
+    if self.requests then
+        local handle = io.open(self.requests, "ab")
+        if handle then
+            handle:write(json.encode({ method = method, path = path, body = body }), "\n")
+            handle:close()
+        end
+    end
+
+    if method == "GET" and path == "/v1/models" then
+        return 200, { object = "list", data = { { id = "stand-in-" .. self.kind,
+            object = "model", owned_by = "llamacpp" } } }
+    elseif method == "POST" and path == "/tokenize" then
+        return 200, { tokens = M.tokens(body.content) }
+    elseif method == "POST" and path == "/v1/embeddings" then
+        if self.kind ~= "embedding" then
+            return error_body(501, "This server does not support embeddings. "
+                .. "Start it with `--embeddings`", "not_supported_error")
+        end
+        local inputs = type(body.input) == "table" and body.input or { body.input }
+        local data, tokens = {}, 0
+        -- Listed last first: the API ties each vector to its text by `index`,
+        -- not by place, so a caller that goes by place is caught here.
+        for index, text in ipairs(inputs) do
+            data[#inputs - index + 1] = { object = "embedding", index = index - 1,
+                                          embedding = M.embedding(text, self.dimensions) }
+            tokens = tokens + #words(text)
+        end
+        return 200, { object = "list", model = body.model, data = data,
+                      usage = { prompt_tokens = tokens, total_tokens = tokens } }
+    elseif method == "POST" and path == "/v1/chat/completions" then
+        if self.kind ~= "chat" then
+            return error_body(501, "This server does not support completions. "
+                .. "Start it without `--embeddings`", "not_supported_error")
+        end
+        local messages = type(body.messages) == "table" and body.messages or {}
+        local reply = self:next_reply(messages)
+        if reply.delay then socket.sleep(reply.delay) end
+        if reply.status then
+            return error_body(reply.status, reply.error or "stand-in error", "server_error")
+        end
+        local prompt = 0
+        for _, message in ipairs(messages) do prompt = prompt + #words(message.content) end
+        local completion = #words(reply.content)
+        return 200, {
+            object = "chat.completion", model = body.model,
+            choices = { { index = 0, finish_reason = "stop",
+                          message = { role = "assistant", content = reply.content } } },
+            usage = { prompt_tokens = prompt, completion_tokens = completion,
+                      total_tokens = prompt + completion },
+        }
+    end
+    return error_body(404, "File Not Found", "not_found_error")
+end
+-- }}}
+
+-- {{{ local function read_request()
+-- One HTTP request from a connected socket: method, path and body.
+local function read_request(client)
+    client:settimeout(10)
+    local line = client:receive("*l")
+    if not line then return nil end
+    local method, path = string.match(line, "^(%u+)%s+(%S+)")
+    local length = 0
+    while true do
+        local header = client:receive("*l")
+        if not header or header == "" then break end
+        local value = string.match(string.lower(header), "^content%-length:%s*(%d+)")
+        if value then length = tonumber(value) end
+    end
+    local body = length > 0 and client:receive(length) or ""
+    return method, path, body
+end
+-- }}}
+
+-- {{{ function M:serve()
+-- Listens on 127.0.0.1, on the port the system gives, writes that port to
+-- `port_file` (under a temporary name, then renamed, so it is never read half
+-- written), and answers one request at a time until it is killed, or until
+-- the process `parent` is gone.
+function M:serve(port_file, parent)
+    local listener = assert(socket.bind(M.ADDRESS, 0))
+    listener:settimeout(1)
+    local _, port = listener:getsockname()
+    local handle = assert(io.open(port_file .. ".part", "wb"))
+    handle:write(tostring(port), "\n")
+    handle:close()
+    assert(os.rename(port_file .. ".part", port_file))
+    while true do
+        -- A test that dies without stopping its stand-ins leaves none behind:
+        -- with --parent, the server leaves once that process is gone.
+        if parent and ffi.C.kill(parent, 0) ~= 0 and ffi.errno() ~= 1 then
+            listener:close()
+            return
+        end
+        local client = listener:accept()
+        if client then
+            local method, path, body = read_request(client)
+            if method then
+                local status, reply = self:answer(method, path, body)
+                local text = json.encode(reply)
+                client:send(string.format("HTTP/1.1 %d %s\r\nContent-Type: application/json\r\n"
+                    .. "Content-Length: %d\r\nConnection: close\r\n\r\n%s",
+                    status, status == 200 and "OK" or "Error", #text, text))
+            end
+            client:close()
+        end
+    end
+end
+-- }}}
+
+-- {{{ command line
+if arg and arg[0] and string.match(arg[0], "047%-stand%-in%-llama%.lua$") then
+    local opts, port_file = {}, nil
+    local index = 1
+    while arg[index] do
+        local name, value = arg[index], arg[index + 1]
+        if name == "--kind" then opts.kind = value
+        elseif name == "--port-file" then port_file = value
+        elseif name == "--requests" then opts.requests = value
+        elseif name == "--dimensions" then opts.dimensions = tonumber(value)
+        elseif name == "--parent" then opts.parent = tonumber(value)
+        elseif name == "--replies" then
+            local handle = assert(io.open(value, "rb"))
+            opts.replies = assert(json.decode(handle:read("*a")), "--replies is not JSON")
+            handle:close()
+        elseif name ~= "--dir" then
+            io.stderr:write("unknown argument: ", name, "\n")
+            os.exit(2)
+        end
+        index = index + 2
+    end
+    if not port_file then
+        io.stderr:write("usage: 047-stand-in-llama.lua --kind chat|embedding --port-file FILE"
+            .. " [--replies FILE] [--requests FILE] [--dimensions N] [--parent PID]\n")
+        os.exit(2)
+    end
+    M.new(opts):serve(port_file, opts.parent)
+end
+-- }}}
+
+return M

@@ -58,4 +58,4 @@ last issue completed in a project to belong to phase 1.
   the project, so a new file can take the next number without a search.
 - run-phase-demo - asks which completed phase to demonstrate, then runs it.
 - endpoints - the llama.cpp servers, and which part uses which (made by
-  issue 401).
+  issue 401b; its ports are confirmed and its models added in 401a).
