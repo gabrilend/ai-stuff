@@ -26,3 +26,7 @@ moves the phase toward its goals.)
   malformed one at its line. `src/005-utf8.lua` counts rows in characters for
   it, 103 and 105. The word finder (103), the blitter's arrivals (107) and the
   viewers' reader (202) now have their text form.
+- **103, the words on a canvas** (2026-11-05): `src/008-words.lua` finds every
+  word with its row, column and length in characters, which word covers each
+  cell, and the sentences. It is what the change finder (104), the blit (106)
+  and the marks (201) measure with.
