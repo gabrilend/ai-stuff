@@ -220,6 +220,21 @@ id the maps use has a row).
     Icecrown → Icecrown, Outland → Hellfire, Black Citadel → Shadowmoon).
     **Every row is `checked = false`**; many file names are guesses. A
     missing path shows as the W client's placeholder picture, not a crash.
+17. **The placement in the report, for Test Map's camera** (2026-11-04,
+    issue 913's camera pass, branch `claude/wete-test-map-camera`). The
+    report's `placement.client` is the placement as plain numbers:
+    `client x = x0 + scale * wc3 y`, `client y = y0 - scale * wc3 x`
+    (yards, x north and y west), and the map's tile-point bounds
+    (`Layout:client_placement`). The editor turns its view's point into
+    the W client's `--camera` with it (`coords.wc3_to_client`), so the
+    camera starts where the editor was looking. The convention was checked
+    against the W client's own code (its 018-maps.h, 033-ground-prep.c,
+    020-adt.h; and, built from its sources, its `maps_tile_of`,
+    `maps_corner_position` and ADT reader). `coords.client_adt` is the
+    client's rule for which ADT a world point is in, for W02b and the
+    tests. The report's numbers are now written in the shortest form that
+    reads back exactly (six digits cut the placement by up to a tenth of a
+    yard).
 
 ### Left open
 

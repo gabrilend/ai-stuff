@@ -143,14 +143,16 @@ function M.open_writable(path, lib_path)
 end
 -- }}}
 
--- {{{ function M.create (issue 911a)
--- A new, empty archive (version 1, as WC3 reads) with a listfile and
--- attributes StormLib keeps up to date
-function M.create(path, max_files, lib_path)
+-- {{{ function M.create (issue 911a; version 2 for W02c)
+-- A new, empty archive with a listfile and attributes StormLib keeps up to
+-- date: version 1 (as WC3 reads) unless version is 2 (as the WoW 3.3.5a
+-- client's own archives are: patch-W.MPQ, issue W02c)
+function M.create(path, max_files, lib_path, version)
     local L = load_library(lib_path)
     local handle = ffi.new("void *[1]")
-    local MPQ_CREATE_LISTFILE, MPQ_CREATE_ATTRIBUTES = 0x00100000, 0x00200000
-    if not L.SFileCreateArchive(path, MPQ_CREATE_LISTFILE + MPQ_CREATE_ATTRIBUTES, max_files or 1024, handle) then
+    local MPQ_CREATE_LISTFILE, MPQ_CREATE_ATTRIBUTES, MPQ_CREATE_ARCHIVE_V2 = 0x00100000, 0x00200000, 0x01000000
+    local flags = MPQ_CREATE_LISTFILE + MPQ_CREATE_ATTRIBUTES + (version == 2 and MPQ_CREATE_ARCHIVE_V2 or 0)
+    if not L.SFileCreateArchive(path, flags, max_files or 1024, handle) then
         error(string.format("StormLib could not create %s (error %d)", path, L.SErrGetLastError()))
     end
     return setmetatable({ handle = handle[0], path = path, writable = true }, Archive)

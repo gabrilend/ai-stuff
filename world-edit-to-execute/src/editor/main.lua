@@ -15,9 +15,14 @@ object in it changes. WC3_MODELS=0 draws the designs only, WC3_TILES=0
 plain colours. The camera is the viewer's: arrows and the screen's edges
 pan, the wheel zooms.
 
-Saving writes EDITOR_OUT, else <map>-edited.w3x beside the map; testing
-(F5) saves a copy and plays it in the game with the viewer named by
-WC3_VIEWER (run-editor sets it).
+Saving writes EDITOR_OUT, else <map>-edited.w3x beside the map. Test Map
+(F5, issue 913) saves, converts through W02, starts or reuses the local
+AzerothCore and opens the W client on the map, where the editor's settings
+(editor-settings.lua) say they are; the window's frames move it on, and
+the server it started is stopped when the window closes (the viewer's
+lua_close collects the Test Map session, which stops it). It replaces
+F5's old run of a copy in this viewer: there is one F5 (913's open
+question 1).
 ]]
 
 local render = require("render")
@@ -184,7 +189,7 @@ local ui = editor_ui.new(E, sw, sh, {
     play_sound = viewer.play_sound, stop_sound = viewer.stop_sound,
     -- the camera tool (issue 904b)
     camera = viewer.camera, set_camera = viewer.set_camera,
-    save_path = out, root = ROOT, viewer = os.getenv("WC3_VIEWER"),
+    save_path = out, root = ROOT,
 })
 local t = E.terrain
 CAMERA_START = { t.offset_x + t.width * 64, t.offset_y + t.height * 64, 2400 }

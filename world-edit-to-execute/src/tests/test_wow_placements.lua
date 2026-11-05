@@ -37,6 +37,9 @@ local coords = require("wowbuild.coords")
 local placements = require("wowbuild.placements")
 local creatures = require("wowbuild.creatures")
 local wowbuild = require("wowbuild")
+-- the made map converts as map 923: slot 23 of W02c's id scheme
+local IDS = require("wowbuild.registration").ids(23)
+local F0 = IDS.faction
 -- }}}
 
 -- {{{ Test infrastructure
@@ -394,7 +397,7 @@ made_map.info.players[2].start_y = select(2, at(190, 60))
 test_section("A made map: doodads in the ADTs")
 local build = TMP .. "/build"
 local report, job, P, C = wowbuild.convert("made.w3x", build, { terrain = terrain, map = made_map, models = made_models,
-                                                               name = "WC3_made", map_id = 9123 })
+                                                               name = "WC3_made", map_id = 923, stock_dbc = false })
 local pc = report.doodads
 do
     test("8 doodads: 4 placed as models (one the map's own), 1 building", pc.doodads == 8 and pc.placed_m2 == 4 and pc.placed_wmo == 1,
@@ -540,17 +543,19 @@ do
     local f = C.factions
     test("factions: Red, Blue, Neutral Hostile, Neutral Passive", #f == 4 and f[1].name == "Red" and f[2].name == "Blue"
         and f[3].name == "Neutral Hostile" and f[4].name == "Neutral Passive")
-    test("faction templates numbered from 3000", f[1].template == 3000 and f[4].template == 3003)
+    test("faction templates numbered from the slot's first (" .. F0 .. ")", f[1].template == F0 and f[4].template == F0 + 3)
     local function has(list, v) for _, x in ipairs(list) do if x == v then return true end end end
     test("Red and Blue are enemies; Neutral Hostile is everyone's; Neutral Passive no one's",
-        has(f[1].enemies, 3001) and has(f[1].enemies, 3002) and has(f[3].enemies, 3000) and #f[4].enemies == 0
-        and not has(f[1].enemies, 3003))
+        has(f[1].enemies, F0 + 1) and has(f[1].enemies, F0 + 2) and has(f[3].enemies, F0) and #f[4].enemies == 0
+        and not has(f[1].enemies, F0 + 3))
     local wolf
     for _, t in ipairs(C.templates) do if t.id == "nwlf" then wolf = t end end
-    test("player 12's wolf is Neutral Hostile's", wolf and wolf.faction.template == 3002)
+    test("player 12's wolf is Neutral Hostile's", wolf and wolf.faction.template == F0 + 2)
 
     -- the SQL: its rows hang together
-    test("the map id is the one asked for, in one line", sql:find("SET @MAP := 9123;", 1, true) ~= nil)
+    test("the map id is the one asked for, in one line", sql:find("SET @MAP := 923;", 1, true) ~= nil)
+    test("the template and spawn blocks are the slot's",
+        sql:find("SET @ENTRY := " .. IDS.entry .. ";", 1, true) ~= nil and sql:find("SET @GUID := " .. IDS.guid .. ";", 1, true) ~= nil)
     test("it deletes this map's old rows first (it can be run again)", sql:find("DELETE FROM `creature` WHERE `map` = @MAP;", 1, true)
         and sql:find("DELETE FROM `creature`") < sql:find("INSERT INTO `creature`"))
     local entries, guids, bad = {}, {}, {}
@@ -562,7 +567,7 @@ do
     local n_entries = 0
     for _ in pairs(entries) do n_entries = n_entries + 1 end
     test("4 creature_template rows, each a faction the map has", n_entries == 4 and (function()
-        for _, fa in pairs(entries) do if fa < 3000 or fa > 3003 then return false end end
+        for _, fa in pairs(entries) do if fa < F0 or fa > F0 + 3 then return false end end
         return true
     end)(), n_entries .. " rows")
     local n_spawns = 0
@@ -574,8 +579,8 @@ do
         if not entries[e] then bad[#bad + 1] = "spawn " .. g .. " names template " .. e .. ", not written" end
     end
     test("5 creature rows, each guid once, each naming a written template", n_spawns == 5 and #bad == 0, table.concat(bad, "; "))
-    local models_rows = select(2, sql:gsub("\n  %(@ENTRY %+ %d+, 0, 5%d%d%d%d, 1, 1%)", ""))
-    local info_rows = select(2, sql:gsub("\n  %(5%d%d%d%d, [%d.]+, [%d.]+, 2, 0%)", ""))
+    local models_rows = select(2, sql:gsub("\n  %(@ENTRY %+ %d+, 0, 73%d%d%d, 1, 1%)", ""))
+    local info_rows = select(2, sql:gsub("\n  %(73%d%d%d, [%d.]+, [%d.]+, 2, 0%)", ""))
     test("each template has its model, and each display id its creature_model_info row", models_rows == 4 and info_rows == 3,
         models_rows .. " models, " .. info_rows .. " infos")
     local foot = C.spawns[1]
@@ -603,7 +608,7 @@ do
         has = function(_, id) return id == "hfoo" end, custom = {},
         get_modification = function(_, id, field) if id == "hfoo" and field == "unam" then return "Foot'man\\\n" end end,
     } }
-    local _, _, _, C2 = wowbuild.convert("made.w3x", TMP .. "/build2", { terrain = terrain, map = m2, models = made_models, name = "WC3_made2" })
+    local _, _, _, C2 = wowbuild.convert("made.w3x", TMP .. "/build2", { terrain = terrain, map = m2, models = made_models, name = "WC3_made2", stock_dbc = false })
     local s = read_file(TMP .. "/build2/" .. wowbuild.SQL) or ""
     local stray = false
     for line in s:gmatch("[^\n]+") do
@@ -626,7 +631,8 @@ do
         test("every doodad listed, with what became of it", #t.doodads == 8 and t.doodads[3].left_out == "hidden" and t.doodads[1].kind == "m2"
             and t.doodads[6].kind == "wmo")
         test("every spawn, template, display and faction listed", #t.units == 5 and #t.templates == 4 and #t.displays == 3 and #t.factions == 4)
-        test("the ids the SQL starts from", t.ids.map == 9123 and t.ids.entry == creatures.DEFAULTS.entry_base and t.ids.display == 50000)
+        test("the ids the SQL starts from: slot 23's", t.ids.map == 923 and t.ids.entry == IDS.entry and t.ids.display == IDS.display
+            and IDS.display == 73000)
     end
 end
 -- }}}
@@ -686,7 +692,7 @@ else
     for _, path in ipairs(chosen) do
         local name = path:match("([^/]*)%.w3x$")
         local out = TMP .. "/real-" .. name:gsub("[^%w]", "_")
-        local ok, rep, rjob, RP, RC = pcall(wowbuild.convert, path, out, {})
+        local ok, rep, rjob, RP, RC = pcall(wowbuild.convert, path, out, { stock_dbc = false, patch = false })
         test(name .. ": converts", ok, not ok and tostring(rep) or nil)
         if ok then
             local c = rep.doodads
@@ -750,7 +756,18 @@ else
                 local other = {}
                 for line in p:lines() do
                     local rel = line:sub(#out + 2)
-                    if not (rel:match("^World/Maps/") or rel == wowbuild.SQL or rel == wowbuild.PLACEMENTS or rel == wowbuild.REPORT
+                    -- W02c's registration files are made, not copied
+                    local made = rel:match("^DBFilesClient/") or rel:match("^world/creatures%-%d+%.tsv$") or rel == wowbuild.MAP_FILE
+                        or rel == wowbuild.GROUND_FILE or rel == wowbuild.INFO_FILE or rel == wowbuild.PATHING_FILE or rel == "server/dbc.sql" or rel == "patch-W.MPQ"
+                        -- and W02e's: the script transpiled, the shim's data, the coverage report
+                        or rel:match("^server/triggers/[%w_]+/[%w%-]+%.lua$")
+                        -- and W02f's (2026-11-05): the server's stamp
+                        or rel == "server-stamp"
+                        -- and W02f step 2's (2026-11-05): the install plan, and the
+                        -- shim copied from this repository for it, with its licence
+                        or rel == "install-plan.lua" or rel:match("^server/ale/wc3shim/[%w_]+%.lua$")
+                        or rel == "server/ale/LICENSE"
+                    if not (made or rel:match("^World/Maps/") or rel == wowbuild.SQL or rel == wowbuild.PLACEMENTS or rel == wowbuild.REPORT
                             or rel:lower():match("%.mdx$") or rel:lower():match("%.blp$") or rel:lower():match("%.tga$")) then
                         other[#other + 1] = rel
                     end

@@ -70,9 +70,28 @@ They could also be viewed and browsed through the browser." So:
   prompt, the layer in front of the player's packs for that one game, and
   taking it off afterwards or keeping it. Playing happens there (issue
   913), so the parts of this design that say "for that game" are built in
-  the W client, through its asset lookup (its 105a). It reuses this
-  project's list format and rmail road rather than a second copy (W
-  client docs/012, answer 6).
+  the W client, through its asset lookup (its 105a), as its issue 1110.
+  It reuses this project's list format and rmail road rather than a
+  second copy (W client docs/012, answer 6).
+
+**A list travels only with its map (2026-11-04).** The owner: "we only
+send models and such when the map that includes them is shared. This
+happens either intentionally 'check out my map' or when the map is hosted
+'come check out my map' (see the difference?) so we don't need to check
+the rmail inbox every 5 seconds." So there is no standalone list and no
+inbox watched on a timer:
+
+- **"Check out my map"**: giving someone a map to keep. The map file and
+  the sender's list go together in one rmail message; the receiver's
+  editor or launcher (this project) asks once, then stores both. Built
+  here.
+- **"Come check out my map"**: hosting a map for others to join. The
+  host's list comes with the join and is asked about while joining.
+  Built in the W client (its 1110), with the rules pull request #227
+  worked out (that code ran in this project's map viewer, so it moves
+  there as a design): one question, answered only by a click; Yes, No,
+  "Always from this player", "Always for this map"; one bad file refuses
+  the whole list; the models are taken off after the game unless kept.
 
 List format (a Lua table):
 

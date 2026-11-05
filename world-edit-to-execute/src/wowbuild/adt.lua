@@ -42,7 +42,7 @@ offsets count from the MCNK tag; MCAL's and MCLQ's sizes there count their
   0 flags 0x8000 (the blend maps' last row and column are real)
   4 index x   8 index y   12 layers   16 model references (MCRF)
   20 MCVT  24 MCNR  28 MCLY  32 MCRF  36 MCAL  40 MCAL size  44 MCSH 0  48 0
-  52 area 0 (an AreaTable row is W02c's)   56 building references (MCRF)   60 holes 0
+  52 area (the map's AreaTable id, W02c's)   56 building references (MCRF)   60 holes 0
   64 the low-quality texture map (8 x 8 cells, 2 bits each: the layer
      covering most of the cell; row by row, lowest bits first)
   80 0  84 0  88 MCSE  92 0  96 MCLQ  100 8
@@ -93,7 +93,7 @@ adt.block = block
 
 -- {{{ mcnk
 -- c: the chunk; refs: its MCRF references { d = {MDDF numbers}, w = {MODF numbers} }, or nil
-local function mcnk(c, refs)
+local function mcnk(c, refs, area)
     local n = #c.layers
     local B = bw.new()
     for i = 1, 145 do B:f32(c.heights[i]) end
@@ -129,7 +129,7 @@ local function mcnk(c, refs)
     H:u32(adt.MCNK_NO_FIX_ALPHA):u32(c.ix):u32(c.iy):u32(n):u32(nd)
     H:u32(o.mcvt):u32(o.mcnr):u32(o.mcly):u32(o.mcrf):u32(o.mcal):u32(#mcal)
     H:u32(0):u32(0)                 -- no shadow map
-    H:u32(0):u32(nw)                -- area, building refs
+    H:u32(area or 0):u32(nw)        -- area (AreaTable id, W02c), building refs
     H:u16(0):u16(0)                 -- holes, padding
     H:str(c.lowres)
     H:u32(0):u32(0)                 -- predTex, noEffectDoodad
@@ -242,8 +242,9 @@ end
 
 -- {{{ adt.tile_bytes
 -- tile: wowbuild.terrain's; placed: wowbuild.placements' tile (models,
--- doodads, buildings, places, refs[chunk]), or nil for a bare tile
-function adt.tile_bytes(tile, placed)
+-- doodads, buildings, places, refs[chunk]), or nil for a bare tile; area:
+-- the AreaTable id every chunk stands in (W02c; 0 when nil)
+function adt.tile_bytes(tile, placed, area)
     local mver = block("MVER", bw.new():u32(adt.VERSION):done())
     local names = {}
     for _, p in ipairs(tile.textures) do names[#names + 1] = p .. "\0" end
@@ -254,7 +255,7 @@ function adt.tile_bytes(tile, placed)
     local empties = { mmdx, mmid, mwmo, mwid, mddf(placed.doodads), modf(placed.places) }
     local water = mh2o(tile)
     local chunks = {}
-    for k = 0, 255 do chunks[k + 1] = mcnk(tile.chunks[k], placed.refs and placed.refs[k]) end
+    for k = 0, 255 do chunks[k + 1] = mcnk(tile.chunks[k], placed.refs and placed.refs[k], area) end
 
     local HDR_DATA = #mver + 8                     -- where MHDR's data starts
     local at = #mver + 8 + 64                      -- after MHDR

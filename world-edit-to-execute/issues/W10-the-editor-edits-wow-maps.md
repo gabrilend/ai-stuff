@@ -91,9 +91,13 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
 
 ## Open Questions
 
-1. **One map, both games?** Can one map hold WC3 parts and WoW parts at
-   once (a WC3 map placed into a WoW zone, say), or is each map one game's,
-   with conversion between them?
+1. ~~**One map, both games?**~~ Answered 2026-11-04, the owner: "we are
+   unifying them." So one map can hold WC3 parts and WoW parts at once;
+   the editor's map structure holds both kinds side by side, and every
+   editor in the steps above works on either kind inside the same map.
+   The question as asked: can one map hold WC3 parts and WoW parts at
+   once (a WC3 map placed into a WoW zone, say), or is each map one
+   game's, with conversion between them?
 2. ~~**WoW-only parts with no WC3 counterpart**~~ Answered 2026-11-04: in
    scope. Every proprietary asset gets a development pipeline (the owner,
    quoted under Origin), so sky and light per zone, building interiors

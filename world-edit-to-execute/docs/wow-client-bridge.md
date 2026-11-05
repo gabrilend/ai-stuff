@@ -344,14 +344,19 @@ project's map viewer (play mode, the F5 run of its Lua simulation) gives
 way to the Test Map button, which converts the map being edited and opens
 it in the W client against a local AzerothCore (W client issue 1109,
 reshaped to that).
+Issue 913's open question 1, answered by the owner the same day ("I think
+these are the same?"): there is one F5, and it opens the W client; the
+run in this project's own viewer is what Test Map replaces, not a second
+mode kept beside it. The Lua simulation stays, as the reference
+AzerothCore's rules are checked against.
 
 | world-edit-to-execute | The W client | AzerothCore |
 |-----------------------|--------------|-------------|
 | The extractors: WC3 files into a converted map | Drawing for play, in C | Runs a map's rules while people play |
 | The editor, for WC3 maps and WoW maps (Noggit's reach, world-edit.exe's depth), drawn by this project's Lua renderer | What Test Map opens | Holds the truth |
 | Packs and the asset lookup for the editor (`src/assets/loader.lua`), the Lua twin the W client's C lookup is checked against | Packs and the asset lookup for play (its 105a), the same manifest format | |
-| Sharing map-and-model lists, from the editor (issue 609) | Using a shared list during a game: the prompt, applying it for one game, taking it off after | |
-| A small launcher for browsing maps, models and shared lists, and the same catalogue as a page in an ordinary web browser (issue 1001) | | |
+| Sharing a map with its models, "check out my map": the map and its list in one rmail message, received by the editor or launcher (issue 609) | Hosting a map with its models, "come check out my map": the list comes with the join, asked about once, used for that game, taken off after (its 1110, carrying the rules of pull request #227) | |
+| A small launcher for browsing maps, models and shared lists, and the same catalogue as a page in an ordinary web browser, its moving parts in JavaScript (issue 1001) | A web browser addon that opens that same page inside the game (its 710) | |
 | Wire-frames where the editor has no model (issue 602) | Wire-frames where the player has no model (its 105a, step 4) | |
 
 **Who sees a wire-frame.** The owner: "The wire-frame rendering should be
@@ -483,3 +488,4 @@ issue that holds it can be called complete.
 | 2026-09-23 | custom-client rewritten as the W client; shared reader library; seal (W05c); replace every asset kind; lineage |
 | 2026-10-07 | The client's move into the W client started: the crosswalk, WC3's pictures read in C; open questions 13-15 |
 | 2026-11-04 | The editor keeps its Lua renderer and edits WoW maps too; Test Map opens the W client; sharing belongs to the editor, using a list in a game to the W client; who sees a wire-frame; our own baseline model set is the default and Blizzard's plug in; open question 17 |
+| 2026-11-04 | Issue 913's first pass: F5 is Test Map, opening the W client; the run in the editor's own viewer retired; the contract with the W client written into 913 |

@@ -14,16 +14,18 @@ from a stock world database, and can be run again: it first deletes this
 map's spawns and its blocks of template and model rows.
 
 Rules (decided 2026-11-04, W02b; the owner's to overturn):
-  ids        each map's rows sit in blocks named by SQL variables at the top
-             of the file, so W02c (which picks map ids) changes one line:
-               @MAP      the map id (Map.dbc)                 default 9000
-               @ENTRY    the first creature template          default 9100000
-               @GUID     the first spawn                      default 9100000
-             display ids start at 50000 and faction templates at 3000 (both
-             client tables, written by W02c; they are numbers here, since the
-             client's tables can't read SQL variables). Spawns are in the
-             map's unit order. A block is
-             100000 wide. Templates are in type-id order, then faction order.
+  ids        W02c's scheme (wowbuild/registration.lua): each converted map
+             of a build folder takes a slot, 0-99, and every id is a block
+             of it. The SQL names three of them as SQL variables at the top
+             of the file, so a map's rows can be moved by changing one line:
+               @MAP      the map id (Map.dbc)        900 + slot
+               @ENTRY    the first creature template 9000000 + slot x 10000
+               @GUID     the first spawn             1000000 + slot x 50000
+             display ids (50000 + slot x 1000) and faction templates
+             (3000 + slot x 100) are numbers here, since the client's tables
+             (written by W02c from the same numbers) can't read SQL
+             variables. Spawns are in the map's unit order; templates in
+             type-id order, then faction order
   templates  one per WC3 type and faction placed: AzerothCore keeps a
              creature's faction in its template, so red's footmen and blue's
              are two templates of one type (custom types keep their own id, so
@@ -54,6 +56,15 @@ Rules (decided 2026-11-04, W02b; the owner's to overturn):
              puts creatures on its own ground anyway); orientation from the
              WC3 facing (wowbuild.placements.orientation); a week to respawn
              (preplaced WC3 units don't come back; W02e's rules decide)
+  script     (W02e, decided 2026-11-05) a type the map's script makes
+             (opts.script_types: wowbuild.triggers.scan's created, the
+             literal rawcodes CreateUnit and the rest are given) and that no
+             placed unit has gets one template too, after the placed ones
+             (so their entries don't move), in Neutral Passive's faction:
+             the server's shim gives each creature its owner's faction when
+             it spawns it. Same name, level and model lookup as a placed
+             type. Types the script makes from variables can't be seen here
+             and stay unspawnable (counted by the shim)
   left out   start locations (sloc: listed as start_locations instead),
              placed items (ids the map's item table or the reader's item
              list knows, YYI*, iDNR) and random units (YYU*, uDNR), each
@@ -72,11 +83,18 @@ local placements = require("wowbuild.placements")
 
 local creatures = {}
 
-creatures.DEFAULTS = {
-    map_id = 9000, entry_base = 9100000, guid_base = 9100000,
-    display_base = 50000, faction_base = 3000, block = 100000,
-    respawn = 7 * 24 * 3600,
-}
+-- slot 0 of W02c's id scheme (wowbuild.convert passes the map's own slot)
+do
+    local ids = require("wowbuild.registration").ids(0)
+    local S = require("wowbuild.registration").SCHEME
+    creatures.DEFAULTS = {
+        map_id = ids.map, entry_base = ids.entry, guid_base = ids.guid,
+        display_base = ids.display, faction_base = ids.faction,
+        entry_width = S.entry.width, guid_width = S.guid.width, display_width = S.display.width,
+        faction_width = S.faction.width,
+        respawn = 7 * 24 * 3600,
+    }
+end
 
 -- {{{ helpers
 local function resolve_string(v, strings)
@@ -101,6 +119,8 @@ local function is_random(u)
     return u.random_unit ~= nil or u.id:sub(1, 3) == "YYU" or u.id == "uDNR"
 end
 -- }}}
+
+creatures.resolve_string = resolve_string
 
 -- {{{ creatures.factions
 -- One faction per WC3 force, then the neutrals. Returns the list and a
@@ -156,7 +176,8 @@ function creatures.prepare(map, layout, job, models, opts)
         guid_base = opts.guid_base or D.guid_base, display_base = opts.display_base or D.display_base,
         respawn = D.respawn,
         templates = {}, by_type = {}, displays = {}, spawns = {}, start_locations = {},
-        n = { units = 0, spawned = 0, start_locations = 0, items = 0, random = 0, unmapped = 0, outside = 0 },
+        n = { units = 0, spawned = 0, start_locations = 0, items = 0, random = 0, unmapped = 0, outside = 0,
+              script_types = 0 },
         unmapped = {}, used = {},
     }, { __index = creatures.C })
     local info = map.info
@@ -198,10 +219,28 @@ function creatures.prepare(map, layout, job, models, opts)
         end
     end
 
-    -- templates, in type-id order, then faction order
+    -- templates, in type-id order, then faction order; then the types only
+    -- the script makes (W02e), in type-id order, in Neutral Passive's faction
     local keys = {}
     for key in pairs(types) do keys[#keys + 1] = key end
     table.sort(keys)
+    local placed_type = {}
+    for _, t in pairs(types) do placed_type[t.id] = true end
+    local scripted = {}
+    for id in pairs(opts.script_types or {}) do
+        if type(id) == "string" and #id == 4 and not placed_type[id] and id ~= "sloc" and not is_item(id, items)
+            and not is_random({ id = id }) then
+            scripted[#scripted + 1] = id
+        end
+    end
+    table.sort(scripted)
+    local passive = C.factions[#C.factions]
+    for _, id in ipairs(scripted) do
+        local key = id .. "@" .. string.format("%06d", passive.template)
+        types[key] = { id = id, faction = passive, script = true }
+        keys[#keys + 1] = key
+        C.n.script_types = C.n.script_types + 1
+    end
     local display_of, row_of = {}, {}
     for k, key in ipairs(keys) do
         local id, faction = types[key].id, types[key].faction
@@ -239,9 +278,20 @@ function creatures.prepare(map, layout, job, models, opts)
         C.used[row.wow] = row
         local t = { entry = C.entry_base + k - 1, offset = k - 1, id = id, base = base, name = name, level = level,
                     display = display, source = source, wc3_model = wc3_model, hero = unitsdoo.is_hero(id),
-                    faction = faction }
+                    faction = faction, script = types[key].script or nil }
         C.templates[k] = t
         C.by_type[key] = t
+    end
+
+    local D2 = creatures.DEFAULTS
+    if #C.templates > D2.entry_width then
+        error(string.format("%d creature templates: a map's block holds %d (wowbuild/registration.lua)", #C.templates, D2.entry_width), 0)
+    end
+    if #C.spawns > D2.guid_width then
+        error(string.format("%d spawns: a map's block holds %d (wowbuild/registration.lua)", #C.spawns, D2.guid_width), 0)
+    end
+    if #C.displays > D2.display_width then
+        error(string.format("%d creature looks: a map's block holds %d (wowbuild/registration.lua)", #C.displays, D2.display_width), 0)
     end
 
     -- spawns, in the map's order
@@ -284,7 +334,7 @@ function creatures.C:counts()
         units = n.units, spawned = n.spawned, templates = #self.templates, displays = #self.displays,
         displays_unchecked = unchecked, factions = #self.factions, start_locations = #self.start_locations,
         sloc_units = n.start_locations, items_left_out = n.items, random_left_out = n.random,
-        outside = n.outside, unmapped_ids = ids, unmapped = n.unmapped,
+        outside = n.outside, unmapped_ids = ids, unmapped = n.unmapped, script_types = n.script_types,
         unit_types = n_types,
         ids = { map = self.map_id, entry = self.entry_base, guid = self.guid_base, display = self.display_base,
                 faction = self.factions[1] and self.factions[1].template or nil },
@@ -333,17 +383,19 @@ function creatures.sql(C, opts)
     w(string.format("-- %d templates, %d spawns, %d models, %d factions (faction templates %d-%d, display ids %d-%d:",
         n_t, n_s, #C.displays, #C.factions, C.factions[1].template, C.factions[#C.factions].template,
         C.display_base, C.display_base + math.max(#C.displays, 1) - 1))
-    w("-- both are client tables W02c writes, the same numbers as in placements.lua)")
+    w("-- both are rows of the client's tables, which W02c writes from the same numbers: DBFilesClient/,")
+    w("-- server/dbc.sql and patch-W.MPQ)")
     w("")
-    w(string.format("SET @MAP := %d;       -- the map id (Map.dbc); W02c picks it", C.map_id))
+    w(string.format("SET @MAP := %d;        -- the map id (Map.dbc, W02c's scheme: 900 + the map's slot)", C.map_id))
     w(string.format("SET @ENTRY := %d;  -- the first creature template", C.entry_base))
     w(string.format("SET @GUID := %d;   -- the first spawn", C.guid_base))
     w("")
     w("-- {{{ this map's old rows")
     w("DELETE FROM `creature` WHERE `map` = @MAP;")
-    w(string.format("DELETE FROM `creature_template` WHERE `entry` BETWEEN @ENTRY AND @ENTRY + %d;", creatures.DEFAULTS.block - 1))
-    w(string.format("DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN @ENTRY AND @ENTRY + %d;", creatures.DEFAULTS.block - 1))
-    w(string.format("DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN %d AND %d;", C.display_base, C.display_base + 9999))
+    local D = creatures.DEFAULTS
+    w(string.format("DELETE FROM `creature_template` WHERE `entry` BETWEEN @ENTRY AND @ENTRY + %d;", D.entry_width - 1))
+    w(string.format("DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN @ENTRY AND @ENTRY + %d;", D.entry_width - 1))
+    w(string.format("DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN %d AND %d;", C.display_base, C.display_base + D.display_width - 1))
     w("-- }}}")
     if n_t > 0 then
         w("")
