@@ -44,6 +44,25 @@ void input_sticks_now(int32_t axes[STICK_AXES])
 const char *direction_name(int direction)
 ```
 
+### input_stick_inside
+
+```c
+int input_stick_inside(int32_t x, int32_t y, int32_t radius)
+```
+
+A stick read as 503 reads it, for every box that reads a stick (095's
+own, and the radial menu of 506, which the catalogue keeps in a file of
+its own): is (x, y) inside the resting circle of `radius`, and which of
+the eight ways it points, straight on when its smaller axis is within
+`edge` millionths of its larger (414214, tan 22.5 degrees, makes the
+eight sectors equal). (0, 0) points nowhere.
+
+### input_stick_direction
+
+```c
+int32_t input_stick_direction(int32_t x, int32_t y, int32_t edge)
+```
+
 ### input_touch_now
 
 ```c

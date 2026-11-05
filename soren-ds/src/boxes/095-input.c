@@ -428,57 +428,20 @@ struct stick_snapshot read_sticks(int64_t frame)
 }
 /* }}} */
 
-/* {{{ inside_circle */
-/* Is (x, y) closer to the middle than `radius`? A circle, not a square,
- * so a small push on a diagonal rests exactly as a small push straight. */
-static int inside_circle(int32_t x, int32_t y, int32_t radius)
-{
-    int64_t r = radius < 0 ? 0 : radius;
-    return (int64_t)x * x + (int64_t)y * y < r * r;
-}
-/* }}} */
-
 /* {{{ stick_deadband */
 /* Each stick that rests inside its circle reads as centred; one outside
  * it reads as it is. */
 struct stick_snapshot stick_deadband(struct stick_snapshot s, struct stick_tuning t)
 {
-    if (inside_circle(s.left_x, s.left_y, t.left_deadband)) {
+    if (input_stick_inside(s.left_x, s.left_y, t.left_deadband)) {
         s.left_x = 0;
         s.left_y = 0;
     }
-    if (inside_circle(s.right_x, s.right_y, t.right_deadband)) {
+    if (input_stick_inside(s.right_x, s.right_y, t.right_deadband)) {
         s.right_x = 0;
         s.right_y = 0;
     }
     return s;
-}
-/* }}} */
-
-/* {{{ quantize */
-/* One of the eight directions by angle, with no floating point: a point
- * is straight on when its smaller axis is within `edge` millionths of its
- * larger (the tangent of its angle from the axis), and diagonal
- * otherwise. Centred is none. */
-static int32_t quantize(int32_t x, int32_t y, int32_t edge)
-{
-    if (x == 0 && y == 0) {
-        return DIRECTION_NONE;
-    }
-    if (edge < 0) edge = 0;
-    if (edge > 1000000) edge = 1000000;
-    int64_t ax = x < 0 ? -(int64_t)x : x;
-    int64_t ay = y < 0 ? -(int64_t)y : y;
-    if (ay * 1000000 <= ax * edge) {
-        return x > 0 ? DIRECTION_E : DIRECTION_W;
-    }
-    if (ax * 1000000 <= ay * edge) {
-        return y > 0 ? DIRECTION_N : DIRECTION_S;
-    }
-    if (x > 0) {
-        return y > 0 ? DIRECTION_NE : DIRECTION_SE;
-    }
-    return y > 0 ? DIRECTION_NW : DIRECTION_SW;
 }
 /* }}} */
 
@@ -488,8 +451,8 @@ struct stick_directions stick_direction(struct stick_snapshot s, struct stick_tu
 {
     struct stick_directions d = {
         s.frame,
-        quantize(s.left_x, s.left_y, t.left_edge),
-        quantize(s.right_x, s.right_y, t.right_edge),
+        input_stick_direction(s.left_x, s.left_y, t.left_edge),
+        input_stick_direction(s.right_x, s.right_y, t.right_edge),
     };
     return d;
 }

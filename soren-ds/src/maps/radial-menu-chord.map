@@ -1,0 +1,51 @@
+# radial-menu-chord.map — one character from a direction and a face button (issue 506)
+#
+# The text-entry chord as a program of its own, for the editor (801) and
+# the messenger (805) to place in their maps: hold a direction with the
+# left hand (the D-pad, eight ways, or the left stick), press A, B, X or Y
+# with the right, and one character leaves. The triggers held pick the
+# mode. src/boxes/131-radial-menu.c says how each step decides.
+#
+#   argument 0   the frame number, once a frame: wire input-poll's `frame`
+#                station here (src/maps/input-poll.map)
+#   result 0     each character typed, as a struct radial_event
+#
+# The table is a fixed value on the `chord` station, below. A user's own
+# (/settings/, phase 8) replaces it while the program runs, through
+# radial_menu_set_table (src/system/133-radial-menu.h).
+#
+# The direction sources are the D-pad and the left stick (3): the right
+# stick sits under the same thumb as A, B, X and Y. The sticks are read
+# with input-poll's tuning, a placeholder until the device is measured.
+
+boxes = ../boxes/
+
+station read (boxes/131-radial-menu.c:radial_read)
+  in 0 - 0$
+  in 1 = { 3, 0, { 200, 200, 414214, 414214 } }
+  out 0 - track.0
+
+station at_rest (boxes/131-radial-menu.c:radial_at_rest)
+  in 0 = 0
+  out 0 - track.1
+
+# The history goes round its own loop, one on the wire, so each frame is
+# compared with the one before, in order.
+station track (boxes/131-radial-menu.c:radial_track)
+  in 0 - read.0
+  in 1 - at_rest.0
+  in 1 - track.0
+  out 0 - track.1
+  out 0 - chord.0
+
+# The default table: thirty-two places a mode, n ne e se s sw w nw, and
+# A B X Y within each. Nothing held is lower case with space and five
+# marks; L1 is upper case with a new line and five marks; R1 is digits and
+# the operators; L2 the three left over. select: nothing 0, L1 1, R1 2,
+# L2 3, every other combination nothing (L1 with R1 is the editor's own,
+# docs/008).
+comparator chord (boxes/131-radial-menu.c:radial_chord)
+  in 0 - track.0
+  in 1 = { "abcdefghijklmnopqrstuvwxyz .,?!'", "ABCDEFGHIJKLMNOPQRSTUVWXYZ\n-:;\"/", "0123456789+-*/=%()[]{}<>&|^~@#$_", "`\\\t", { 0, 1, 2, -1, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 } }
+  in 2 = { 0, 0, 0, 0, 0 }
+  out 2 - 0$

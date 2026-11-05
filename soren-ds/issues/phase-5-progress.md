@@ -68,6 +68,12 @@ Built as portable C and maps and proven on the laptop twin. Counts:
 - **504** the touch panels: down, move (a whole pixel) and up, both
   screens in one event a frame, up at the place last touched. The
   device reads "not touched" until 101 names the controllers.
+- **506** the radial menu chord: hold a direction (the D-pad's eight
+  ways, or the left stick), press A, B, X or Y, and one character comes
+  out, the triggers choosing among four modes of thirty-two.
+  `src/maps/radial-menu-chord.map` is the program the editor will place;
+  its table is the map's own until `radial_menu_set_table` gives it the
+  user's. Test `twin/tests/132` (43 checks).
 
 The boxes are in `src/boxes/095-input.c`, the map is
 `src/maps/input-poll.map`, the starting and stopping in
@@ -94,9 +100,6 @@ through 505 are built.
 
 **Blocked on an unmerged stack.**
 
-- **506** — its parts (502, 503, 505) are built; its lookup table lives on the
-  card at `/system-maps/` and `/settings/`, so it reads through
-  `read-path` (406, PR #35).
 - **507** — reads handedness and drawer-swap from `/settings/` (408, PR
   #48) through `read-path` (406, PR #35), and re-reads on change.
 

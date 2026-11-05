@@ -135,6 +135,15 @@ The analog sticks also report eight directions and can chord with
 the face buttons the same way. Sticks and D-pad cover the same
 input space; the user picks whichever feels better in the moment.
 
+How it is struck (issue 506): the direction is pushed first and held —
+that is what brings the menu up — and every press of a face button
+while it is held types one character, so a doubled letter is one push
+and two taps. A face button pressed with no direction held, or two face
+buttons at once, types nothing. The table of characters and which
+trigger chooses which mode are written in
+`src/maps/radial-menu-chord.map`; a user's own table replaces them
+while the program runs.
+
 ## Handedness
 
 The device supports right-handed and left-handed users by

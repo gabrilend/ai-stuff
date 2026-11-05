@@ -24,6 +24,26 @@ const char *button_name(int button)
 const char *direction_name(int direction)
 ```
 
+### input_stick_inside
+
+```c
+int input_stick_inside(int32_t x, int32_t y, int32_t radius)
+```
+
+Is (x, y) closer to the middle than `radius`? A circle, not a square,
+so a small push on a diagonal rests exactly as a small push straight.
+
+### input_stick_direction
+
+```c
+int32_t input_stick_direction(int32_t x, int32_t y, int32_t edge)
+```
+
+One of the eight directions by angle, with no floating point: a point
+is straight on when its smaller axis is within `edge` millionths of its
+larger (the tangent of its angle from the axis), and diagonal
+otherwise. Centred is none.
+
 ### input_poll_start
 
 ```c
