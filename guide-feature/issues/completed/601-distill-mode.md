@@ -128,3 +128,16 @@ shown working.
   written to `docs/balance-updates.md`.
 - How long a real distill takes beside a real turn, and whether one distill
   per batch keeps up with three voices.
+
+## Changed by 602 (2026-11-05)
+
+- Decision 9's stand-in rule was too strict for the phase 6 demo: replayed
+  canvases' bases come from the newest-mode run, so the distill replay's
+  current canvas never showed the words they replaced, and almost nothing
+  was taken in. 047's `distill` reply now writes a voice's word over
+  whatever word stands there, unless that word is *claimed* (some voice's
+  newest wrote it there) or was written earlier in the same distill; the
+  voice listed first still keeps a contested place, and an older change
+  still never writes over a word another voice's newest wrote. 068's check
+  of it changed with it, and gained one for the claim.
+

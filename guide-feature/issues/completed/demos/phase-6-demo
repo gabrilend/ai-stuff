@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+#
+# phase-6-demo - newest and distill, side by side: what phase 6 built,
+# running.
+#
+# First it records a rehearsal: the whole round with the real turn in all
+# three voices, each voice's stand-in model rewriting the first word of a
+# row from its own words, so the voices meet on the same words. Every voice
+# canvas the blitter takes is saved with the version that voice started
+# from. Then it replays those same canvases through the blitter twice, once
+# in newest mode and once in distill mode (issue 601, with a stand-in
+# distiller), and shows the two shared canvases side by side after each
+# arrival: the words changed, the conflicts (newest), the distill's fit
+# tries and seconds (distill), and at the end how many of each voice's
+# changes survived to the shared canvas in each mode. Replaying recorded
+# canvases keeps the comparison fair: both modes see exactly the same input.
+#
+# It runs in a throwaway copy of the project (src/, libs/ and scripts/
+# linked in, its own input/ and RAM tiers), so nothing already running is
+# touched, and the copy is removed at the end. Nothing leaves this machine:
+# the models and the mail are on 127.0.0.1 only. No model is installed; a
+# real distiller is for the owner's machine. The voices make no clone of the
+# project here (there is no input/project-clone in the copy), so each turn's
+# log says the clone could not be made, and the turn goes on without it.
+#
+# Usage:
+#   issues/completed/demos/phase-6-demo [<dir>] [--minutes M] [--from REC]
+#                                       [--save FOLDER] [--plain] [--keep]
+#     <dir>         the project (run-phase-demo passes it)
+#     --minutes M   how long the recorded rehearsal runs (default 1)
+#     --from REC    replay a recording saved before, instead of recording
+#     --save FOLDER keep the recording there, to replay it again
+#     --plain       no colour; changed cells marked ^ under their row (the
+#                   default when the output is not a terminal)
+#     --keep        leave the throwaway copy, to read its logs and receipts
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+PLAIN=""
+KEEP=""
+MINUTES="--minutes 1"
+FROM=""
+SAVE=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --plain) PLAIN="--plain" ;;
+        --keep) KEEP="yes" ;;
+        --minutes) MINUTES="--minutes $2"; shift ;;
+        --from) FROM="$(cd "$2" 2>/dev/null && pwd -P)"
+                if [ -z "${FROM}" ]; then echo "phase-6-demo: no recording at $2" >&2; exit 1; fi
+                shift ;;
+        --save) mkdir -p "$2" && SAVE="$(cd "$2" && pwd -P)"; shift ;;
+        *) DIR="$1" ;;
+    esac
+    shift
+done
+if [ ! -f "${DIR}/src/067-distill.lua" ]; then
+    echo "phase-6-demo: ${DIR} is not the guide-feature project" >&2
+    exit 1
+fi
+
+BASE="$(mktemp -d)"
+ROOT="${BASE}/guide-feature"
+mkdir -p "${ROOT}/input" "${ROOT}/output" "${BASE}/exec" "${BASE}/shm"
+for LINK in src libs scripts; do
+    ln -s "${DIR}/${LINK}" "${ROOT}/${LINK}"
+done
+for NAME in blitter turn-runner turn turn-instructions stand-in-turn rehearsal to-voices \
+            distill distill-instructions; do
+    cp "${DIR}/input/${NAME}" "${ROOT}/input/${NAME}"
+done
+# the real turn (405), with no look calls (the copy has no embedding index),
+# whatever the project's own settings say
+sed -i 's|^turn *=.*|turn = "scripts/turn"|' "${ROOT}/input/turn-runner"
+sed -i 's|^look-limit *=.*|look-limit = 0|' "${ROOT}/input/turn"
+# the stand-in carrier (no rmail here), its timers short so a minute holds
+# many turns
+sed -i -e 's|^carrier *=.*|carrier = "stand-in"|' -e 's|^pace *=.*|pace = 1|' \
+    -e 's|^jitter *=.*|jitter = 0.5|' "${ROOT}/input/rehearsal"
+# the voices' commit comes from a one-commit checkout made here
+CHECKOUT="${BASE}/the-project"
+mkdir -p "${CHECKOUT}"
+git -C "${CHECKOUT}" init -q
+git -C "${CHECKOUT}" -c user.name=demo -c user.email=demo@localhost -c commit.gpgsign=false \
+    commit -q --allow-empty -m "the project"
+printf 'send = "off"\nmailbox = "~/guide-mail"\ntell-the-voice = "on"\nproject-checkout = "%s"\n' \
+    "${CHECKOUT}" > "${ROOT}/input/to-voices"
+export EXEC_TIER_ROOT="${BASE}/exec"
+export ARTIFACT_TIER_ROOT="${BASE}/shm"
+
+# Whatever happens, the turn runners (and their turns) are stopped by their
+# process groups, and the copy is removed. The stand-in models leave by
+# themselves once the demo's process is gone (--parent).
+clean_up() {
+    for PIDFILE in "${BASE}"/shm/guide-feature/rehearsal/shm/guide-feature/turn/*/lock/pid; do
+        [ -f "${PIDFILE}" ] && kill -- "-$(cut -d' ' -f1 "${PIDFILE}")" 2>/dev/null
+    done
+    if [ -n "${KEEP}" ]; then
+        echo "kept the throwaway project at ${BASE}"
+    else
+        rm -rf "${BASE}"
+    fi
+}
+trap clean_up EXIT
+trap 'exit 130' INT TERM
+
+ARGS=()
+[ -n "${FROM}" ] && ARGS+=(--from "${FROM}")
+[ -n "${SAVE}" ] && ARGS+=(--save "${SAVE}")
+luajit "${DIR}/issues/completed/demos/phase-6-demo.lua" \
+    --dir "${DIR}" --root "${ROOT}" --base "${BASE}" ${MINUTES} ${PLAIN} "${ARGS[@]}"

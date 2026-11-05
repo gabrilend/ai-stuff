@@ -31,6 +31,9 @@
 --     of the words (on a blank canvas, the word starts a row); row and word move on with every chat request. Every
 --     wide_every-th request (when given) its row runs past the edge instead,
 --     so the turn has a reply that does not fit and asks again.
+--   { "rewrite": ..., "fill": true }      the same, but always on the nth
+--     row, starting it with the word when it is empty (issue 602), so the
+--     canvas fills up row by row.
 --   { "distill": true, "wide_every": 2 }  a distiller (issue 601): the
 --     first canvas in the first user turn that holds one, with the changed
 --     words listed there applied (M.distill); every wide_every-th request
@@ -142,9 +145,11 @@ end
 -- shown, with the first word of one row changed to one of `words`. The
 -- `n`th request picks the row ((n - 1) % height + 1, or the next row with a
 -- word on it) and the word (n - 1) % #words + 1, or the next one when that is
--- the word already there. With `wide`, that row runs past the edge. Pure, so
--- the tests can call it.
-function M.rewrite(messages, n, word_text, wide)
+-- the word already there. With `wide`, that row runs past the edge. With
+-- `fill` (602), the row is always the nth: a row with no word gets the word
+-- at its start, so the canvas fills row by row. Pure, so the tests can call
+-- it.
+function M.rewrite(messages, n, word_text, wide, fill)
     local shown
     for _, message in ipairs(messages) do
         if message.role == "user" then
@@ -173,7 +178,16 @@ function M.rewrite(messages, n, word_text, wide)
         if wide then shown[index] = utf8.pad(shown[index], width) .. " past the edge" end
     end
     local placed = false
-    for step = 0, #shown - 1 do
+    -- with `fill`, the nth row itself: its first word changed, or, when it
+    -- has none, the word starting it (issue 602)
+    if fill then
+        local index = (n - 1) % #shown + 1
+        local head, current, rest = string.match(shown[index], "^(%s*)(%S+)(.*)$")
+        if head then place(index, head .. pick(current) .. rest)
+        else place(index, pick(nil)) end
+        placed = true
+    end
+    for step = 0, placed and -1 or #shown - 1 do
         local index = (n - 1 + step) % #shown + 1
         local head, current, rest = string.match(shown[index], "^(%s*)(%S+)(.*)$")
         if head then
@@ -190,15 +204,20 @@ end
 -- }}}
 
 -- {{{ function M.distill()
--- A distiller's canvas, as the `distill` reply makes it (issue 601): the
--- first canvas the model was shown (the current one, in 067's prompt), with
--- every changed-word line in that message applied to it in order: an
--- `erased "WORD" at row R, column C` blanks the word where it still stands
--- there, and a `wrote "WORD" at row R, column C` writes it where those cells
--- are blank. A change the canvas has already taken in, or that lands on
--- another word, is passed over, so a voice's older change never undoes a
--- newer one and the voice listed first keeps a contested place. With `wide`,
--- the first row runs past the edge. Pure, so the tests can call it.
+-- A distiller's canvas, as the `distill` reply makes it (issues 601, 602):
+-- the first canvas the model was shown (the current one, in 067's prompt),
+-- with every changed-word line in that message applied to it in order. A
+-- word some voice wrote, standing where that voice wrote it, is *claimed*:
+--   `wrote "WORD" at row R, column C` writes the word there, blanking every
+--     word it lands on, unless it stands there already, or it lands on a
+--     claimed word or on a word written earlier in this distill: then the
+--     place is contested and the word written first keeps it;
+--   `erased "WORD" at row R, column C` blanks the word where it still
+--     stands there and is not claimed.
+-- So the canvas takes in every voice's newest changes, even a voice's whose
+-- base is behind the current canvas, and the voice listed first keeps a
+-- contested place. With `wide`, the first row runs past the edge. Pure, so
+-- the tests can call it.
 function M.distill(messages, wide)
     local content
     for _, message in ipairs(messages) do
@@ -214,30 +233,68 @@ function M.distill(messages, wide)
     for index, row in ipairs(shown) do
         grid[index] = utf8.split(utf8.pad(row, width))
     end
+    local lines = {}
+    local claimed = {}
+    for line in string.gmatch(content, "[^\n]+") do
+        local what, word, row, column = string.match(line,
+            '^%s*(%a+) "(.*)" at row (%d+), column (%d+)%s*$')
+        row, column = tonumber(row), tonumber(column)
+        if (what == "erased" or what == "wrote") and grid[row] and column >= 1 then
+            lines[#lines + 1] = { what = what, cells = utf8.split(word), text = word,
+                                  row = row, column = column }
+            if what == "wrote" then claimed[row .. ":" .. column .. ":" .. word] = true end
+        end
+    end
     local function stands(row, column, cells)
         for offset, cell in ipairs(cells) do
             if grid[row][column + offset - 1] ~= cell then return false end
         end
         return true
     end
-    local function blank(row, column, length)
-        for at = column, column + length - 1 do
-            local cell = grid[row][at]
-            if cell ~= nil and cell ~= " " then return false end
+    -- the words (runs of non-space cells) on a row that overlap columns
+    -- from..to: { start, stop, text }
+    local function words_over(row, from, to)
+        local found, column = {}, 1
+        while column <= width do
+            if grid[row][column] ~= " " then
+                local stop = column
+                while stop < width and grid[row][stop + 1] ~= " " do stop = stop + 1 end
+                if stop >= from and column <= to then
+                    found[#found + 1] = { start = column, stop = stop,
+                        text = table.concat(grid[row], "", column, stop) }
+                end
+                column = stop + 1
+            else
+                column = column + 1
+            end
         end
-        return true
+        return found
     end
-    for line in string.gmatch(content, "[^\n]+") do
-        local what, word, row, column = string.match(line,
-            '^%s*(%a+) "(.*)" at row (%d+), column (%d+)%s*$')
-        row, column = tonumber(row), tonumber(column)
-        if (what == "erased" or what == "wrote") and grid[row] and column >= 1 then
-            local cells = utf8.split(word)
-            if what == "erased" and stands(row, column, cells) then
-                for at = column, column + #cells - 1 do grid[row][at] = " " end
-            elseif what == "wrote" and column + #cells - 1 <= width
-                and blank(row, column, #cells) then
-                for offset, cell in ipairs(cells) do grid[row][column + offset - 1] = cell end
+    local placed = {}
+    for _, change in ipairs(lines) do
+        local row, column, cells = change.row, change.column, change.cells
+        local stop = column + #cells - 1
+        if change.what == "erased" then
+            if stands(row, column, cells) and not claimed[row .. ":" .. column .. ":" .. change.text] then
+                for at = column, stop do grid[row][at] = " " end
+            end
+        elseif stop <= width and not stands(row, column, cells) then
+            local contested = false
+            local under = words_over(row, column, stop)
+            for _, word in ipairs(under) do
+                if claimed[row .. ":" .. word.start .. ":" .. word.text] then contested = true end
+                for at = word.start, word.stop do
+                    if placed[row .. ":" .. at] then contested = true end
+                end
+            end
+            if not contested then
+                for _, word in ipairs(under) do
+                    for at = word.start, word.stop do grid[row][at] = " " end
+                end
+                for offset, cell in ipairs(cells) do
+                    grid[row][column + offset - 1] = cell
+                    placed[row .. ":" .. (column + offset - 1)] = true
+                end
             end
         end
     end
@@ -259,7 +316,7 @@ function M:next_reply(messages)
     if type(reply) == "string" then reply = { content = reply } end
     if reply.rewrite then
         local wide = reply.wide_every and self.taken % reply.wide_every == 0
-        reply = { content = M.rewrite(messages, self.taken, reply.rewrite, wide),
+        reply = { content = M.rewrite(messages, self.taken, reply.rewrite, wide, reply.fill),
                   delay = reply.delay }
     elseif reply.distill then
         local wide = reply.wide_every and self.taken % reply.wide_every == 0
