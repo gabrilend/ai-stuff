@@ -61,14 +61,19 @@ A connection is in at most one lobby: asking for a second raises.
   address it sees), **`lobby:get_players()`**,
   **`lobby:get_host_connection() -> {ip, port}`**, and (801e)
   **`lobby:kick(player_id)`** and **`lobby:cancel_start()`** (the host
-  only), **`lobby:starting_in() -> seconds`** (nil with no countdown).
+  only), **`lobby:starting_in() -> seconds`** (nil with no countdown),
+  **`lobby:missing_packs(have) -> list`** (801f: the lobby's packs not in
+  `have`, `{ [id] = hash }` or a registry of `packs.lua`, each `{ id,
+  hash, from = "mirror" or "host", size }`; nil and why when joined by id
+  alone).
   Sending in a lobby that
   is not waiting or in progress raises.
 - **Events:** `player_join(player)`, `player_leave(player, how)` (as it
   was before it left; how is "left" or "kicked"), `countdown(seconds)`,
   `countdown_cancel(player)` (who stopped it), `player_ready(player, ready)`, `chat(player, text)`,
   `game_start({ip, port})` (where the host is), `nat_punch({player_id, ip,
-  port})`, `closed(why)`: "left", "kicked by the host", "the lobby closed" (its host closed it
+  port})`, `asset_packs({contact, packs})` (801f: the lobby's packs the
+  server's mirror holds; also kept as `lobby.mirror`), `closed(why)`: "left", "kicked by the host", "the lobby closed" (its host closed it
   or the server timed it out) or "disconnected".
 
 **The core**, for tests and other transports: **`client.new(options)`** (a

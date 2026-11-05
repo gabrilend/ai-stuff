@@ -63,6 +63,7 @@ protocol.TYPES = {
     CHAT_MSG        = 0x0E,   -- client <-> all in a lobby: a line of chat
     PING            = 0x0F,   -- client <-> server: are you there
     PONG            = 0x10,   -- server <-> client: yes
+    ASSET_PACKS_AVAILABLE = 0x11, -- server -> a member: the lobby's packs its mirror holds (801f)
 }
 protocol.NAMES = {}
 for name, id in pairs(protocol.TYPES) do protocol.NAMES[id] = name end
@@ -107,6 +108,11 @@ protocol.FIELDS = {
     CHAT_MSG = { { "game_id", "uint" }, { "player_id", "uint" }, { "text", "str" } },
     PING = { { "nonce", "uint" } },
     PONG = { { "nonce", "uint" } },
+    ASSET_PACKS_AVAILABLE = {
+        { "game_id", "uint" },
+        { "contact", "str" },                                      -- the mirror's rmail contact
+        { "packs", { list = { { "id", "str" }, { "hash", "str" }, { "size", "uint" } } } },
+    },
 }
 -- }}}
 

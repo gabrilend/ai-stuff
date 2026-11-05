@@ -18,7 +18,7 @@ asset packs) is issue 801g; this is only enough to run the server.
 Usage: luajit src/cli/matchmaking-serve.lua [DIR] [--bind HOST:PORT]
          [--seconds N] [--quiet] [--max-lobbies N] [--max-players N]
          [--lobby-timeout N] [--idle-timeout N] [--countdown N]
-         [--nat-port P] [--nat-alt-ip IP]
+         [--nat-port P] [--nat-alt-ip IP] [--mirror-contact C --packs-dir DIR]
   DIR        the project (default /mnt/mtwo/programming/ai-stuff/world-edit-to-execute)
   --bind     where to listen (default 127.0.0.1:8080; 0.0.0.0:PORT opens it
              to every network the machine is on)
@@ -27,6 +27,9 @@ Usage: luajit src/cli/matchmaking-serve.lua [DIR] [--bind HOST:PORT]
   --countdown  seconds between the host's start and the game's (default 0)
   --nat-port the UDP reflector on the bind address, ports P and P+1
              (P 0: any two free ports)
+  --mirror-contact, --packs-dir  mirror the asset packs (*.pack) in that
+             folder (issue 801f): players joining a lobby that needs them
+             are told this rmail contact hands them out
   --nat-alt-ip  a second address of this machine the reflector also
              answers from, so the detector can tell a full cone NAT
 ]]
@@ -38,9 +41,11 @@ package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local server = require("matchmaking.server")
 local nat = require("matchmaking.nat")
+local packs = require("matchmaking.packs")
 
 -- {{{ the arguments
 local config, seconds, quiet, nat_port, nat_alt_ip = {}, nil, false, nil, nil
+local mirror_contact, packs_dir
 local numeric = { ["--max-lobbies"] = "max_lobbies", ["--max-players"] = "max_players_per_lobby",
     ["--lobby-timeout"] = "lobby_timeout_seconds", ["--idle-timeout"] = "idle_timeout_seconds",
     ["--countdown"] = "countdown_seconds" }
@@ -63,16 +68,32 @@ while i <= #args do
     elseif a == "--quiet" then quiet = true
     elseif a == "--nat-port" then nat_port = number(a)
     elseif a == "--nat-alt-ip" then nat_alt_ip = value(a)
+    elseif a == "--mirror-contact" then mirror_contact = value(a)
+    elseif a == "--packs-dir" then packs_dir = value(a)
     elseif numeric[a] then config[numeric[a]] = number(a)
     else io.stderr:write("matchmaking-serve: " .. a .. " is not an option\n") os.exit(2) end
     i = i + 1
 end
 if nat_alt_ip and not nat_port then io.stderr:write("matchmaking-serve: --nat-alt-ip needs --nat-port\n") os.exit(2) end
+if (mirror_contact ~= nil) ~= (packs_dir ~= nil) then
+    io.stderr:write("matchmaking-serve: --mirror-contact and --packs-dir go together\n") os.exit(2)
+end
 -- }}}
 
 if not quiet then
     config.log = function(line)
         io.stderr:write(os.date("!%Y-%m-%dT%H:%M:%SZ "), line, "\n")
+    end
+end
+
+if packs_dir then
+    local f = io.open(packs_dir .. "/.", "r")
+    if not f then io.stderr:write("matchmaking-serve: no folder " .. packs_dir .. "\n") os.exit(1) end
+    f:close()
+    config.mirror = { contact = mirror_contact, packs = packs.registry(packs_dir) }
+    if config.log then
+        config.log("mirroring " .. #config.mirror.packs:list() .. " packs from " .. packs_dir .. " as " .. mirror_contact)
+        for _, why in ipairs(config.mirror.packs.skipped) do config.log("not mirrored: " .. why) end
     end
 end
 
