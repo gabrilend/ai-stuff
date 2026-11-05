@@ -64,6 +64,12 @@ built to have as little in it as possible (`issues/204`):
 - **Logged.** Every request from outside the four machines is logged with its
   address and route.
 
+Built in `src/025-canvas-server.lua` (issue 204), with its limits in
+`input/canvas-server`. The forwarded port on the router, and the encryption
+described next, need the owner's machine and the HTML page (803). Until
+then the server sends the canvas as plain text, through a seam (`seal`)
+where the encryption goes.
+
 The owner's answer on keys and encryption: "we can use r-mail's encryption
 maybe? The display program (on your phone, computer, whatever) will have a
 mailbox and display whatever it receives." rmail encrypts every message with

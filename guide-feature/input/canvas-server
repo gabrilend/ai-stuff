@@ -1,0 +1,28 @@
+# The canvas server's settings (src/025-canvas-server.lua): the one program
+# the router forwards a port to from outside (docs/network.md). Every value
+# it runs with is here; nothing has a default in code. Read once at start.
+
+# Where it listens. "0.0.0.0" is every address of kuvalu, which the router's
+# forwarded port needs; "127.0.0.1" is kuvalu alone.
+listen-address    = "0.0.0.0"
+
+# The port. A placeholder until the project's ports are chosen (401a, away
+# from other projects' ports); 0 takes any free port, which the log names.
+port              = 20170
+
+# Limits, so slow or many requests cannot tie it up: open connections at
+# once, the bytes a request may have, and the seconds it may take to arrive.
+max-connections   = 32
+max-request-bytes = 4096
+request-seconds   = 5
+
+# How long GET /canvas?after=N waits for a newer version before answering
+# 204 (docs/canvas-protocol.md says 60).
+wait-seconds      = 60
+
+# How often it reads canvas/current's first line for a new version.
+check-seconds     = 0.2
+
+# The four machines: requests from these are not logged. Every request
+# from anywhere else is, with its address, request line and answer.
+local-addresses   = "127.0.0.1 192.168.1.100 192.168.1.11 192.168.1.12 192.168.1.13"

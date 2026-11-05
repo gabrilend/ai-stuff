@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+#
+# run-canvas-server - runs the HTTP canvas server, so that Ctrl-C or a TERM
+# signal stops it cleanly.
+#
+# The server stops cleanly when the file tmp/shared-memory/canvas-server.stop
+# appears: it closes its connections and writes its goodbye receipt. LuaJIT
+# cannot catch a signal, so this script catches it instead and drops the stop
+# file, then waits for the server to say goodbye (as scripts/run-blitter
+# does for the blitter).
+#
+# Usage:
+#   scripts/run-canvas-server           the project at its usual place
+#   scripts/run-canvas-server <dir>     the project at <dir>
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+if [ -n "${1:-}" ]; then
+    DIR="$1"
+fi
+
+luajit "${DIR}/src/025-canvas-server.lua" --dir "${DIR}" &
+SERVER=$!
+
+stop_cleanly() {
+    : > "${DIR}/tmp/shared-memory/canvas-server.stop"
+}
+trap stop_cleanly INT TERM
+
+# wait returns early when a trapped signal arrives, so wait again until the
+# server itself has ended.
+while kill -0 "${SERVER}" 2>/dev/null; do
+    wait "${SERVER}"
+    STATUS=$?
+done
+exit "${STATUS:-0}"

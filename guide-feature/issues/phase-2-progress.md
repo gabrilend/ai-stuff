@@ -36,3 +36,10 @@ moves the phase toward its goals.)
   a reboot, so an old base is refused, never mistaken. The HTTP server (204)
   and the file reader of the demo (206) have their files to serve and
   watch.
+- **204, the HTTP canvas server** (2026-11-05): `src/025-canvas-server.lua`
+  answers `GET /canvas`, `GET /canvas?after=N` (held open up to a minute)
+  and `GET /canvas/N` from the canvas files, and nothing else. It is
+  bounded in connections, request size and arrival time, and logs requests
+  from outside the four machines. The demo's second reader (206) holds
+  `?after=` requests on it. The encryption and the router's port wait for
+  803 and the owner's machine.
