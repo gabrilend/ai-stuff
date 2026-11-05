@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# turn - one voice's real turn (issue 405), as the turn runner's turn
+# setting names it: reads the canvas kuvalu sent, asks the voice's model
+# (the endpoint the canvas names for this voice) until its edit fits, and
+# writes the voice's canvas for the runner to send.
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/055-turn.lua" --dir "${DIR}" "$@"

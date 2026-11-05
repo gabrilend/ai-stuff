@@ -7,6 +7,7 @@ guide = "guide"
 
 # The program that runs one turn, from this project's folder (or a whole
 # path). It is run as  <turn> --dir ROOT --voice NAME --turn N --canvas FILE
-# --out FILE  and writes the voice's canvas to --out. Phase 3's stand-in
-# writes one scripted word; the real turn (issue 405) is put here instead.
-turn = "scripts/stand-in-turn"
+# --out FILE  and writes the voice's canvas to --out. The real turn (issue
+# 405) asks the voice's model; phase 3's stand-in, "scripts/stand-in-turn",
+# writes one scripted word with no model, and its demo still uses it.
+turn = "scripts/turn"

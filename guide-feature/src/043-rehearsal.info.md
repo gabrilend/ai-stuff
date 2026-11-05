@@ -10,6 +10,11 @@ as `scripts/rehearse [ROOT] [--minutes M] [--keep]`, or as a library with
   mailboxes made by `scripts/make-mailboxes` on 127.0.0.1:
   - the guide, with the arrival hook;
   - `fg-sora-1` to `-3`, each with the turn hook.
+- The voices run the turn `input/turn-runner` names: the real turn (405),
+  with `input/turn` and `input/turn-instructions` copied in and each
+  voice's endpoint from the copied `endpoints`; or phase 3's stand-in turn
+  with `input/stand-in-turn`. `scripts/use-endpoint` on the workspace's
+  copy switches a voice while it runs (402).
 - It runs the blitter in-process with the to-voices publisher.
 - The mail is carried by the stand-in carrier (041), or by real rmail
   daemons when `carrier = "rmail"`.

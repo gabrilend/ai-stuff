@@ -22,8 +22,12 @@ line. Release removes only this process's lock.
 Settings in `input/turn-runner`: `guide` (the contact), `turn` (the
 program, from the project folder or a whole path). The receipt
 `output/goodbye-turn-runner-<voice>` counts `turns-run`, `canvases-sent`,
-`unchanged-turns`, `turns-failed`, `canvases-refused`. Events go to
-`turn/<voice>/events`: `<time> <event> <version> [turn]`.
+`unchanged-turns`, `turns-failed`, `canvases-refused` and
+`turns-gave-way`: a turn that exited 3, which the real turn (405) does when
+`input/turn` says `newer-canvas = "give-way"` and a newer canvas came while
+it was still asking. That sends nothing and keeps the turn number. Events go
+to `turn/<voice>/events`: `<time> <event> <version> [turn]`, `gave-way`
+among them.
 
 | Function | Meaning |
 |---|---|

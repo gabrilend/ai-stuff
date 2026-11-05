@@ -23,11 +23,11 @@ retried.
 
 | Name | Meaning |
 |---|---|
-| `until_fits(opts)` | opts: `call(conversation)` returning text and `{ usage, seconds }`, `conversation`, `base` (the to-voices record the turn started from), `recommended`, `look_limit`, `answer_look(look)`, `log(line)`. Returns `{ rows, note, changes, counts, conversation }` |
+| `until_fits(opts)` | opts: `call(conversation)` returning text and `{ usage, seconds }`, `conversation`, `base` (the to-voices record the turn started from), `recommended`, `look_limit`, `answer_look(look)`, `log(line)`, `give_way()` (405: asked before every ask but the first; a reason stops the loop). Returns `{ rows, note, changes, counts, conversation }`, or `{ gave_way, counts, conversation }` |
 | `check(reply, base, recommended)` | the fit check plus the ruler check |
 | `feedback(reply, problems, width, height)` | what a try that does not fit sends back |
 | `unfence(reply)` | the reply without a fence around the whole of it, and whether there was one |
-| `SETTINGS` | `input/turn`: `recommended-words`, `recommended-sentences`, `look-limit` |
+| `SETTINGS` | `input/turn`: `recommended-words`, `recommended-sentences`, `look-limit`, `newer-canvas` |
 | `NO_LOOK_TOOL`, `LOOKS_USED` | the loop's own answers to look calls |
 
 `counts`: `asks` (every call), `tries` (canvas replies checked), `problems`

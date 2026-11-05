@@ -39,8 +39,9 @@
 -- grows by one for every canvas sent. One line per event goes to
 -- turn/<voice>/events (`<unix time with ms> <event> <version> [turn]`), for
 -- the rehearsal's timings (305); the receipt output/goodbye-turn-runner-
--- <voice> counts turns-run, canvases-sent, unchanged-turns, turns-failed and
--- canvases-refused. LuaJIT-compatible.
+-- <voice> counts turns-run, canvases-sent, unchanged-turns, turns-failed,
+-- canvases-refused, and turns-gave-way (a turn that exited 3: the real turn,
+-- set to give way, stopped for a newer canvas; issue 405). LuaJIT-compatible.
 
 -- {{{ local DIR
 local SOURCE = debug.getinfo(1, "S").source
@@ -61,6 +62,7 @@ local mailboxes = dofile(DIR .. "/src/031-mailboxes.lua")
 
 local M = {}
 M.SUBJECT = "canvas"       -- the voice's living message to kuvalu
+M.GAVE_WAY = 3             -- a turn's exit status when it gave way (055)
 
 -- {{{ M.SETTINGS
 -- input/turn-runner. The hook reads it too (for `guide`).
@@ -271,6 +273,13 @@ function M.turn_once(ctx, run, taken)
         run:count("turns-failed")
         return "failed", base, turn, string.format("turn %d on version %d failed after %.2fs: %s",
             turn, base, took, why)
+    end
+    if status == M.GAVE_WAY then
+        -- the real turn (405), set to give way, stopped asking because a
+        -- newer canvas is waiting: nothing sent, the turn number kept
+        run:count("turns-gave-way")
+        return "gave-way", base, nil, string.format("turn on version %d gave way to a newer "
+            .. "canvas after %.2fs; nothing sent", base, took)
     end
     if status ~= 0 then
         return failed("the turn program exited " .. tostring(status)

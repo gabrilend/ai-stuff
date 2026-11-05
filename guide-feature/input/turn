@@ -10,3 +10,11 @@ recommended-sentences = 1
 # How many look calls one turn may make before it must write the canvas
 # (docs/datapath-voice-turn.md, step 5). 0 leaves the look tool out.
 look-limit = 3
+
+# What a turn still asking its model does when a newer canvas arrives for
+# this voice (issue 405). "keep-going": it asks until its reply fits and
+# sends it, and the newer canvas waits; the owner's word: "it will just keep
+# spinning until it gets it right." "give-way": before each new ask it looks
+# for a newer canvas waiting, and if there is one it stops, sends nothing,
+# keeps its turn number, and the runner takes the newer canvas next.
+newer-canvas = "keep-going"

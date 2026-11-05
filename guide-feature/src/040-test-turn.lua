@@ -348,7 +348,8 @@ runner.release(LOCKS)
 io.write("\n=== turns that fail, change nothing, or are another program ===\n")
 -- {{{
 reset_events()
-write(BASE .. "/failing-turn", "#!/bin/sh\necho 'the model is away' >&2\nexit 3\n")
+-- exit 4: 3 is a turn that gave way to a newer canvas (405)
+write(BASE .. "/failing-turn", "#!/bin/sh\necho 'the model is away' >&2\nexit 4\n")
 shell("chmod +x " .. q(BASE .. "/failing-turn"))
 runner_settings(BASE .. "/failing-turn")
 local before = slurp(OUT_CANVAS)
@@ -358,7 +359,7 @@ check("a failing turn: the lock is let go", wait_until(function()
 check("nothing is sent and the turn number is not used", slurp(OUT_CANVAS) == before
     and slurp(COUNTER) == "6\n", slurp(COUNTER))
 check("it is an event, and the log gives the reason", said(events()) == "received 9, taken 9, failed 9 7"
-    and has(slurp(RUNNER_LOG), "exited 3: the model is away"), said(events()))
+    and has(slurp(RUNNER_LOG), "exited 4: the model is away"), said(events()))
 check("counted as a failed turn", receipt_when(function(c) return c["turns-failed"] == 1 end) ~= nil)
 
 reset_events()

@@ -37,9 +37,11 @@
 --   local rehearsal = dofile(DIR .. "/src/043-rehearsal.lua")
 --   local result = rehearsal.run({ root = ROOT, on_version = function(record, voice) end })
 --
--- Settings in input/rehearsal; the voices' turn in input/turn-runner and
--- input/stand-in-turn, the canvas in input/blitter, the endpoint and the
--- project's checkout in input/to-voices, all copied into the workspace.
+-- Settings in input/rehearsal; the voices' turn in input/turn-runner (the
+-- real turn, 405, with input/turn, input/turn-instructions and the voices'
+-- endpoints from the endpoints file; or the stand-in, with
+-- input/stand-in-turn), the canvas in input/blitter and the project's
+-- checkout in input/to-voices, all copied into the workspace.
 -- (issue 305) LuaJIT-compatible.
 
 -- {{{ local DIR
@@ -121,6 +123,11 @@ function M.workspace(root, values, ws)
         local text = slurp(root .. "/input/" .. name)
         if not text then fail("input/" .. name .. " is missing") end
         write(w.root .. "/input/" .. name, text)
+    end
+    -- the real turn's settings and words (405), when the project has them
+    for _, name in ipairs({ "turn", "turn-instructions" }) do
+        local text = slurp(root .. "/input/" .. name)
+        if text then write(w.root .. "/input/" .. name, text) end
     end
     -- the endpoints file, which names each voice's endpoint in every version
     -- the guide sends (402)

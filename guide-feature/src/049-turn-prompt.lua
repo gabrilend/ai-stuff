@@ -22,6 +22,7 @@
 -- The ruler is drawn here and recognised here, so the two cannot drift:
 --   prompt.ruler(record)          -- the canvas as the model sees it
 --   prompt.ruler_problem(reply)   -- { kind = "ruler" } when a reply copied it
+--   prompt.unruler(text)          -- the rows a ruler drawn in `text` holds
 -- and so is the look call's form, a line the turn recognises in a reply
 -- (open question 3, answered for now in issue 403):
 --   prompt.look_call(reply)       -- { focus = "focused"|"broad", words } or nil
@@ -187,6 +188,20 @@ function M.ruler(record)
             utf8.pad(record.rows[row], width))
     end
     return table.concat(lines, "\n")
+end
+-- }}}
+
+-- {{{ function M.unruler()
+-- The rows of a canvas drawn by M.ruler, found in a text (a prompt): each
+-- line "N |ROW|", in order, with the ruler taken off. nil when the text holds
+-- none. The stand-in model (047) reads the canvas it was shown with this.
+function M.unruler(text)
+    local rows = {}
+    for line in string.gmatch(text or "", "[^\n]+") do
+        local number, row = line:match("^%s*(%d+) |(.*)|$")
+        if number and tonumber(number) == #rows + 1 then rows[#rows + 1] = row end
+    end
+    return #rows > 0 and rows or nil
 end
 -- }}}
 

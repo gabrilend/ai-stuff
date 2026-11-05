@@ -23,8 +23,14 @@
 --       look_limit = 3,
 --       answer_look = function(look) return text end,  -- 503; until then ask.NO_LOOK_TOOL
 --       log = function(line) run:log(line) end,        -- optional
+--       give_way = function() return reason or nil end, -- optional (405)
 --   })
 --   result.rows, result.note, result.counts, result.conversation
+--
+-- give_way, when given, is asked before every ask but the first; when it
+-- gives a reason (a newer canvas is waiting), the loop stops there and
+-- returns { gave_way = reason, counts, conversation } with no rows. Without
+-- it the loop keeps going, as the owner said (issue 405).
 --
 -- result.counts, for the turn's log and receipt: asks (every call to the
 -- model), tries (canvas replies checked), problems (kind -> how many),
@@ -61,12 +67,16 @@ M.LOOKS_USED = "this turn's look calls are used up (the limit is %d). write the 
 
 -- {{{ M.SETTINGS
 -- The turn's knobs this loop uses, in input/turn (the turn's own settings,
--- issue 405): the two recommended change counts (docs/fit-check.md) and the
--- look limit (docs/datapath-voice-turn.md, step 5).
+-- issue 405): the two recommended change counts (docs/fit-check.md), the
+-- look limit (docs/datapath-voice-turn.md, step 5), and what a turn still
+-- asking does when a newer canvas arrives: "keep-going" (the owner's word)
+-- or "give-way" (issue 405; the turn passes give_way then).
 M.SETTINGS = {
     ["recommended-words"]     = { type = "whole", required = true },
     ["recommended-sentences"] = { type = "whole", required = true },
     ["look-limit"]            = { type = "whole", required = true },
+    ["newer-canvas"]          = { type = "choice", of = { "keep-going", "give-way" },
+                                  required = true },
 }
 -- }}}
 
@@ -149,6 +159,13 @@ function M.until_fits(opts)
                      tokens = { prompt = 0, completion = 0 }, seconds = 0 }
 
     while true do
+        if opts.give_way and counts.asks > 0 then
+            local reason = opts.give_way()
+            if reason then
+                log(string.format("after ask %d: gave way: %s", counts.asks, reason))
+                return { gave_way = reason, counts = counts, conversation = conversation }
+            end
+        end
         local reply, info = opts.call(copy(conversation))
         counts.asks = counts.asks + 1
         info = info or {}

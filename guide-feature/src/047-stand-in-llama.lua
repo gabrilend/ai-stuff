@@ -24,6 +24,13 @@
 -- repeated when the list runs out. Each is a string (the reply), or a table:
 --   { "content": "...", "delay": 2 }        answered after 2 seconds
 --   { "status": 500, "error": "..." }       a server error
+--   { "rewrite": "w1 w2 ...", "wide_every": 3 }
+--                                           a model doing turns (issue 405):
+--     it reads the canvas it was shown (the ruler in the first user turn,
+--     049's unruler) and changes one word, the first of a row, to the next
+--     of the words (on a blank canvas, the word starts a row); row and word move on with every chat request. Every
+--     wide_every-th request (when given) its row runs past the edge instead,
+--     so the turn has a reply that does not fit and asks again.
 -- Every request is appended to a JSON-lines file, so a test can read what the
 -- caller sent (the whole conversation, every time).
 --
@@ -51,6 +58,8 @@ local socket = require("socket")
 local ffi = require("ffi")
 pcall(ffi.cdef, "int kill(int pid, int sig);")
 local json = dofile(DIR .. "/libs/dkjson.lua")
+local utf8 = dofile(DIR .. "/src/005-utf8.lua")
+local prompt = dofile(DIR .. "/src/049-turn-prompt.lua")
 
 local M = {}
 
@@ -124,6 +133,58 @@ function M.new(opts)
 end
 -- }}}
 
+-- {{{ function M.rewrite()
+-- A turn's edit, as the `rewrite` reply makes it: the canvas the model was
+-- shown, with the first word of one row changed to one of `words`. The
+-- `n`th request picks the row ((n - 1) % height + 1, or the next row with a
+-- word on it) and the word (n - 1) % #words + 1, or the next one when that is
+-- the word already there. With `wide`, that row runs past the edge. Pure, so
+-- the tests can call it.
+function M.rewrite(messages, n, word_text, wide)
+    local shown
+    for _, message in ipairs(messages) do
+        if message.role == "user" then
+            shown = prompt.unruler(message.content)
+            if shown then break end
+        end
+    end
+    if not shown then return "stand-in: there is no canvas in the conversation" end
+    local list = words(word_text)
+    if #list == 0 then list = { "word" } end
+    -- the nth word, or the next one that is not the word it would replace,
+    -- so every edit changes the canvas while there are two words to choose
+    local function pick(current)
+        for step = 0, #list - 1 do
+            local word = list[(n - 1 + step) % #list + 1]
+            if word ~= current then return word end
+        end
+        return list[1]
+    end
+    local width = utf8.length(shown[1])
+    local function place(index, text)
+        local cells = utf8.split(text)
+        local row = {}
+        for at = 1, math.min(#cells, width) do row[at] = cells[at] end
+        shown[index] = (table.concat(row):gsub("%s+$", ""))
+        if wide then shown[index] = utf8.pad(shown[index], width) .. " past the edge" end
+    end
+    local placed = false
+    for step = 0, #shown - 1 do
+        local index = (n - 1 + step) % #shown + 1
+        local head, current, rest = string.match(shown[index], "^(%s*)(%S+)(.*)$")
+        if head then
+            place(index, head .. pick(current) .. rest)
+            placed = true
+            break
+        end
+    end
+    -- a canvas with no word on it yet: the word starts the row
+    if not placed then place((n - 1) % #shown + 1, pick(nil)) end
+    for index = 1, #shown do shown[index] = (shown[index]:gsub("%s+$", "")) end
+    return table.concat(shown, "\n") .. "\n"
+end
+-- }}}
+
 -- {{{ function M:next_reply()
 function M:next_reply(messages)
     self.taken = self.taken + 1
@@ -133,6 +194,11 @@ function M:next_reply(messages)
         reply = "stand-in reply: " .. (string.match(last, "^[^\n]*") or "")
     end
     if type(reply) == "string" then reply = { content = reply } end
+    if reply.rewrite then
+        local wide = reply.wide_every and self.taken % reply.wide_every == 0
+        reply = { content = M.rewrite(messages, self.taken, reply.rewrite, wide),
+                  delay = reply.delay }
+    end
     return reply
 end
 -- }}}

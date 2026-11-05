@@ -182,6 +182,18 @@ check("row numbers are right-aligned to the widest", tall_lines[4]:sub(1, 4) == 
     and tall_lines[15]:sub(1, 4) == "12 |", tall_lines[4])
 -- }}}
 
+io.write("\n=== the ruler read back (405's stand-in model) ===\n")
+-- {{{
+local back = prompt.unruler("some words first\n7 |not a row|\n" .. prompt.ruler(RECORD) .. "\nafter")
+local same = back ~= nil and #back == RECORD.height
+for row = 1, RECORD.height do
+    same = same and back[row] == RECORD.rows[row]
+end
+check("unruler gives back the rows a ruler holds, numbered from 1, nothing else", same,
+    back and table.concat(back, "/"))
+check("and nil for a text with none", prompt.unruler("no canvas here") == nil)
+-- }}}
+
 io.write("\n=== a reply that copies the ruler ===\n")
 -- {{{
 local clean = table.concat(RECORD.rows, "\n")

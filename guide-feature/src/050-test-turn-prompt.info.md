@@ -11,6 +11,7 @@ Tests for the turn prompt (049) with this project's own
 - the ruler, up to three digit lines and wide row labels; a reply that
   copies it (whole, the row numbers alone, the bars alone, the column
   numbers alone), and the fit check's report of it;
+- the ruler read back by `unruler` (405), and nil where there is none;
 - empty markers: no look part, no note, no cuts, and no gap left;
 - the instruction file's refusals; the look call's form.
 
