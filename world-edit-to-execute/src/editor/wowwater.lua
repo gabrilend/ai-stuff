@@ -36,8 +36,11 @@ touch keeps its bytes.
   - The ground moved under water: the depth bytes of the points whose
     ground moved, in place (formats 0, 2 and 3 hold depths; 1 none).
   - A chunk whose water was edited: its parts (layers, attributes, masks,
-    points) replaced by the new water in W02a's form (format 0); every
-    other chunk's parts kept byte for byte, their offsets moved along.
+    points) replaced by the new water in W02a's form (format 0); a layer
+    whose file layer of its kind was format 1 or 3 keeps that format
+    (W10d), with its points' picture positions (see "picture positions"
+    below); every other chunk's parts kept byte for byte, their offsets
+    moved along.
     A chunk with water for the first time gets its parts at MH2O's end.
   - A tile with no MH2O and new water: one made (wowterrain puts it
     before the first MCNK and MHDR's field says where).
@@ -326,14 +329,17 @@ end
 -- {{{ a chunk's water in W02a's form, its parts from P (offsets from MH2O's data)
 local function pad4(s) return s .. string.rep("\0", (4 - #s % 4) % 4) end
 
-local function chunk_bytes(list, P, deep_lo, deep_hi)
+-- carry: per layer of list, nil (W02a's format 0) or { fmt = 1 or 3, uv = {
+-- [r * 9 + c + 1] = { u, v } }, fit = function(r, c) -> u, v } (W10d: the
+-- format the file's layer had, its picture positions kept)
+local function chunk_bytes(list, P, deep_lo, deep_hi, carry)
     local n = #list
     if n == 0 then return "", 0, 0, 0 end
     local info_at, attr_at = P, P + 24 * n
     local at = attr_at + 16
     local infos, bodies = {}, {}
     local fish = {}
-    for _, q in ipairs(list) do
+    for li, q in ipairs(list) do
         local wet = bytes_of(q.wet)
         local all, bits = true, {}
         for r = 0, q.h - 1 do
@@ -355,19 +361,30 @@ local function chunk_bytes(list, P, deep_lo, deep_hi)
         end
         local mask_at = all and 0 or at
         local vert_at = at + #mask
-        local V, D = bw.new(), {}
+        local cf = carry and carry[li]
+        local fmt = cf and cf.fmt or 0
+        local V, UV, D = bw.new(), bw.new(), {}
         local lo, hi = math.huge, -math.huge
         for r = q.row, q.row + q.h do
             for c = q.col, q.col + q.w do
                 local h = q.height[r * 9 + c + 1]
                 V:f32(h)
                 D[#D + 1] = string.char(q.depth:byte(r * 9 + c + 1))
+                if cf then
+                    local kept = cf.uv[r * 9 + c + 1]
+                    local u, v
+                    if kept then u, v = kept[1], kept[2] else u, v = cf.fit(r, c) end
+                    UV:u16(u):u16(v)
+                end
                 if h < lo then lo = h end
                 if h > hi then hi = h end
             end
         end
-        local verts = pad4(V:done() .. table.concat(D))
-        infos[#infos + 1] = bw.new():u16(q.kind):u16(0):f32(lo):f32(hi)
+        local verts
+        if fmt == 1 then verts = pad4(V:done() .. UV:done())
+        elseif fmt == 3 then verts = pad4(V:done() .. UV:done() .. table.concat(D))
+        else verts = pad4(V:done() .. table.concat(D)) end
+        infos[#infos + 1] = bw.new():u16(q.kind):u16(fmt):f32(lo):f32(hi)
             :u8(q.col):u8(q.row):u8(q.w):u8(q.h):u32(mask_at):u32(vert_at):done()
         bodies[#bodies + 1] = mask .. verts
         at = vert_at + #verts
@@ -380,6 +397,79 @@ local function chunk_bytes(list, P, deep_lo, deep_hi)
         :u32(bit.band(deep_hi or 0, fh) % 4294967296):done()
     return table.concat(infos) .. attr .. table.concat(bodies), info_at, n, attr_at
 end
+-- }}}
+
+-- {{{ a layer's picture positions kept (W10d)
+-- Formats 1 and 3 give each point a picture position (two u16: where on
+-- the liquid's texture the point is, which the client moves to make
+-- magma and slime flow). An edited layer that had one keeps its format:
+-- a point the file has keeps its position; a point new to the layer gets
+-- the position the layer's own points lie on (a plane fitted to them, by
+-- least squares over the chunk's 9 x 9 corners), else UV_STEP a cell.
+ww.UV_STEP = 2                 -- unchecked: a guess, used only for a layer with no positions at all
+
+local function plane(uv)
+    local n, sc, sr, scc, srr, scr, su, sv, suc, sur, svc, svr = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    for p, e in pairs(uv) do
+        local r, c = math.floor((p - 1) / 9), (p - 1) % 9
+        n = n + 1
+        sc, sr, scc, srr, scr = sc + c, sr + r, scc + c * c, srr + r * r, scr + c * r
+        su, sv, suc, sur, svc, svr = su + e[1], sv + e[2], suc + e[1] * c, sur + e[1] * r, svc + e[2] * c, svr + e[2] * r
+    end
+    local function clamp(x)
+        x = math.floor(x + 0.5)
+        return x < 0 and 0 or (x > 65535 and 65535 or x)
+    end
+    if n == 0 then
+        return function(r, c) return clamp(c * ww.UV_STEP), clamp(r * ww.UV_STEP) end
+    end
+    -- solve [n sc sr; sc scc scr; sr scr srr] [a b d] = [s sc' sr'] for each of u, v
+    local A = { { n, sc, sr }, { sc, scc, scr }, { sr, scr, srr } }
+    local function det3(m)
+        return m[1][1] * (m[2][2] * m[3][3] - m[2][3] * m[3][2]) - m[1][2] * (m[2][1] * m[3][3] - m[2][3] * m[3][1])
+            + m[1][3] * (m[2][1] * m[3][2] - m[2][2] * m[3][1])
+    end
+    local D = det3(A)
+    local function solve(b)
+        if math.abs(D) < 1e-9 then return { b[1] / n, 0, 0 } end      -- the points on one line: their mean
+        local out = {}
+        for k = 1, 3 do
+            local M = { { A[1][1], A[1][2], A[1][3] }, { A[2][1], A[2][2], A[2][3] }, { A[3][1], A[3][2], A[3][3] } }
+            for i = 1, 3 do M[i][k] = b[i] end
+            out[k] = det3(M) / D
+        end
+        return out
+    end
+    local U, V = solve({ su, suc, sur }), solve({ sv, svc, svr })
+    return function(r, c) return clamp(U[1] + U[2] * c + U[3] * r), clamp(V[1] + V[2] * c + V[3] * r) end
+end
+
+-- for each layer of list, the file's layer of its kind (the first of that
+-- kind for the first, ...): its format and picture positions when it had them
+local function carried(D, ch, list)
+    local used, out = {}, {}
+    for n, q in ipairs(list) do
+        local f
+        for _, g in ipairs(ch.layers) do
+            if g.kind == q.kind and not used[g] then f = g used[g] = true break end
+        end
+        if f and (f.fmt == 1 or f.fmt == 3) then
+            local uv = {}
+            if f.ov ~= 0 then
+                local base, i = f.ov + (f.w + 1) * (f.h + 1) * 4, 0
+                for r = 0, f.h do
+                    for c = 0, f.w do
+                        uv[(f.row + r) * 9 + f.col + c + 1] = { u16(D, base + i * 4), u16(D, base + i * 4 + 2) }
+                        i = i + 1
+                    end
+                end
+            end
+            out[n] = { fmt = f.fmt, uv = uv, fit = plane(uv) }
+        end
+    end
+    return out
+end
+ww.plane = plane
 -- }}}
 
 -- {{{ ww.mh2o_bytes: the tile's MH2O block again (block nil: one made)
@@ -488,10 +578,11 @@ function ww.mh2o_bytes(block, tile)
         local deep_lo, deep_hi = 0, 0
         if ch.attr ~= 0 then deep_lo, deep_hi = u32(D, ch.attr + 8), u32(D, ch.attr + 12) end
         local list = entries(tile, k)
-        local len = #(chunk_bytes(list, 0, deep_lo, deep_hi))
+        local carry = carried(D, ch, list)
+        local len = #(chunk_bytes(list, 0, deep_lo, deep_hi, carry))
         local first = merged[1] or { start = #D, stop = #D }
         local function made(at)
-            local bytes, info_at, n, attr_at = chunk_bytes(list, at, deep_lo, deep_hi)
+            local bytes, info_at, n, attr_at = chunk_bytes(list, at, deep_lo, deep_hi, carry)
             edited[k] = { info = info_at, count = n, attr = attr_at }
             return bytes
         end

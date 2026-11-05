@@ -139,3 +139,10 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
   written again; parts not touched by an edit keep their bytes. Depths
   follow moved ground. The editor's `water` and `dry` strokes work on a
   WoW map. Its open questions are answered there as dated decisions.
+- *2026-11-05:* `W10d-tiles-from-the-wdt-added-and-taken-off.md`: the
+  tile list read from the WDT through the W client's `wdt_read`. Tiles
+  can be added (flat, or meeting their neighbours) and taken off: the
+  save writes the tile, patches its MAIN flag in place and updates the
+  WDL, with undo. Flowing water (vertex formats 1 and 3) keeps its format
+  and picture positions through an edit. Its open questions are answered
+  there as dated decisions.

@@ -259,3 +259,9 @@ taken up by `W10c-far-view-and-water-on-wow-tiles.md`. Saving now
 writes the WDL with the edited tiles' far view, and `wt.save` lists it
 (the W10b test expects that now). Water can be placed and removed. When
 the ground under water moves, its depths follow.
+
+*(2026-11-05, later still)* Decision 12's new tiles are taken up by
+`W10d-tiles-from-the-wdt-added-and-taken-off.md`. A tile can be added
+next to the map's others (flat, or meeting its neighbours) and taken off.
+The save writes the tile, its WDT flag and its far view. The terrain
+tools work on a new tile like any other, before and after its first save.

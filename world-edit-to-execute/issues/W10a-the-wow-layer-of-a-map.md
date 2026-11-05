@@ -161,3 +161,10 @@ part, under `wow/`, at the client's own paths:
 acceptance line 1), reading the stock client's archives (decision 1), a
 WoW-only project (decision 5), and the WDT tile-list reader in the W
 client (decision 2).
+
+*(2026-11-05, later)* **Decision 2 is superseded** by
+`W10d-tiles-from-the-wdt-added-and-taken-off.md` decision 1. A map's tiles
+now come from its WDT's MAIN, read through the W client's `wdt_read`
+(098-wdt.c, custom-client draft PR #25). A listed tile whose file is
+missing, and an ADT the WDT doesn't list, are told apart. The files present
+are used only when the reader library has no `wdt_read`.

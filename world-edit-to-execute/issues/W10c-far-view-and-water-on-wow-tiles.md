@@ -196,3 +196,11 @@
 - flowing water's picture positions (decision 5);
 - the window's water cursor;
 - new tiles (decision 12).
+
+*(2026-11-05, later)* **Decision 5's last bullet is superseded** by
+`W10d-tiles-from-the-wdt-added-and-taken-off.md` decision 11. An edited
+water layer of format 1 or 3 now keeps its format: points the layer had
+keep their picture positions, and new points continue them (a plane fitted
+to the layer's own). Flowing magma and slime therefore survive an edit.
+Decision 12 is also taken up there: tiles can be added and taken off, and
+the WDT's tile list is patched.
