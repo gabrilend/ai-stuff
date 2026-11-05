@@ -49,6 +49,7 @@ luajit src/cli/wow-convert.lua [--strict] [--name NAME] [--textures FILE] [--mod
 | `map.lua` | which map the W client opens: id, folder, start, the WC3 -> WoW transform (data) |
 | `war3map.w3e` | the map's own ground file, copied whole, for the W client's WC3-tileset ground |
 | `war3map.w3i` | the map's own info file, copied whole, for the W client's WC3 water tint and fog |
+| `war3map.wpm` | the map's own pathing map, copied whole, for the W client's walls on WC3's unwalkable cells |
 | `world/creatures-<id>.tsv` | the spawns, for the W client's `--world` |
 | `server/world.sql` | creature templates, models and spawns |
 | `server/dbc.sql` | the tables' rows for AzerothCore's `<table>_dbc` copies |

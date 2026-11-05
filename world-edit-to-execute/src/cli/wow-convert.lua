@@ -40,7 +40,7 @@
 -- imported models at their own paths, its rows in the client's tables
 -- (DBFilesClient/, the W client's overlay; server/dbc.sql and server/dbc/
 -- for AzerothCore; patch-W.MPQ for the stock client and the extractors),
--- map.lua (the map Test Map opens) and the map's war3map.w3e and .w3i beside it,
+-- map.lua (the map Test Map opens) and the map's war3map.w3e, .w3i and .wpm beside it,
 -- world/creatures-<id>.tsv, its loading screen, placements.lua and conversion-report.lua; and for the server's
 -- trigger shim (server-side/ale/wc3shim/), server/triggers/<name>/: the
 -- script transpiled, the data the shim reads, and natives-report.lua, the

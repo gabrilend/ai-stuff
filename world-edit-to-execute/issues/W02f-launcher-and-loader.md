@@ -262,3 +262,17 @@ this repository.
 
 **Still open:** step 3 (read the owner's schema and places, check, install,
 restart), steps 4-5, and the unchecked list above.
+
+*(2026-11-05, the pathing map: #252 merged into this chain)*
+
+- The converter copies the map's `war3map.wpm` beside `map.lua` (W02c,
+  #252) for the W client's walls on WC3's unwalkable cells. It is the
+  client's, as `war3map.w3e` and `war3map.w3i` are: not in
+  `server_stamp.READS`, so a changed pathing map alone doesn't start the
+  server again, and not in `install-plan.lua` (neither installed nor
+  kept: the plan's `kept` is for server-side files nothing installs).
+- **Tests:** `test_wow_server_stamp` 23 (its made folder now holds the
+  three map files beside `map.lua`, and a rewritten `war3map.wpm` leaves
+  the stamp as it was), `test_wow_install_plan` 68 -> 69 (the pathing map
+  is in no part of the plan); `test_wow_registration` 93 -> 94 with the
+  W client's sources (70 -> 71 without) from #252.
