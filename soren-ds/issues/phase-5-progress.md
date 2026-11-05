@@ -74,6 +74,13 @@ Built as portable C and maps and proven on the laptop twin. Counts:
   `src/maps/radial-menu-chord.map` is the program the editor will place;
   its table is the map's own until `radial_menu_set_table` gives it the
   user's. Test `twin/tests/132` (43 checks).
+- **507** handedness and the drawer swap applied in input-poll: each
+  button down and up, and each stick change, carries its raw self and
+  its roles (navigate, act and the triggers that modify each) and the
+  drawers its center buttons open. The settings are a dial on each
+  applier, right-handed and standard as the map is written, turned by
+  `input_settings_set` while it runs; 408's settings writer will call
+  it. Test `twin/tests/136` (41 checks).
 
 The boxes are in `src/boxes/095-input.c`, the map is
 `src/maps/input-poll.map`, the starting and stopping in
@@ -100,8 +107,9 @@ through 505 are built.
 
 **Blocked on an unmerged stack.**
 
-- **507** — reads handedness and drawer-swap from `/settings/` (408, PR
-  #48) through `read-path` (406, PR #35), and re-reads on change.
+- The call that hands 507's appliers the settings from `/settings/`, at
+  boot and after each write: 408 (PR #48) through `read-path` (406, PR
+  #35).
 
 **Needs the device.**
 
