@@ -12,8 +12,11 @@ With --nat-port it also runs the UDP reflector of nat.lua (issue 801d)
 on that port and the next, so players can learn their outside address
 and kind of NAT; it prints a second line, "nat IP PORT ALT_PORT".
 
-The full command-line tool (status, lobby lists, configuration files,
-asset packs) is issue 801g; this is only enough to run the server.
+SIGTERM or SIGINT stops it cleanly (every lobby's members are told);
+SIGHUP has the mirror read its folder again. The full command-line tool,
+with configuration files, status, lobby lists and asset commands, is
+src/cli/world-edit-matchmaking.lua (issue 801g); both run
+src/matchmaking/daemon.lua.
 
 Usage: luajit src/cli/matchmaking-serve.lua [DIR] [--bind HOST:PORT]
          [--seconds N] [--quiet] [--max-lobbies N] [--max-players N]
@@ -39,9 +42,6 @@ local args = { ... }
 if args[1] and args[1]:sub(1, 2) ~= "--" then DIR = table.remove(args, 1) end
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
-local server = require("matchmaking.server")
-local nat = require("matchmaking.nat")
-local packs = require("matchmaking.packs")
 
 -- {{{ the arguments
 local config, seconds, quiet, nat_port, nat_alt_ip = {}, nil, false, nil, nil
@@ -86,38 +86,15 @@ if not quiet then
     end
 end
 
-if packs_dir then
-    local f = io.open(packs_dir .. "/.", "r")
-    if not f then io.stderr:write("matchmaking-serve: no folder " .. packs_dir .. "\n") os.exit(1) end
-    f:close()
-    config.mirror = { contact = mirror_contact, packs = packs.registry(packs_dir) }
-    if config.log then
-        config.log("mirroring " .. #config.mirror.packs:list() .. " packs from " .. packs_dir .. " as " .. mirror_contact)
-        for _, why in ipairs(config.mirror.packs.skipped) do config.log("not mirrored: " .. why) end
-    end
-end
-
-local srv = server.new(config)
-local ok, err = pcall(srv.start, srv)
-if not ok then io.stderr:write(err, "\n") os.exit(1) end
-local ip, port = srv:address()
-io.stdout:write("listening ", ip, " ", port, "\n")
-local reflector
-if nat_port then
-    local rok, r = pcall(nat.reflector_udp, ip, nat_port, nat_alt_ip)
-    if not rok then io.stderr:write(r, "\n") srv:stop() os.exit(1) end
-    reflector = r
-    io.stdout:write("nat ", reflector.ip, " ", reflector.port, " ", reflector.alt_port, "\n")
-    if config.log then config.log("NAT reflector on " .. reflector.ip .. ":" .. reflector.port .. " and :" .. reflector.alt_port
-        .. (nat_alt_ip and (", and " .. nat_alt_ip) or "")) end
-end
-io.stdout:flush()
-
--- The reflector's answers wait at most one short tick.
-local stop_at = seconds and srv.clock() + seconds
-while not stop_at or srv.clock() < stop_at do
-    srv:tick(reflector and 0.01 or 0.05)
-    if reflector then reflector:poll() end
-end
-if reflector then reflector:close() end
-srv:stop()
+local daemon = require("matchmaking.daemon")
+local code, err = daemon.run({
+    server = config, log = config.log, seconds = seconds, signals = true,
+    nat = nat_port and { port = nat_port, alt_ip = nat_alt_ip } or nil,
+    mirror = packs_dir and { contact = mirror_contact, packs_dir = packs_dir } or nil,
+    on_listen = function(ip, port, reflector)
+        io.stdout:write("listening ", ip, " ", port, "\n")
+        if reflector then io.stdout:write("nat ", reflector.ip, " ", reflector.port, " ", reflector.alt_port, "\n") end
+        io.stdout:flush()
+    end,
+})
+if not code then io.stderr:write("matchmaking-serve: ", tostring(err), "\n") os.exit(1) end
