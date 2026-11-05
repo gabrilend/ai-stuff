@@ -374,7 +374,7 @@ end
 test_section("A made map: its rows")
 local BUILD = TMP .. "/build"
 local report, job, P, C = wowbuild.convert("made.w3x", BUILD, { terrain = terrain, map = made_map("|cffffcc00Made|r Map"),
-    models = made_models, name = "WC3_made", stock_dbc = STOCK, ground = "W3E!made ground", info_bytes = "W3I!made info" })
+    models = made_models, name = "WC3_made", stock_dbc = STOCK, ground = "W3E!made ground", info_bytes = "W3I!made info", pathing = "MP3W!made pathing" })
 local reg = report.registration
 local ids = reg.ids
 do
@@ -591,6 +591,7 @@ do
     test("it lists the maps of the build folder and names the creature list", m and #m.maps == 1 and m.creatures == "world/creatures-900.tsv")
     test("the map's war3map.w3e lies beside map.lua, as the map holds it", read_file(BUILD .. "/" .. wowbuild.GROUND_FILE) == "W3E!made ground")
     test("... and its war3map.w3i too", read_file(BUILD .. "/" .. wowbuild.INFO_FILE) == "W3I!made info")
+    test("... and its war3map.wpm too", read_file(BUILD .. "/" .. wowbuild.PATHING_FILE) == "MP3W!made pathing")
 
     -- the creature list, through the W client's own reader
     local tsv = BUILD .. "/world/creatures-900.tsv"
@@ -625,14 +626,15 @@ do
     local r2 = wowbuild.convert("other.w3x", BUILD, { terrain = made_terrain(50), map = made_map("Other"), models = made_models,
         name = "WC3_other", stock_dbc = STOCK, patch = false })
     test("a map with no war3map.w3e leaves none beside map.lua (not the first map's)", read_file(BUILD .. "/" .. wowbuild.GROUND_FILE) == nil
-        and read_file(BUILD .. "/" .. wowbuild.INFO_FILE) == nil)
+        and read_file(BUILD .. "/" .. wowbuild.INFO_FILE) == nil
+        and read_file(BUILD .. "/" .. wowbuild.PATHING_FILE) == nil)
     test("a second map takes the next free slot: 1, map 901, its own blocks",
         r2.registration.slot == 1 and r2.registration.ids.map == 901 and r2.registration.ids.faction == 3100
         and r2.registration.ids.display == 51000 and r2.registration.ids.entry == 9010000)
     test("its AreaBit isn't one the stock table or the first map holds", r2.registration.ids.area_bit ~= 4095
         and r2.registration.ids.area_bit ~= 4094 and r2.registration.ids.area_bit ~= ids.area_bit)
     local r3 = wowbuild.convert("made.w3x", BUILD, { terrain = terrain, map = made_map("Made Map"), models = made_models,
-        name = "WC3_made", stock_dbc = STOCK, patch = false, ground = "W3E!made ground", info_bytes = "W3I!made info" })
+        name = "WC3_made", stock_dbc = STOCK, patch = false, ground = "W3E!made ground", info_bytes = "W3I!made info", pathing = "MP3W!made pathing" })
     test("the first map converted again keeps its slot (0)", r3.registration.slot == 0 and r3.registration.ids.map == 900)
     local ok, err = pcall(wowbuild.convert, "x.w3x", BUILD, { terrain = terrain, map = made_map("X"), models = made_models,
         name = "WC3_x", slot = 1, stock_dbc = false, patch = false })
@@ -652,7 +654,8 @@ do
     local m = load_data(BUILD .. "/map.lua")
     test("map.lua names the map just converted, and lists both", m and m.map.id == 900 and #m.maps == 2)
     test("... and the ground beside it is that map's again", read_file(BUILD .. "/" .. wowbuild.GROUND_FILE) == "W3E!made ground"
-        and read_file(BUILD .. "/" .. wowbuild.INFO_FILE) == "W3I!made info")
+        and read_file(BUILD .. "/" .. wowbuild.INFO_FILE) == "W3I!made info"
+        and read_file(BUILD .. "/" .. wowbuild.PATHING_FILE) == "MP3W!made pathing")
     local merged = read_file(BUILD .. "/server/dbc/Map.dbc")
     local c = merged and dbc.column(merged, 1) or {}
     test("the server's merged Map.dbc: the stock maps and both converted ones", #c == 4 and c[3] == 900 and c[4] == 901)
