@@ -10,3 +10,5 @@ source's commit at copy time, the date, and what this project changed
 - ensure-ram-tiers.lua, ensure-ram-tiers: the RAM folders under tmp/.
 - bitmap-font.lua: the 8x8 letter pictures the Lua window draws with, from
   every-software-image-able (issue 802).
+- noble-ciphers/, noble-hashes/: AES-256-GCM and PBKDF2 in plain JavaScript,
+  for the HTML page, from the npm registry (issue 803; their .upstream notes).

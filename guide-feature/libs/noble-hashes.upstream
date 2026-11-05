@@ -1,0 +1,22 @@
+source: https://registry.npmjs.org/@noble/hashes/-/hashes-1.8.0.tgz
+package: @noble/hashes
+version: 1.8.0
+released: 2025-04-21, the last of 1.x, whose files are CommonJS
+integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==
+checked: the tarball's SHA-512 matched the registry's published integrity above
+copied: 2026-11-05
+licence: MIT (LICENSE, beside the files)
+files: the eight the HTML page needs for PBKDF2-HMAC-SHA256, from the tarball's package/ folder:
+  001da8be36cae94135ab94f0a554666f2d67cf0de97ff339b7c679bee1edb5e8  pbkdf2.js
+  1e0e4081a255691a1bae9148d9c5795e3439980d4ecb346a5e62a9c7fb3764a4  hmac.js
+  53b6dc30db76a7c4e4b9370049e7a3c01bbb5507d058c084e97ccb3ee050faa4  sha2.js
+  4eaf0ae8f8191c50acdab7c3de7f335bf24845e4b562bdbc3e9f61cb7a873831  _md.js
+  9b109bb57c0d8852bda12136f0f588ffea2a1a3c0f4241bdbb3727cd449976ae  _u64.js
+  7edf19720c345e1cb76e8d3a9306f3344457d4e03576bbb0b3e1ffd0a42d0d30  utils.js
+  c5ee6d6553e69ba96f9a2a7f70e677bf69a6e2d52849a892e67b2e547dc96b28  crypto.js
+  4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec  LICENSE
+changes: none. src/076-html-page.lua puts them into the page as they are,
+         each in a function of its own with a small require, and leaves out
+         their source-map comment lines. Refreshed by hand: fetch a newer
+         tarball, check it against the registry's integrity, copy the same
+         files, rewrite this note (scripts/refresh-vendored only names it).

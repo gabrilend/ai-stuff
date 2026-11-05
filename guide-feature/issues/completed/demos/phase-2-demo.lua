@@ -311,7 +311,11 @@ write(ROOT .. "/input/to-voices", series.TO_VOICES_OFF)
 write(ROOT .. "/input/canvas-server", table.concat({
     'listen-address = "127.0.0.1"', "port = 0", "max-connections = 8",
     "max-request-bytes = 4096", "request-seconds = 5", "wait-seconds = 60",
-    "check-seconds = 0.05", 'local-addresses = "127.0.0.1"', "" }, "\n"))
+    "check-seconds = 0.05", 'local-addresses = "127.0.0.1"',
+    -- the readers here are on this machine and read plain text; the viewers file
+    -- (for the HTML page, 803) sits beside the throwaway project, never inside it
+    'send-plain = "local"', 'viewers-file = "' .. string.match(ROOT, "^(.*)/[^/]+$") .. '/viewers"',
+    "session-seconds = 3600", "max-sessions = 4", "password-rounds = 1000", "" }, "\n"))
 
 say("Phase 2 demo: the canvas for viewers")
 say("")

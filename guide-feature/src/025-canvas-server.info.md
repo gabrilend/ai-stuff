@@ -13,8 +13,15 @@ reading `canvas/current`'s first line every `check-seconds`.
 | `GET /canvas` | 200, the newest version (404 before there is one) |
 | `GET /canvas?after=N` | the newest version once it is above N, or 204 after `wait-seconds` |
 | `GET /canvas/N` | 200, version N from history, or 404 |
-| `GET /` | 404 until the HTML page (803) exists |
+| `GET /` | 200, the HTML page (803, `077-html-page.html` with the libraries put in) |
+| `GET /session?viewer=NAME` | 200, a fresh session key locked with that viewer's key (`076-html-page.info.md`); 404 for no such viewer |
+| `...&session=ID` on any canvas route | the canvas locked with that session's key, as hex; 403 for a session that has ended |
 | anything else | 404; another method on a route, 405 (`Allow: GET`) |
+
+Without a session, the canvas goes as plain text only where `send-plain`
+says: `local` (the `local-addresses`), `everyone` or `nobody`. Elsewhere it
+is 403, saying to open the page. The viewers file (`viewers-file`, outside
+the project) is read again at every sign-in.
 
 Limits, in `input/canvas-server`:
 - `max-connections` (beyond it, 503);
@@ -33,14 +40,14 @@ Each request from an address not in `local-addresses` gets one log line:
 address, request line (or `-`), answer.
 
 The receipt counts:
-- `requests-<route>` (`canvas`, `canvas-after`, `canvas-version`, `page`);
+- `requests-<route>` (`canvas`, `canvas-after`, `canvas-version`, `page`,
+  `session`);
+- `sessions-started`;
 - `waits-answered`, `waits-timed-out`, `waits-abandoned`;
 - `refused-<reason>` (`not-found`, `method`, `too-large`, `too-slow`,
-  `too-many`).
+  `too-many`, `plain`, `no-session`, `no-viewer`).
 
 It stops cleanly on `tmp/shared-memory/canvas-server.stop`, which the
 wrapper drops on INT or TERM.
 
-`opts.seal` is the seam for the encrypted canvas (803, owner's machine): a
-function from the canvas text to the body sent. Until then the text is sent
-as it is, and the start of the log says so.
+Its start in the log names the viewers and who gets plain text.

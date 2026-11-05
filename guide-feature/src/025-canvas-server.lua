@@ -9,7 +9,16 @@
 --   GET /canvas?after=N    waits up to wait-seconds for a version above N,
 --                          then answers with it, or 204 if none came
 --   GET /canvas/N          version N from history, or 404
---   GET /                  the HTML viewer page, once 803 exists (404 now)
+--   GET /                  the HTML page (803, src/077-html-page.html)
+--   GET /session?viewer=NAME
+--                          a fresh session key, locked with that viewer's
+--                          own key (src/076-html-page.lua)
+--
+-- Each canvas route takes `session=ID` too (`/canvas?after=N&session=ID`),
+-- and then sends the canvas locked with that session's key, as hex. Without
+-- one, the canvas goes as plain text only where `send-plain` allows: to the
+-- four machines (`local`), to `everyone`, or to `nobody`
+-- (docs/network.md).
 --
 -- Anything else is 404, and a method other than GET is 405. It is the
 -- "narrow cause-way" the router forwards one port to (docs/network.md), so
@@ -30,10 +39,7 @@
 -- closes every connection, writes its goodbye receipt and exits.
 --
 -- As a library (tests): local s = server.new({ root = ROOT }); s:tick(0.1);
--- s.port; s:finish(). opts.seal is the seam for the encrypted canvas
--- (issue 204's answered question, 803): a function from the canvas text to
--- the body sent; until then the text is sent as it is.
--- LuaJIT-compatible.
+-- s.port; s:finish(). LuaJIT-compatible.
 
 -- {{{ local DIR
 local SOURCE = debug.getinfo(1, "S").source
@@ -45,6 +51,7 @@ local DIR = string.match(SOURCE, "^@(.+)/src/[^/]*$")
 local socket = require("socket")
 local settings = dofile(DIR .. "/src/001-settings.lua")
 local goodbye = dofile(DIR .. "/src/002-goodbye.lua")
+local page    -- src/076-html-page.lua, loaded by M.new
 
 local M = {}
 
@@ -59,13 +66,19 @@ M.SETTINGS = {
     ["wait-seconds"]      = { type = "decimal", required = true },
     ["check-seconds"]     = { type = "decimal", required = true },
     ["local-addresses"]   = { type = "names", required = true },
+    ["send-plain"]        = { type = "choice", of = { "local", "everyone", "nobody" }, required = true },
+    ["viewers-file"]      = { type = "text", required = true },
+    ["session-seconds"]   = { type = "decimal", required = true },
+    ["max-sessions"]      = { type = "whole", required = true },
+    ["password-rounds"]   = { type = "whole", required = true },
 }
 -- }}}
 
 -- {{{ M.STATUS
 M.STATUS = {
-    [200] = "OK", [204] = "No Content", [404] = "Not Found", [405] = "Method Not Allowed",
-    [408] = "Request Timeout", [413] = "Content Too Large", [503] = "Service Unavailable",
+    [200] = "OK", [204] = "No Content", [403] = "Forbidden", [404] = "Not Found",
+    [405] = "Method Not Allowed", [408] = "Request Timeout", [413] = "Content Too Large",
+    [500] = "Internal Server Error", [503] = "Service Unavailable",
 }
 -- }}}
 
@@ -82,11 +95,13 @@ end
 -- {{{ local function respond()
 -- One whole answer, then the connection is closed: no keep-alive, so no
 -- connection outlives its one request.
-local function respond(client, status, body, extra)
+local function respond(client, status, body, extra, content_type)
     body = status == 204 and "" or (body or "")
     local head = { "HTTP/1.1 " .. status .. " " .. M.STATUS[status],
-                   "Content-Length: " .. #body, "Connection: close" }
-    if status ~= 204 then head[#head + 1] = "Content-Type: text/plain; charset=utf-8" end
+                   "Content-Length: " .. #body, "Connection: close", "Cache-Control: no-store" }
+    if status ~= 204 then
+        head[#head + 1] = "Content-Type: " .. (content_type or "text/plain; charset=utf-8")
+    end
     for _, line in ipairs(extra or {}) do head[#head + 1] = line end
     client.sock:settimeout(2)
     client.sock:send(table.concat(head, "\r\n") .. "\r\n\r\n" .. body)
@@ -94,32 +109,65 @@ local function respond(client, status, body, extra)
 end
 -- }}}
 
+-- {{{ local function query_fields()
+-- The query as name -> value, and how many: only `after`, `session` and
+-- `viewer`, each value a whole number, hex or a name. Anything else is not a
+-- route (nil). Each route asks for exactly as many as it takes, so a name
+-- given twice never matches one.
+local QUERY = { after = "^%d+$", session = "^%x+$", viewer = "^[%w%._%-]+$" }
+local function query_fields(query)
+    if query == nil then return {}, 0 end
+    local fields, count = {}, 0
+    for part in string.gmatch(query .. "&", "([^&]*)&") do
+        local name, value = string.match(part, "^([a-z]+)=(.+)$")
+        if not name or not QUERY[name] or not string.match(value, QUERY[name]) then
+            return nil
+        end
+        fields[name], count = value, count + 1
+    end
+    return fields, count
+end
+
+-- A whole number as the protocol writes it: no leading zeros.
+local function whole(text)
+    if not text or (#text > 1 and string.sub(text, 1, 1) == "0") then return nil end
+    return tonumber(text)
+end
+-- }}}
+
 -- {{{ M.ROUTES
 -- A table from route name to { match, handler }. `match` takes the path and
--- the query and returns the route's argument, or nil. A handler takes the
--- server and the client, and the argument, and answers. It may wait for a
--- new version by yielding.
+-- the query's fields (and how many) and returns the route's argument, or
+-- nil. A handler takes the server and the client, and the argument, and
+-- answers. It may wait for a new version by yielding. The canvas routes
+-- first find how the canvas is to be sent (Server:lock_for).
 M.ROUTES = {
     {
         name = "canvas",
-        match = function(path, query) return path == "/canvas" and query == nil and true or nil end,
-        handle = function(self, client)
+        match = function(path, fields, count)
+            return path == "/canvas" and count == (fields.session and 1 or 0)
+                and { session = fields.session } or nil
+        end,
+        handle = function(self, client, argument)
+            local lock, refusal = self:lock_for(client, argument.session)
+            if not lock then return respond(client, 403, refusal) end
             local text = self:current_text()
             if not text then return respond(client, 404, "no canvas yet\n") end
-            return respond(client, 200, self.seal(text))
+            return respond(client, 200, lock(text))
         end,
     },
     {
         name = "canvas-after",
-        match = function(path, query)
-            if path ~= "/canvas" or not query then return nil end
-            local after = string.match(query, "^after=(%d+)$")
-            if not after or (#after > 1 and string.sub(after, 1, 1) == "0") then return nil end
-            return tonumber(after)
+        match = function(path, fields, count)
+            local after = whole(fields.after)
+            return path == "/canvas" and after and count == (fields.session and 2 or 1)
+                and { after = after, session = fields.session } or nil
         end,
-        handle = function(self, client, after)
+        handle = function(self, client, argument)
+            local lock, refusal = self:lock_for(client, argument.session)
+            if not lock then return respond(client, 403, refusal) end
             local deadline = socket.gettime() + self.settings["wait-seconds"]
-            while not (self.version and self.version > after) do
+            while not (self.version and self.version > argument.after) do
                 local event = coroutine.yield("wait", deadline)
                 if event == "late" then
                     self.run:count("waits-timed-out")
@@ -131,27 +179,57 @@ M.ROUTES = {
                 end
             end
             self.run:count("waits-answered")
-            return respond(client, 200, self.seal(self:current_text()))
+            return respond(client, 200, lock(self:current_text()))
         end,
     },
     {
         name = "canvas-version",
-        match = function(path, query)
-            local number = query == nil and string.match(path, "^/canvas/(%d+)$")
-            if not number or (#number > 1 and string.sub(number, 1, 1) == "0") then return nil end
-            return tonumber(number)
+        match = function(path, fields, count)
+            local number = whole(string.match(path, "^/canvas/(%d+)$"))
+            return number and count == (fields.session and 1 or 0)
+                and { number = number, session = fields.session } or nil
         end,
-        handle = function(self, client, number)
-            local text = read_file(string.format("%s/history/%06d", self.canvas_folder, number))
-            if not text then return respond(client, 404, "no version " .. number .. "\n") end
-            return respond(client, 200, self.seal(text))
+        handle = function(self, client, argument)
+            local lock, refusal = self:lock_for(client, argument.session)
+            if not lock then return respond(client, 403, refusal) end
+            local text = read_file(string.format("%s/history/%06d", self.canvas_folder,
+                argument.number))
+            if not text then return respond(client, 404, "no version " .. argument.number .. "\n") end
+            return respond(client, 200, lock(text))
         end,
     },
     {
         name = "page",
-        match = function(path, query) return path == "/" and query == nil and true or nil end,
+        match = function(path, fields, count) return path == "/" and count == 0 or nil end,
         handle = function(self, client)
-            return respond(client, 404, "the HTML viewer is not built yet (issue 803)\n")
+            return respond(client, 200, self.page_html, {
+                -- the page's own script and style only, and requests to this server only
+                "Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; "
+                    .. "style-src 'unsafe-inline'; connect-src 'self'; form-action 'none'; "
+                    .. "base-uri 'none'; frame-ancestors 'none'",
+                "Referrer-Policy: no-referrer", "X-Content-Type-Options: nosniff",
+            }, "text/html; charset=utf-8")
+        end,
+    },
+    {
+        name = "session",
+        match = function(path, fields, count)
+            return path == "/session" and fields.viewer and count == 1 and fields.viewer or nil
+        end,
+        handle = function(self, client, name)
+            local viewers, problem = page.read_viewers(self.viewers_path)
+            if not viewers then
+                self.run:log("the viewers file cannot be read: " .. problem)
+                return respond(client, 500, "the server's viewers file is wrong; see its log\n")
+            end
+            local viewer = viewers[name]
+            if not viewer then
+                self.run:count("refused-no-viewer")
+                return respond(client, 404, "no viewer by that name\n")
+            end
+            local _, answer = self.sessions:start(name, viewer)
+            self.run:count("sessions-started")
+            return respond(client, 200, answer)
         end,
     },
 }
@@ -176,6 +254,28 @@ end
 
 function Server:current_text()
     return read_file(self.canvas_folder .. "/current")
+end
+-- }}}
+
+-- {{{ function Server:lock_for()
+-- How this client is sent the canvas: a function from the canvas text to
+-- the body, or nil and the refusal. In a session, locked with its key; with
+-- no session, as plain text where send-plain allows it.
+function Server:lock_for(client, id)
+    if id then
+        local session = self.sessions:find(id)
+        if not session then
+            self.run:count("refused-no-session")
+            return nil, "no such session (it may have ended); start one at /session\n"
+        end
+        return function(text) return page.lock_canvas(session, id, text) end
+    end
+    local plain = self.settings["send-plain"]
+    if plain == "everyone" or (plain == "local" and self.locals[client.address]) then
+        return function(text) return text end
+    end
+    self.run:count("refused-plain")
+    return nil, "the canvas is sent here only locked, in a session: open the page at /\n"
 end
 -- }}}
 
@@ -221,8 +321,9 @@ local function serve(self, client)
     end
     local path, query = string.match(target, "^([^?]*)%??(.*)$")
     if not string.find(target, "?", 1, true) then query = nil end
-    for _, route in ipairs(M.ROUTES) do
-        local argument = route.match(path, query)
+    local fields, count = query_fields(query)
+    for _, route in ipairs(fields and M.ROUTES or {}) do
+        local argument = route.match(path, fields, count)
         if argument ~= nil then
             if method ~= "GET" then
                 self.run:count("refused-method")
@@ -374,11 +475,16 @@ end
 
 -- {{{ function M.new()
 -- A server on a project root: settings read, run started, listening.
--- opts: root, clock (tests), seal (canvas text -> body; default: as it is).
+-- opts: root, clock (tests).
 function M.new(opts)
     opts = opts or {}
     local root = opts.root or DIR
+    -- loaded here, not at the top: 076 run as a program (add-viewer) loads this file
+    page = page or dofile(DIR .. "/src/076-html-page.lua")
     local values = settings.read("canvas-server", M.SETTINGS, { root = root })
+    local viewers_path, problem = page.viewers_path(values["viewers-file"], root)
+    if not viewers_path then error("canvas-server: " .. problem, 0) end
+    local page_html = page.build(root)
     local run = goodbye.start("canvas-server", { root = root, clock = opts.clock })
     local listener = assert(socket.bind(values["listen-address"], values["port"]))
     listener:settimeout(0)
@@ -390,7 +496,9 @@ function M.new(opts)
         address = address, port = tonumber(port), clients = {}, closing = {}, locals = locals,
         canvas_folder = root .. "/tmp/shared-memory/canvas",
         stop_file = root .. "/tmp/shared-memory/canvas-server.stop",
-        seal = opts.seal or function(text) return text end, next_check = 0,
+        next_check = 0, viewers_path = viewers_path, page_html = page_html,
+        sessions = page.sessions({ seconds = values["session-seconds"],
+                                   most = values["max-sessions"] }),
     }, Server)
     os.remove(self.stop_file)
     self:refresh()
@@ -400,10 +508,16 @@ function M.new(opts)
         values["wait-seconds"]))
     run:log("a new version is noticed by reading canvas/current every "
         .. values["check-seconds"] .. " seconds (no inotify binding in this project)")
-    if not opts.seal then
-        run:log("the canvas is sent as plain text; the encrypted canvas comes with the "
-            .. "HTML page (803)")
-    end
+    local viewers, viewers_problem = page.read_viewers(viewers_path)
+    local names = {}
+    for name in pairs(viewers or {}) do names[#names + 1] = name end
+    table.sort(names)
+    run:log(string.format("the page is %d bytes; viewers in %s: %s; plain text goes to %s",
+        #page_html, viewers_path,
+        viewers and (#names > 0 and table.concat(names, " ") or "none yet (scripts/add-viewer)")
+            or ("unreadable: " .. viewers_problem),
+        ({ ["local"] = "the four machines only", everyone = "everyone",
+           nobody = "no one" })[values["send-plain"]]))
     return self
 end
 -- }}}

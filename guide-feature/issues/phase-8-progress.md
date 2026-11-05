@@ -24,3 +24,12 @@ Counts of done and open issues:
   grid, filed into `development-history/`), `--key`, `--fast`. The window
   itself waits for SDL2 or LÖVE on kuvalu (the issue's "Needs the owner's
   machine"). Checked by `src/073-test-lua-window.lua`.
+- **803 the HTML page** (2026-11-05): `GET /` on the canvas server is one HTML
+  file with inline JavaScript. It signs in with `#NAME:KEY` in its address,
+  or a viewer's name and password, holds `/canvas?after=N` open in a
+  session, unlocks each version (AES-256-GCM, noble-ciphers) and draws it
+  with the Lua window's colours, fading each changed letter in. Outside the
+  four machines the canvas is never sent plain. `scripts/add-viewer` sets a
+  viewer up. Checked by `src/075-test-crypto.lua` and
+  `src/078-test-html-page.lua` (with `079-test-html-page.js` in node). The
+  look in Firefox waits for the owner's machine.

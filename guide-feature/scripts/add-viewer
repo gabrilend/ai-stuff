@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# add-viewer - lets someone watch the canvas from outside the house through
+# the HTML page (issue 803, docs/network.md).
+#
+# Each viewer has a key of their own, kept in the viewers file named in
+# input/canvas-server (outside the project, readable by its owner only). The
+# canvas server reads it at each sign-in, so no restart is needed.
+#
+#   scripts/add-viewer [ROOT] NAME                a key made at random; prints
+#                                                 the address to bookmark,
+#                                                 http://HOST:PORT/#NAME:KEY
+#   scripts/add-viewer [ROOT] NAME --password     the viewer signs in with a
+#                                                 password instead; asked for
+#                                                 twice here (or read as two
+#                                                 lines from standard input)
+#   --address HOST   the host in the printed address (192.168.1.100, kuvalu,
+#                    by default; from outside, the router's public address)
+#
+# The password is never on a command line and never stored: the file keeps
+# the key made from it (PBKDF2-HMAC-SHA256, password-rounds rounds), which
+# the page makes again in the browser.
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+if [ -n "${1:-}" ] && [ -d "$1" ]; then
+    DIR="$1"
+    shift
+fi
+NAME="${1:-}"
+if [ -z "${NAME}" ] || [ "${NAME#--}" != "${NAME}" ]; then
+    sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+fi
+shift
+
+PASSWORD=0
+for OPTION in "$@"; do
+    [ "${OPTION}" = "--password" ] && PASSWORD=1
+done
+
+if [ "${PASSWORD}" -eq 1 ] && [ -t 0 ]; then
+    # asked at the terminal, without echo, then handed over on standard input
+    printf 'password for %s: ' "${NAME}" >&2
+    stty -echo; IFS= read -r FIRST; stty echo; printf '\n' >&2
+    printf 'the same again: ' >&2
+    stty -echo; IFS= read -r SECOND; stty echo; printf '\n' >&2
+    printf '%s\n%s\n' "${FIRST}" "${SECOND}" \
+        | luajit "${DIR}/src/076-html-page.lua" --dir "${DIR}" --add-viewer "${NAME}" "$@"
+    exit $?
+fi
+exec luajit "${DIR}/src/076-html-page.lua" --dir "${DIR}" --add-viewer "${NAME}" "$@"

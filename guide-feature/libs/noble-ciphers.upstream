@@ -1,0 +1,18 @@
+source: https://registry.npmjs.org/@noble/ciphers/-/ciphers-1.3.0.tgz
+package: @noble/ciphers
+version: 1.3.0
+released: 2025-04-24, the last of 1.x, whose files are CommonJS
+integrity: sha512-2I0gnIVPtfnMw9ee9h1dJG7tp81+8Ob3OJb3Mv37rx5L40/b0i7djjCVvGOVqc9AEIQyvyu1i6ypKdFw8R8gQw==
+checked: the tarball's SHA-512 matched the registry's published integrity above
+copied: 2026-11-05
+licence: MIT (LICENSE, beside the files)
+files: the four the HTML page needs for AES-256-GCM, from the tarball's package/ folder:
+  cb9a9b4e06f64bef9125316194aa1425155e53af5225d35bd76b96857c1bc723  aes.js
+  01df8862ceca53769f7e609290aa24506f3fdac4734c94d6c9c109b4b7009a4f  _polyval.js
+  1d85b5a40c73aaed280ab7a47b297de0f128e8bf5140641b5541d6e8fd12f1e6  utils.js
+  f36671a5487c9c5050efacb58011c37c24c55a889803cb036cf9d9a6347c1e2d  LICENSE
+changes: none. src/076-html-page.lua puts them into the page as they are,
+         each in a function of its own with a small require, and leaves out
+         their source-map comment lines. Refreshed by hand: fetch a newer
+         tarball, check it against the registry's integrity, copy the same
+         files, rewrite this note (scripts/refresh-vendored only names it).
