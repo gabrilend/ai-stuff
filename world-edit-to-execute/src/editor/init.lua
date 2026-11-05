@@ -34,7 +34,9 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              tools on its tiles after E:wow_edit(dir), its edited tiles
              written with the project (editor/wowterrain.lua, W10b);
              its models and buildings placed, moved, turned, sized
-             and taken away (E:wow_place ...; editor/wowplace.lua, W10e)
+             and taken away (E:wow_place ...; editor/wowplace.lua, W10e);
+             its own areas made, renamed and taken away, saved as
+             AreaTable rows (E:wow_new_area ...; editor/wowareas.lua, W10g)
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -136,6 +138,7 @@ function editor.open(path, opts)
     require("editor.wowmap").attach(E)      -- the map's WoW layer (issue W10a)
     require("editor.wowterrain").attach(E)  -- the terrain tools on its tiles (issue W10b)
     require("editor.wowplace").attach(E)    -- objects placed on its tiles (issue W10e)
+    require("editor.wowareas").attach(E)    -- areas of its own (issue W10g)
     self:load_objects()
     self:load_regions()
     self:load_sounds()

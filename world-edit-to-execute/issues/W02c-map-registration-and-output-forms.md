@@ -456,3 +456,12 @@ them as the map holds them.
 Checked: `test_wow_registration.lua` 71 pass (7 skipped),
 `test_wow_placements.lua` 72 (5 skipped), `test_wow_terrain.lua` 70 (14
 skipped), `test_wow_triggers.lua` 138.
+
+*2026-11-05 (W10g):* the slot's nine reserved area ids are now used by
+the editor for a map's own areas
+(`W10g-areas-of-a-maps-own-as-areatable-rows.md`). Each takes an
+explored-zones bit from a new block under the zones' bits, 3995 - 9 x
+slot - (k - 1), so slots 0-99 cover 3096-3995 (`registration.subarea_bit`).
+The zone's row is now built by `registration.area_row`, with the same
+fields as before. A map converted into a folder keeps its zone's bit clear
+of every other map's rows' bits, not only their zones'.

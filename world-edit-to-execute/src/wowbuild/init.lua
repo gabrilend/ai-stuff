@@ -409,6 +409,8 @@ function wowbuild.convert(map_path, build_dir, opts)
     local used = (stock_dir and output.stock_area_bits(stock_dir)) or {}
     for dir, r in pairs(registration.in_build(build_dir)) do
         if dir ~= name and r.ids and r.ids.area_bit then used[r.ids.area_bit] = true end
+        -- and the bits of the areas made in the editor (W10g)
+        for _, row in ipairs(dir ~= name and r.rows and r.rows.AreaTable or {}) do used[row.AreaBit] = true end
     end
     if used[ids.area_bit] then
         local was = ids.area_bit

@@ -24,6 +24,8 @@ is base + slot x width:
   entry            creature_template.entry               9000000     10000   9000000-9999999
   guid             creature.guid                         1000000     50000   1000000-5999999
   area_bit         AreaTable.AreaBit (the explored-zones bit; under 4096)  4095 - slot
+  subarea_bit      AreaTable.AreaBit of the map's other areas (W10g)  3995 - 9 x slot - (k - 1),
+                   its area k = 1-9 (ids area + k)                      3096-3995
   light            Light.dbc (the map's default light, W02i)  20000       1       20000-20099
   light_params     LightParams.dbc (W02i)                20000       4       20000-20399
   light_int_band   LightIntBand.dbc: a set's 18 bands    359983      72      359983-367182
@@ -75,6 +77,16 @@ registration.SCHEME = {
     light_float_band = { base = 20000 * 6 - 5, width = 4 * 6 },
 }
 registration.AREA_BIT_TOP = 4095          -- PLAYER_EXPLORED_ZONES: 128 x 32 bits
+-- a map's own areas made in the editor (W10g, editor/wowareas.lua): the
+-- zone is the area block's first id; up to 9 more, its next ids, each with
+-- an explored-zones bit of its own from a block under the zones' bits:
+-- slot s's area k (1-9) takes bit 3995 - 9s - (k - 1), so slot 0-99 covers
+-- 3096-3995 (above the stock table's bits as remembered: unchecked)
+registration.SUBAREAS = registration.SCHEME.area.width - 1
+registration.SUBAREA_BIT_TOP = registration.AREA_BIT_TOP - registration.SLOTS
+function registration.subarea_bit(slot, k)
+    return registration.SUBAREA_BIT_TOP - slot * registration.SUBAREAS - (k - 1)
+end
 registration.FILE = "registration.lua"   -- in World/Maps/<dir>/, beside the ground
 
 -- which id kind each table's ID column takes (for the stock rows a merge drops)
@@ -184,6 +196,18 @@ function registration.model_name(path, own)
 end
 -- }}}
 
+-- {{{ registration.area_row: one AreaTable row of a map's own
+-- o: id, bit (AreaBit), name, parent (0: a zone), flags; the other columns
+-- as the zone's (W02c)
+function registration.area_row(ids, o)
+    return {
+        ID = o.id, ContinentID = ids.map, ParentAreaID = o.parent or 0, AreaBit = o.bit, Flags = o.flags or 0,
+        ExplorationLevel = 0, AreaName = o.name, FactionGroupMask = 0, MinElevation = -500, AmbientMultiplier = 0,
+        LightID = 0,
+    }
+end
+-- }}}
+
 -- {{{ registration.rows
 -- info: parsers.w3i's (or nil); C: wowbuild.creatures' (displays,
 -- factions); ids: registration.ids(slot) (with area_bit settled);
@@ -201,11 +225,7 @@ function registration.rows(info, C, ids, opts)
         LoadingScreenID = ids.loading_screen, MinimapIconScale = 1, CorpseMapID = -1, CorpseX = 0, CorpseY = 0,
         TimeOfDayOverride = -1, ExpansionID = 0, RaidOffset = 0, MaxPlayers = 0,
     } }
-    rows.AreaTable = { {
-        ID = ids.area, ContinentID = ids.map, ParentAreaID = 0, AreaBit = ids.area_bit, Flags = 0,
-        ExplorationLevel = 0, AreaName = name, FactionGroupMask = 0, MinElevation = -500, AmbientMultiplier = 0,
-        LightID = 0,
-    } }
+    rows.AreaTable = { registration.area_row(ids, { id = ids.area, bit = ids.area_bit, name = name }) }
     rows.LoadingScreens = { { ID = ids.loading_screen, Name = opts.directory, FileName = opts.picture or "", HasWideScreen = 0 } }
 
     -- the creatures' looks: one display a model and size, one model row a display

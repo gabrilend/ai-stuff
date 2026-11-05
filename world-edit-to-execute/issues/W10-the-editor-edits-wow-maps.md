@@ -169,3 +169,11 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
   is set as an editor step; areas' names are read from a loose
   AreaTable.dbc. Writing AreaTable rows waits for W02c's writer on this
   stack. Its open questions are answered there as dated decisions.
+- *2026-11-05:* `W10g-areas-of-a-maps-own-as-areatable-rows.md`: the
+  table half of step 4. On the branch that joins the W02 chain into the
+  editor stack, a converted map's own areas are made, renamed, flagged
+  and taken away (AreaTable rows with W02c's ids and their own
+  explored-zones bits), painted by the area brush, and saved as the map's
+  registration and the folder's tables in every form (the overlay, the
+  server's SQL, the merged stock tables, patch-W.MPQ), with undo. Its
+  open questions are answered there as dated decisions.
