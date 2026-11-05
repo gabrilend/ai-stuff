@@ -32,7 +32,9 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              games), listed and read for the tools (E:wow_maps,
              E:wow_map; editor/wowmap.lua, issue W10a); the terrain
              tools on its tiles after E:wow_edit(dir), its edited tiles
-             written with the project (editor/wowterrain.lua, W10b)
+             written with the project (editor/wowterrain.lua, W10b);
+             its models and buildings placed, moved, turned, sized
+             and taken away (E:wow_place ...; editor/wowplace.lua, W10e)
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -129,6 +131,7 @@ function editor.open(path, opts)
     require("editor.cameras")(E)
     require("editor.wowmap").attach(E)      -- the map's WoW layer (issue W10a)
     require("editor.wowterrain").attach(E)  -- the terrain tools on its tiles (issue W10b)
+    require("editor.wowplace").attach(E)    -- objects placed on its tiles (issue W10e)
     self:load_objects()
     self:load_regions()
     self:load_sounds()

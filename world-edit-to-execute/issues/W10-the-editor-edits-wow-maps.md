@@ -146,3 +146,13 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
   WDL, with undo. Flowing water (vertex formats 1 and 3) keeps its format
   and picture positions through an edit. Its open questions are answered
   there as dated decisions.
+- *2026-11-05:* `W10e-the-object-placer-on-wow-tiles.md`: step 3
+  without its window. Models (MDDF, MMDX/MMID) and buildings (MODF,
+  MWMO/MWID) are placed, moved, turned, sized and deleted on a WoW map's
+  tiles as plain Lua and as editor steps with undo and redo around saves.
+  A save rewrites only an edited tile's placement blocks, name lists and
+  chunk references (MCRF), and the offsets after them; unedited tiles and
+  records keep their bytes. Unique ids stay unique across the map; a
+  building over a tile edge is listed by every tile its box touches with
+  one id. Checked through the W client's `adt_read` and `adt_place_read`.
+  Its open questions are answered there as dated decisions.
