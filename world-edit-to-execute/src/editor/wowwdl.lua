@@ -28,7 +28,9 @@ patch changes what a tile's edits touched and nothing else:
     its 16 holes is cut (the far view draws a chunk as one square, so a
     chunk with ground left in it shows from far away);
   - a tile the WDL hadn't: its MARE and MAHO added at the end, its MAOF
-    entry set.
+    entry set (a tile made by editor/wowtiles.lua, W10d, has every chunk
+    edited, so a far view the WDL had for it is patched whole).
+wdl.remove takes a tile's far view out (W10d: a tile taken off the map).
 A tile listed in MAOF with no MAHO after its MARE gets one only when a
 hole bit is to be set; MAOF's offsets then move along with the blocks
 after it, each of which must be where an MARE starts, or the write is
@@ -161,6 +163,57 @@ function wdl.patch(original, tiles)
         s = put(s, OF + a.i * 4, le32(at))
     end
     return s
+end
+-- }}}
+
+-- {{{ wdl.remove: tiles taken off the map (W10d)
+-- tiles: { { tx, ty } }. Each one's MARE (and the MAHO right after it)
+-- taken out, its MAOF entry 0, the later entries moved along. Refused
+-- when a block to take out isn't an MARE where MAOF says, or when
+-- another entry points into it.
+function wdl.remove(original, tiles)
+    local blocks, tail = wt.walk(original)
+    if not blocks then return nil, tail end
+    local maof
+    for _, b in ipairs(blocks) do if b.tag == "MAOF" then maof = b break end end
+    if not maof or maof.len < 8 + 4096 * 4 then return nil, "no tile list (MAOF) of 64 x 64 offsets" end
+    local OF = maof.at + 8
+    local s = original
+    local cut, regions = {}, {}
+    for _, t in ipairs(tiles) do
+        local i = t.ty * 64 + t.tx
+        local o = u32(s, OF + i * 4)
+        if o ~= 0 then
+            if o + 8 > #s or tag_at(s, o) ~= "MARE" then
+                return nil, string.format("tile %d, %d: MAOF points at byte %d, where no MARE is", t.tx, t.ty, o)
+            end
+            local stop = o + 8 + u32(s, o + 4)
+            if stop + 8 <= #s and tag_at(s, stop) == "MAHO" then stop = stop + 8 + u32(s, stop + 4) end
+            if stop > #s then return nil, string.format("tile %d, %d: its far view runs past the file's end", t.tx, t.ty) end
+            cut[i] = true
+            regions[#regions + 1] = { start = o, stop = stop, data = "", seq = i }
+        end
+    end
+    if #regions == 0 then return s end
+    for i = 0, 4095 do
+        local o = u32(s, OF + i * 4)
+        if o ~= 0 and not cut[i] then
+            for _, g in ipairs(regions) do
+                if o >= g.start and o < g.stop then
+                    return nil, string.format("MAOF's entry %d points into the far view being taken out (byte %d)", i, o)
+                end
+            end
+        end
+    end
+    local out, moved = wt.splice(s, regions)
+    if not out then return nil, moved end
+    local NOF = moved(OF)
+    for i = 0, 4095 do
+        local o = u32(s, OF + i * 4)
+        if cut[i] then out = put(out, NOF + i * 4, le32(0))
+        elseif o ~= 0 then out = put(out, NOF + i * 4, le32(moved(o))) end
+    end
+    return out
 end
 -- }}}
 

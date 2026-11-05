@@ -26,6 +26,15 @@ writes), else the W client's own default (its scripts/libs/wreaders.lua).
 Without it a map's files are still listed, kept and copied; only reading
 a tile says why it can't.
 
+Which tiles a map has is its WDT's to say (W10d): MAIN's flag 1 for
+each of the 64 x 64 tiles, read through the W client's wdt_read (its
+098-wdt.c). A tile the WDT lists whose file isn't there is still a tile
+of the map (M.missing; reading it says the file is gone); an ADT the WDT
+doesn't list is not (M.unlisted), as the W client never loads it. Only
+when the reader library isn't there, or is one without wdt_read, are
+the tiles taken from the files present (M.tile_source "files", and
+M.tile_source_why says why).
+
 Positions are the reader's: world yards, x north, y west, z up; a tile is
 533.33 yards, a chunk 33.33, its 145 heights above the chunk's base z in
 the file's order (a row of 9 corners, then 8 centres, ...).
@@ -33,7 +42,8 @@ the file's order (a row of 9 corners, then 8 centres, ...).
     local wowmap = require("editor.wowmap")
     wowmap.maps(root)                    -- { "WC3_X", ... }: folders under World/Maps with a .wdt
     local M, why = wowmap.open(root, "WC3_X")
-    M.tiles                              -- { { tx, ty, file }, ... } sorted, from the files present
+    M.tiles                              -- { { tx, ty, file }, ... } sorted: the tiles the WDT lists
+    M.tile_source                        -- "wdt", or "files" when the reader can't read WDTs
     local t, why = M:tile(31, 32)        -- the tile, read (and kept); nil and why
     t.chunks[1].heights[1], t.doodads[1].model, t.liquids[1].kind
 ]]
@@ -131,6 +141,34 @@ function wowmap.reader(build_dir)
 end
 -- }}}
 
+-- {{{ wowmap.read_wdt: a WDT, through the W client's wdt_read (W10d)
+-- { version, flags, ntiles, tiles = { { tx, ty } } (row by row), big_alpha,
+-- wmo_only, wmo (the one building's name, or "") }; nil and why. MAIN's
+-- entry ty * 64 + tx is wete's tile <tx>_<ty>; the W client numbers the
+-- same entry x * 64 + y with its x = wete's ty (098-wdt.h), so its
+-- wdt_has_tile(w, ty, tx) asks about wete's tile (tx, ty).
+function wowmap.tile_name(dir, tx, ty) return string.format("%s_%d_%d.adt", dir, tx, ty) end
+
+function wowmap.read_wdt(bytes, lib)
+    if not lib then return nil, "no reader library" end
+    if not (pcall(function() return lib.wdt_read end) and pcall(ffi.typeof, "Wdt")) then
+        return nil, "the W client's reader library has no WDT reader (wdt_read, its 098-wdt.c)"
+    end
+    local buf = ffi.new("unsigned char[?]", math.max(#bytes, 1))
+    ffi.copy(buf, bytes, #bytes)
+    local w, why = ffi.new("Wdt"), ffi.new("WWhy")
+    if lib.wdt_read(buf, #bytes, w, why) ~= 0 then return nil, ffi.string(why.text) end
+    local out = { version = w.version, flags = w.flags, ntiles = w.ntiles, tiles = {},
+                  big_alpha = lib.wdt_big_alpha(w) == 1, wmo_only = lib.wdt_wmo_only(w) == 1, wmo = ffi.string(w.wmo) }
+    for ty = 0, 63 do
+        for tx = 0, 63 do
+            if lib.wdt_has_tile(w, ty, tx) == 1 then out.tiles[#out.tiles + 1] = { tx = tx, ty = ty } end
+        end
+    end
+    return out
+end
+-- }}}
+
 -- {{{ a tile, as Lua data
 local function floats(p, n)
     local t = {}
@@ -195,7 +233,38 @@ function wowmap.open(root, dir, opts)
     end
     local self = setmetatable({ root = root, directory = dir, folder = root .. "/" .. wowmap.MAPS .. "/" .. dir,
                                 tiles = files.tiles, wdt = files.wdt, wdl = files.wdl, other = files.other,
-                                read_tiles = {}, opts = opts }, M)
+                                read_tiles = {}, opts = opts, missing = {}, unlisted = {} }, M)
+    -- the tiles: the WDT's list, when the reader can read it
+    local lib, lwhy = opts.reader, nil
+    if not lib then lib, lwhy = wowmap.reader(opts.build_dir) end
+    local info, why
+    if lib then
+        info, why = wowmap.read_wdt(read(self.folder .. "/" .. files.wdt) or "", lib)
+    else
+        why = lwhy
+    end
+    if info then
+        local present = {}
+        for _, t in ipairs(files.tiles) do present[t.tx .. "_" .. t.ty] = t end
+        self.tiles = {}
+        for _, e in ipairs(info.tiles) do
+            local key = e.tx .. "_" .. e.ty
+            local f = present[key]
+            local t = { tx = e.tx, ty = e.ty, file = f and f.file or wowmap.tile_name(dir, e.tx, e.ty) }
+            if not f then t.missing = true self.missing[#self.missing + 1] = t end
+            present[key] = nil
+            self.tiles[#self.tiles + 1] = t
+        end
+        for _, t in ipairs(files.tiles) do
+            if present[t.tx .. "_" .. t.ty] then self.unlisted[#self.unlisted + 1] = t end
+        end
+        self.wdt_info = info
+        self.tile_source = "wdt"
+    elseif lib and why and not why:match("^the W client's reader library has no") then
+        return nil, files.wdt .. ": " .. why
+    else
+        self.tile_source, self.tile_source_why = "files", why
+    end
     self.by_key = {}
     for _, t in ipairs(self.tiles) do self.by_key[t.tx .. "_" .. t.ty] = t end
     return self
@@ -230,7 +299,10 @@ function M:tile(tx, ty)
     local lib, why = self:reader()
     if not lib then return nil, why end
     local bytes = read(self.folder .. "/" .. entry.file)
-    if not bytes then return nil, "can't read " .. entry.file end
+    if not bytes then
+        if entry.missing then return nil, string.format("the WDT lists tile %d, %d but its file %s isn't there", tx, ty, entry.file) end
+        return nil, "can't read " .. entry.file
+    end
     local buf = ffi.new("unsigned char[?]", math.max(#bytes, 1))
     ffi.copy(buf, bytes, #bytes)
     local c_tile = ffi.new("AdtTile")       -- about 5 MB: on the heap, freed with it

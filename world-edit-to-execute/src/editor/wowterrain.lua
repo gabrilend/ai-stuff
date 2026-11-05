@@ -52,8 +52,12 @@ tile written without an edit is the file that was read).
 
 Water is editor/wowwater.lua's (W10c: its tools, and the MH2O block
 tile_bytes writes again); the far view, editor/wowwdl.lua's.
+Tiles added and taken off are editor/wowtiles.lua's (W10d); the save
+writes them (a new tile's file, the WDT's MAIN flags, the far view) and
+deletes a taken-off tile's file.
 
     wt.attach(E)     -- the editor's strokes on a WoW map (E:wow_edit), editor/init.lua does this
+                     -- and E:wow_add_tile, E:wow_remove_tile (W10d)
 ]]
 
 local ffi = require("ffi")
@@ -836,23 +840,40 @@ end
 -- ground or holes changed (editor/wowwdl.lua); the files written, or nil
 -- and why (nothing written then)
 function wt.save(m)
+    local tl = require("editor.wowtiles")
+    local changed = m.tiles_changed or {}          -- tiles added or taken off (W10d, editor/wowtiles.lua)
     local done, far = {}, {}
     for _, t in ipairs(wt.edited(m)) do
         local path = m.folder .. "/" .. t.file
-        local original = read(path)
-        if not original then return nil, "can't read " .. path end
-        local bytes, why = wt.tile_bytes(original, t, { big_alpha = m.big_alpha })
+        local original, why
+        if t.made or t.kept then original, why = tl.base_bytes(m, t)
+        else original = read(path) end
+        if not original then return nil, why or ("can't read " .. path) end
+        local bytes
+        bytes, why = wt.tile_bytes(original, t, { big_alpha = m.big_alpha })
         if not bytes then return nil, t.file .. ": " .. why end
         done[#done + 1] = { t = t, path = path, bytes = bytes, file = t.file }
+        local whole = changed[t.tx .. "_" .. t.ty]
         for _, c in ipairs(t.chunks) do
-            if c.dirty and (c.dirty.heights or c.dirty.holes) then far[#far + 1] = t break end
+            if whole or (c.dirty and (c.dirty.heights or c.dirty.holes)) then far[#far + 1] = t break end
         end
     end
-    if m.wdl and #far > 0 then
+    local off = tl.taken_off(m)
+    if next(changed) then
+        local path = m.folder .. "/" .. m.wdt
+        local original = read(path)
+        if not original then return nil, "can't read " .. path end
+        local bytes, why = tl.wdt_bytes(m, original)
+        if not bytes then return nil, m.wdt .. ": " .. why end
+        if bytes ~= original then done[#done + 1] = { path = path, bytes = bytes, file = m.wdt } end
+    end
+    if m.wdl and (#far > 0 or #off > 0) then
+        local wdl = require("editor.wowwdl")
         local path = m.folder .. "/" .. m.wdl
         local original = read(path)
         if not original then return nil, "can't read " .. path end
-        local bytes, why = require("editor.wowwdl").patch(original, far)
+        local bytes, why = wdl.patch(original, far)
+        if bytes and #off > 0 then bytes, why = wdl.remove(bytes, off) end
         if not bytes then return nil, m.wdl .. ": " .. why end
         if bytes ~= original then done[#done + 1] = { path = path, bytes = bytes, file = m.wdl } end
     end
@@ -867,7 +888,19 @@ function wt.save(m)
         if not ok then return nil, err end
         written[#written + 1] = d.file
     end
+    -- the files of the tiles taken off (unless a new tile took the name)
+    for _, g in ipairs(off) do
+        local path = m.folder .. "/" .. g.file
+        local taken = false
+        for _, e in ipairs(m.tiles) do if e.file:lower() == g.file:lower() then taken = true end end
+        if not taken and read(path) then
+            local ok, err = os.remove(path)
+            if not ok then return nil, err end
+            written[#written + 1] = g.file .. " (deleted)"
+        end
+    end
     for _, d in ipairs(done) do if d.t then clean(d.t) end end
+    tl.saved(m)
     return written
 end
 -- }}}
@@ -1065,6 +1098,63 @@ function wt.attach(E)
         return cmd.name
     end
 
+    -- a tile added to the WoW map being edited, or taken off (W10d,
+    -- editor/wowtiles.lua), as one step of the history: undo takes it off
+    -- (puts it back) and its neighbours' edges as they were
+    local function tile_step(me, m, tx, ty, name, act, unact)
+        local tl = require("editor.wowtiles")
+        -- the neighbours read first, so their edges are in the snapshot
+        for dy = -1, 1 do
+            for dx = -1, 1 do
+                if (dx ~= 0 or dy ~= 0) and m.by_key[(tx + dx) .. "_" .. (ty + dy)] then
+                    local got, why = m:tile(tx + dx, ty + dy)
+                    if not got then return nil, why end
+                    index_tile(m, got)
+                end
+            end
+        end
+        local list = tl.border_chunks(m, tx, ty)
+        local before = {}
+        for _, c in ipairs(list) do before[c] = wt.snapshot(c) end
+        local state = {}
+        local got, why = act(state)
+        if not got then me:say(why) return nil, why end
+        local after = {}
+        for _, c in ipairs(list) do after[c] = wt.snapshot(c) end
+        local function edges(which) for _, c in ipairs(list) do wt.restore(m, c, which[c]) end end
+        me.history:record({ name = name .. " (WoW map " .. m.directory .. ")",
+                            undo = function() unact(state) edges(before) me.dirty.wow = true end,
+                            redo = function() act(state) edges(after) me.dirty.wow = true end })
+        me.dirty.wow = true
+        return got
+    end
+
+    -- state.gone: what taking it off kept (undo of the add), put back on redo
+    function E:wow_add_tile(tx, ty, opts)
+        local m = self.wow_editing
+        if not m then return nil, "no WoW map is being edited (E:wow_edit)" end
+        local tl = require("editor.wowtiles")
+        return tile_step(self, m, tx, ty, string.format("Add tile %d, %d", tx, ty),
+            function(state)
+                if state.gone then return tl.put_back(m, state.gone) end
+                return tl.add(m, tx, ty, opts)
+            end,
+            function(state) state.gone = tl.remove(m, tx, ty) end)
+    end
+
+    function E:wow_remove_tile(tx, ty)
+        local m = self.wow_editing
+        if not m then return nil, "no WoW map is being edited (E:wow_edit)" end
+        local tl = require("editor.wowtiles")
+        return tile_step(self, m, tx, ty, string.format("Take off tile %d, %d", tx, ty),
+            function(state)
+                local gone, why = tl.remove(m, tx, ty)
+                state.gone = gone
+                return gone, why
+            end,
+            function(state) tl.put_back(m, state.gone) end)
+    end
+
     -- every opened WoW map's edited tiles, written over their files
     function E:wow_save()
         local all = {}
@@ -1082,7 +1172,8 @@ end
 
 -- {{{ for editor/wowwater.lua and editor/wowwdl.lua
 wt.internal = { load_area = load_area, mark = mark, chunk_origin = chunk_origin, weight = weight,
-                u32 = u32, u16 = u16, tag_at = tag_at, put = put, le32 = le32 }
+                u32 = u32, u16 = u16, tag_at = tag_at, put = put, le32 = le32,
+                index_tile = index_tile, renormal = renormal, read = read, KEY = KEY }
 -- }}}
 
 return wt

@@ -30,6 +30,7 @@ if DIR == "" then DIR = "." end
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local ffi = require("ffi")
+local bit = require("bit")
 local w3e = require("parsers.w3e")
 local coords = require("wowbuild.coords")
 local wterrain = require("wowbuild.terrain")
@@ -502,6 +503,38 @@ do
     else
         skip("the W client reads the WDT", "no library")
     end
+    -- the WDT read back through the W client's own WDT reader (its 098-wdt.c, W10d)
+    local has_wdt_read = W and pcall(function() return W.wdt_read end) and pcall(ffi.typeof, "Wdt")
+    if has_wdt_read then
+        local buf = ffi.new("unsigned char[?]", #wdt)
+        ffi.copy(buf, wdt, #wdt)
+        local w = ffi.new("Wdt")
+        local ok = W.wdt_read(buf, #wdt, w, WHY) == 0
+        test("wdt_read reads W02a's WDT", ok, ok and "" or why_text())
+        test("... version 18, 8-bit blend maps, a ground map (not one building)", ok and w.version == 18
+            and W.wdt_big_alpha(w) == 1 and W.wdt_wmo_only(w) == 0 and ffi.string(w.wmo) == "")
+        local listed, both = 0, true
+        for k = 0, 4095 do if bit.band(w.tile_flags[k], 1) ~= 0 then listed = listed + 1 end end
+        for _, t in ipairs(tiles) do
+            -- wete's tile (tx, ty) is MAIN entry ty * 64 + tx, the W client's (x, y) = (ty, tx)
+            if bit.band(w.tile_flags[t.ty * 64 + t.tx], 1) == 0 or W.wdt_has_tile(w, t.ty, t.tx) ~= 1 then both = false end
+        end
+        test("its tiles: four, each where W02a put it, asked both ways", ok and w.ntiles == 4 and listed == 4 and both)
+        test("a tile it hasn't: not listed (the transposed 33, 31 neither)", ok and W.wdt_has_tile(w, 33, 31) == 0
+            and W.wdt_has_tile(w, 31, 33) == 0 and W.wdt_has_tile(w, 0, 0) == 0)
+        local bad = ffi.new("unsigned char[?]", 40)
+        ffi.copy(bad, wdt, 40)
+        test("a WDT cut short: refused, saying why", W.wdt_read(bad, 40, w, WHY) ~= 0 and #why_text() > 0, why_text())
+        -- and the editor's map list from it (editor/wowmap.lua)
+        local wowmap = require("editor.wowmap")
+        local info = wowmap.read_wdt(wdt, W)
+        local names = {}
+        for _, e in ipairs(info and info.tiles or {}) do names[#names + 1] = e.tx .. "_" .. e.ty end
+        test("wowmap.read_wdt: the same four, row by row", table.concat(names, " ") == "31_31 32_31 31_32 32_32",
+            table.concat(names, " "))
+    else
+        skip("the W client's WDT reader (wdt_read)", W and "the library has no wdt_read" or "no library")
+    end
     local t = made(17, 17, { "Ldrt" }, function(i, j) return { height = i * 30.72 * 4 } end)   -- 4 yd a tile, east
     local job = wterrain.prepare(t)
     local wdl = adt.wdl_bytes(job)
@@ -640,6 +673,11 @@ else
                 end
                 local wb, wn = slurp(dir .. "/" .. report.map_directory .. ".wdt")
                 test(label .. ": the W client reads its WDT (8-bit blend maps)", wb and W.adt_wdt_big_alpha(wb, wn, WHY) == 1)
+                if pcall(function() return W.wdt_read end) and pcall(ffi.typeof, "Wdt") then
+                    local m = require("editor.wowmap").open(build, report.map_directory, { reader = W })
+                    test(label .. ": its WDT lists exactly the ADT files written (wdt_read)", m and m.tile_source == "wdt"
+                        and #m.tiles == #out.tiles and #m.missing == 0 and #m.unlisted == 0, m and #m.tiles)
+                end
                 local lb, ln = slurp(dir .. "/" .. report.map_directory .. ".wdl")
                 local wdl_ok = lb and W.adt_wdl_read(lb, ln, wwdl, WHY) == 0
                 local have = 0

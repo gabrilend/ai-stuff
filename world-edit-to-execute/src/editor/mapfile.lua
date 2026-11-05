@@ -613,6 +613,11 @@ function mapfile.validate_wow(dir, opts)
             else
                 local ok, bad = m:read_all()
                 if not ok then for _, b in ipairs(bad) do say("error", "the WoW map " .. name .. ": " .. b) end end
+                -- the WDT's tile list against the files (W10d)
+                for _, u in ipairs(m.unlisted or {}) do
+                    say("warn", "wow/" .. wowmap.MAPS .. "/" .. name .. "/" .. u.file
+                        .. ": its WDT doesn't list this tile, so the W client never loads it")
+                end
             end
         end
     end

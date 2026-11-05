@@ -26,10 +26,11 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | W08 | [Our own server, speaking the same protocol](./W08-our-own-server-speaking-the-same-protocol.md) | design research | W02, W04 |
 | W06 | [Restyle every model in one theme](./W06-restyle-every-model-in-one-theme.md) | open (later) | W05 |
 | W07 | [Phase W demo](./W07-phase-w-demo.md) | open | W02-W06 |
-| W10 | [The editor edits WoW maps](./W10-the-editor-edits-wow-maps.md) | open; W10a, W10b, W10c built 2026-11-05 | W01, W02, Phase 9 |
+| W10 | [The editor edits WoW maps](./W10-the-editor-edits-wow-maps.md) | open; W10a, W10b, W10c, W10d built 2026-11-05 | W01, W02, Phase 9 |
 | W10a | [The WoW layer of a map](./W10a-the-wow-layer-of-a-map.md) | built 2026-11-05 (drawing it in the window open) | W10, 911c |
 | W10b | [The terrain editor on WoW tiles](./W10b-the-terrain-editor-on-wow-tiles.md) | built 2026-11-05 (the window, the WDL, water, new tiles and a stock tile on the owner's machine open) | W10a, W02a, 902 |
 | W10c | [The far view and water on WoW tiles](./W10c-far-view-and-water-on-wow-tiles.md) | built 2026-11-05 (stock files and the far-hole rule on the owner's machine open) | W10b, W02a |
+| W10d | [Tiles from the WDT, added and taken off](./W10d-tiles-from-the-wdt-added-and-taken-off.md) | built 2026-11-05 (a stock map's new tile and flowing water on the owner's machine open) | W10c, the W client's 098-wdt.c |
 
 ## Built elsewhere
 
