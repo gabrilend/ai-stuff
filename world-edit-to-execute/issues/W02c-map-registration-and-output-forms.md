@@ -129,6 +129,7 @@ Build folder, added to W02a's and W02b's:
 | `World/Maps/<dir>/<dir>_loading.blp` | the loading screen | both clients, through LoadingScreens.dbc |
 | `DBFilesClient/<Table>.dbc` | the seven tables, **only this folder's maps' rows** | the W client (overlay first, per row; its 106) |
 | `map.lua` | which map to open: id, folder, name, zone, the start, the WC3 → WoW transform, the folder's maps (data) | the W client's test-map run (1109's open question 4) |
+| `war3map.w3e` | the map's own ground file, copied whole (added 2026-11-05) | the W client's WC3-tileset ground (custom-client 078) |
 | `world/creatures-<id>.tsv` | the spawns, in 035-creatures.h's format | the W client's `--world` |
 | `server/dbc.sql` | `REPLACE INTO <table>_dbc` for six tables | AzerothCore's world database |
 | `server/dbc/<Table>.dbc` | the stock tables with these maps' rows added (only when stock tables are given; no LoadingScreens) | AzerothCore's `dbc` folder |
@@ -393,3 +394,36 @@ are needed there:
 
 The client doesn't need `patch-W.MPQ` (W02's answered question 5), and its
 archive chain (015) doesn't load it.
+
+### 2026-11-05: the ground file beside `map.lua`
+
+The W client paints converted ground with WC3's own tilesets when the
+player has a WC3 install (custom-client PR 10, its issue 1109 decision 35).
+It reads the map's `war3map.w3e` from the build folder's root. Until now
+the converter wrote none, so that run fell back to the converter's own
+pictures.
+
+`wowbuild.convert` now copies the map's `war3map.w3e`, byte for byte, to
+`<build>/war3map.w3e` beside `map.lua` (`wowbuild.GROUND_FILE`). The
+report lists it as one of the map's own files. It doesn't go into
+`patch-W.MPQ`: the stock client has no use for it.
+
+Decisions (answered here, for the owner to overturn):
+
+1. **One ground file at the root, not one per map folder.** `map.lua` at
+   the root names one map, the last one converted, and the W client's
+   reader looks at the root. The ground file follows `map.lua`: a
+   conversion removes the old one first, so the root's ground always
+   belongs to `map.lua`'s map. Several maps in one folder would want
+   `World/Maps/<dir>/war3map.w3e` and a field in `map.lua`; that waits
+   until the client opens more than the last map.
+2. **Copied, not rewritten.** It is the map's own file, so it carries no
+   Blizzard data, and the W client already reads the format (its 063).
+3. **Tests pass the bytes in** (`opts.ground`). The made maps in the
+   tests have no archive to copy from.
+
+Checked: `test_wow_registration.lua` (69 pass, 7 skipped here: no W
+client library, no StormLib), `test_wow_placements.lua` (72 pass; the
+real maps' "nothing else is copied" check allows the ground file),
+`test_wow_terrain.lua` (70 pass) and `test_wow_triggers.lua` (138 pass).
+

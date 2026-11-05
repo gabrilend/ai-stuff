@@ -104,6 +104,10 @@ wowbuild.REPORT = "conversion-report.lua"
 wowbuild.PLACEMENTS = "placements.lua"
 wowbuild.SQL = "server/world.sql"
 wowbuild.MAP_FILE = output.MAP_FILE
+-- the map's own ground file, copied whole beside map.lua: the W client
+-- paints converted ground with WC3's own tilesets from it when the player
+-- has a WC3 install (custom-client 078, its 1109 decision 35)
+wowbuild.GROUND_FILE = "war3map.w3e"
 wowbuild.STAGES_NOT_BUILT = {
     "W02d server data for new maps",
     "W02e's server loader and the remaining natives (steps 1-2 built: the coverage report, the transpiled script, 574 natives)",
@@ -211,6 +215,7 @@ function wowbuild.read_map(map_path)
         end)
     end
     map.script, map.script_name = triggers.read_script(archive)
+    map.ground = get("war3map.w3e")
     map.has_file = function(path) if archive:has(path) then return path end end
     map.read_file = function(path) return archive:extract(path) end
     map.close = function() archive:close() end
@@ -330,7 +335,8 @@ end
 -- is there; false: none), patch (false: no patch-W.MPQ), terrain (a
 -- parsed terrain, for tests: map_path is then only a label), map (the
 -- parts wowbuild.read_map gives, for tests; without terrain and map the
--- map file is read)
+-- map file is read), ground (the war3map.w3e bytes to copy beside map.lua,
+-- for tests; default the map's own)
 function wowbuild.convert(map_path, build_dir, opts)
     opts = opts or {}
     assert(type(build_dir) == "string" and build_dir ~= "", "convert: no build folder")
@@ -461,6 +467,14 @@ function wowbuild.convert(map_path, build_dir, opts)
     local map_text = "-- W02c: the map the W client's Test Map opens (src/wowbuild): data only\nreturn " .. serialize(mapfile) .. "\n"
     write_file(build_dir .. "/" .. wowbuild.MAP_FILE, map_text)
     files[#files + 1] = { path = wowbuild.MAP_FILE, bytes = #map_text }
+    -- the ground file beside it, as the map holds it; one from an earlier
+    -- conversion goes, so the root's ground is always map.lua's map's
+    local ground = opts.ground or map.ground
+    os.remove(build_dir .. "/" .. wowbuild.GROUND_FILE)
+    if ground then
+        write_file(build_dir .. "/" .. wowbuild.GROUND_FILE, ground)
+        files[#files + 1] = { path = wowbuild.GROUND_FILE, bytes = #ground, own = true }
+    end
 
     -- the script for the server's shim: transpiled, its map data, and the
     -- natives it calls against what the shim has (W02e). A script the
