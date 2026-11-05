@@ -62,6 +62,15 @@ The terminal view is built (issue 801, `src/070-terminal-view.lua`,
 `scripts/terminal-view`): the colours and the age-to-step tables are in
 `input/terminal-view`, and its reference screens in `assets/test-terminal/`.
 
+The Lua window is built but for its window (issue 802,
+`src/072-lua-window.lua`, `scripts/lua-window`): it draws the canvas as a
+picture, with the monorepo's own 8x8 letters (`libs/bitmap-font.lua`), each
+voice's colour behind its cells fading by age (`input/lua-window`), and each
+changed word written in left to right over the old one. Until kuvalu has a
+window library (SDL2 or LÖVE) it draws headless: `--screenshot` saves the
+frame as a PNG and a text grid, which `scripts/lua-window` files into
+`development-history/`.
+
 ## One canvas for each screen
 
 Each watched screen gets a canvas made at its own size, so no canvas is

@@ -16,3 +16,11 @@ Counts of done and open issues:
   (`input/terminal-view`), redrawn when a new version is written, the
   too-small error naming both sizes. Checked against reference screens of
   the shared test canvases (`src/071-test-terminal-view.lua`).
+- **802 the Lua window** (2026-11-05), all but the window: the canvas drawn
+  as a picture with the monorepo's own 8x8 letters, each voice's colour
+  behind its cells fading by age (`input/lua-window`), each changed word
+  written in left to right over the old over 0.4 s. `scripts/lua-window`
+  runs it headless for now: `--replay`, `--screenshot` (a PNG and a text
+  grid, filed into `development-history/`), `--key`, `--fast`. The window
+  itself waits for SDL2 or LÖVE on kuvalu (the issue's "Needs the owner's
+  machine"). Checked by `src/073-test-lua-window.lua`.

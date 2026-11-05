@@ -1,0 +1,7 @@
+source: /mnt/mtwo/programming/ai-stuff/every-software-image-able/src/068-bitmap-font.lua
+commit: 70c79f3e8ec0cd6b6ec1a78aa78b246b420d5fde
+copied: 2026-11-05
+changes: none. The 8x8 letter pictures the Lua window draws with (issue
+         802). The eleven printable characters it has no picture for are
+         drawn in src/072-lua-window.lua, not added here, so the copy stays
+         the same as its source.
