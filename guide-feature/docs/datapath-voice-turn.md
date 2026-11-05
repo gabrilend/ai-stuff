@@ -40,6 +40,22 @@ output to the outbox with the correct formatting and such."
    - the canvas size and the recommended change counts (`docs/fit-check.md`);
    - the look tool, and how to ask for focused or broad results;
    - the canvas itself, exactly as it is.
+
+   Built in issue 403 (`src/049-turn-prompt.lua`, `input/turn-instructions`):
+   - The conversation is two turns. The **system** turn holds who the voice
+     is, the rules, the size and the recommended counts, the look call's form
+     and an example of the exact shape (`src/027-exact-shape.lua`).
+   - The **user** turn holds the version, the last turn's advisory note, the
+     words this voice's last edit cut, and the canvas.
+   - The canvas sits inside a ruler: two lines of column numbers above it
+     (three past 100 columns), the row number to the left of each row, and a
+     `|` at each end of each row, showing the width. The prompt says the
+     ruler is not part of the canvas, and a reply that copies it is reported
+     like any other fit problem (`ruler`, `docs/fit-check.md`).
+   - The look call is one line, `look focused: WORDS` or `look broad: WORDS`,
+     recognised in the reply.
+   - The reference prompt for a fixed canvas is
+     `assets/test-prompts/01-turn-prompt.expected`.
 5. **Ask.** The model may answer with a look call instead of a canvas.
    The call is answered (`docs/datapath-looking-into-the-project.md`), the
    result is added to the conversation, and the model is asked again. The

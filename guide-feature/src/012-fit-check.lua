@@ -56,6 +56,13 @@ M.LINES = {
         end
         return string.format("row %d: not valid UTF-8 text at byte %d", p.row, p.byte)
     end,
+    -- A reply that copied the ruler the turn prompt draws around the canvas
+    -- (issue 403; found by src/049-turn-prompt.lua's ruler_problem).
+    ["ruler"] = function(p)
+        return string.format("%s %s: the ruler was copied (the row numbers, the | at "
+            .. "each end, or the column numbers); write only the canvas's own rows",
+            #p.rows == 1 and "row" or "rows", table.concat(p.rows, ", "))
+    end,
     ["wrong-width"] = function(p)
         return string.format("the canvas is %d characters wide; it must be exactly %d",
             p.measured, p.allowed)

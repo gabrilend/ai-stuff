@@ -22,7 +22,10 @@ Most valuable first.
 3. **The tool call's form.** llama.cpp supports OpenAI-style tool calls when
    its server runs with its chat templates switched on (`--jinja`). Is
    kuvalu's server started that way, or should the look call be a plain line
-   in the reply that the turn recognises? `issues/403`.
+   in the reply that the turn recognises? `issues/403`. Answered for now
+   in 403 (2026-11-05), until the owner decides: a plain line in the reply,
+   `look focused: WORDS` or `look broad: WORDS`. It works whether or not the
+   server runs with `--jinja`.
 4. **Characters or terminal columns?** Some characters take two columns in
    a terminal. If voices may write them, the fit check and the blit must
    count columns. `docs/fit-check.md`.
@@ -30,7 +33,10 @@ Most valuable first.
    available? `issues/902`.
 6. **Should the voices know who the others are?** It changes the first
    lines of the prompt, and probably how the voices behave toward each
-   other's words. `issues/403`.
+   other's words. `issues/403`. Answered for now in 403 (2026-11-05), until
+   the owner decides: each voice is told that two other voices edit the same
+   canvas, not their names. That wording is in `input/turn-instructions`,
+   where the owner can change it.
 7. **Can the person watching write onto the canvas too?** The vision says
    "each part of it can be edited". kuvalu could blit the person's edits as
    a fourth voice. `docs/architecture.md`.

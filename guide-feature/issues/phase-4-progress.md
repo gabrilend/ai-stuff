@@ -22,3 +22,12 @@ Counts of done and open issues:
   - Tested against a stand-in llama.cpp server on 127.0.0.1
     (`src/047-stand-in-llama.lua`). The run against 401a's real servers is
     left for the owner's machine.
+- **403, the turn prompt** (2026-11-05):
+  - `src/049-turn-prompt.lua` builds a voice's opening conversation from
+    `input/turn-instructions`, a file of the owner's words with markers.
+  - The canvas is shown inside a ruler of column and row numbers. A reply
+    that copies the ruler is caught.
+  - The look call is one line in the reply, answered for now until the
+    owner decides (open questions 3 and 6).
+  - A reference prompt in `assets/test-prompts/` shows any change as a
+    difference.
