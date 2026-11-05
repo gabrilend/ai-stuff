@@ -57,6 +57,7 @@ luajit src/cli/wow-convert.lua [--strict] [--name NAME] [--textures FILE] [--mod
 | `server/triggers/<dir>/war3map.lua` | the map's script, transpiled to Lua for the server's shim (W02e) |
 | `server/triggers/<dir>/map-data.lua` | what the shim reads of the build: map id, the WC3 -> WoW transform, templates, factions, spawns, the script's globals, typed stand-ins, constants (data) |
 | `server/triggers/<dir>/natives-report.lua` | every native and Blizzard.j function the script calls, how often, whether the shim has it, what the project's own runtime does with it; the unit types the script makes with no creature template (data) |
+| `server-stamp` | the files of the folder the server reads, each with its CRC-32 and size, written last; the editor's Test Map reuses the running server while it is the same (W02f) |
 | `placements.lua` | every doodad, unit and start location and what became of it (data) |
 | `conversion-report.lua` | data: files, placement, layer counts, texture folds, unmapped types, the registration, the triggers' coverage counts, warnings, the stages not built yet. `placement.client` is where the map lands in the W client's world (`client x = x0 + scale * wc3 y`, `client y = y0 - scale * wc3 x`, yards; the map's bounds in `wc3_min`, `wc3_max`): Test Map turns its camera through it (`wowbuild.coords.wc3_to_client`), checked against `map.lua`'s `wc3_to_wow` |
 
@@ -70,4 +71,5 @@ StormLib reads the map and writes `patch-W.MPQ` (`src/mpq/stormlib.lua`;
 
 Issues: `issues/W02a-terrain-to-adt-writer.md`,
 `issues/W02b-doodads-and-units-to-placements.md`,
-`issues/W02c-map-registration-and-output-forms.md`
+`issues/W02c-map-registration-and-output-forms.md`,
+`issues/W02f-launcher-and-loader.md`

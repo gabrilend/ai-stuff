@@ -135,6 +135,12 @@ not into new issues.
   the script makes now get templates of their own, so no map has ghost
   units (W02e's decision 30).
 - W02d, W02f-W02h: not yet written.
+- `W02f-launcher-and-loader.md` (2026-11-05): written by hand from the
+  table above. **Step 1 built** the same day: the converter writes
+  `server-stamp`, the server's files of the build with their checksums,
+  and the editor's Test Map reuses the server by it (issue 913). Left:
+  installing the build into AzerothCore, the stock client's side, the
+  character at the start.
 
 ## Progress
 
@@ -231,3 +237,6 @@ not into new issues.
   the editor starts the server again only when that changes. The server
   programs are given the build folder as `{build}` in their commands and
   as `WETE_TEST_MAP_BUILD`; installing it into the server is W02f's.
+- *2026-11-05:* `server-stamp` exists now (W02f step 1): not a line but a
+  small text file naming each file the server reads with its CRC-32 and
+  size, written by every conversion; a build without one counts as new.

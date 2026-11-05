@@ -731,8 +731,9 @@ do
         T2.last.outcome == "error" and T2.last.message:find("password from W_CLIENT_PASSWORD, and it is not set", 1, true) ~= nil,
         T2.last.message)
 
-    -- the build's stamp leaves out the converter's report, which holds when
-    -- it was written: an unchanged map reuses the server
+    -- the converter's server-stamp names only what the server reads, so a
+    -- report that holds when it was written doesn't count: an unchanged map
+    -- reuses the server (W02f step 1)
     s2.test_map.convert[2] = "stamped"
     T2:start(); T2:wait(30)
     local before = count_lines(base2 .. "/starts")
@@ -743,6 +744,33 @@ do
     test("a report written anew each time doesn't start the server again", T2.last.outcome == "closed"
         and count_lines(base2 .. "/starts") == before and proc.alive(pids[1]),
         before .. " then " .. count_lines(base2 .. "/starts"))
+
+    -- (2026-11-05, W02f step 1) a build with no server stamp counts as new:
+    -- the server is started again each time, and it is said
+    s2.test_map.convert[2] = "nostamp"
+    local n0, said0 = count_lines(base2 .. "/starts"), #said
+    T2:start(); T2:wait(30)
+    local n1 = count_lines(base2 .. "/starts")
+    T2:start(); T2:wait(30)
+    local n2 = count_lines(base2 .. "/starts")
+    local told = false
+    for i = said0 + 1, #said do told = told or said[i]:find("no server stamp", 1, true) ~= nil end
+    test("no server stamp: the server started again on each F5, and said", T2.last.outcome == "closed"
+        and n1 == n0 + 2 and n2 == n1 + 2 and told, n0 .. ", " .. n1 .. ", " .. n2)
+    -- a stamp left from an earlier conversion never counts: the editor
+    -- removes it before converting, so a converter that writes none can't
+    -- reuse a server on another build's stamp
+    s2.test_map.convert[2] = "ok"
+    T2:start(); T2:wait(30)
+    local stamp_before = read(base2 .. "/build/server-stamp")
+    s2.test_map.convert[2] = "nostamp"
+    local n3 = count_lines(base2 .. "/starts")
+    T2:start(); T2:wait(30)
+    test("an earlier build's stamp removed before converting: no reuse on it", stamp_before ~= nil
+        and read(base2 .. "/build/server-stamp") == nil and count_lines(base2 .. "/starts") == n3 + 2)
+    s2.test_map.convert[2] = "ok"
+    T2:start(); T2:wait(30)
+    pids = server_pids(T2)
 
     -- WETE: scripts/run finds this project by it
     local args = read(base2 .. "/log/fake-w-client.args") or ""
