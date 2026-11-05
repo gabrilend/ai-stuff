@@ -158,7 +158,9 @@ Only each voice's newest canvas is kept, so a queue cannot build up.
 ## Settings
 
 Mark lifetime in versions, orphan lifetime in versions, merge mode,
-collision rule, tell-the-voice. Kept in `input/blitter`, and changes to
+collision rule, tell-the-voice. Kept in `input/blitter` (tell-the-voice,
+which only shapes what is mailed to the voices, in `input/to-voices`: issue
+303), and changes to
 their values go into `docs/balance-updates.md` with the reason. Every
 collision rule that is built is tested on the same scripted series as
 `blank-whole`, because a mode is not done until it is shown working beside

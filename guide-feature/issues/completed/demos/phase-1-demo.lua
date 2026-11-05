@@ -246,6 +246,7 @@ end
 
 -- {{{ starting the blitter
 write(ROOT .. "/input/blitter", series.SETTINGS)
+write(ROOT .. "/input/to-voices", series.TO_VOICES_OFF)
 local pid = shell("cd " .. quote(ROOT) .. " && (scripts/run-blitter " .. quote(ROOT)
     .. " > " .. quote(BASE .. "/blitter.out") .. " 2>&1 & echo $!)")
 write(BASE .. "/blitter.pid", pid .. "\n")

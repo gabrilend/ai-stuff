@@ -4,6 +4,8 @@ The blitter (issue 107): the long-running program on kuvalu that takes the
 voices' edited canvases from `tmp/shared-memory/arrivals/` and writes them
 onto the shared canvas. Phase 1 has no network: arrivals are dropped in by
 hand or by a script, and the only publisher writes each version to the log.
+Run as a program, it also mails each version to the voices (303,
+`src/035-to-voices.lua`), as `input/to-voices` says.
 
     luajit src/016-blitter.lua [--dir ROOT]
     scripts/run-blitter [ROOT]      Ctrl-C or TERM stops it cleanly
@@ -32,7 +34,8 @@ cell changed, that is the next version. It is marked (201,
 `src/020-marks.lua`) and written as viewers read it (203) to
 `tmp/shared-memory/canvas/history/NNNNNN` and `canvas/current`, each under a
 `.` name and renamed. Then it is handed to each publisher, so every
-publisher gets the version with its marks. The log gets a `marks:` line of
+publisher gets the version with its marks, as `publisher(blitter, record,
+report, voice)` (report and voice are nil for version 1). The log gets a `marks:` line of
 counts for it.
 
 ## The history, and restarts

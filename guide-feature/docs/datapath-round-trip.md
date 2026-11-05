@@ -39,7 +39,9 @@ The current design of one round. The issues that change it update this file.
 1. **kuvalu publishes version N**: to the RAM canvas folder for viewers, and
    as the body of `outbox/the-canvas` with one `to:` line per voice. Every
    file is written under a temporary name and renamed into place, so nothing
-   ever reads half a file.
+   ever reads half a file. kuvalu is the message's author, so every rewrite
+   travels as an edit. Built in `src/035-to-voices.lua`, a publisher in the
+   blitter's list, with its settings in `input/to-voices` (issue 303).
 2. **rmail carries it** to each voice's `inbox/the-canvas`.
 3. **The turn hook on the voice** receives it (`on_receive` the first time,
    `on_update` after that). It writes the canvas body to

@@ -50,6 +50,10 @@ M.SETTINGS = "canvas-size = " .. M.WIDTH .. "x" .. M.HEIGHT .. "\n"
     .. "mark-lifetime = 12\n"
     .. "project = \"guide-feature\"\n"
     .. "voices = \"" .. table.concat(M.VOICES, " ") .. "\"\n"
+-- input/to-voices for a throwaway project: the blitter run as a program
+-- mails nothing (303).
+M.TO_VOICES_OFF = "send = \"off\"\nmailbox = \"~/guide-mail\"\ntell-the-voice = \"off\"\n"
+    .. "endpoint = \"none none\"\nproject-checkout = \".\"\n"
 -- The first arrival's time in its name; each later one is a second after.
 M.FIRST_TIME = 1793000000
 -- }}}

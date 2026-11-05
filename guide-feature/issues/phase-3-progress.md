@@ -27,3 +27,9 @@ moves the phase toward its goals.)
   the blitter's arrivals folder, printing nothing and exiting at once.
   Anything that is not a canvas is logged and left alone. The real
   blitter makes new versions from what it writes.
+- **303, the canvas sent to the voices** (2026-11-05): the blitter, run as
+  a program, rewrites one living message, `outbox/the-canvas` in the guide
+  mailbox, for every version: addressed to every voice, in the to-voices
+  form, with the project's current commit and each voice's cut words from
+  its latest turn (`src/035-to-voices.lua`, `input/to-voices`). The
+  receipt counts the versions handed to rmail.
