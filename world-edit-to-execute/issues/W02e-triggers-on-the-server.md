@@ -21,10 +21,12 @@ Blizzard.j's functions included), and counts every name it lacks. Nothing
 runs a script on AzerothCore, and nothing says which natives a map needs
 there.
 
-*Now:* see Implementation Notes. Step 1 is built: the coverage report,
-the transpiled script and the shim's data in the build folder, and the
-shim's skeleton with its first natives, checked against the project's
-runtime on a fake ALE. Nothing has run on a real AzerothCore yet.
+*Now:* see Implementation Notes. Steps 1 and 2 are built: the coverage
+report, the transpiled script and the shim's data in the build folder;
+the shim's skeleton; and 574 natives (the most called ones: 95.5% of the
+call sites across the 19 maps in `assets/`), each checked against the
+project's runtime on a fake ALE. The unit types a script makes have
+creature templates. Nothing has run on a real AzerothCore yet.
 
 ## Intended Behavior
 
@@ -62,33 +64,43 @@ engine, `mod-ale`):
    of natives (timers, unit creation at a point, player gold and lumber,
    region enter) against a fake ALE, and check them against the project's
    runtime on the same calls. **Built 2026-11-04** (Implementation Notes).
-2. **The server's loader, and the real ALE.** An ALE script that loads
+2. **The natives most called, on the fake.** Ranked by call sites across
+   the maps in `assets/` (step 1's report), the next groups: units' state
+   (life, death, owner, position, facing, flags, types, abilities),
+   heroes, orders, unit events, groups and their enumerations, forces,
+   players' slots and alliances, messages, chat and leave events, sounds,
+   and Blizzard.j's arithmetic and conversions; each checked against the
+   project's runtime as step 1's are. And the unit types only the script
+   makes get creature templates, so a map without a unit file has no
+   ghosts. **Built 2026-11-05** (Implementation Notes, step 2).
+3. **The server's loader, and the real ALE.** An ALE script that loads
    the shim, a map's `map-data.lua` and `war3map.lua` when the server
    starts (or the map is created), and runs `config()` and `main()`. Check
    every row of `shim.ALE_USED` against mod-ale on the owner's machine and
    mark it checked or change it. Then the first run on AzerothCore: W02's
    acceptance line 5 (a timer trigger and a region-enter trigger run on
    the server). Needs W02d (the server's ground) for heights; works
-   without it at z = 0.
-3. **Templates for the units triggers make.** The converter adds a
-   creature template for every type the script makes
-   (`unit_types_without_template` in the report: DAoW-2.1 makes 513, all
-   by its script, none placed) and every owner it makes them for. Then
-   units' state: life and mana, owner changes, kills and death events
-   (ALE's creature events), with the runtime as reference.
-4. **Orders and movement.** `IssuePointOrder` and the rest as creature
-   movement (W02g sends players' orders the same way). Pathing is the
-   server's navigation mesh (W02d's mmaps).
-5. **Groups, forces, alliances, players' events.** Unit groups and their
-   enumerations, forces, alliances as faction relations, chat and leave
-   events from the WoW characters seated in WC3 player slots, text and
-   dialogs to players (as messages to their characters, and for the W
-   client as its own messages).
-6. **The mechanics.** Combat, abilities, items, the economy, research,
+   without it at z = 0. It also wires ALE's events the shim waits for:
+   creature deaths (with their killer), and players' chat and leaving
+   (`S:chat`, `S:player_event`) once W02g seats characters in WC3 slots.
+4. **Units from WC3's data.** Creature templates carry WC3's hit points,
+   mana, speed, acquire range and unit classes (structure, flying ...),
+   read from the player's WC3 install at load time (W02's open question
+   7); the shim's life and mana take them, and `IsUnitType` answers from
+   them. ALE's creature events raise the events the shim registers but
+   can't raise yet (attacked, damaged, spells, items, orders issued).
+5. **Orders and movement.** Pathing on the server's navigation mesh
+   (W02d's mmaps); attack-move, patrol and the rest as creature AI rather
+   than one `MoveTo`; W02g sends players' orders the same way.
+6. **Players' seats.** WoW characters seated in WC3 player slots:
+   names, chat and leave events, messages, dialogs, quests, multiboards,
+   floating text and sounds to the seated characters (W02g, and for the
+   W client its own messages); `GetLocalPlayer` per seat.
+7. **The mechanics.** Combat, abilities, items, the economy, research,
    construction: in ALE where it reaches, as an AzerothCore module where it
    doesn't. Likely its own sub-issues (W02e1 ...), one per mechanic, each
    checked against the runtime.
-7. **The whole of every map.** Coverage of every name each map in
+8. **The whole of every map.** Coverage of every name each map in
    `assets/` calls; a harness that replays a map in the runtime and on the
    shim (the real server, or the fake) for minutes and compares their
    event logs.
@@ -110,11 +122,18 @@ engine, `mod-ale`):
 - [x] Two maps' transpiled scripts load on the shim and run `main()`
       without an error; every native stubbed at run time is in the
       report's list; main() adopts every unit W02b placed
+- [x] The natives most called are in the shim, each checked against the
+      runtime on the same script: units' state, heroes, orders, unit
+      events, groups, forces, players, alliances, messages, chat, sounds
+      (step 2: 574 natives, 95.5% of the call sites across the 19 maps)
+- [x] Every unit type a script makes by its rawcode has a creature
+      template, so a map with no unit file makes creatures, not ghosts
+      (step 2: DAoW-2.1's 1989 units in main() are all creatures)
 - [ ] Every row of `shim.ALE_USED` checked against mod-ale on the owner's
-      machine (step 2)
+      machine (step 3)
 - [ ] A timer trigger and a region-enter trigger run on the owner's
-      AzerothCore (W02's line 5; step 2)
-- [ ] Every native the maps in `assets/` call is in the shim (step 7)
+      AzerothCore (W02's line 5; step 3)
+- [ ] Every native the maps in `assets/` call is in the shim (step 8)
 
 ## Notes
 
@@ -212,35 +231,111 @@ StormLib present. Without it, 49 pass and the maps' part is skipped.
 (30) and `test_resources.lua` (89) pass. The W client's readers weren't
 built here, so the registration and terrain tests skip their parts.
 
+### Step 2: what was built (2026-11-05)
+
+*Background work the coordinator asked for (branch
+`claude/wete-w02e-natives-2`, on top of step 1's), with the same rules:
+each decision below is the owner's to overturn.*
+
+| File | Does |
+|------|------|
+| `server-side/ale/wc3shim/players.lua` | players' slots (name, controller, race, colour, team, start location), tech limits and research kept, the map's setup (`config()`), alliances and Blizzard.j's levels, forces and their enumerations, messages to players, chat and leave events (`S:chat`, `S:player_event`) |
+| `server-side/ale/wc3shim/units.lua` | units' life (WC3's numbers, the fraction mirrored onto the creature), death, owner, position, facing, flags, unit types, ranges, abilities, timed life, `ReplaceUnitBJ`, waygates; heroes; orders; unit events (`S:unit_event`), deaths on the server seen at the look |
+| `server-side/ale/wc3shim/groups.lua` | groups, `ForGroup`/`ForGroupBJ` and `GetEnumUnit`, the enumerations and Blizzard.j's group functions, `CreateNUnitsAtLoc`, group orders |
+| `server-side/ale/wc3shim/sounds.lua` | sounds and music, kept as the runtime keeps them, each play handed to `opts.on_sound` |
+| `server-side/ale/wc3shim/core.lua`, `world.lua` | Blizzard.j's arithmetic, `Convert*`, the for-loop index, random tables; rect functions, points in regions, the map's area, geometry; one look every 100 ms for rects and deaths |
+| `server-side/ale/wc3shim/init.lua`, `fake_ale.lua` | nine more ALE calls (`shim.ALE_USED`, all unchecked), and the fake's creatures answer them (health, kill, teleport, facing, move, attack, stop, respawn) |
+| `server-side/ale/wc3shim/covered.lua` | 574 natives in 19 groups (133 in 8 after step 1) |
+| `src/wowbuild/creatures.lua` | `opts.script_types`: a template for each type only the script makes |
+| `src/wowbuild/init.lua`, `triggers.lua` | the script scanned once, before the creatures, and the scan reused; `map-data.lua` gains the map's player names, the `TRIGSTR_` texts the script uses, the forces' alliances and the map's bounds |
+
+### Step 2: checked
+
+`luajit src/tests/test_wow_triggers.lua <project>`: 138 checks pass with
+StormLib (step 1's 93, and 45 new).
+
+- **Against the runtime, line by line**, two more made scripts on the VM's
+  bare world and on the shim's fake ALE, every 20 ms:
+  - units' state: life read, set and set by percent, mana, an owner
+    changed (with its event, `GetChangingUnit` and the previous owner),
+    position and facing set and turned toward a point, the flags kept on
+    the unit, unit types, alliance and range tests, abilities added twice
+    and removed, a hero's level raised (with its event), attributes,
+    experience and skills, orders (move, stop, attack a unit, patrol, an
+    unknown order, a paused unit's order), waygates, deaths by
+    `KillUnit`, by life 0 and by timed life (with their events),
+    `ReplaceUnitBJ` keeping the life fraction, a dead hero revived where
+    asked;
+  - groups, forces and players: enumerations in a rect, of a player, of a
+    type, matching a filter, in range; `ForGroup` and `ForGroupBJ` with
+    `bj_wantDestroyGroup`; `CreateNUnitsAtLoc` and the last group; group
+    orders; forces enumerated with a filter and walked with `ForForce`;
+    alliances by Blizzard.j's levels; slots, colour, team, tech limits,
+    research, start locations; messages; chat (a match inside the text,
+    an exact one, a player who didn't register) and a player leaving;
+    sounds; Blizzard.j's arithmetic and geometry.
+- **What the server sees**: a changed owner's faction on the creature;
+  `SetUnitPosition` teleports it to map.lua's transform on the ground;
+  `SetUnitFacing` turns it; WC3's life 50 of 100 is half the creature's
+  health, and the server's damage comes back as WC3's life; `KillUnit` and
+  life 0 kill it; a creature killed on the server fires the unit's death
+  event at the next look, once, with no killer; `ReviveHero` respawns it;
+  a move order walks it to the transform of its point, an attack order
+  starts its attack on the target's creature, a stop stops it;
+  `ReplaceUnitBJ` despawns the old one.
+- **Players on the server**: a message to a force reaches every player in
+  it through `opts.on_message` (player 0's are exactly the runtime's local
+  player's); `TRIGSTR_` references are the map's words; an allied force's
+  players start allied, an unallied force's and the neutrals don't; a
+  player's name is the map's own.
+- **ALE**: every call the fakes heard is in `shim.ALE_USED`.
+- **The maps**: Master Crafters and DAoW-2.1 convert; their transpiled
+  scripts run `main()` and ten seconds of timers on the shim with no
+  error; main() makes as many units on the shim as on the runtime (all of
+  them now: 327 and 1989); no ghosts; the script's own types' templates
+  come after the placed ones, in Neutral Passive's faction, with entries
+  in a row; `map-data.lua` has the map's bounds, players and forces'
+  alliances; every player's gold after main() is the runtime's.
+
+`test_wow_placements.lua` (72), `test_wow_registration.lua` (66),
+`test_wow_terrain.lua` (70) and `test_jass_vm.lua` (28) pass; the full
+suite fails only the two files that failed before step 1
+(`test_net_hosted`, `test_unitsdoo`).
+
 ### Coverage today
+
+After step 2 (2026-11-05); step 1's numbers before the arrow.
 
 | Map | Natives called | Calls | Shim has | Of the calls | Lacks | Runtime lacks |
 |-----|---------------:|------:|---------:|-------------:|------:|--------------:|
-| Conquest-v8-fix | 222 | 7,923 | 40 | 66.9% | 182 | 6 |
-| DAoW-2.1 | 458 | 11,710 | 80 | 61.4% | 378 | 0 |
-| DAoW-5.2 | 277 | 23,328 | 50 | 62.7% | 227 | 0 |
-| DAoW-5.3 | 333 | 19,417 | 55 | 56.6% | 278 | 0 |
-| DAoW-5.4-PUBLIC-TEST-1 | 300 | 17,615 | 58 | 58.8% | 242 | 0 |
-| DAoW-5.4a-PUBLIC-TEST-2 | 300 | 18,427 | 58 | 58.7% | 242 | 0 |
-| DAoW-5.4b-PUBLIC-TEST | 303 | 19,852 | 58 | 58.2% | 245 | 0 |
-| DAoW-5.4c (August) | 305 | 20,349 | 58 | 57.9% | 247 | 0 |
-| DAoW-5.4c (July) | 306 | 20,918 | 58 | 58.1% | 248 | 0 |
-| DAoW-5.4c (October) | 305 | 20,391 | 58 | 57.9% | 247 | 0 |
-| DaoW-(HvA)-7.5 | 309 | 22,858 | 55 | 59.1% | 254 | 0 |
-| DaoW-6.8-(HvA) | 310 | 21,927 | 55 | 57.5% | 255 | 0 |
-| DaoW-6.93-(HvA) | 310 | 22,577 | 55 | 57.6% | 255 | 0 |
-| Daow1.23.1B | 248 | 11,425 | 48 | 55.9% | 200 | 0 |
-| Daow4.4 | 469 | 13,381 | 82 | 63.5% | 387 | 0 |
-| Daow4.7.3 | 469 | 13,342 | 82 | 62.8% | 387 | 0 |
-| Daow6.2 | 501 | 12,246 | 85 | 55.2% | 416 | 0 |
-| Master-Crafters-Final-Conquest | 220 | 21,493 | 44 | 62.5% | 176 | 6 |
-| War-in-the-Plaguelands-[24]-B6a | 214 | 26,069 | 49 | 54.3% | 165 | 5 |
+| Conquest-v8-fix | 222 | 7,923 | 40 -> 157 | 66.9% -> 92.4% | 65 | 6 |
+| DAoW-2.1 | 458 | 11,710 | 80 -> 245 | 61.4% -> 92.1% | 213 | 0 |
+| DAoW-5.2 | 277 | 23,328 | 50 -> 193 | 62.7% -> 96.7% | 84 | 0 |
+| DAoW-5.3 | 333 | 19,417 | 55 -> 221 | 56.6% -> 96.7% | 112 | 0 |
+| DAoW-5.4-PUBLIC-TEST-1 | 300 | 17,615 | 58 -> 195 | 58.8% -> 97.1% | 105 | 0 |
+| DAoW-5.4a-PUBLIC-TEST-2 | 300 | 18,427 | 58 -> 195 | 58.7% -> 97.0% | 105 | 0 |
+| DAoW-5.4b-PUBLIC-TEST | 303 | 19,852 | 58 -> 196 | 58.2% -> 96.7% | 107 | 0 |
+| DAoW-5.4c (August) | 305 | 20,349 | 58 -> 196 | 57.9% -> 96.5% | 109 | 0 |
+| DAoW-5.4c (July) | 306 | 20,918 | 58 -> 197 | 58.1% -> 96.5% | 109 | 0 |
+| DAoW-5.4c (October) | 305 | 20,391 | 58 -> 196 | 57.9% -> 96.5% | 109 | 0 |
+| DaoW-(HvA)-7.5 | 309 | 22,858 | 55 -> 213 | 59.1% -> 95.9% | 96 | 0 |
+| DaoW-6.8-(HvA) | 310 | 21,927 | 55 -> 216 | 57.5% -> 95.8% | 94 | 0 |
+| DaoW-6.93-(HvA) | 310 | 22,577 | 55 -> 216 | 57.6% -> 95.9% | 94 | 0 |
+| Daow1.23.1B | 248 | 11,425 | 48 -> 179 | 55.9% -> 97.9% | 69 | 0 |
+| Daow4.4 | 469 | 13,381 | 82 -> 256 | 63.5% -> 92.3% | 213 | 0 |
+| Daow4.7.3 | 469 | 13,342 | 82 -> 255 | 62.8% -> 92.2% | 214 | 0 |
+| Daow6.2 | 501 | 12,246 | 85 -> 271 | 55.2% -> 90.6% | 230 | 0 |
+| Master-Crafters-Final-Conquest | 220 | 21,493 | 44 -> 147 | 62.5% -> 91.1% | 73 | 6 |
+| War-in-the-Plaguelands-[24]-B6a | 214 | 26,069 | 49 -> 156 | 54.3% -> 97.3% | 58 | 5 |
 
-Across the 19 maps, 745 distinct names; the shim has 101 of them. A
-fifth to a sixth of each map's names, but more than half its call sites:
-the trigger plumbing (`GetTriggerUnit`, `Player`, `Condition`,
-`GetLastCreatedUnit`, `CreateUnit`) is most of every script. "Runtime
-lacks" are names the project's own runtime doesn't have either
+Across the 19 maps, 745 distinct names; the shim has 368 of them (101
+after step 1). Of all 345,248 call sites, 95.5% are now the shim's (58.9%
+after step 1). The trigger plumbing and the unit and player natives are
+most of every script; what's left is mostly what a player sees or a WC3
+mechanic: items (`UnitAddItemToSlotById`, `CreateItemLoc`,
+`WidgetDropItem` ...), floating text, special effects, cameras, quests,
+dialogs, multiboards, timer windows, destructables (steps 6 and 7).
+"Runtime lacks" are names the project's own runtime doesn't have either
 (`EnumItemsInRectBJ`, `PauseAllUnitsBJ`, `GetUnitRallyPoint` ...); they
 need a reference first.
 
@@ -330,8 +425,84 @@ need a reference first.
     (`server/triggers/<dir>/`), since a build folder holds several maps.
 16. **The local player** (`GetLocalPlayer`) is player 0 on the server, as
     the runtime's default. On a server there is no local player; W02g
-    and step 5 decide how per-player code (`if GetLocalPlayer() == p`)
+    and step 6 decide how per-player code (`if GetLocalPlayer() == p`)
     runs, likely per seated character.
+
+17. **Step 2's natives, by call sites** (2026-11-05). The groups the most
+    call sites across the 19 maps fall in, after step 1's report: units'
+    state, heroes, orders, unit events, groups, forces, players,
+    alliances, messages, chat, sounds, and Blizzard.j's arithmetic. Left
+    for later: items and the rest of WC3's mechanics (step 7), and what
+    a player sees (dialogs, quests, multiboards, timer windows, floating
+    text, special effects, cameras, fog: step 6 and W02g).
+18. **Life is WC3's, on the unit; the creature shows its fraction.** A
+    unit's life is kept in WC3's numbers (100 of 100, as the runtime's
+    bare world, until templates carry WC3's hit points: step 4), and set
+    onto the creature as a fraction of its health (`SetHealth`). When the
+    server's combat changes the creature's health, the next read takes the
+    fraction back. Life at 0.405 or less kills, as the runtime's.
+19. **Deaths.** The script's (`KillUnit`, life 0, timed life) kill the
+    creature (`Kill`) and fire their events at once, as the runtime's.
+    The server's (its combat) are seen at the next look, every 100 ms
+    while a death event is registered, with no killing unit; ALE's
+    creature death event (step 3) would name it. One look serves the rects
+    and the deaths.
+20. **Kept on the unit, not on the creature**: mana, invulnerable, hidden,
+    paused, acquire range, move speed, colour, user data, abilities,
+    heroes' level, experience, attributes and skills, waygates. The
+    script reads back what it set, as on the runtime; the server doesn't
+    act on them yet (step 4 and the mechanics).
+21. **Orders** are recorded as the runtime's bare world records them
+    (`GetUnitCurrentOrder` reads them), and the creature is told: a move,
+    patrol or attack-move walks it (`MoveTo`), an attack on a unit starts
+    its attack on that unit's creature (`AttackStart`), stop and hold
+    stop it (`MoveStop`). Spells, builds and training answer false, as
+    the runtime's world without them.
+22. **Unit types** answer what the shim can know: a hero is a type whose
+    id starts with a capital letter (WC3's editor names custom heroes so;
+    the runtime's `IsHeroUnitId`), dead is not alive, ground is every
+    unit; the rest answer false, as on the runtime's bare world, until the
+    templates carry WC3's unit data (step 4).
+23. **A change of owner** sets the creature's faction to its new owner's
+    (W02b's faction for that player) and the unit's colour to the owner's
+    unless the script says not to, and fires its event for both players.
+24. **Players' slots** start as the runtime's (0-11 playing, 12-15
+    neutral; `opts.playing` names the playing ones), named as the map
+    names them (`map-data.lua`'s players, from war3map.w3i), allied as the
+    map's forces are (`map-data.lua`'s factions: an allied force's
+    players, never the neutrals), as the runtime's game allies them.
+25. **Messages go to every player they name.** The runtime shows a
+    message only to its local player; a server has none, so the shim
+    hands each player's to `opts.on_message(p, text, seconds)` (W02g sends
+    it to the character seated there) and keeps the last 200. `TRIGSTR_`
+    references are resolved from `map-data.lua`'s strings, which hold only
+    the ones the script and the player names use.
+26. **Chat and leaving come from outside**: `S:chat(player, text)` and
+    `S:player_event(event, player)`, the runtime's own entry points, are
+    what the loader calls (step 3), once W02g says which character sits
+    in which slot. Nothing in the shim calls ALE for them.
+27. **Sounds are the client's.** The shim keeps sounds and music as the
+    runtime does and hands each play to `opts.on_sound(event)`; the
+    server plays nothing.
+28. **Enumerations walk the units the script knows** (made or adopted),
+    reading each creature's position as it's tested; the server's other
+    creatures aren't in them (open item 2).
+29. **The map's area** (`GetPlayableMapRect`, `bj_mapInitialPlayableArea`)
+    is the WC3 ground's, written into `map-data.lua`, as the runtime's
+    game takes it; without it, the runtime's bare default.
+30. **Ghost units: the types only the script makes get templates.**
+    DAoW-2.1 has no unit file, so W02b made no templates and every unit
+    its main() made was a ghost (1863, and 1989 once `CreateNUnitsAtLoc`
+    and the rest were in). The converter now scans the script before the
+    creatures and passes the rawcodes `CreateUnit` and the rest are given
+    (`scan.created`) to `creatures.prepare`, which adds one template for
+    each type no placed unit has: after the placed ones, so their entries
+    don't move; in Neutral Passive's faction, since the shim gives each
+    creature its owner's faction when it spawns it; with the same name,
+    level and model lookup as a placed type (the fallback model where the
+    model table has none). DAoW-2.1: 513 templates, 1989 creatures, no
+    ghosts; Master Crafters: 60 more templates, its 11 ghosts now
+    creatures. A type made from a variable stays a ghost (open item 9).
 
 ### Found on the way (fixed in the reference too)
 
@@ -356,6 +527,20 @@ need a reference first.
   order they come due, then the order they were scheduled. How ALE orders
   events due in the same world update is unchecked.
 
+- **Deaths on the server** are seen up to 100 ms late, with no killing
+  unit (`GetKillingUnit` is null); the runtime's world tells it at once.
+- **Messages** reach every player named; the runtime shows only its local
+  player's. `StartSoundForPlayerBJ` names its player in the event the
+  hook hears; the runtime plays it only for its local player.
+- **`GetPlayerTechCount`** of a unit type counts the player's living
+  units of it, as the runtime's game does (its bare world answers 0).
+- **`IsUnitType(u, UNIT_TYPE_HERO)`** is true for a capital-letter type;
+  the runtime's bare world answers false (its game answers from its
+  data).
+- **Random natives** (`GroupPickRandomUnit`, `RandomDistChoose`,
+  `GetRandomLocInRect` ...) draw from the server's Lua random state, so
+  their sequence isn't the runtime's.
+
 ### Left open and unchecked
 
 1. **ALE's API, every row of `shim.ALE_USED`**, is from memory. Check
@@ -378,23 +563,46 @@ need a reference first.
      whether a creature's low guid equals its database guid;
    - `Map:GetHeight(x, y)`'s answer where the server has no ground;
    - `Creature:GetX/GetY/GetZ/GetO`, `IsAlive`, `SetFaction`,
-     `DespawnOrUnsummon(ms)`, `GetGUIDLow`.
+     `DespawnOrUnsummon(ms)`, `GetGUIDLow`;
+   - step 2's: `Creature:GetHealth` / `GetMaxHealth` / `SetHealth(amount)`
+     (whole numbers? may `SetHealth` reach 0?), `Creature:Kill(target)`
+     (a creature killing itself: does it give loot or experience?),
+     `NearTeleport(x, y, z, o)`, `SetFacing(o)`, `MoveTo(id, x, y, z)`
+     (and its path-generating flag), `AttackStart(target)`, `MoveStop()`,
+     `Respawn()` (where it respawns, and whether it keeps its guid).
 2. **Creatures the script never names** (W02b's spawns that main()
    doesn't make, and anything the server spawns) don't enter regions yet.
    ALE has no map-wide creature list (from memory); the shim could take
    W02b's spawn list (`map-data.lua` has it) or `GetCreaturesInRange`
-   around each rect. Step 2.
+   around each rect. Step 3.
 3. **A spawn that isn't on the map** when main() adopts it (AzerothCore
    loads a grid's creatures only when something is near, from memory)
    is adopted with no creature; the shim should look it up again later.
-   Step 2.
+   Step 3.
 4. **The Lua version ALE is built with** (LuaJIT, 5.1 or 5.2+) is
    unchecked; the shim loads the script with `setfenv` or `load`'s
    environment, whichever exists.
 5. **How ALE loads files.** It runs every `.lua` under `lua_scripts/`
    (from memory); the shim's modules are harmless when run as scripts,
-   but the loader (step 2) decides where they go and how `require` finds
+   but the loader (step 3) decides where they go and how `require` finds
    them.
-6. **The 100 ms region check** costs a read of every known unit's
-   position; with thousands of units (DAoW-2.1 makes 1863 in main())
-   it may need the spatial grid the runtime's collision code has.
+6. **The 100 ms look** (rects, and deaths on the server) costs a read of
+   every known unit's creature; with thousands of units (DAoW-2.1 makes
+   1989 in main()) it may need the spatial grid the runtime's collision
+   code has.
+7. **Events registered but not raised yet** (step 2): attacked, damaged,
+   spells, items, orders issued, training, construction, research,
+   selection, a unit in range. Their triggers register and their
+   response getters answer from the event's context, but nothing raises
+   them until ALE's creature events do (steps 3 and 4).
+8. **What the creature doesn't show yet** (step 2 keeps it on the
+   unit): hidden, invulnerable, paused, acquire range, move speed, mana,
+   colour, a hero's level and attributes. Each wants an ALE call
+   (visibility, unit flags, speed, power: all from memory, none used yet)
+   or a template field (step 4).
+9. **Unit types the script makes from variables** (`CreateUnit(p,
+   udg_Types[i], ...)`) can't be seen by the converter's scan and stay
+   ghosts, counted in `S.unspawnable`. Neither map converted in the tests
+   has one left; others may.
+10. **Players' names on the server** are the map's (war3map.w3i) until
+    W02g seats characters; then likely the character's (step 6).

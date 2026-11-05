@@ -28,7 +28,7 @@ built so far, stages 2 and 3:
                data the shim needs (map id, transform, templates, factions,
                spawns), and the coverage report: every native the script
                calls against what the shim (server-side/ale/wc3shim/, AGPL
-               v3) implements (wowbuild.triggers) (W02e, step 1)
+               v3) implements (wowbuild.triggers) (W02e, steps 1-2)
 
 Still to come, each adding to convert() below: the server's extracted data
 (W02d), the rest of W02e (the server's loader, the remaining natives), the
@@ -106,7 +106,7 @@ wowbuild.SQL = "server/world.sql"
 wowbuild.MAP_FILE = output.MAP_FILE
 wowbuild.STAGES_NOT_BUILT = {
     "W02d server data for new maps",
-    "W02e's server loader and most natives (step 1 built: the coverage report, the transpiled script, the shim's first natives)",
+    "W02e's server loader and the remaining natives (steps 1-2 built: the coverage report, the transpiled script, 574 natives)",
     "W02h empty world database",
 }
 -- this project's folder (the shim's list of natives is read from it)
@@ -354,8 +354,16 @@ function wowbuild.convert(map_path, build_dir, opts)
     local job = wterrain.prepare(terrain, { strict = opts.strict, textures = opts.textures })
     local models, models_path = placements.load_models(opts.models)
     local P = placements.prepare(map, job.layout, models)
+    -- the script read once (W02e): the unit types it makes get creature
+    -- templates too, and the trigger stage reuses the scan
+    local scan
+    if map.script then
+        local sok, sc = pcall(triggers.scan, map.script)
+        if sok then scan = sc end
+    end
     local C = creatures.prepare(map, job.layout, job, models, { map_id = ids.map, entry_base = ids.entry,
-        guid_base = ids.guid, display_base = ids.display, faction_base = ids.faction })
+        guid_base = ids.guid, display_base = ids.display, faction_base = ids.faction,
+        script_types = scan and scan.created })
 
     -- the area bit: the slot's own unless the stock table or another map of
     -- the folder uses it; then the highest free one
@@ -455,11 +463,11 @@ function wowbuild.convert(map_path, build_dir, opts)
     files[#files + 1] = { path = wowbuild.MAP_FILE, bytes = #map_text }
 
     -- the script for the server's shim: transpiled, its map data, and the
-    -- natives it calls against what the shim has (W02e)
     -- natives it calls against what the shim has (W02e). A script the
     -- converter can't read stops only this part: the rest of the build stands
     local tok, trig, trig_files = pcall(triggers.build, map.script, build_dir, {
         C = C, ids = ids, transform = mapfile.wc3_to_wow, directory = name, script_name = map.script_name,
+        scan = scan, info = map.info, strings = map.strings, layout = job.layout,
         dir = opts.dir or wowbuild.DIR, serialize = serialize, write = write_file })
     if not tok then
         warnings[#warnings + 1] = "the script couldn't be readied for the server: " .. tostring(trig)

@@ -208,16 +208,42 @@ end
 -- What the shim reads of the build (map-data.lua): o = { C = creatures.prepare's,
 -- ids = W02c's, transform = map.lua's wc3_to_wow, directory, globals,
 -- stubs = name -> "integer" | "real" | "string" for natives the shim lacks,
--- constants = the reference runtime's constants with plain values }
+-- constants = the reference runtime's constants with plain values; and,
+-- W02e step 2: info = war3map.w3i's (player names), strings =
+-- war3map.wts's, source = the script (the TRIGSTR_ texts it uses), layout =
+-- the terrain's (the map's bounds) }
 function triggers.map_data(o)
     local C = o.C
     local templates, factions, spawns = {}, {}, {}
     for _, t in ipairs(C and C.templates or {}) do
-        templates[#templates + 1] = { id = t.id, faction = t.faction.template, entry = t.entry, name = t.name }
+        templates[#templates + 1] = { id = t.id, faction = t.faction.template, entry = t.entry, name = t.name,
+                                         script = t.script }
     end
     for _, f in ipairs(C and C.factions or {}) do
-        factions[#factions + 1] = { template = f.template, name = f.name, players = f.players }
+        factions[#factions + 1] = { template = f.template, name = f.name, players = f.players,
+                                    allied = f.allied or false, neutral = f.neutral }
     end
+    -- the map's player names (war3map.w3i), and the TRIGSTR_ texts the
+    -- script and those names use (war3map.wts), for messages
+    local players, strings = {}, {}
+    local resolve = require("wowbuild.creatures").resolve_string
+    local function want(text)
+        for k in tostring(text or ""):gmatch("TRIGSTR_%-?%d+") do
+            if not strings[k] then
+                local v = resolve(k, o.strings)
+                if type(v) == "string" and v ~= k then strings[k] = v end
+            end
+        end
+    end
+    for _, p in ipairs(o.info and o.info.players or {}) do
+        players[#players + 1] = { number = p.number, name = p.name }
+        want(p.name)
+    end
+    if o.strings and o.source then want(o.source) end
+    -- the WC3 ground's area (the VM's game takes its bounds so: GetPlayableMapRect)
+    local L = o.layout
+    local bounds = L and L.W and { x0 = L.offset_x, y0 = L.offset_y,
+                                   x1 = L.offset_x + (L.W - 1) * 128, y1 = L.offset_y + (L.H - 1) * 128 } or nil
     for _, s in ipairs(C and C.spawns or {}) do
         spawns[#spawns + 1] = { guid = s.guid, entry = s.template.entry, id = s.id, player = s.player,
                                 x = s.wc3[1], y = s.wc3[2] }
@@ -230,6 +256,9 @@ function triggers.map_data(o)
         templates = templates,
         factions = factions,
         spawns = spawns,
+        players = players,
+        strings = strings,
+        bounds = bounds,
         globals = o.globals or {},
         stubs = o.stubs or {},
         constants = o.constants or {},
@@ -240,7 +269,8 @@ end
 -- {{{ triggers.build
 -- source: the script text (or nil). o: { C, ids, transform, directory,
 -- dir (this project's folder, for the shim's list), serialize (data ->
--- Lua text), write (path, bytes) }. Returns the summary for the
+-- Lua text), write (path, bytes), scan (triggers.scan's, when the caller
+-- already has it), info, strings, layout (for map_data) }. Returns the summary for the
 -- conversion report, and the files written.
 function triggers.build(source, build_dir, o)
     local files = {}
@@ -258,7 +288,7 @@ function triggers.build(source, build_dir, o)
         return { script = false, report = P.report }, files
     end
     local t0 = os.clock()
-    local scan = triggers.scan(source)
+    local scan = o.scan or triggers.scan(source)
     local ref = triggers.reference()
     local covered = triggers.covered(o.dir)
     local report = triggers.coverage(scan, covered, ref, o.C and o.C.templates)
@@ -297,7 +327,8 @@ function triggers.build(source, build_dir, o)
         if kind == "integer" or kind == "real" or kind == "string" then stubs[name] = kind end
     end
     local data = triggers.map_data({ C = o.C, ids = o.ids, transform = o.transform, directory = o.directory,
-                                     globals = scan.globals, stubs = stubs, constants = ref.constants })
+                                     globals = scan.globals, stubs = stubs, constants = ref.constants,
+                                     info = o.info, strings = o.strings, layout = o.layout, source = source })
     put(P.data, "-- W02e: what the server's wc3shim reads of this build (src/wowbuild/triggers.lua): data only\nreturn " ..
         o.serialize(data) .. "\n")
     report.seconds = os.clock() - t0

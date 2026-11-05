@@ -108,6 +108,8 @@ not into new issues.
   same way, split into seven steps (coverage and skeleton; the server's
   loader and the real ALE; templates and units' state; orders; groups,
   forces and players' events; the mechanics; the whole of every map).
+  Renumbered into eight on 2026-11-05, when the most-called natives came
+  forward as step 2.
   **Step 1 built** the same day as background work, on W02c's branch:
   - the shim in its own AGPL v3 folder, `server-side/ale/wc3shim/`
     (requires nothing outside it), with 133 natives in 8 groups: numbers
@@ -123,7 +125,15 @@ not into new issues.
     `server/triggers/<dir>/`.
 
   Left: every ALE call checked against mod-ale on the owner's machine
-  (all are from memory), the server's loader, and steps 2-7.
+  (all are from memory), the server's loader, and steps 3-8.
+
+  **Step 2 built** 2026-11-05, on step 1's branch: the most-called
+  natives, 574 in 19 groups (units' state and life, heroes, orders, unit
+  events and deaths, groups and ForGroup, players, forces, alliances,
+  messages, chat, sounds, and Blizzard.j's wrappers over them), each
+  checked against the project's runtime on the same scripts. Types only
+  the script makes now get templates of their own, so no map has ghost
+  units (W02e's decision 30).
 - W02d, W02f-W02h: not yet written.
 
 ## Progress
@@ -163,9 +173,16 @@ not into new issues.
   19 maps, of which the shim has 101; per map it has 40-85 names, 54-67%
   of the call sites. Line 5 (a timer and a region-enter trigger on the
   server) passes on a fake ALE against the project's runtime; on the
-  owner's AzerothCore it waits for W02e's step 2. Line 7 holds: the
+  owner's AzerothCore it waits for W02e's step 3. Line 7 holds: the
   transpiled script and its data are made from the map, in the build
   folder; the shim ships under its own licence.
+- *2026-11-05 (W02e, step 2):* line 6's natives part grows: the shim has
+  368 of the 745 names, 95.5% of the 345,248 call sites (90.6-97.9% per
+  map; was 58.9%). What is left is mostly items, floating text, effects,
+  the camera, quests, dialogs, multiboards and destructables, listed per
+  map in `natives-report.lua`. Every unit the script makes now has a
+  template, so no map spawns a unit the server can't make. Line 5 still
+  waits for step 3 on the owner's AzerothCore.
 
 ## Acceptance Criteria
 

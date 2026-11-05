@@ -218,4 +218,56 @@ return function(S, N, shim)
     N.TriggerRegisterTimerEventPeriodic = function(trig, t) return N.TriggerRegisterTimerEvent(trig, t, true) end
     N.TriggerRegisterTimerExpireEventBJ = function(trig, t) return N.TriggerRegisterTimerExpireEvent(trig, t) end
     -- }}}
+    -- {{{ More of the language: Blizzard.j's arithmetic and conversions
+    -- (W02e step 2), as core.lua's and bj.lua's in the VM
+    local atan2 = math.atan2 or math.atan
+    N.Asin, N.Acos, N.Atan = math.asin, math.acos, math.atan
+    N.ISignBJ = function(a) return a > 0 and 1 or (a < 0 and -1 or 0) end
+    N.RSignBJ = N.ISignBJ
+    N.GetBooleanAnd = function(a, b) return a and b end
+    N.GetBooleanOr = function(a, b) return a or b end
+    N.SetRandomSeed = function(seed) math.randomseed(seed) end
+    N.PercentTo255 = function(p) return math.floor(p * 2.55 + 0.5) end
+    N.PercentToInt = function(p, max) return math.floor(p * max / 100 + 0.5) end
+    N.GetRandomDirectionDeg = function() return math.random() * 360 end
+    N.GetRandomPercentageBJ = function() return math.random() * 100 end
+    N.SinBJ = function(d) return math.sin(math.rad(d)) end
+    N.CosBJ = function(d) return math.cos(math.rad(d)) end
+    N.TanBJ = function(d) return math.tan(math.rad(d)) end
+    N.Atan2BJ = function(y, x) return math.deg(atan2(y, x)) end
+    N.GetHandleIdBJ = N.GetHandleId
+    -- common.j's Convert* make handles from numbers: here, as in the VM, the number
+    local function ident(n) return n end
+    for name in ([[ConvertPlayerColor ConvertRace ConvertAllianceType ConvertRacePref ConvertIGameState
+        ConvertFGameState ConvertPlayerState ConvertPlayerScore ConvertPlayerGameResult ConvertUnitState
+        ConvertAIDifficulty ConvertGameEvent ConvertPlayerEvent ConvertPlayerUnitEvent ConvertWidgetEvent
+        ConvertDialogEvent ConvertUnitEvent ConvertLimitOp ConvertUnitType ConvertGameSpeed ConvertPlacement
+        ConvertStartLocPrio ConvertGameDifficulty ConvertGameType ConvertMapFlag ConvertMapVisibility
+        ConvertMapSetting ConvertMapDensity ConvertMapControl ConvertPlayerSlotState ConvertVolumeGroup
+        ConvertCameraField ConvertBlendMode ConvertRarityControl ConvertTexMapFlags ConvertFogState
+        ConvertEffectType ConvertVersion ConvertItemType ConvertAttackType ConvertDamageType
+        ConvertWeaponType ConvertSoundType ConvertPathingType]]):gmatch("%S+") do
+        N[name] = ident
+    end
+    -- the "For each Integer A" loop's variables
+    N.GetForLoopIndexA = function() return rawget(S.env, "bj_forLoopAIndex") or 0 end
+    N.GetForLoopIndexB = function() return rawget(S.env, "bj_forLoopBIndex") or 0 end
+    N.SetForLoopIndexA = function(n) rawset(S.env, "bj_forLoopAIndex", n) end
+    N.SetForLoopIndexB = function(n) rawset(S.env, "bj_forLoopBIndex", n) end
+    -- Blizzard.j's random distribution (item drop tables)
+    local dist = {}
+    N.RandomDistReset = function() dist = {} end
+    N.RandomDistAddItem = function(id, chance) dist[#dist + 1] = { id = id, chance = chance } end
+    N.RandomDistChoose = function()
+        local total = 0
+        for _, d in ipairs(dist) do total = total + d.chance end
+        if total <= 0 then return -1 end
+        local r = math.random(1, total)
+        for _, d in ipairs(dist) do
+            r = r - d.chance
+            if r <= 0 then return d.id end
+        end
+        return -1
+    end
+    -- }}}
 end

@@ -36,16 +36,29 @@ function Creature:SetFaction(f) self.faction = f end
 function Creature:DespawnOrUnsummon(ms) self.despawned, self.alive = true, false end
 function Creature:GetGUIDLow() return self.guid end
 function Creature:GetEntry() return self.entry end
+-- W02e step 2 (units.lua)
+function Creature:GetHealth() return self.alive and self.health or 0 end
+function Creature:GetMaxHealth() return self.max_health end
+function Creature:SetHealth(h) self.health = math.max(0, math.min(h, self.max_health)) end
+function Creature:Kill(target) target.alive, target.health, target.killed_by = false, 0, self end
+function Creature:NearTeleport(x, y, z, o) self.x, self.y, self.z, self.o = x, y, z, o end
+function Creature:SetFacing(o) self.o = o end
+function Creature:MoveTo(id, x, y, z) self.moving_to = { x = x, y = y, z = z, id = id } end
+function Creature:AttackStart(target) self.attacking, self.moving_to = target, nil end
+function Creature:MoveStop() self.moving_to = nil end
+function Creature:Respawn() self.alive, self.health = true, self.max_health end
 
 -- {{{ fake.new
 -- opts: map_id (default 900), ground(x, y) -> z or nil (default: none,
 -- as a server before W02d), update_ms (default 20), first_guid (the
--- server's next creature guid, default 6000000)
+-- server's next creature guid, default 6000000), max_health (every
+-- creature's, default 42: a creature's health is the server's, not WC3's)
 function fake.new(opts)
     opts = opts or {}
     local A = { time_ms = opts.start_ms or 1000, used = {}, events = {}, next_event = 0,
                 creatures = {}, by_guid = {}, spawned = {}, update_ms = opts.update_ms or 20,
-                next_guid = opts.first_guid or 6000000, map_id = opts.map_id or 900, ground = opts.ground }
+                next_guid = opts.first_guid or 6000000, map_id = opts.map_id or 900, ground = opts.ground,
+                max_health = opts.max_health or 42 }
     local function use(name) A.used[name] = (A.used[name] or 0) + 1 end
 
     function A.GetCurrTime() use("GetCurrTime") return A.time_ms end
@@ -77,7 +90,7 @@ function fake.new(opts)
 
     local function new_creature(guid, entry, map_id, x, y, z, o)
         local c = setmetatable({ guid = guid, entry = entry, map_id = map_id, x = x, y = y, z = z, o = o,
-                                 alive = true }, {
+                                 alive = true, health = A.max_health, max_health = A.max_health }, {
             __index = function(t, k)
                 local f = Creature[k]
                 if f == nil then error("fake ALE: Creature:" .. tostring(k) .. " isn't in shim.ALE_USED", 2) end
@@ -108,7 +121,12 @@ function fake.new(opts)
         return c
     end
     function A:move(c, x, y) c.x, c.y = x, y end
-    function A:kill(c) c.alive = false end
+    function A:kill(c) c.alive, c.health = false, 0 end
+    -- the server's combat took some of a creature's health
+    function A:hurt(c, amount)
+        c.health = math.max(0, c.health - amount)
+        if c.health == 0 then c.alive = false end
+    end
     -- run world updates until `ms` more have passed
     function A:advance(ms)
         local stop = self.time_ms + ms
