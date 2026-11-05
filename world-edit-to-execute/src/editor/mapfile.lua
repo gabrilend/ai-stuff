@@ -29,8 +29,12 @@ WC3 and this engine read as they read the original, file for file.
       assets/               the imports, at their paths (war3mapImported/..)
       map/                  the map's other files, as they are
       unnamed/              files nobody names (protected maps), by block
-      wow/                  reserved for the WoW layer (issue 911's design);
-                            a WC3 build leaves it out and says so
+      wow/                  the WoW layer (issue W10a: one map holds both
+                            games): WoW maps at the client's own paths,
+                            wow/World/Maps/<dir>/<dir>.wdt, .wdl and
+                            <dir>_<tx>_<ty>.adt, kept byte for byte, and
+                            wow/layer.lua recording what was added; a WC3
+                            build leaves it out and says so
 
 A readable form is used only when it gives back the file byte for byte
 (checked when exporting); otherwise the file is kept as it is. Editing a
@@ -43,13 +47,21 @@ assets/ are imported by their path; files taken away are taken out.
                                     opts.assets_from: a map or folder the
                                     assets come from (lightweight projects)
   mapfile.validate(dir, mode)       problems { level, message } for "wc3"
+                                    or "wow" (opts.read: every tile read
+                                    through the W client's reader too)
+  mapfile.add_wow(dir, root, name)  a WoW map (root/World/Maps/<name>/,
+                                    a loose folder such as W02's build)
+                                    into the project's WoW layer
+  mapfile.build_wow(dir, out)       the WoW layer out as a loose folder
+                                    (out/World/...), byte for byte
   mapfile.pack(dir, file)           the folder as one .wex file (a ZIP,
                                     stored), and mapfile.unpack(file, dir)
   mapfile.is_project(path)
 
     luajit src/editor/mapfile.lua export MAP.w3x DIR [--light]
     luajit src/editor/mapfile.lua build DIR OUT.w3x
-    luajit src/editor/mapfile.lua pack DIR OUT.wex | unpack IN.wex DIR | validate DIR
+    luajit src/editor/mapfile.lua pack DIR OUT.wex | unpack IN.wex DIR | validate DIR [wow]
+    luajit src/editor/mapfile.lua add-wow DIR ROOT NAME | build-wow DIR OUT
 ]]
 
 local AS_SCRIPT = arg and arg[0] and (arg[0] == "mapfile.lua" or arg[0]:match("editor/mapfile%.lua$")) and arg[1]
@@ -385,7 +397,8 @@ function mapfile.export(map_path, dir, opts)
         manifest.slots[#manifest.slots + 1] = { slot = s, a = e[1], b = e[2], locale = e[3],
                                                 file = key_of_block[e[4]] }
     end
-    local wow = { "-- The WoW layer of the unified format (issue 911's design): nothing yet.",
+    local wow = { "-- The WoW layer of the map (issue W10a): WoW maps at the client's own paths,",
+                  "-- World/Maps/<dir>/, added with mapfile.add_wow and kept byte for byte.",
                   "-- Files here are left out of a WC3 build (mapfile.validate says so)." }
     if not read(dir .. "/wow/README.txt") then write(dir .. "/wow/README.txt", table.concat(wow, "\n") .. "\n") end
     write(dir .. "/manifest.lua", mapfile.data_text(manifest, { "slots" }, "manifest"))
@@ -444,11 +457,14 @@ local function gather(dir, m, opts)
         end
     end
     -- files put in the folder since: imports by their path
-    local added = {}
+    local added, wow_maps = {}, {}
     for _, p in ipairs(walk(dir)) do
         if not used[p] and p ~= "manifest.lua" then
             if p:match("^wow/") then
-                if p ~= "wow/README.txt" then
+                local wmap = p:match("^wow/World/Maps/([^/]+)/")
+                if wmap then
+                    wow_maps[wmap] = (wow_maps[wmap] or 0) + 1
+                elseif p ~= "wow/README.txt" and p ~= "wow/" .. mapfile.WOW_LAYER then
                     problems[#problems + 1] = { level = "warn", message = p .. ": WoW-only, left out of a WC3 build" }
                 end
             elseif p:match("^assets/") then
@@ -460,15 +476,161 @@ local function gather(dir, m, opts)
             end
         end
     end
+    -- the WoW layer's maps, one line each
+    local wnames = {}
+    for name in pairs(wow_maps) do wnames[#wnames + 1] = name end
+    table.sort(wnames)
+    for _, name in ipairs(wnames) do
+        problems[#problems + 1] = { level = "info", message = string.format(
+            "the WoW map %s (%d files): WoW-only, left out of a WC3 build", name, wow_maps[name]) }
+    end
     return files, problems, added
 end
 
 function mapfile.validate(dir, mode, opts)
     local m, err = manifest_of(dir)
     if not m then return { { level = "error", message = err } } end
-    if (mode or "wc3") ~= "wc3" then return { { level = "error", message = "only WC3 builds so far" } } end
+    if mode == "wow" then return mapfile.validate_wow(dir, opts) end
+    if (mode or "wc3") ~= "wc3" then return { { level = "error", message = "no build for " .. tostring(mode) .. " (wc3 or wow)" } } end
     local _, problems = gather(dir, m, opts or {})
     return problems
+end
+-- }}}
+
+-- {{{ the WoW layer (issue W10a)
+-- wow/layer.lua: { format, maps = { <dir> = { files = { <name> = { size, crc } } } } },
+-- what was added, so validation can say what changed since (an edit, or
+-- a file put in by hand). Kept under wow/ so a WC3 export, which writes
+-- the rest of the folder afresh, leaves it as it is.
+mapfile.WOW_LAYER = "layer.lua"
+
+local function wow_layer(dir)
+    local text = read(dir .. "/wow/" .. mapfile.WOW_LAYER)
+    if not text then return { format = 1, maps = {} } end
+    local t, err = mapfile.read_data(text, mapfile.WOW_LAYER)
+    if type(t) ~= "table" then return nil, mapfile.WOW_LAYER .. ": " .. tostring(err) end
+    t.maps = t.maps or {}
+    return t
+end
+
+local function wow_maps_in(dir)
+    return require("editor.wowmap").maps(dir .. "/wow")
+end
+
+function mapfile.add_wow(dir, root, name)
+    local wowmap = require("editor.wowmap")
+    if not manifest_of(dir) then return nil, "not a map project: " .. tostring(dir) end
+    if not wowmap.valid_name(name) then return nil, "map folder " .. tostring(name) .. ": letters, digits and _ only" end
+    local from = root .. "/" .. wowmap.MAPS .. "/" .. name
+    local files = wowmap.files(root, name)
+    if not files.wdt then return nil, "no " .. wowmap.MAPS .. "/" .. name .. "/" .. name .. ".wdt in " .. root end
+    local layer, lerr = wow_layer(dir)
+    if not layer then return nil, lerr end
+    local to = dir .. "/wow/" .. wowmap.MAPS .. "/" .. name
+    os.execute("rm -rf " .. sh(to) .. " && mkdir -p " .. sh(to))
+    local names = { files.wdt }
+    if files.wdl then names[#names + 1] = files.wdl end
+    for _, t in ipairs(files.tiles) do names[#names + 1] = t.file end
+    for _, o in ipairs(files.other) do names[#names + 1] = o end
+    local entry, bytes_total = { files = {} }, 0
+    for _, n in ipairs(names) do
+        local d = read(from .. "/" .. n)
+        if d then        -- a folder inside the map folder isn't a file of the map
+            write(to .. "/" .. n, d)
+            if read(to .. "/" .. n) ~= d then return nil, "couldn't copy " .. n .. " whole" end
+            entry.files[n] = { size = #d, crc = mapfile.crc32(d) }
+            bytes_total = bytes_total + #d
+        end
+    end
+    layer.maps[name] = entry
+    write(dir .. "/wow/" .. mapfile.WOW_LAYER, mapfile.data_text(layer, nil, "the WoW layer (issue W10a)"))
+    local n = 0
+    for _ in pairs(entry.files) do n = n + 1 end
+    return true, { files = n, tiles = #files.tiles, bytes = bytes_total }
+end
+
+function mapfile.validate_wow(dir, opts)
+    opts = opts or {}
+    local wowmap = require("editor.wowmap")
+    local problems = {}
+    local function say(level, message) problems[#problems + 1] = { level = level, message = message } end
+    local layer, lerr = wow_layer(dir)
+    if not layer then say("error", lerr) return problems end
+    local present = {}
+    for _, name in ipairs(wow_maps_in(dir)) do present[name] = true end
+    -- every map folder: its WDT, its tiles' names
+    local said = {}
+    for _, name in ipairs(walk(dir .. "/wow/" .. wowmap.MAPS)) do
+        local folder = name:match("^([^/]+)/")
+        if folder and not present[folder] and not said[folder] then
+            said[folder] = true
+            say("error", "wow/" .. wowmap.MAPS .. "/" .. folder .. " has no " .. folder .. ".wdt")
+        end
+    end
+    for name in pairs(present) do
+        local files = wowmap.files(dir .. "/wow", name)
+        if #files.tiles == 0 then say("warn", "the WoW map " .. name .. " has no tiles (" .. name .. "_<x>_<y>.adt)") end
+        for _, o in ipairs(files.other) do
+            if o:lower():match("%.adt$") then say("warn", "wow/" .. wowmap.MAPS .. "/" .. name .. "/" .. o
+                .. ": not named " .. name .. "_<x>_<y>.adt (x, y 0-63), so no tile") end
+        end
+    end
+    -- what was added: still there, and whether it changed since
+    local recorded = {}
+    for name in pairs(layer.maps) do recorded[#recorded + 1] = name end
+    table.sort(recorded)
+    for _, name in ipairs(recorded) do
+        local folder = dir .. "/wow/" .. wowmap.MAPS .. "/" .. name
+        if not present[name] then
+            say("error", "the WoW map " .. name .. " was added but its folder or " .. name .. ".wdt is gone")
+        else
+            local fnames = {}
+            for n in pairs(layer.maps[name].files or {}) do fnames[#fnames + 1] = n end
+            table.sort(fnames)
+            for _, n in ipairs(fnames) do
+                local rec, d = layer.maps[name].files[n], read(folder .. "/" .. n)
+                if not d then say("warn", "wow/" .. wowmap.MAPS .. "/" .. name .. "/" .. n .. " was taken away")
+                elseif #d ~= rec.size or mapfile.crc32(d) ~= rec.crc then
+                    say("info", "wow/" .. wowmap.MAPS .. "/" .. name .. "/" .. n .. " changed since it was added")
+                end
+            end
+        end
+    end
+    for name in pairs(present) do
+        if not layer.maps[name] then say("info", "the WoW map " .. name .. " was put in by hand (not added with add_wow)") end
+    end
+    -- files of the layer not at a client path
+    for _, p in ipairs(walk(dir .. "/wow")) do
+        if not p:match("^World/") and p ~= "README.txt" and p ~= mapfile.WOW_LAYER then
+            say("warn", "wow/" .. p .. ": not under wow/World/, left out of a WoW build")
+        end
+    end
+    -- every tile through the W client's reader
+    if opts.read then
+        for name in pairs(present) do
+            local m, why = wowmap.open(dir .. "/wow", name, opts)
+            if not m then say("error", why)
+            else
+                local ok, bad = m:read_all()
+                if not ok then for _, b in ipairs(bad) do say("error", "the WoW map " .. name .. ": " .. b) end end
+            end
+        end
+    end
+    table.sort(problems, function(a, b) if a.level ~= b.level then return a.level < b.level end return a.message < b.message end)
+    return problems
+end
+
+function mapfile.build_wow(dir, out, opts)
+    local problems = mapfile.validate_wow(dir, opts)
+    for _, p in ipairs(problems) do if p.level == "error" then return nil, p.message, problems end end
+    local n, maps = 0, 0
+    for _, p in ipairs(walk(dir .. "/wow/World")) do
+        local d = read(dir .. "/wow/World/" .. p)
+        write(out .. "/World/" .. p, d)
+        n = n + 1
+    end
+    maps = #wow_maps_in(dir)
+    return true, { files = n, maps = maps, problems = problems }
 end
 -- }}}
 
@@ -603,13 +765,16 @@ if AS_SCRIPT then
     elseif cmd == "build" then ok, rep = mapfile.build(x, y, { assets_from = arg[4] })
     elseif cmd == "pack" then ok, rep = mapfile.pack(x, y)
     elseif cmd == "unpack" then ok, rep = mapfile.unpack(x, y)
+    elseif cmd == "add-wow" then ok, rep = mapfile.add_wow(x, y, arg[4])
+    elseif cmd == "build-wow" then ok, rep = mapfile.build_wow(x, y)
     elseif cmd == "validate" then
-        local probs = mapfile.validate(x, "wc3")
+        local probs = mapfile.validate(x, y or "wc3", { read = y == "wow" })
         for _, p in ipairs(probs) do print(p.level .. ": " .. p.message) end
         print(#probs == 0 and "no problems" or (#probs .. " problems"))
         os.exit(0)
     else
-        print("usage: mapfile.lua export MAP DIR [--light] | build DIR OUT [ASSETS_FROM] | pack DIR FILE | unpack FILE DIR | validate DIR")
+        print("usage: mapfile.lua export MAP DIR [--light] | build DIR OUT [ASSETS_FROM] | pack DIR FILE | unpack FILE DIR"
+            .. " | validate DIR [wc3|wow] | add-wow DIR ROOT NAME | build-wow DIR OUT")
         os.exit(1)
     end
     if ok then

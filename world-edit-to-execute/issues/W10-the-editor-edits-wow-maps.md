@@ -116,3 +116,12 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
 - `issues/913-test-map-opens-the-w-client.md`
 - W client: `/mnt/mtwo/games/azeroth-core/custom-client/docs/003-asset-formats.md`
   (WoW's file formats)
+
+## Sub-Issues
+
+- *2026-11-05:* `W10a-the-wow-layer-of-a-map.md`: step 1, and the
+  keeping half of step 8. A map project keeps WoW maps under
+  `wow/World/Maps/<dir>/` byte for byte, beside its WC3 part (question
+  1: one map holds both games); the editor lists them and reads every
+  tile through the W client's reader into data for its tools. Its own
+  open questions are answered there as dated decisions.
