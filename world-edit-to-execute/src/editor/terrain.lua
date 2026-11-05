@@ -20,6 +20,11 @@ A stroke is one step to undo: stroke_begin, stroke(x, y) as often as the
 pointer moves, stroke_end. The tilepoints a stroke touched are marked in
 E.changed_tiles for the window to draw again.
 
+On a WoW map of the project (E:wow_edit(dir), issue W10b) the same
+strokes work on its tiles instead (editor/wowterrain.lua): raise, lower,
+smooth, flatten and paint, and hole and unhole, which only a WoW map has;
+x and y are then the WoW map's world yards.
+
     require("editor.terrain")(E)     -- editor/init.lua does this
 ]]
 
@@ -30,6 +35,7 @@ local FIELDS = { "height", "water_level", "has_water", "water_flags", "ground_te
 local HEIGHT_MIN, HEIGHT_MAX = -2000, 6000
 local TERRAIN_TOOLS = { raise = true, lower = true, smooth = true, flatten = true, paint = true, water = true,
                         dry = true, cliff_up = true, cliff_down = true, blight = true, unblight = true }
+local WOW_ONLY = { hole = true, unhole = true }          -- holes: a WoW map's ground only (issue W10b)
 
 local function snapshot(tp)
     local s = {}
@@ -42,7 +48,10 @@ end
 
 return function(E)
 
-    function E:is_terrain_tool(name) return TERRAIN_TOOLS[name or self.tool] == true end
+    function E:is_terrain_tool(name)
+        name = name or self.tool
+        return TERRAIN_TOOLS[name] == true or (self.wow_editing ~= nil and WOW_ONLY[name] == true)
+    end
 
     -- {{{ where
     function E:tile_at(x, y)
@@ -79,6 +88,7 @@ return function(E)
 
     -- {{{ strokes
     function E:stroke_begin(tool, x, y)
+        if self.wow_editing then return self:wow_stroke_begin(tool, x, y) end
         tool = tool or self.tool
         if not TERRAIN_TOOLS[tool] then return false end
         self.stroke_now = { tool = tool, before = {}, keys = {} }
@@ -108,6 +118,7 @@ return function(E)
 
     -- one touch of the brush at (x, y)
     function E:stroke(x, y)
+        if self.wow_editing then return self:wow_stroke(x, y) end
         local s = self.stroke_now
         if not s then return false end
         local ci, cj = self:tile_at(x, y)
@@ -173,6 +184,7 @@ return function(E)
     end
 
     function E:stroke_end()
+        if self.wow_editing then return self:wow_stroke_end() end
         local s = self.stroke_now
         self.stroke_now = nil
         if not s or #s.keys == 0 then return nil end

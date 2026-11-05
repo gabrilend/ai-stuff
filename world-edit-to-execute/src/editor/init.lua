@@ -30,7 +30,9 @@ draws: src/editor/main.lua is the window; tests drive this directly.
              as a map; E:save() with no path writes the project back
   WoW layer  a project's WoW maps (its wow/ folder: one map holds both
              games), listed and read for the tools (E:wow_maps,
-             E:wow_map; editor/wowmap.lua, issue W10a)
+             E:wow_map; editor/wowmap.lua, issue W10a); the terrain
+             tools on its tiles after E:wow_edit(dir), its edited tiles
+             written with the project (editor/wowterrain.lua, W10b)
   saving     a copy of the map with what changed written back
              (editor/save.lua, through mpq.save_copy: the map opened is
              never written)
@@ -57,7 +59,8 @@ local history_mod = require("editor.history")
 local editor = {}
 
 editor.TOOLS = { "select", "raise", "lower", "smooth", "flatten", "paint", "water", "dry", "cliff_up",
-                 "cliff_down", "blight", "unblight", "place_doodad", "place_unit", "regions", "cameras" }
+                 "cliff_down", "blight", "unblight", "place_doodad", "place_unit", "regions", "cameras",
+                 "hole", "unhole" }      -- holes: on a WoW map's ground only (issue W10b)
 
 local E = {}
 E.__index = E
@@ -125,6 +128,7 @@ function editor.open(path, opts)
     require("editor.sounds")(E)
     require("editor.cameras")(E)
     require("editor.wowmap").attach(E)      -- the map's WoW layer (issue W10a)
+    require("editor.wowterrain").attach(E)  -- the terrain tools on its tiles (issue W10b)
     self:load_objects()
     self:load_regions()
     self:load_sounds()

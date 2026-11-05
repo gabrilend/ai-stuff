@@ -125,3 +125,10 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
   1: one map holds both games); the editor lists them and reads every
   tile through the W client's reader into data for its tools. Its own
   open questions are answered there as dated decisions.
+- *2026-11-05:* `W10b-the-terrain-editor-on-wow-tiles.md`: step 2
+  without its window, and the ground half of step 8. Raise, lower,
+  smooth, flatten, paint (new layers and textures) and holes on a WoW
+  map's tiles as plain Lua; an edited tile written back by patching its
+  own bytes (an unedited tile is the file read, byte for byte); the
+  editor's strokes, undo and project save on a picked WoW map. Its open
+  questions are answered there as dated decisions.
