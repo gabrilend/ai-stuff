@@ -649,3 +649,66 @@ builds made by hand. Now (decisions above):
 the W client's window on the owner's machine) and criterion 3 (the real
 editor window) are still open. Criteria 2 and 4 now also hold with the
 client's own start code.
+
+## Decisions (2026-11-05, a server a killed editor left; each the owner's to overturn)
+
+Before this, "a server left by a killed editor is not adopted or stopped
+by the next one; its pids are in `server.pids`" (Not done yet, above).
+
+- **The next editor picks it up, on its first Test Map.** A keeper's
+  first `begin()` reads `<log_dir>/server.pids` before anything else:
+  - every program still running, as the same process and as the
+    settings start it now (same names, ports and commands, with this
+    build folder): **taken over** ("reclaimed"). It is waited on until
+    its ports accept, as a fresh start is, then reused when its stamp is
+    this build's and started again when it isn't, as if this editor had
+    started it. It is this editor's from then on: rewritten into
+    `server.pids` under this editor's pid, stopped when it closes.
+  - only some of it running, or started otherwise than the settings say
+    now: what is left is **stopped**, and the server started anew.
+  - none of it running: the file is removed, said.
+  Taking over rather than always stopping: a converted map's server
+  takes long to start (it reads its tables at start), and a killed
+  editor's server on the same build is what the next F5 wants.
+- **A pid is checked by its start time before anything is done to it.**
+  `server.pids` is now data (format 1, read in an empty environment):
+  the editor's pid and start time, the build folder, the stamp, and for
+  each program its name, pid, start time (`/proc/<pid>/stat` field 22,
+  `proc.start_time`), port and command. A pid whose start time differs
+  belongs to another process that took the number since, and is never
+  stopped or taken over.
+- **Another editor still running keeps its server.** When the editor in
+  the file is alive (pid and start time agree), the file is left alone
+  and its server used as it is ("outside", as for any server the editor
+  didn't start), never stopped by this editor.
+- **An older editor's file is left alone.** The `name pid` lines the
+  editor wrote before this have no start times, so their pids can't be
+  told from reused ones: nothing in it is stopped, and the editor says
+  so. (A server still running from one is used as it is, as "outside".)
+
+## Implementation Notes (continued)
+
+*(2026-11-05, a server a killed editor left)*
+
+- `src/editor/proc.lua`: `proc.start_time(pid)` and `proc.self()`.
+- `src/editor/server_keeper.lua`: `server.pids` written as data, whole
+  (another name, then renamed); `server_keeper.read_pids`; `K:reclaim`;
+  `K:begin` reclaims once, on its first call, and returns "reclaimed".
+  The keeper keeps each program's command and start time, and the build.
+- `src/editor/test_map.lua`: says "reusing it: it runs this build's
+  stamp" for a server taken over.
+- **Tests** (`src/tests/test_test_map.lua`): 174 -> 198 without the W
+  client's sources, 187 -> 211 with them. The editor that is killed is
+  another LuaJIT, killed with SIGKILL after its keeper's stand-in servers
+  accept (`fake-server.lua`). The next keeper on the same `log_dir`:
+  takes the server over and reuses it for the same build, starting
+  nothing, and names itself in `server.pids`; takes it over and starts
+  it again for another stamp; stops it and starts anew for another build
+  folder, for settings that changed, and for a server one of whose
+  programs died (1 of 2); removes the file when every program is gone;
+  leaves alone a pid whose start time differs, an older editor's
+  `name pid` file, and a server whose editor still runs. A whole run: an
+  editor killed while its W client is open, then F5 in the next editor
+  on the same map, which goes through on the server the killed one left,
+  started once, and stops it when it closes. `server.pids` written by a
+  fresh start holds the start times, commands, build, stamp and editor.

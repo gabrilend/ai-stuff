@@ -429,6 +429,7 @@ function T:step()
         local how, why = self.keeper:begin(self.build_dir, self:stamp())
         if not how then return self:fail(why) end
         if how == "reused" then self:say("Test Map: reusing the server the editor started")
+        elseif how == "reclaimed" then self:say("Test Map: reusing it: it runs this build's stamp")
         elseif how == "outside" then
             self:say("Test Map: a server the editor didn't start is on " .. self.keeper.host .. ":"
                 .. self.keeper.login_port .. "; using it as it is")

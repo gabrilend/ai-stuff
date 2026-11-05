@@ -18,6 +18,11 @@ hangs) and nothing else changes.
                            password) is never on any command line and
                            never written to a file.
   proc.alive(pid)          true while it runs (a zombie counts as gone)
+  proc.start_time(pid)     when it started, in the kernel's clock ticks
+                           since boot (/proc/<pid>/stat, field 22), or
+                           nil: a pid and its start time name one process,
+                           where a pid alone may since have been reused
+  proc.self()              this process's pid
   proc.stop(pid, seconds)  TERM to its group, KILL after `seconds`; true
                            once it's gone
   proc.exit_code(status)   the code written to opts.status, or nil
@@ -37,6 +42,7 @@ pcall(ffi.cdef, [[
 int setenv(const char *name, const char *value, int overwrite);
 int unsetenv(const char *name);
 int kill(int pid, int sig);
+int getpid(void);
 ]])
 pcall(ffi.cdef, [[
 typedef struct { uint16_t family; uint16_t port; uint32_t addr; uint8_t zero[8]; } wete_sockaddr_in;
@@ -116,6 +122,28 @@ function proc.alive(pid)
     local state = line:match("^%d+ %b() (%a)")
     return state ~= nil and state ~= "Z" and state ~= "X"
 end
+
+-- the fields after the command's name, which is in brackets and may hold
+-- spaces or brackets of its own: the state is field 3, the start time 22
+local function stat_fields(pid)
+    if not pid then return nil end
+    local f = io.open("/proc/" .. pid .. "/stat", "r")
+    if not f then return nil end
+    local line = f:read("*l") or ""
+    f:close()
+    local after = line:match("^%d+ %(.*%) (.*)$")
+    if not after then return nil end
+    local fields = {}
+    for w in after:gmatch("%S+") do fields[#fields + 1] = w end
+    return fields
+end
+
+function proc.start_time(pid)
+    local fields = stat_fields(pid)
+    return fields and tonumber(fields[20])          -- field 22: the 20th after the name
+end
+
+function proc.self() return tonumber(C.getpid()) end
 
 -- TERM to the whole group (the program and anything it started), then
 -- KILL once `seconds` have passed
