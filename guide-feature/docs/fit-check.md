@@ -23,6 +23,13 @@ Against the base canvas the turn started from:
 | no row is longer than `W` characters | `too-wide` | `row 7: 64 characters, 4 over the width of 60` |
 | there are exactly `H` rows | `wrong-height` | `the canvas has 22 rows; it must have exactly 20` |
 | every character has a width: no tab or other control character, and only valid UTF-8 | `bad-character` | `row 4: a tab or other control character at column 2; use spaces` |
+| the ruler drawn around the canvas in the prompt is not copied (issue 403) | `ruler` | `rows 1, 2: the ruler was copied (the row numbers, the \| at each end, or the column numbers); write only the canvas's own rows` |
+
+The `ruler` problem is found by the turn prompt's own module
+(`src/049-turn-prompt.lua`, `ruler_problem`), since that is where the ruler
+is drawn, so the two cannot drift apart. The turn runs it beside the size
+check (404). It catches what the size check alone would miss: short rows
+that begin with their row numbers still fit the width.
 
 A row with a `bad-character` problem is not measured for width, and a reply
 with one cannot be compared with its base, so it has no change counts. On

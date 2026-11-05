@@ -1,0 +1,15 @@
+Reference prompts for the turn prompt (issue 403).
+
+Each NN-name.canvas is a canvas as kuvalu sends it to the voices
+(docs/canvas-format.md, to-voices), and NN-name.expected is the whole
+conversation src/049-turn-prompt.lua builds for it from the project's own
+input/turn-instructions, each turn after a "=== role" line. The settings
+used are in the first line of the .expected file.
+
+src/050-test-turn-prompt.lua holds the builder to these files, so any change
+to the prompt, in the source or in input/turn-instructions, shows up as a
+difference here. After a deliberate change, write them again with
+
+    luajit src/050-test-turn-prompt.lua --write-reference
+
+and read the difference before committing it.
