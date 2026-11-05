@@ -8,3 +8,5 @@ source's commit at copy time, the date, and what this project changed
   endpoint record per call and an embedding call (issue 401b).
 - dkjson.lua: the JSON reader and writer it uses.
 - ensure-ram-tiers.lua, ensure-ram-tiers: the RAM folders under tmp/.
+- bitmap-font.lua: the 8x8 letter pictures the Lua window draws with, from
+  every-software-image-able (issue 802).

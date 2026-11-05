@@ -1,0 +1,38 @@
+# The Lua window's settings (src/072-lua-window.lua, issue 802).
+# Text goes in double quotes; numbers bare. Read once at start.
+
+# Each voice's colour, written #rrggbb, in the order of the canvas's voices:
+# header (input/blitter's voices). The same hues as the terminal view's
+# red, green and blue.
+voice-colours      = "#e05050 #40b060 #4a78e0"
+
+# The distiller's colour (distill mode's marks carry the name kuvalu).
+kuvalu-colour      = "#b050c8"
+
+# Behind unmarked cells, and the letters.
+background         = "#101418"
+ink                = "#e8e8e8"
+
+# How much of the voice's colour is laid behind a marked cell, by the mark's
+# age in versions: the first for a mark made at this version (age 0), the
+# next for age 1, and so on; older marks take the last. 0 is none of it, 1
+# all of it. Word marks start strong; sentence marks (the rest of a changed
+# sentence) start fainter, so the changed words stand out inside their
+# sentence. The marks fade as they age.
+word-strengths     = "0.85 0.7 0.55 0.4 0.25"
+sentence-strengths = "0.35 0.25 0.15"
+
+# The letters are 8 by 8 pictures (libs/bitmap-font.lua), each drawn this
+# many times bigger: 2 makes every cell 16 by 16 pixels.
+letter-scale       = 2
+
+# How long a new version's changed words take to be written over what was
+# in their place, in seconds, and how many frames a second are drawn then.
+write-seconds      = 0.4
+frames-per-second  = 30
+
+# How often canvas/current is looked at for a new version, in seconds.
+check-every        = 0.25
+
+# With --replay, the seconds between one version and the next.
+replay-every       = 1.0
