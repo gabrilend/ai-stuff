@@ -1,0 +1,12 @@
+# The real turn's settings (issues 404 and 405), on each voice. Numbers bare.
+# The words the voice is told are in input/turn-instructions.
+
+# The recommended change counts a voice is told, and measured against for
+# its advisory note (docs/fit-check.md). Advice only: a canvas over them is
+# accepted. Changes to these go into docs/balance-updates.md with the reason.
+recommended-words     = 12
+recommended-sentences = 1
+
+# How many look calls one turn may make before it must write the canvas
+# (docs/datapath-voice-turn.md, step 5). 0 leaves the look tool out.
+look-limit = 3
