@@ -66,6 +66,27 @@ output to the outbox with the correct formatting and such."
    a too-large reply shown cut at the edge, and the model is asked again with
    no limit on tries ("it will just keep spinning until it gets it right").
    The cut version is never published.
+
+   Built in issue 404 (`src/051-ask-until-it-fits.lua`), as `until_fits`:
+   - It is handed the opening conversation and a function that asks the
+     role's endpoint.
+   - A look call is answered (until 503: that the look tool is not built
+     yet), up to `look-limit` a turn. A call past the limit is told the
+     calls are used up.
+   - A canvas reply is checked by the fit check, beside the copied-ruler
+     check (403). Any one Markdown fence around the whole reply is taken
+     off; nothing else is changed.
+   - A reply that does not fit goes back with the report, and with the reply
+     cut to the canvas when it was too large. The model is then asked again,
+     with no limit.
+   - A failed call to the model is the turn's error, never retried.
+   - It returns the rows, next turn's advisory note and the counts.
+   - `input/turn` holds `recommended-words`, `recommended-sentences` and
+     `look-limit`.
+   - Run directly, it asks a role's endpoint once for a canvas file and
+     prints every try, so a real model can be watched being corrected:
+
+         luajit src/051-ask-until-it-fits.lua --dir ROOT --role fg-sora-1 --canvas FILE
 7. **Write.** Headers (`voice`, `turn`, `base: N`, `size`, `written`), a
    blank line, the rows, an empty marks section. It is checked by reading it
    back with the canvas reader, then written under a temporary name and

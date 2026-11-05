@@ -84,7 +84,8 @@ limit:
   edge, even in the middle of a word, with "this is all that'd fit, please
   rephrase the sentences prior to the broken lines". The cut version is only
   ever shown to the model; it is never published. The number of tries is
-  counted and logged, so a model stuck spinning is visible.
+  counted and logged, so a model stuck spinning is visible. Built in
+  `src/051-ask-until-it-fits.lua` (issue 404).
 - **In the blitter**, on arrival, for the size only. The change counts are
   the voice's business, but a canvas of the wrong size cannot be compared with
   its base at all, so it is refused and logged.

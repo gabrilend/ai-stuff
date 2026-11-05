@@ -31,3 +31,13 @@ Counts of done and open issues:
     owner decides (open questions 3 and 6).
   - A reference prompt in `assets/test-prompts/` shows any change as a
     difference.
+- **404, ask until it fits** (2026-11-05):
+  - `src/051-ask-until-it-fits.lua` asks a voice's model with the turn's
+    opening conversation. Look calls are answered up to the limit.
+  - Each canvas reply goes through the fit check and the ruler check. A
+    reply that does not fit goes back with the compiler-style report, cut
+    at the edge when too large, and the model is asked again, with no last
+    try.
+  - It counts asks, tries, problems by kind, look calls, tokens and seconds.
+  - Run directly, it shows a real model being corrected. That run is for
+    kuvalu with 401a's servers.
