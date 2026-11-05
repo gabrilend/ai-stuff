@@ -21,3 +21,8 @@ moves the phase toward its goals.)
   keeps the run log and writes `output/goodbye-<program>`. Every phase-1
   program (the blitter, 107) now has its way to start and end. Tests:
   `./run-tests`.
+- **102, the canvas as text** (2026-11-05): `src/006-canvas-text.lua` reads
+  and writes the canvas in all three directions, byte for byte, refusing a
+  malformed one at its line. `src/005-utf8.lua` counts rows in characters for
+  it, 103 and 105. The word finder (103), the blitter's arrivals (107) and the
+  viewers' reader (202) now have their text form.
