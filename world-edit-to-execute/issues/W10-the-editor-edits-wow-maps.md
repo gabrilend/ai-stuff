@@ -156,3 +156,12 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
   building over a tile edge is listed by every tile its box touches with
   one id. Checked through the W client's `adt_read` and `adt_place_read`.
   Its open questions are answered there as dated decisions.
+- *2026-11-05:* `W10f-areas-and-doodad-sets-on-wow-tiles.md`: the chunk
+  half of step 4 ("regions as areas") and a building's doodad set from
+  step 3, without the window. Each chunk's area number (MCNK header byte
+  52) is read, set over whole chunks at a point or by radius (plain Lua
+  and the editor's `area` stroke, with undo), and written in place; a new
+  tile takes its neighbours' area; a building's doodad set (MODF byte 58)
+  is set as an editor step; areas' names are read from a loose
+  AreaTable.dbc. Writing AreaTable rows waits for W02c's writer on this
+  stack. Its open questions are answered there as dated decisions.

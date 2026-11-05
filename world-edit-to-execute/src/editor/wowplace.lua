@@ -15,6 +15,7 @@ editor/wowterrain.lua's tile writer.
     pl.rotate(m, o, { yaw = 45 })                      -- or { rot = { a, b, c } } (the file's degrees)
     pl.scale(m, o, 1.5)                                -- models only
     pl.delete(m, o)
+    pl.doodad_set(m, o, 2)                             -- a building's set of inside models (W10f)
     pl.near(m, x, y, r)                                -- the objects standing within r yards
 
 o is { kind = "m2" or "wmo", uid }: an object is every entry of the map's
@@ -387,6 +388,22 @@ function pl.delete(m, o)
     return { kind = o.kind, uid = o.uid, tiles = tiles }
 end
 
+-- a building's doodad set (W10f): which of its WMO's sets of furniture
+-- and small models the client draws inside it (MODF byte 58). Every
+-- entry of the building takes it; nothing else of the record changes.
+-- How many sets the WMO has is in the WMO (MODS), which isn't read here
+-- (no game files), so any 16-bit number is taken.
+function pl.doodad_set(m, o, n)
+    if o.kind ~= "wmo" then return nil, "a model has no doodad sets; a building (WMO) has" end
+    if type(n) ~= "number" or n ~= math.floor(n) or n < 0 or n > 65535 then
+        return nil, "doodad set: a whole number from 0 to 65535"
+    end
+    local want, list = current(m, o)
+    if not want then return nil, list end
+    want.doodad_set = n
+    return settle(m, o, want, { set = true }, list)
+end
+
 -- every entry of a tile counted as edited in every field (written again
 -- from the data: what W02's placements written again must match)
 function pl.touch(t)
@@ -661,7 +678,8 @@ end
 
 -- {{{ pl.attach: the editor's object tools on a WoW map (with undo)
 -- E:wow_place(opts), E:wow_move_object(o, x, y, z), E:wow_rotate_object(o, r),
--- E:wow_scale_object(o, s), E:wow_delete_object(o): on the map E:wow_edit
+-- E:wow_scale_object(o, s), E:wow_delete_object(o), E:wow_doodad_set(o, n)
+-- (W10f): on the map E:wow_edit
 -- picked, each one step of the history (undo and redo, before and after a save)
 function pl.attach(E)
     local function step(me, name, act)
@@ -696,6 +714,7 @@ function pl.attach(E)
     function E:wow_rotate_object(o, r) return step(self, "Turn", function(m) return pl.rotate(m, o, r) end) end
     function E:wow_scale_object(o, s) return step(self, "Size", function(m) return pl.scale(m, o, s) end) end
     function E:wow_delete_object(o) return step(self, "Delete", function(m) return pl.delete(m, o) end) end
+    function E:wow_doodad_set(o, n) return step(self, "Doodad set", function(m) return pl.doodad_set(m, o, n) end) end
 end
 -- }}}
 

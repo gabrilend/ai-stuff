@@ -15,6 +15,9 @@ place: the one bit, nothing else), its far view in the WDL.
     tiles.put_back(m, gone)                                   -- undo of remove (and redo of add)
 
 A new tile:
+  - its area (W10f): opts.area, else the area most of its neighbours'
+    chunks along its sides are in (a corner neighbour's corner chunk
+    when no side has one; the lower number on a tie), else 0.
   - its ground: flat at opts.height, or (no height) made to meet its
     neighbours: each side a neighbour shares is that neighbour's edge,
     point for point; a side with none runs straight between its corners
@@ -125,6 +128,41 @@ local function edge_keys(tx, ty)
     return out
 end
 -- }}}
+
+-- the area a new tile at (tx, ty) takes from its neighbours (W10f): the
+-- one most of the chunks facing it across its sides are in; with no side
+-- neighbour, the corner neighbours' corner chunks; the lower on a tie
+local function area_of(near)
+    local count = {}
+    local function chunks_facing(n)
+        local out = {}
+        if n.dx ~= 0 and n.dy ~= 0 then
+            out[1] = n.t.chunks[(n.dy < 0 and 15 or 0) * 16 + (n.dx < 0 and 15 or 0) + 1]
+        elseif n.dx ~= 0 then
+            for iy = 0, 15 do out[#out + 1] = n.t.chunks[iy * 16 + (n.dx < 0 and 15 or 0) + 1] end
+        else
+            for ix = 0, 15 do out[#out + 1] = n.t.chunks[(n.dy < 0 and 15 or 0) * 16 + ix + 1] end
+        end
+        return out
+    end
+    for _, sides in ipairs({ true, false }) do
+        for _, n in ipairs(near) do
+            if (n.dx == 0 or n.dy == 0) == sides then
+                for _, c in ipairs(chunks_facing(n)) do
+                    local a = c.area or 0
+                    count[a] = (count[a] or 0) + 1
+                end
+            end
+        end
+        if next(count) then break end
+    end
+    local best, most = 0, 0
+    for a, n in pairs(count) do
+        if n > most or (n == most and a < best) then best, most = a, n end
+    end
+    return best
+end
+tiles.area_of = area_of
 
 -- {{{ tiles.add
 -- the 129 x 129 corner heights of a new tile at (tx, ty): H[r * 129 + c]
@@ -237,6 +275,11 @@ function tiles.add(m, tx, ty, o)
     if type(texture) ~= "string" or texture == "" then
         return nil, "which texture should the new tile have (opts.texture, a path)?"
     end
+    local area = o.area
+    if area == nil then area = area_of(near) end
+    if type(area) ~= "number" or area ~= math.floor(area) or area < 0 or area > wt.AREA_MAX then
+        return nil, "area: a whole number from 0 to " .. wt.AREA_MAX .. " (AreaTable's id)"
+    end
     local H, gwhy = ground(m, tx, ty, o, near)
     if not H then return nil, gwhy end
 
@@ -265,7 +308,7 @@ function tiles.add(m, tx, ty, o)
             t.chunks[iy * 16 + ix + 1] = {
                 ix = ix, iy = iy, x = ORIGIN - (ty * 16 + iy) * CHUNK, y = ORIGIN - (tx * 16 + ix) * CHUNK, z = base,
                 heights = heights, holes = 0, layers = { { texture = texture, texture_index = 1 } },
-                shadow = ZEROS, tint = tint, dirty = { heights = true, holes = true },
+                shadow = ZEROS, tint = tint, area = area, dirty = { heights = true, holes = true, area = area ~= 0 or nil },
             }
         end
     end
