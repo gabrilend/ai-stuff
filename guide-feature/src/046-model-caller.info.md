@@ -16,6 +16,7 @@ through this project's copy of the llama.cpp client,
 | `chat(endpoint, messages, opts)` | the reply's text, and `{ usage, seconds, endpoint }` |
 | `count_tokens(endpoint, text)` | the exact token count from the endpoint's `/tokenize` |
 | `embed(endpoint, texts, opts)` | one vector per text, in the order given |
+| `model_name(endpoint)` | the model the endpoint serves, the first `GET /v1/models` lists (issue 502) |
 | `reachable(endpoint)` | whether it answers `GET /v1/models` now |
 | `describe(endpoint)` | `'name' (url)`, as messages name it |
 | `client` | the client itself |

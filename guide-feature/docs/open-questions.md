@@ -21,7 +21,11 @@ Most valuable first.
    each project copies the builder into itself (`docs/vendored-code.md`).
    Should it be built first for guide-feature itself, so phase 5 has an index
    to test against? `docs/embedding-index-contract.md`. The owner: "not
-   sure. let's come back to it later."
+   sure. let's come back to it later." Answered for now in 502
+   (2026-11-05), until the owner decides: the guide is
+   `docs/embedding-index-build-guide.md`, in guide-feature, written so it
+   can move unchanged; another project copies `src/060-embedding-index.lua`
+   into itself, as vendored code. guide-feature's own index was built first.
 3. **The tool call's form.** llama.cpp supports OpenAI-style tool calls when
    its server runs with its chat templates switched on (`--jinja`). Is
    kuvalu's server started that way, or should the look call be a plain line

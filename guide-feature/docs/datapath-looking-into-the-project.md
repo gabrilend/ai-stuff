@@ -80,7 +80,13 @@ maybe it could be part of delta-version?"
 
 guide-feature only reads the index. What it needs from one is written down
 in `docs/embedding-index-contract.md`, so any project's builder can produce
-something the look tool understands.
+something the look tool understands. How to build one is
+`docs/embedding-index-build-guide.md` (issue 502), followed for guide-feature
+itself: `scripts/build-embedding-index` builds `.embedding-index/` from the
+checked-out commit, `scripts/check-embedding-index` says whether it can be
+used, and `scripts/install-index-hooks` keeps it built after every commit,
+pull and checkout on kuvalu. guide-feature reads other projects' indexes
+and builds only its own.
 
 ## The look call
 

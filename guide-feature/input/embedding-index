@@ -1,0 +1,20 @@
+# The embedding index builder's settings (issue 502), read from the project
+# being indexed. docs/embedding-index-build-guide.md says what each does.
+
+# Which files are code to index: by extension, and, with shebang on, files
+# with no extension whose first line names their interpreter (#!), as this
+# project's scripts/ are.
+extensions  = "lua sh bash py c h js"
+shebang     = "on"
+
+# Folders left out, space separated, from the project's folder. libs/ holds
+# other projects' code copied in (docs/vendored-code.md), not this
+# project's architecture.
+skip        = "libs"
+
+# The most lines one piece may have; a longer fold or function is cut into
+# parts of this many lines.
+piece-lines = 60
+
+# How many pieces go to the embedding model in one request.
+batch       = 32

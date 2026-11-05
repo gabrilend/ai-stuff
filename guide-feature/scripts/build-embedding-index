@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# build-embedding-index - builds this project's embedding index,
+# .embedding-index/, from the commit its checkout is at (issue 502), with
+# the embedder the endpoints file names. The git hooks that
+# scripts/install-index-hooks puts in place run it after a commit, a pull
+# and a checkout.
+#
+#   scripts/build-embedding-index [--url URL --timeout SECONDS] [--hook NAME ...]
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/061-build-embedding-index.lua" --dir "${DIR}" "$@"

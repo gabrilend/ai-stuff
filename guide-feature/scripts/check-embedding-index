@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# check-embedding-index - says whether this project's embedding index,
+# .embedding-index/, can be used: built from the commit the checkout is at,
+# its three files agreeing, every vector of length 1, and every piece inside
+# its file (issue 502, docs/embedding-index-contract.md).
+#
+#   scripts/check-embedding-index
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/062-embedding-index-tools.lua" --dir "${DIR}" check "$@"

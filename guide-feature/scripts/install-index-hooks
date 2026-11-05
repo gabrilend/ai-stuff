@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# install-index-hooks - puts the git hooks that rebuild this project's
+# embedding index (post-commit, post-merge, post-checkout) into the hooks of
+# the repository this project is in, or with --remove takes them out
+# (issue 502). Each hook gets one marked block, added once, beside whatever
+# the hook already does; the build runs in the background, so git is never
+# slowed and never fails because of it.
+#
+#   scripts/install-index-hooks [--remove]
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/062-embedding-index-tools.lua" --dir "${DIR}" hooks "$@"

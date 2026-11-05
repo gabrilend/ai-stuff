@@ -24,3 +24,15 @@ Counts of done and open issues:
   - Tested by itself and in the rehearsal, where each voice clones once and
     fetches a commit made while it runs. SSH to kuvalu and the real
     monorepo are for the owner's machine.
+- **502, the embedding index: contract and build guide** (2026-11-05):
+  - `docs/embedding-index-build-guide.md` says how to give a project an
+    index; it was followed for guide-feature, and the contract is agreed.
+  - `src/060-embedding-index.lua` holds the piece and name rules and the
+    index's files, on its own so other projects can copy it.
+    `scripts/build-embedding-index` builds guide-feature's index from the
+    checked-out commit; `scripts/check-embedding-index` says whether it can
+    be used; `scripts/install-index-hooks` keeps it built after every
+    commit, pull and checkout.
+  - guide-feature's own index, built against a stand-in embedding model, is
+    about 1,070 pieces. The real model's index on kuvalu is for the owner's
+    machine.
