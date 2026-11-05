@@ -132,3 +132,10 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
   own bytes (an unedited tile is the file read, byte for byte); the
   editor's strokes, undo and project save on a picked WoW map. Its open
   questions are answered there as dated decisions.
+- *2026-11-05:* `W10c-far-view-and-water-on-wow-tiles.md`: step 2's
+  "place liquids", and the far view's half of step 8. The WDL is
+  patched from the edited tiles (far heights, whole-chunk holes). Water
+  can be put on and dried off a WoW map's tiles, and the tile's MH2O is
+  written again; parts not touched by an edit keep their bytes. Depths
+  follow moved ground. The editor's `water` and `dry` strokes work on a
+  WoW map. Its open questions are answered there as dated decisions.

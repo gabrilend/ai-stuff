@@ -253,3 +253,9 @@ WDL made from the edited tiles (decision 7); water (decision 12); new
 tiles (decision 12, after the WDT tile-list reader); the window's
 brush cursor and its conversion to a WoW map's yards (W10's drawing
 step).
+
+*(2026-11-05, later)* Decision 7's WDL and decision 12's water are
+taken up by `W10c-far-view-and-water-on-wow-tiles.md`. Saving now
+writes the WDL with the edited tiles' far view, and `wt.save` lists it
+(the W10b test expects that now). Water can be placed and removed. When
+the ground under water moves, its depths follow.
