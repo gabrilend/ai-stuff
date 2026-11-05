@@ -57,8 +57,17 @@ mark are looked past, so `"go."` ends a sentence; a full stop inside a word
 full stop (issue 103).
 
 A cell has at most one mark: the newest. When a newer change covers older
-marks, the older ones are gone. Marks older than a setting's number of
-versions are dropped, so a canvas that stops changing ends with no marks.
+marks, the older ones are gone. Marks more than a setting's number of
+versions old (`mark-lifetime`) are dropped. Age is counted in versions, not
+time, so a part of the canvas that stops changing loses its marks as the rest
+changes. A canvas where nothing changes at all keeps its last marks (issue
+201).
+
+`sentence` marks lie on the words of the sentence only, not on the spaces
+between them. A blanked cell between words belongs to the sentence of the
+word before it on its row, unless that word ends its sentence. Otherwise it
+belongs to the sentence of the word after it on its row. A blanked cell on a
+row that is now empty marks no sentence (issue 201).
 
 ### Cuts
 

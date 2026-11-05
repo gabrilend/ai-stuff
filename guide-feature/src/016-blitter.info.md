@@ -28,14 +28,15 @@ checked in this order, and the first failure moves it to
 
 Then the settings are read again, and the merge mode's function finds the
 changes (104) and blits them (106). The file is deleted after its blit. If a
-cell changed, that is the next version: kept in the history and handed to
-each publisher. A jump in a voice's turns counts the turns rmail skipped.
+cell changed, that is the next version: marked (201, `src/020-marks.lua`),
+kept in the history and handed to each publisher, so every publisher gets
+the version with its marks. The log gets a `marks:` line of counts for it. A jump in a voice's turns counts the turns rmail skipped.
 
 ## Settings, `input/blitter`
 
 `canvas-size` (fixed at start; resizing is 205), `merge-mode` and
-`collision-rule` (read again on every arrival), and `mark-lifetime` (for the
-marks, 201). A file that no longer reads while running keeps the last good
+`collision-rule` and `mark-lifetime` (read again on every arrival; a mark
+is dropped once it is more than `mark-lifetime` versions old). A file that no longer reads while running keeps the last good
 settings, and the error is logged and counted. A bad file at start stops it
 before it begins.
 
@@ -58,7 +59,8 @@ is the seam where a binding would go.
 `versions-made` (after version 1), `versions-in-history`, `turns-skipped`,
 `unchanged-turns`, `voice-marks-ignored`, `settings-not-read`, and the
 blit's counts summed: `words-written`, `removals-applied`, `conflicts`,
-`words-covered`, `cut-<outcome>`.
+`words-covered`, `cut-<outcome>`; and the marks' counts, in cells:
+`cells-marked-word`, `cells-marked-sentence`, `marks-expired`.
 
 | Name | Type | Meaning |
 |---|---|---|

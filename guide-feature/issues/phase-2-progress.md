@@ -11,5 +11,13 @@ Counts of done and open issues:
 `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/guide-feature -m`
 
 ## Completed Issues
-(None yet. Each completed issue adds a line here saying what it built
-and how it moves the phase toward its goals.)
+(Each completed issue adds a line here saying what it built and how it
+moves the phase toward its goals.)
+
+- **201, marks for skimming** (2026-11-05): `src/020-marks.lua` marks
+  every cell a blit wrote or blanked as a changed `word` and the rest of its
+  sentence as `sentence`, in the voice and version that changed it. A cell
+  keeps only its newest mark, and marks are dropped once over the mark
+  lifetime. The blitter marks each version before publishing it, and logs
+  and counts the marks. The viewer-side reader (202) and the canvas files
+  (203) now have marks to carry.

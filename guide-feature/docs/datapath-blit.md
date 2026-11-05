@@ -111,6 +111,14 @@ the same cell, and marks older than a set number of versions are dropped.
 Under `fade-fragments`, a cut word's leftover letters get `orphan` marks
 instead, and when an orphan mark expires its cells are blanked.
 
+Built in `src/020-marks.lua` (issue 201). It runs in the blitter before any
+publisher, so every publisher gets the version with its marks. A blanked
+cell between words belongs to the sentence `docs/canvas-format.md` gives it.
+A cell that was already blank, and is only blanked again, gets no new mark.
+Until `fade-fragments` is built, no blit makes orphans. The marker already
+marks orphan cells and lists the ones whose marks run out. Blanking those
+cells comes with `fade-fragments`.
+
 ## Step 5 — publish
 
 If any cell changed, `C` becomes version N+1 and is published
