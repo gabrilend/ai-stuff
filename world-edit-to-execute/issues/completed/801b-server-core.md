@@ -208,7 +208,7 @@ is still open and could reshape this along with 801a.
 - `src/matchmaking/server.lua` (core and socket layer) and
   `src/cli/matchmaking-serve.lua` (the daemon), with info pages;
   `REGISTER_GAME.host_name` added to `protocol.lua`.
-- `src/tests/test_matchmaking_server.lua` (109 checks, no network): every
+- `src/tests/test_matchmaking_server.lua` (109 checks, no network; 111 after the second round): every
   message's rules and refusals, broken bytes, the rate, output and
   connection limits, both timeouts on a hand-moved clock, the statistics,
   and twenty closed lobbies collected by the garbage collector.
@@ -224,3 +224,18 @@ is still open and could reshape this along with 801a.
   `ulimit -f`. All 36 are caught, two of them (a partly sent message's
   tail dropped, one connection accepted a tick) only after checks were
   added for them.
+
+## Decisions, second round (2026-11-05)
+
+16. **The message codec is a setting** (`config.codec`, `protocol.lua` by
+    default), so question Q-1 (should matchmaking speak 803's message
+    layer?) can be answered without touching the server: a codec over
+    803's layer with the same `encode` and `read_frame` and the same
+    message names and fields is all it takes.
+17. **The tests find their project** from their own path when given none,
+    as `src/cli/run-tests.sh` runs them (by full path, from the project),
+    and end with a `Tests: N passed, M failed` line it can count. The
+    runner's own default folder is unchanged. `test_matchmaking_protocol.lua`
+    (801a's) got the same two lines.
+
+The server tests are 111 checks now (two for the codec).

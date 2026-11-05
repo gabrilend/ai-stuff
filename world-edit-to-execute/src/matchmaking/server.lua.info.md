@@ -14,7 +14,9 @@ connection non-blocking, one `select()` a tick. LuaSocket is loaded only by
   `lobby_timeout_seconds` (3600), `idle_timeout_seconds` (120),
   `rate_per_second` (50) and `rate_burst` (100) messages, `max_output_bytes`
   (4 MiB unsent), `max_name` (64 bytes). Also `clock` (seconds) and `log`
-  (a function taking one line).
+  (a function taking one line), and `codec` (`encode`, `read_frame`;
+  `protocol.lua` by default: the seam for question Q-1, should matchmaking
+  speak 803's message layer).
 
 The core:
 
