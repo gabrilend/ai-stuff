@@ -233,7 +233,9 @@ for name, value in pairs(expected_counts) do
     end
 end
 for name in pairs(receipt.counters) do
-    if expected_counts[name] == nil and name ~= "words-covered" then
+    -- words-covered is the blit's (015); the marks' counters are 201's (021)
+    if expected_counts[name] == nil and name ~= "words-covered"
+        and not string.match(name, "^cells%-marked%-") and name ~= "marks-expired" then
         wrong[#wrong + 1] = name .. " not expected"
     end
 end

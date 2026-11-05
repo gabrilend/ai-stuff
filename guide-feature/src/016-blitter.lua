@@ -44,14 +44,15 @@ local canvas = dofile(DIR .. "/src/006-canvas-text.lua")
 local changes = dofile(DIR .. "/src/010-changes.lua")
 local fit = dofile(DIR .. "/src/012-fit-check.lua")
 local blit = dofile(DIR .. "/src/014-blit.lua")
+local marks = dofile(DIR .. "/src/020-marks.lua")
 
 local M = {}
 
 -- {{{ M.SETTINGS
 -- input/blitter. merge-mode and collision-rule are read again on every
 -- arrival, so they can be changed while it runs; the size is fixed at start
--- (resizing is issue 205). mark-lifetime is read and logged now, and used by
--- the marks (201).
+-- (resizing is issue 205). mark-lifetime, in versions, is how long a mark
+-- stays (201): a mark is dropped once its age is over it.
 local function rule_names()
     local names = {}
     for name in pairs(blit.RULES) do names[#names + 1] = name end
@@ -81,8 +82,9 @@ M.MODES = {
 
 -- {{{ M.log_publisher()
 -- Phase 1's only publisher: each new version, row by row, in the log.
--- Files (203), rmail (303) and marks (201) are added to the list later, each
--- a function(blitter, record, report).
+-- Files (203) and rmail (303) are added to the list later, each a
+-- function(blitter, record, report). Marks (201) are made before any
+-- publisher runs, so every publisher is handed the version with its marks.
 function M.log_publisher(self, record)
     self.run:log("version " .. record.headers.canvas .. ":")
     for _, row in ipairs(record.rows) do
@@ -259,21 +261,42 @@ function Blitter:take(name)
         return "unchanged"
     end
     self.run:count("versions-made")
-    self:publish(new, report, summary)
+    self:publish(new, report, summary, parts.sender)
     return "blitted"
     -- }}}
 end
 -- }}}
 
 -- {{{ function Blitter:publish()
--- The next version: kept in the history and handed to every publisher.
-function Blitter:publish(new, report, summary)
+-- The next version: marked (201), kept in the history and handed to every
+-- publisher. `voice` is whose blit it is; version 1 has neither a report nor
+-- a voice, and no marks.
+function Blitter:publish(new, report, summary, voice)
     self.version = self.version + 1
     new.headers = { canvas = self.version, size = { width = new.width, height = new.height },
                     mode = self.settings["merge-mode"], written = self.run.clock() }
+    local marked
+    if report then
+        marked = marks.mark(self.current, new, report, voice, self.version,
+            self.settings["mark-lifetime"])
+        new.marks = marked.marks
+        self.run:count("cells-marked-word", marked.counts.word)
+        self.run:count("cells-marked-sentence", marked.counts.sentence)
+        self.run:count("marks-expired", marked.counts.expired)
+        -- No collision rule built yet leaves fragments to fade, so there are
+        -- no orphans; fade-fragments brings their blanking with it.
+        assert(#marked.expired_orphans == 0, "orphan marks expired, but nothing blanks them yet")
+    else
+        new.marks = {}
+    end
     self.current = new
     self.history[self.version] = new
     self.run:log(summary .. "; now version " .. self.version)
+    if marked then
+        self.run:log(string.format("marks: %d cells word, %d cells sentence, %d expired, "
+            .. "%d runs", marked.counts.word, marked.counts.sentence, marked.counts.expired,
+            #marked.marks))
+    end
     for _, publisher in ipairs(self.publishers) do
         publisher(self, new, report)
     end

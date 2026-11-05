@@ -15,6 +15,7 @@ merge-mode     = "newest"
 # terminal would. Read again on every arrival.
 collision-rule = "blank-whole"
 
-# How many versions a mark lasts before it is dropped (used by the marks,
-# issue 201).
+# How long a mark lasts, in versions: a mark is dropped once it is more than
+# this many versions old, so 0 shows a change only on the version that made
+# it. Read again on every arrival.
 mark-lifetime  = 12
