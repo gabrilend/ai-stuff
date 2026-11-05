@@ -1,0 +1,6 @@
+The terminal view's reference screens (issue 801): each test canvas in
+assets/test-canvases/ as src/070-terminal-view.lua draws it for an 80x24
+terminal with the project's input/terminal-view, byte for byte, escape codes
+included. `cat` one in a terminal to see it. src/071-test-terminal-view.lua
+compares against them, and rewrites them with --write-references (look at
+them before committing).

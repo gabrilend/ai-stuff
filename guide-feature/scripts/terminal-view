@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+#
+# terminal-view - the canvas in this terminal (issue 801), redrawn whenever
+# a new version is written, until Ctrl-C or a TERM signal.
+#
+# The view stops cleanly when a file named `stop` appears in
+# tmp/shared-memory/terminal-view/: it writes its goodbye receipt. LuaJIT
+# cannot catch a signal, so this script catches it instead and drops the
+# stop file, then waits for the view to say goodbye.
+#
+# Usage:
+#   scripts/terminal-view                 the project at its usual place
+#   scripts/terminal-view <dir> [OPTIONS] the project at <dir>; OPTIONS go to
+#                                         src/070-terminal-view.lua (--once,
+#                                         --replay FOLDER, --size CxR, ...)
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+if [ -n "${1:-}" ] && [ "${1#--}" = "$1" ]; then
+    DIR="$1"
+    shift
+fi
+STOP="${DIR}/tmp/shared-memory/terminal-view"
+
+luajit "${DIR}/src/070-terminal-view.lua" --dir "${DIR}" "$@" &
+VIEW=$!
+
+stop_cleanly() {
+    mkdir -p "${STOP}"
+    : > "${STOP}/stop"
+}
+trap stop_cleanly INT TERM
+
+while kill -0 "${VIEW}" 2>/dev/null; do
+    wait "${VIEW}"
+    STATUS=$?
+done
+# the cursor back below the canvas
+printf '\n'
+exit "${STATUS:-0}"

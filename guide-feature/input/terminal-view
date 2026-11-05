@@ -1,0 +1,21 @@
+# The terminal view's settings (src/070-terminal-view.lua, issue 801).
+# Text goes in double quotes; numbers bare. Read once at start.
+
+# Each voice's colour, as a standard terminal colour code (30 black, 31 red,
+# 32 green, 33 yellow, 34 blue, 35 magenta, 36 cyan, 37 white), in the order
+# of the canvas's voices: header (input/blitter's voices).
+colours        = "31 32 34"
+
+# The distiller's colour (distill mode's marks carry the name kuvalu).
+kuvalu-colour  = 35
+
+# How bright a mark is drawn, by its age in versions: the first step is for
+# a mark made at this version (age 0), the next for age 1, and so on; older
+# marks take the last step. Each step is "bright", "normal" or "dim". Word
+# marks start bright; sentence marks (the rest of a changed sentence) start
+# dimmer, so the changed words stand out inside their sentence.
+word-steps     = "bright bright normal normal dim"
+sentence-steps = "normal dim"
+
+# How often canvas/current is looked at for a new version, in seconds.
+check-every    = 0.25

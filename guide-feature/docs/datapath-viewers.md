@@ -58,6 +58,10 @@ changed words stand out inside their changed sentence.
 A screen smaller than the canvas shows an error naming both sizes. It does
 not crop or rewrap.
 
+The terminal view is built (issue 801, `src/070-terminal-view.lua`,
+`scripts/terminal-view`): the colours and the age-to-step tables are in
+`input/terminal-view`, and its reference screens in `assets/test-terminal/`.
+
 ## One canvas for each screen
 
 Each watched screen gets a canvas made at its own size, so no canvas is
