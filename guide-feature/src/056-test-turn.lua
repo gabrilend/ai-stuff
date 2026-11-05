@@ -218,8 +218,9 @@ check("the log names the endpoint and gives the numbers",
     and has(log, "turn 1 on version 18 fits: endpoint stand-in-house (" .. house.url
         .. "), asks 1, tries 1, problems: none, look calls 0, tokens ")
     and has(log, " sentences changed (12 and 1 recommended)"), log)
-check("and says the project clone waits for 501",
-    has(log, "project guide-feature at 9f2c1e0: the clone comes with issue 501"), log)
+check("with no clone settings here, it says there is no clone and goes on (501)",
+    has(log, "turn 1 on version 18: no clone of the project: ")
+    and r1.counters["clone-failed"] == 1, log)
 -- }}}
 
 io.write("\n=== a reply that does not fit ===\n")

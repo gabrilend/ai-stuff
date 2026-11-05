@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# project-clone - brings this voice's clone of a project to a commit, as a
+# turn does at its start (issue 501): clones it (in RAM if it fits, on disk
+# if not), or fetches and checks out, and says which.
+#
+#   scripts/project-clone --voice fg-sora-1 --project guide-feature --commit 9f2c1e0
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/058-project-clone.lua" --dir "${DIR}" "$@"

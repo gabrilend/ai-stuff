@@ -1,0 +1,29 @@
+# The clone keeper's settings (issue 501), on each voice. Numbers bare.
+# At the start of every turn the voice brings its clone of the project the
+# canvas names to the commit the canvas names (src/058-project-clone.lua).
+
+# Where each project comes from, by the name the canvas's project: header
+# gives it: a repository on kuvalu, reached over SSH (HOST:/PATH, allowed
+# between the four machines, docs/network.md), or a path on this machine.
+# folder. is the project's own folder inside that repository, the only part
+# checked out; "." for the whole repository.
+repository.guide-feature = "kuvalu:/mnt/mtwo/programming/ai-stuff"
+folder.guide-feature     = "guide-feature"
+
+# Where clones go. RAM first: the project's RAM tier (tmp/shared-memory/ is
+# /dev/shm, a tmpfs). A clone goes there when the RAM folder is a tmpfs that
+# can be written and the project, with the working room below, fits
+# ram-share of the memory available; otherwise it goes in disk-folder, the
+# slower path, and the turn's log says why. Paths start at the project root
+# unless they start with / or ~/. Each voice's clones are kept under its own
+# name, one per project.
+ram-folder   = "tmp/shared-memory/clones"
+disk-folder  = "clones"
+
+# The share of the machine's available memory (MemAvailable) that a clone
+# and the turn's working room may take, from above 0 to 1.
+ram-share    = 0.5
+
+# MiB kept for the turn's own working memory beside the clone (a model run
+# on this machine would need more).
+working-room = 512

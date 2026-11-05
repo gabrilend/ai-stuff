@@ -7,7 +7,8 @@
 -- real one (issue 405), the seven steps of docs/datapath-voice-turn.md:
 --
 --   1. read the canvas kuvalu sent (to-voices, 006);
---   2. the project clone: nothing yet, until issue 501 builds it;
+--   2. the project clone: this voice's clone of the project the canvas
+--      names, brought to its commit, in RAM if it fits (501, 058);
 --   3. the endpoint: this voice's own line in the canvas (402), its key read
 --      on this machine;
 --   4. the opening conversation (403), with last turn's advisory note;
@@ -58,6 +59,7 @@ local runner = dofile(DIR .. "/src/038-turn-runner.lua")
 local caller = dofile(DIR .. "/src/046-model-caller.lua")
 local prompt = dofile(DIR .. "/src/049-turn-prompt.lua")
 local ask = dofile(DIR .. "/src/051-ask-until-it-fits.lua")
+local clone = dofile(DIR .. "/src/058-project-clone.lua")
 
 local M = {}
 
@@ -94,13 +96,31 @@ function M.note_path(root, voice) return root .. "/output/turn-note-" .. voice e
 -- }}}
 
 -- {{{ function M.project()
--- Step 2: the project clone at the commit the canvas names. Issue 501 builds
--- the clone; until then there is nothing to bring up to date, and the line
--- for the log says so.
-function M.project(record)
-    local project = record.headers.project or {}
-    return string.format("project %s at %s: the clone comes with issue 501; this turn "
-        .. "works on the canvas alone", tostring(project.name), tostring(project.commit))
+-- Step 2: the clone keeper (501) brings this voice's clone of the project to
+-- the commit the canvas names. The log says where the clone is, RAM or disk,
+-- and why; the receipt counts clone-ram or clone-disk, clone-made,
+-- clone-fetched, clone-moved and clone-milliseconds. A clone that cannot be
+-- made is logged and counted (clone-failed), and the turn goes on with the
+-- canvas alone: the canvas is the work, the clone only what a look sees.
+-- Returns the kept clone, or nil and why. opts.clone passes the keeper's
+-- seams (memory, filesystem_of, free_space) through, for tests.
+function M.project(opts, record, run, where)
+    local seams = opts.clone or {}
+    local ok, kept = pcall(clone.keep, { root = opts.root, voice = opts.voice,
+        project = record.headers.project, memory = seams.memory,
+        filesystem_of = seams.filesystem_of, free_space = seams.free_space })
+    if not ok then
+        run:count("clone-failed")
+        run:log(where .. ": no clone of the project: " .. tostring(kept))
+        return nil, tostring(kept)
+    end
+    run:count("clone-" .. kept.place)
+    if kept.made then run:count("clone-made") end
+    if kept.fetched then run:count("clone-fetched") end
+    if kept.moved then run:count("clone-moved") end
+    run:count("clone-milliseconds", math.floor(kept.seconds * 1000 + 0.5))
+    run:log(where .. ": " .. clone.describe(kept))
+    return kept
 end
 -- }}}
 
@@ -194,7 +214,7 @@ function M.run(opts)
         local where = string.format("turn %d on version %d", number, version)
         run:log(where .. ": started")
         -- 2. the project clone
-        run:log(where .. ": " .. M.project(record))
+        M.project(opts, record, run, where)
         -- 3. the endpoint
         local endpoint = caller.from_canvas(record, voice, root)
         run:log(where .. ": endpoint " .. caller.describe(endpoint)

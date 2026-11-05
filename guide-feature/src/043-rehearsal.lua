@@ -41,7 +41,9 @@
 -- real turn, 405, with input/turn, input/turn-instructions and the voices'
 -- endpoints from the endpoints file; or the stand-in, with
 -- input/stand-in-turn), the canvas in input/blitter and the project's
--- checkout in input/to-voices, all copied into the workspace.
+-- checkout in input/to-voices, all copied into the workspace. The voices'
+-- clone settings (input/project-clone, 501) are copied with each project
+-- named to come from that checkout, here on this machine.
 -- (issue 305) LuaJIT-compatible.
 
 -- {{{ local DIR
@@ -142,6 +144,30 @@ function M.workspace(root, values, ws)
         "send = " .. text_value("on"), "mailbox = " .. text_value(w.guide),
         "tell-the-voice = " .. text_value(mailed["tell-the-voice"]),
         "project-checkout = " .. text_value(mailed["project-checkout"]) }, "\n") .. "\n")
+    -- the project clone (501): every voice clones the project from the
+    -- checkout kuvalu reads the commit from, here on this machine, with the
+    -- project's own placement settings
+    local cloning = slurp(root .. "/input/project-clone")
+    if cloning then
+        local name = settings.read("blitter", blitter.SETTINGS, { root = root }).project
+        local checkout = mailed["project-checkout"]
+        if string.sub(checkout, 1, 2) == "~/" then
+            checkout = (os.getenv("HOME") or "") .. string.sub(checkout, 2)
+        end
+        local top = shell("git -C " .. quote(checkout) .. " rev-parse --show-toplevel")
+        local prefix = shell("git -C " .. quote(checkout) .. " rev-parse --show-prefix")
+        prefix = string.gsub(prefix or "", "/$", "")
+        local lines = {}
+        for line in string.gmatch(cloning .. "\n", "([^\n]*)\n") do
+            if not string.match(line, "^%s*repository%.") and not string.match(line, "^%s*folder%.") then
+                lines[#lines + 1] = line
+            end
+        end
+        while lines[#lines] == "" do lines[#lines] = nil end
+        lines[#lines + 1] = "repository." .. name .. " = " .. text_value(top)
+        lines[#lines + 1] = "folder." .. name .. " = " .. text_value(prefix ~= "" and prefix or ".")
+        write(w.root .. "/input/project-clone", table.concat(lines, "\n") .. "\n")
+    end
     local guide = settings.read("turn-runner", runner.SETTINGS, { root = w.root }).guide
     -- the four mailboxes, on this machine, by the mailbox setup (301)
     local port = values["first-port"]

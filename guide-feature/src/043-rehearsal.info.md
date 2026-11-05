@@ -15,6 +15,9 @@ as `scripts/rehearse [ROOT] [--minutes M] [--keep]`, or as a library with
   voice's endpoint from the copied `endpoints`; or phase 3's stand-in turn
   with `input/stand-in-turn`. `scripts/use-endpoint` on the workspace's
   copy switches a voice while it runs (402).
+- `input/project-clone` is copied with the project named to come from the
+  checkout `input/to-voices` names, here on this machine (its top and the
+  project's folder in it), so each voice clones it at its first turn (501).
 - It runs the blitter in-process with the to-voices publisher.
 - The mail is carried by the stand-in carrier (041), or by real rmail
   daemons when `carrier = "rmail"`.
