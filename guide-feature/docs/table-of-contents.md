@@ -23,6 +23,8 @@ and issue files do not; they have their own indexes.
   - docs/endpoints.md - the endpoints file in the project root.
   - docs/embedding-index-contract.md - what the look tool needs from a
     project's embedding index.
+    - docs/embedding-index-build-guide.md - how to give a project an index
+      that meets it, followed for guide-feature itself.
 - Surroundings
   - docs/network.md - the router rules, and what each part needs from them.
   - docs/rmail-constraints.md - what rmail provides and what is built around

@@ -34,6 +34,7 @@ local DIR = string.match(SOURCE, "^@(.+)/src/[^/]*$")
 local ffi = require("ffi")
 local settings = dofile(DIR .. "/src/001-settings.lua")
 local client = dofile(DIR .. "/libs/llama-chat-client.lua")
+local json = dofile(DIR .. "/libs/dkjson.lua")
 
 -- The same declarations, by the same names, as the turn runner (038) makes:
 -- C has one clock_gettime, so a process that loads both (the turn, 405) must
@@ -202,6 +203,25 @@ function M.count_tokens(endpoint, text)
     local count, problem = client.count_tokens(endpoint, text)
     if not count then fail(endpoint, problem) end
     return count
+end
+-- }}}
+
+-- {{{ function M.model_name()
+-- The name of the model the endpoint serves, as its GET /v1/models reports
+-- it (the first one listed). The embedding index records it, so a query is
+-- embedded by the same model (docs/embedding-index-contract.md).
+function M.model_name(endpoint)
+    local pipe = io.popen(string.format("curl -sS --max-time %d '%s/v1/models' 2>&1",
+        endpoint.timeout or 10, client.endpoint(endpoint)))
+    local text = pipe:read("*a")
+    pipe:close()
+    local decoded = json.decode(text)
+    local first = type(decoded) == "table" and type(decoded.data) == "table" and decoded.data[1]
+    if type(first) ~= "table" or type(first.id) ~= "string" then
+        fail(endpoint, "it does not name its model at /v1/models"
+            .. (text ~= "" and (" (" .. string.sub(string.gsub(text, "%s+", " "), 1, 120) .. ")") or ""))
+    end
+    return first.id
 end
 -- }}}
 
