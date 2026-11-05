@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# turn-hook - a voice's rmail hook, for on_receive and on_update (issue
+# 304). The voice mailbox's hooks/guide-hook runs this with a first word,
+# receive or update, then rmail's arguments. It leaves kuvalu's newest
+# canvas in tmp/shared-memory/turn/<voice>/waiting, starts the turn
+# runner if it is idle, prints nothing, and exits.
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/037-turn-hook.lua" --dir "${DIR}" "$@"

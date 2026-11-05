@@ -33,3 +33,13 @@ moves the phase toward its goals.)
   form, with the project's current commit and each voice's cut words from
   its latest turn (`src/035-to-voices.lua`, `input/to-voices`). The
   receipt counts the versions handed to rmail.
+- **304, the turn hook on each voice** (2026-11-05): `scripts/turn-hook`
+  (`src/037-turn-hook.lua`) leaves kuvalu's newest canvas waiting in
+  `tmp/shared-memory/turn/<voice>/` and starts the turn runner unless it is
+  running, printing nothing and returning at once. The runner
+  (`src/038-turn-runner.lua`) holds a lock that no two runners can share
+  and that a dead runner cannot keep, runs one turn at a time, always on
+  the newest canvas, and sends each changed canvas back to the guide. The
+  turn is a program named in `input/turn-runner`: phase 3's stand-in
+  (`src/039-stand-in-turn.lua`) writes scripted words, and 405's real
+  turn takes its place there.

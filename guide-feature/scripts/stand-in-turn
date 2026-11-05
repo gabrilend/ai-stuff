@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# stand-in-turn - phase 3's turn (issue 304): writes one scripted word
+# into the canvas, as the turn runner's turn setting names it, until the
+# real turn (405) replaces it there.
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/039-stand-in-turn.lua" --dir "${DIR}" "$@"

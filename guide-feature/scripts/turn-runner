@@ -1,0 +1,11 @@
+#!/bin/sh
+#
+# turn-runner - the voice's turn runner (issue 304), started in the
+# background by the turn hook as  turn-runner --mailbox FOLDER. It takes
+# the voice's lock, runs one turn per waiting canvas, newest only, sends
+# each result back to kuvalu, and exits when nothing waits.
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/038-turn-runner.lua" --dir "${DIR}" "$@"

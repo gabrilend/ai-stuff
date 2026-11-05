@@ -7,7 +7,7 @@ output to the outbox with the correct formatting and such."
 
 ## One turn
 
-    tmp/shared-memory/turn/waiting
+    tmp/shared-memory/turn/<voice>/waiting
        │
        1. read the canvas (version N, size, project, mode)
        │
@@ -57,14 +57,47 @@ output to the outbox with the correct formatting and such."
 
 ## One turn at a time
 
-The turn hook only leaves the newest canvas in `turn/waiting` and starts the
-turn runner if it is idle (`docs/datapath-round-trip.md`, steps 3–4). A
-canvas that arrives during a turn waits. Two that arrive during a turn: the
-older is replaced. After its turn the runner always starts from the newest
-canvas, never from one it skipped.
+The turn hook only leaves the newest canvas in `turn/<voice>/waiting` and
+starts the turn runner if it is idle (`docs/datapath-round-trip.md`, steps
+3–4). A canvas that arrives during a turn waits. Two that arrive during a
+turn: the older is replaced. After its turn the runner always starts from
+the newest canvas, never from one it skipped. (Built in issue 304:
+`src/037-turn-hook.lua`, `src/038-turn-runner.lua`.)
+
+The lock is the directory `turn/<voice>/lock`, holding `pid`: the runner's
+process number and the time the system started that process. It is made
+under another name with `pid` already inside, then renamed into place, so
+it appears whole or not at all and two runners can never both hold it. A
+lock whose process is not running, or whose number now belongs to a process
+started at another time, was left by a runner that died: it is moved aside,
+removed, and the runner logs `cleared a lock left by process N, which is not
+running`.
+
+The runner runs the turn as a program, named by `turn` in
+`input/turn-runner`:
+
+    <turn> --dir ROOT --voice NAME --turn N --canvas FILE --out FILE
+
+It reads the to-voices canvas in `--canvas` and writes the voice's canvas
+to `--out`. The runner reads that back and checks its voice, turn, base and
+size before anything is sent. A turn that changed no row sends nothing and
+keeps its turn number; a turn that fails (non-zero exit, nothing written,
+wrong headers) sends nothing either. The turn number grows by one for every
+canvas sent. In phase 3 the turn is the stand-in (`scripts/stand-in-turn`),
+which writes one word from `input/stand-in-turn` into the voice's third of
+the canvas; the real turn (issue 405) replaces it in that setting.
 
 ## What the turn counts
 
 In the log and the goodbye receipt (`tmp/shared-memory/` and `output/` on
 the voice): turns run, canvases sent, unchanged turns, look calls (by focus),
 fit retries by kind, endpoint used, seconds and tokens per turn.
+
+Built so far (issue 304): the runner's receipt `output/goodbye-turn-runner-
+<voice>` counts `turns-run`, `canvases-sent`, `unchanged-turns`,
+`turns-failed` and `canvases-refused` (a waiting text that is not a
+canvas); its log gives the seconds of every turn. Each step is also a line
+in `tmp/shared-memory/turn/<voice>/events`, `<unix time, ms> <event>
+<version> [turn]`, with the events `received`, `replaced`, `taken`, `sent`,
+`unchanged`, `failed`, `refused` and `busy`, which the rehearsal (305)
+reads for its timings. The rest come with the real turn (405).

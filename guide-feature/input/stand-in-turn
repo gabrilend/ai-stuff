@@ -1,0 +1,8 @@
+# The stand-in turn's settings (src/039-stand-in-turn.lua), phase 3's turn
+# until the real one (issue 405). Text goes in double quotes; numbers bare.
+
+# The words it writes, one a turn, in order, round again after the last.
+words = "lantern harbor kitten orchard ember meadow willow quartz ripple"
+
+# How long a turn takes, in seconds, as a model's turn would.
+seconds = 2
