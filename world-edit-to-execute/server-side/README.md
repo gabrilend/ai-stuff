@@ -24,8 +24,12 @@ The boundary, kept by `src/tests/test_wow_triggers.lua`:
 | Path | What it is |
 |------|------------|
 | `ale/wc3shim/init.lua` | the shim: `shim.new(ale, data, opts)`, threads and waits, events, the script's environment, the report of what a script called that the shim lacks |
-| `ale/wc3shim/core.lua` | natives that don't touch the world: numbers, strings, triggers, boolexprs, timers, waits |
-| `ale/wc3shim/world.lua` | players' gold and lumber, units made at a point, locations, rects, regions and units entering them |
+| `ale/wc3shim/core.lua` | natives that don't touch the world: numbers, strings, conversions, Blizzard.j's arithmetic and random tables, triggers, boolexprs, timers, waits |
+| `ale/wc3shim/world.lua` | players' gold and lumber, units made at a point, locations, rects, regions and units entering them, geometry |
+| `ale/wc3shim/players.lua` | players' slots, alliances, tech limits, the map's setup, forces, messages to players, chat and leave events |
+| `ale/wc3shim/units.lua` | units' life (mirrored onto the creature), death, owner, position, facing, flags, abilities; heroes; orders; unit events |
+| `ale/wc3shim/groups.lua` | unit groups, ForGroup, enumerations, group orders |
+| `ale/wc3shim/sounds.lua` | sounds and music, kept and handed to a hook (the server plays nothing) |
 | `ale/wc3shim/covered.lua` | data: every native the shim implements, by group |
 | `ale/wc3shim/fake_ale.lua` | a stand-in for ALE's API in plain Lua, so the shim is tested without a server |
 

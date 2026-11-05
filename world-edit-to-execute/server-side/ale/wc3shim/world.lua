@@ -86,7 +86,14 @@ return function(S, N, shim)
         n = math.floor(n or 0)
         local p = self.players[n]
         if not p then
-            p = self:handle({ kind = "player", id = n, name = "Player " .. (n + 1), gold = 0, lumber = 0, food_cap = 0 })
+            -- as the VM's (src/jass/natives/world.lua): the slots 0-11
+            -- playing, 12-15 neutral; players.lua reads the rest
+            p = self:handle({ kind = "player", id = n, name = "Player " .. (n + 1), color = n, team = n,
+                              gold = 0, lumber = 0, food_cap = 0,
+                              controller = n >= 12 and "MAP_CONTROL_NEUTRAL" or "MAP_CONTROL_USER",
+                              slot = n < 12 and "PLAYER_SLOT_STATE_PLAYING" or "PLAYER_SLOT_STATE_EMPTY",
+                              race = "RACE_HUMAN", ally = {}, vision = {}, tech_max = {}, abilities_off = {},
+                              start = n })
             self.players[n] = p
         end
         return p
@@ -199,6 +206,40 @@ return function(S, N, shim)
     N.CreateRegion = function() return S:handle({ kind = "region", rects = {} }) end
     N.RemoveRegion = function() end
     N.RegionAddRect = function(g, r) g.rects[#g.rects + 1] = r end
+    -- W02e step 2: Blizzard.j's rect functions, points in regions,
+    -- the map's area (map-data.lua's bounds: the WC3 ground's, as the VM's
+    -- game takes them; else the VM's bare default)
+    N.MoveRectToLoc = function(r, l) N.MoveRectTo(r, l.x, l.y) end
+    N.GetRectWidthBJ = function(r) return r.maxx - r.minx end
+    N.GetRectHeightBJ = function(r) return r.maxy - r.miny end
+    N.RectContainsLoc = function(r, l) return N.RectContainsCoords(r, l.x, l.y) end
+    N.GetRandomLocInRect = function(r)
+        return N.Location(r.minx + math.random() * (r.maxx - r.minx), r.miny + math.random() * (r.maxy - r.miny))
+    end
+    N.RectFromCenterSizeBJ = function(l, w, h) return N.Rect(l.x - w / 2, l.y - h / 2, l.x + w / 2, l.y + h / 2) end
+    N.OffsetRectBJ = function(r, dx, dy) return N.Rect(r.minx + dx, r.miny + dy, r.maxx + dx, r.maxy + dy) end
+    N.IsPointInRegion = function(g, x, y)
+        for _, r in ipairs(g.rects) do if N.RectContainsCoords(r, x, y) then return true end end
+        return false
+    end
+    N.IsLocationInRegion = function(g, l) return N.IsPointInRegion(g, l.x, l.y) end
+    local b = data.bounds or { x0 = -8192, y0 = -8192, x1 = 8192, y1 = 8192 }
+    local map_rect = N.Rect(b.x0, b.y0, b.x1, b.y1)
+    N.GetWorldBounds = function() return N.Rect(b.x0, b.y0, b.x1, b.y1) end
+    N.GetEntireMapRect = N.GetWorldBounds
+    N.GetPlayableMapRect = function() return map_rect end
+    N.GetCameraBoundsMapRect = N.GetPlayableMapRect
+    S.constants.bj_mapInitialPlayableArea = map_rect
+    -- }}}
+
+    -- {{{ Geometry (Blizzard.j's)
+    local atan2 = math.atan2 or math.atan
+    N.DistanceBetweenPoints = function(a, c) return math.sqrt((c.x - a.x) ^ 2 + (c.y - a.y) ^ 2) end
+    N.AngleBetweenPoints = function(a, c) return math.deg(atan2(c.y - a.y, c.x - a.x)) end
+    N.PolarProjectionBJ = function(l, dist, angle)
+        return N.Location(l.x + dist * math.cos(math.rad(angle)), l.y + dist * math.sin(math.rad(angle)))
+    end
+    N.OffsetLocation = function(l, dx, dy) return N.Location(l.x + dx, l.y + dy) end
     -- }}}
 
     -- {{{ Units
@@ -215,12 +256,21 @@ return function(S, N, shim)
                 u.wow_x, u.wow_y = X, Y
             end
             local o = c:GetO()
-            if o then u.facing = math.rad(S.to_facing(o)) end
+            if o and o ~= u.wow_o then
+                u.facing = math.rad(S.to_facing(o))
+                u.wow_o = o
+            end
             u.alive = c:IsAlive() and true or false
         end
         return u
     end
     S.sync = sync
+    -- living: not removed, not dead (as the VM's alive)
+    function S.alive(u)
+        if u == nil or u.removed then return false end
+        sync(u)
+        return u.alive ~= false
+    end
 
     local function adopt(id, p, x, y)
         local list = spawns[id .. "@" .. tostring(p.id)]
@@ -242,19 +292,24 @@ return function(S, N, shim)
         end
         return z
     end
+    S.ground = ground
 
     local function create(p, id, x, y, facing)
         if not p then return nil end
         id = shim.id2s(id)
         x, y, facing = x or 0, y or 0, facing or 0
-        local u = S:handle({ kind = "unit", id = id, player = p.id, x = x, y = y, facing = math.rad(facing), alive = true })
+        -- life: WC3's numbers on the unit, as the VM's bare world starts
+        -- them (100 of 100) until the templates carry WC3's hit points
+        -- (units.lua mirrors the fraction onto the creature)
+        local u = S:handle({ kind = "unit", id = id, player = p.id, x = x, y = y, facing = math.rad(facing), alive = true,
+                             hp = 100, hp_max = 100 })
         local faction = faction_of[p.id]
         local s = S.adopting and adopt(id, p, x, y)
         if s then
             u.entry, u.guid, u.adopted = s.entry, s.guid, true
             local m = map()
             u.creature = m and m:GetWorldObject(ale.GetUnitGUID(s.guid, s.entry)) or nil
-            if u.creature then u.wow_x, u.wow_y = u.creature:GetX(), u.creature:GetY() end
+            if u.creature then u.wow_x, u.wow_y, u.wow_o = u.creature:GetX(), u.creature:GetY(), u.creature:GetO() end
             S.counts.adopted = S.counts.adopted + 1
         else
             local e = entries[id]
@@ -264,9 +319,9 @@ return function(S, N, shim)
                 S.counts.ghosts = S.counts.ghosts + 1
             else
                 local X, Y = S.to_wow(x, y)
-                u.wow_x, u.wow_y = X, Y
-                local c = ale.PerformIngameSpawn(1, entry, map_id, instance, X, Y, ground(X, Y),
-                                                 S.to_orientation(facing), false, 0)
+                local o = S.to_orientation(facing)
+                u.wow_x, u.wow_y, u.wow_o = X, Y, o
+                local c = ale.PerformIngameSpawn(1, entry, map_id, instance, X, Y, ground(X, Y), o, false, 0)
                 if c then
                     if faction and not e[faction] then c:SetFaction(faction) end
                     u.creature, u.entry, u.guid = c, entry, c:GetGUIDLow()
@@ -310,7 +365,6 @@ return function(S, N, shim)
     -- whose position (or life) changed since the last look is tested
     -- against every watched rect; registering doesn't fire for units
     -- already inside.
-    local polling = false
     local function inside(r, u) return u.alive ~= false and u.x >= r.minx and u.x <= r.maxx and u.y >= r.miny and u.y <= r.maxy end
     function S:check_rects()
         local regs = self.watched_rects
@@ -337,9 +391,19 @@ return function(S, N, shim)
             end
         end
     end
+    -- one look every shim.RECT_CHECK_MS, once anything needs one: the rects
+    -- watched, and units dying on the server (units.lua's check_deaths)
+    local polling = false
     local function poll()
-        S:check_rects()
+        if #S.watched_rects > 0 then S:check_rects() end
+        if S.check_deaths and S.watch_deaths then S:check_deaths() end
         S:after(shim.RECT_CHECK_MS / 1000, poll)
+    end
+    function S:start_polling()
+        if not polling then
+            polling = true
+            S:after(shim.RECT_CHECK_MS / 1000, poll)
+        end
     end
     function S:watch_rect(reg)
         reg.inside = {}
@@ -348,10 +412,7 @@ return function(S, N, shim)
             if inside(reg.rect, u) then reg.inside[u] = true end
         end
         self.watched_rects[#self.watched_rects + 1] = reg
-        if not polling then
-            polling = true
-            S:after(shim.RECT_CHECK_MS / 1000, poll)
-        end
+        self:start_polling()
     end
     local function region_regs(trig, region, filter, enter)
         local event = enter and "EVENT_GAME_ENTER_REGION" or "EVENT_GAME_LEAVE_REGION"

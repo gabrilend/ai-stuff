@@ -1,5 +1,5 @@
 --[[
-Tests for W02e (triggers on the server), step 1: the shim
+Tests for W02e (triggers on the server), steps 1 and 2: the shim
 (server-side/ale/wc3shim/) on a fake ALE, checked against the project's
 own runtime (src/jass/vm.lua) on the same scripts, and the converter's
 coverage report (src/wowbuild/triggers.lua) for the maps in assets/.
@@ -473,6 +473,346 @@ endfunction
 end
 -- }}}
 
+-- {{{ Step 2 (the natives most called): helpers
+-- every ALE call a fake heard is listed in shim.ALE_USED
+local function ale_listed(A4)
+    local miss = {}
+    for name in pairs(A4.used) do if not listed[name] then miss[#miss + 1] = name end end
+    table.sort(miss)
+    return #miss == 0, table.concat(miss, " ")
+end
+-- map data with the reference's constants (bj_ALLIANCE_* ...), as the converter writes it
+local function made_data2(extra)
+    local d = made_data(extra)
+    d.constants = d.constants or REF.constants
+    return d
+end
+local BOOL = [[
+function B takes boolean b returns string
+    if b then
+        return "T"
+    endif
+    return "F"
+endfunction
+]]
+-- }}}
+
+-- {{{ Units' state, heroes, orders and unit events
+section("Units' state, heroes, orders and unit events: the shim against the VM")
+
+local UNITSTATE = BOOL .. [[
+globals
+    unit a = null
+    unit b = null
+    unit c = null
+    unit d = null
+    unit h = null
+    trigger td = null
+    trigger to = null
+    trigger tl = null
+endglobals
+function Died takes nothing returns nothing
+    call Log("died " + I2S(GetUnitTypeId(GetDyingUnit())) + " of " + I2S(GetPlayerId(GetTriggerPlayer())) + " killer " + B(GetKillingUnit() == null) + " dead " + B(IsUnitDeadBJ(GetTriggerUnit())))
+endfunction
+function Owner takes nothing returns nothing
+    call Log("owner " + I2S(GetPlayerId(GetOwningPlayer(GetChangingUnit()))) + " was " + I2S(GetPlayerId(GetChangingUnitPrevOwner())))
+endfunction
+function Level takes nothing returns nothing
+    call Log("level " + I2S(GetHeroLevel(GetLevelingUnit())))
+endfunction
+function Later takes nothing returns nothing
+    call Log("later alive " + B(IsUnitAliveBJ(c)) + " " + B(UnitAlive(d)))
+    call ReviveHeroLoc(c, Location(10.0, 20.0), false)
+    call Log("revived " + B(IsUnitAliveBJ(c)) + " life " + R2S(GetUnitState(c, UNIT_STATE_LIFE)) + " at " + R2S(GetUnitX(c)) + "," + R2S(GetUnitY(c)))
+endfunction
+function main takes nothing returns nothing
+    set td = CreateTrigger()
+    call TriggerRegisterAnyUnitEventBJ(td, EVENT_PLAYER_UNIT_DEATH)
+    call TriggerAddAction(td, function Died)
+    set to = CreateTrigger()
+    call TriggerRegisterPlayerUnitEvent(to, Player(1), EVENT_PLAYER_UNIT_CHANGE_OWNER, null)
+    call TriggerAddAction(to, function Owner)
+    set tl = CreateTrigger()
+    call TriggerRegisterAnyUnitEventBJ(tl, EVENT_PLAYER_HERO_LEVEL)
+    call TriggerAddAction(tl, function Level)
+    set a = CreateUnit(Player(0), 'hfoo', 100.0, 200.0, 0.0)
+    set b = CreateUnit(Player(1), 'hpea', -100.0, 0.0, 45.0)
+    set c = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)
+    set d = CreateUnit(Player(0), 'nogh', 50.0, 50.0, 0.0)
+    // life and mana
+    call Log("life " + R2S(GetUnitState(a, UNIT_STATE_LIFE)) + "/" + R2S(GetUnitState(a, UNIT_STATE_MAX_LIFE)) + " " + R2S(GetWidgetLife(d)))
+    call SetUnitState(a, UNIT_STATE_LIFE, 40.0)
+    call Log("life " + R2S(GetUnitState(a, UNIT_STATE_LIFE)) + " " + R2S(GetUnitLifePercent(a)))
+    call SetUnitLifePercentBJ(a, 75.0)
+    call SetUnitState(a, UNIT_STATE_MANA, 25.0)
+    call Log("life " + R2S(GetUnitState(a, UNIT_STATE_LIFE)) + " mana " + R2S(GetUnitState(a, UNIT_STATE_MANA)) + " " + R2S(GetUnitStateSwap(UNIT_STATE_MANA, a)))
+    // owner, position, facing
+    call SetUnitOwner(a, Player(1), true)
+    call SetUnitPosition(a, 300.0, 400.0)
+    call SetUnitFacing(a, 180.0)
+    call Log("a " + I2S(GetPlayerId(GetOwningPlayer(a))) + " at " + R2S(GetUnitX(a)) + "," + R2S(GetUnitY(a)) + " facing " + R2S(GetUnitFacing(a)) + " owned " + B(IsUnitOwnedByPlayer(a, Player(1))))
+    call SetUnitPositionLoc(b, Location(-200.0, 50.0))
+    call SetUnitFacingToFaceLocTimed(b, Location(-200.0, 150.0), 0.0)
+    call Log("b at " + R2S(GetUnitX(b)) + "," + R2S(GetUnitY(b)) + " facing " + R2S(GetUnitFacing(b)))
+    // flags kept on the unit
+    call SetUnitInvulnerable(a, true)
+    call ShowUnit(d, false)
+    call PauseUnit(c, true)
+    call SetUnitAcquireRange(a, 800.0)
+    call SetUnitUserData(b, 42)
+    call Log("flags " + B(IsUnitInvulnerable(a)) + B(IsUnitHidden(d)) + B(IsUnitPaused(c)) + B(IsUnitPaused(a)) + " " + R2S(GetUnitAcquireRange(a)) + " " + I2S(GetUnitUserData(b)) + " " + R2S(GetUnitMoveSpeed(b)))
+    call PauseUnit(c, false)
+    call Log("types " + B(IsUnitType(a, UNIT_TYPE_GROUND)) + B(IsUnitType(a, UNIT_TYPE_DEAD)) + B(IsUnitType(a, UNIT_TYPE_STRUCTURE)) + " ally " + B(IsUnitAlly(a, Player(0))) + B(IsUnitEnemy(a, Player(0))) + " range " + B(IsUnitInRange(a, b, 600.0)) + B(IsUnitInRangeXY(b, -200.0, 60.0, 20.0)) + B(RectContainsUnit(Rect(0.0, 0.0, 500.0, 500.0), a)))
+    // abilities, heroes
+    call Log("abil " + B(UnitAddAbility(a, 'AHbz')) + B(UnitAddAbility(a, 'AHbz')) + I2S(GetUnitAbilityLevel(a, 'AHbz')) + B(UnitRemoveAbilityBJ('AHbz', a)) + I2S(GetUnitAbilityLevelSwapped('AHbz', a)))
+    call SetHeroLevel(c, 3, false)
+    call SetHeroLevelBJ(c, 2, false)
+    call ModifyHeroStat(bj_HEROSTAT_STR, c, bj_MODIFYMETHOD_ADD, 5)
+    call ModifyHeroStat(bj_HEROSTAT_AGI, c, bj_MODIFYMETHOD_SET, 9)
+    call AddHeroXP(c, 150, false)
+    call SelectHeroSkill(c, 'AHhb')
+    call SelectHeroSkill(c, 'AHhb')
+    call Log("hero " + I2S(GetHeroLevel(c)) + " str " + I2S(GetHeroStr(c, false)) + " agi " + I2S(GetHeroStatBJ(bj_HEROSTAT_AGI, c, false)) + " xp " + I2S(GetHeroXP(c)) + " skill " + I2S(GetUnitAbilityLevel(c, 'AHhb')))
+    // orders
+    call Log("orders " + B(IssuePointOrder(c, "move", 500.0, 0.0)) + I2S(GetUnitCurrentOrder(c) - OrderId("move")) + B(IssueImmediateOrder(c, "stop")) + I2S(GetUnitCurrentOrder(c)) + B(IssueTargetOrder(b, "attack", c)) + I2S(GetUnitCurrentOrder(b) - OrderId("attack")) + B(IssuePointOrderLocBJ(d, "patrol", Location(1.0, 1.0))) + B(IssuePointOrder(a, "frobnicate", 0.0, 0.0)) + " " + OrderId2String(851986))
+    call PauseUnit(a, true)
+    call Log("paused order " + B(IssuePointOrder(a, "move", 0.0, 0.0)))
+    // waygates
+    call WaygateSetDestination(b, 64.0, 128.0)
+    call WaygateActivate(b, true)
+    call Log("gate " + B(WaygateIsActive(b)) + " " + R2S(WaygateGetDestinationX(b)) + " " + R2S(WaygateGetDestinationY(b)))
+    // deaths: by the script, at once
+    call KillUnit(c)
+    call SetUnitState(b, UNIT_STATE_LIFE, 0.0)
+    call UnitApplyTimedLifeBJ(1.0, 'BTLF', d)
+    // a replaced unit keeps its life fraction
+    set h = ReplaceUnitBJ(a, 'hpea', bj_UNIT_STATE_METHOD_RELATIVE)
+    call Log("replaced " + I2S(GetUnitTypeId(h)) + " of " + I2S(GetPlayerId(GetOwningPlayer(h))) + " life " + R2S(GetUnitLifePercent(h)) + " old gone " + B(GetUnitTypeId(a) == 'hfoo'))
+    call TimerStart(CreateTimer(), 1.5, false, function Later)
+endfunction
+]]
+lua, globals = transpile(UNITSTATE)
+V, vlog = run_vm(lua, globals, 2)
+local A5
+S, A5, slog = run_shim(lua, globals, 2, nil, made_data2())
+test("no errors either way", #S.errors == 0 and #V.errors == 0, (S.errors[1] and S.errors[1].message) or (V.errors[1] and tostring(V.errors[1].message)))
+test("nothing missing in the shim", next(S.missing) == nil, (function() local l = {} for k in pairs(S.missing) do l[#l + 1] = k end return table.concat(l, " ") end)())
+ok, why = same_log(vlog, slog, 0.021)
+test("the same lines at the same times", ok, (why or "") .. "\n    vm:   " .. show(vlog) .. "\n    shim: " .. show(slog))
+test("the script's run is long enough to mean something", #slog >= 20, #slog)
+local ok_ale, miss_ale = ale_listed(A5)
+test("every ALE call is listed in shim.ALE_USED", ok_ale, miss_ale)
+-- what the server sees
+local ca = S.env.h and S.env.a.creature
+test("SetUnitOwner gives the creature its new owner's faction", ca and ca.faction == 3001, ca and ca.faction)
+local X6, Y6 = S.to_wow(300, 400)
+test("SetUnitPosition teleports the creature to the transform of its WC3 point, on the ground",
+    ca and math.abs(ca.x - X6) < 1e-6 and math.abs(ca.y - Y6) < 1e-6 and ca.z == 12.5)
+test("SetUnitFacing turns it: WC3's 180 (west) is WoW's pi/2", ca and math.abs(ca.o - math.pi / 2) < 1e-9, ca and ca.o)
+test("ReplaceUnitBJ despawns the old creature", ca and ca.despawned == true)
+local cc = S.env.c.creature
+test("KillUnit kills the creature; ReviveHero brings it back", cc and cc.killed_by == cc and cc.alive == true)
+local cb = S.env.b.creature
+test("life 0 kills the creature too", cb and cb.alive == false)
+test("an attack order starts the creature's attack on the target's", cb and cb.attacking == cc)
+local ch = S.env.h.creature
+test("the replacement's life fraction is mirrored on its creature (75% of 42)", ch and ch.health == 32, ch and ch.health)
+-- life mirrored, both ways; a death on the server
+do
+    local A7 = fake.new({ map_id = 900, update_ms = 20 })
+    local S7 = shim.new(A7, made_data2())
+    local died = {}
+    local l7, g7 = transpile([[
+globals
+    unit u = null
+    trigger t = null
+endglobals
+function D takes nothing returns nothing
+    call Died(GetDyingUnit(), GetKillingUnit())
+endfunction
+function main takes nothing returns nothing
+    set u = CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)
+    set t = CreateTrigger()
+    call TriggerRegisterUnitEvent(t, u, EVENT_UNIT_DEATH)
+    call TriggerAddAction(t, D)
+endfunction
+]])
+    rawset(S7.env, "Died", function(u, k) died[#died + 1] = { u = u, k = k, t = S7:now() } end)
+    assert(S7:load(l7, g7))
+    S7:run_main()
+    local u = S7.env.u
+    S7.natives.SetUnitState(u, "UNIT_STATE_LIFE", 50)
+    test("WC3's life 50 of 100 is half the creature's health", u.creature.health == 21, u.creature.health)
+    A7:hurt(u.creature, 7)
+    local l = S7.natives.GetUnitState(u, "UNIT_STATE_LIFE")
+    test("the server's damage comes back as WC3's life (14 of 42 is 33.3 of 100)", math.abs(l - 100 * 14 / 42) < 1e-9, l)
+    A7:advance(200)
+    A7:kill(u.creature)
+    A7:advance(150)
+    test("a creature killed on the server fires the unit's death event at the next look", #died == 1 and died[1].u == u and died[1].k == nil,
+        #died)
+    test("... within the 100 ms look", died[1] and died[1].t >= 0.2 and died[1].t <= 0.32, died[1] and died[1].t)
+    A7:advance(500)
+    test("... once", #died == 1, #died)
+    local ok7, miss7 = ale_listed(A7)
+    test("every ALE call is listed in shim.ALE_USED (life, the look)", ok7, miss7)
+    -- orders as the creature hears them
+    S7.natives.ReviveHero(u, 0, 0)
+    test("a revived unit's creature respawns", u.creature.alive == true and u.creature.health == 42)
+    S7.natives.IssuePointOrder(u, "move", 640, 0)
+    local mt = rawget(u.creature, "moving_to")
+    local MX, MY = S7.to_wow(640, 0)
+    test("a move order walks the creature to the transform of its WC3 point", mt and math.abs(mt.x - MX) < 1e-6 and math.abs(mt.y - MY) < 1e-6, mt and mt.x)
+    S7.natives.IssueImmediateOrder(u, "stop")
+    test("a stop order stops it", rawget(u.creature, "moving_to") == nil)
+end
+-- }}}
+
+-- {{{ Groups, forces, alliances, messages, chat, sounds
+section("Groups, forces, alliances, players, messages, chat and sounds: the shim against the VM")
+
+local GROUPS = BOOL .. [[
+globals
+    group g = null
+    group made = null
+    force f = null
+    trigger tc = null
+    trigger tq = null
+    sound s = null
+    integer seen = 0
+endglobals
+function Count takes nothing returns nothing
+    set seen = seen + GetUnitTypeId(GetEnumUnit()) - 'hfoo' + 1
+endfunction
+function Move takes nothing returns nothing
+    call SetUnitPosition(GetEnumUnit(), GetUnitX(GetEnumUnit()) + 1000.0, GetUnitY(GetEnumUnit()))
+endfunction
+function IsFoot takes nothing returns boolean
+    return GetUnitTypeId(GetFilterUnit()) == 'hfoo'
+endfunction
+function Low takes nothing returns boolean
+    return GetPlayerId(GetFilterPlayer()) < 3
+endfunction
+function Name takes nothing returns nothing
+    call Log("in force " + I2S(GetPlayerId(GetEnumPlayer())) + " " + GetPlayerName(GetEnumPlayer()))
+endfunction
+function Chat takes nothing returns nothing
+    call Log("chat " + I2S(GetPlayerId(GetTriggerPlayer())) + " said " + GetEventPlayerChatString() + " matched " + GetEventPlayerChatStringMatched())
+endfunction
+function Quit takes nothing returns nothing
+    call Log("left " + I2S(GetPlayerId(GetTriggerPlayer())))
+endfunction
+function main takes nothing returns nothing
+    call CreateUnit(Player(0), 'hfoo', 0.0, 0.0, 0.0)
+    call CreateUnit(Player(0), 'hpea', 100.0, 0.0, 0.0)
+    call CreateUnit(Player(1), 'hfoo', 200.0, 0.0, 0.0)
+    call CreateUnit(Player(1), 'hfoo', 2000.0, 0.0, 0.0)
+    set g = CreateGroup()
+    call GroupEnumUnitsInRect(g, Rect(-50.0, -50.0, 250.0, 50.0), null)
+    call ForGroup(g, function Count)
+    call Log("in rect " + I2S(CountUnitsInGroup(g)) + " seen " + I2S(seen) + " first " + I2S(GetUnitTypeId(FirstOfGroup(g))))
+    call Log("of 1 " + I2S(CountUnitsInGroup(GetUnitsOfPlayerAll(Player(1)))) + " foot of 0 " + I2S(CountUnitsInGroup(GetUnitsOfPlayerAndTypeId(Player(0), 'hfoo'))) + " foot " + I2S(CountUnitsInGroup(GetUnitsOfTypeIdAll('hfoo'))) + " in rect of 1 " + I2S(CountUnitsInGroup(GetUnitsInRectOfPlayer(Rect(-50.0, -50.0, 250.0, 50.0), Player(1)))) + " matching " + I2S(CountUnitsInGroup(GetUnitsOfPlayerMatching(Player(0), Condition(function IsFoot)))) + " near " + I2S(CountUnitsInGroup(GetUnitsInRangeOfLocAll(150.0, Location(0.0, 0.0)))) + " living " + I2S(CountLivingPlayerUnitsOfTypeId('hfoo', Player(1))))
+    set made = CreateNUnitsAtLoc(3, 'hpea', Player(2), Location(-500.0, -500.0), 270.0)
+    call Log("made " + I2S(CountUnitsInGroup(made)) + " last group " + B(GetLastCreatedGroup() == made) + " in " + B(IsUnitInGroup(GetLastCreatedUnit(), made)))
+    call GroupRemoveUnit(made, GetLastCreatedUnit())
+    call Log("removed " + I2S(CountUnitsInGroup(made)) + B(IsUnitInGroup(GetLastCreatedUnit(), made)) + " ordered " + B(GroupPointOrderLoc(made, "move", Location(0.0, 0.0))) + I2S(GetUnitCurrentOrder(FirstOfGroup(made)) - OrderId("move")))
+    set bj_wantDestroyGroup = true
+    call ForGroupBJ(GetUnitsOfPlayerAll(Player(2)), function Move)
+    call Log("moved " + R2S(GetUnitX(GetLastCreatedUnit())) + " empty " + B(IsUnitGroupEmptyBJ(CreateGroup())) + B(IsUnitGroupEmptyBJ(made)))
+    // forces and players
+    call SetPlayerName(Player(2), "Gold Team")
+    set f = CreateForce()
+    call ForceEnumPlayers(f, Condition(function Low))
+    call ForForce(f, function Name)
+    call Log("all " + I2S(CountPlayersInForceBJ(GetPlayersAll())) + " of 3 " + B(IsPlayerInForce(Player(3), GetForceOfPlayer(Player(3)))) + B(IsPlayerInForce(Player(4), GetForceOfPlayer(Player(3)))))
+    call SetPlayerAllianceStateBJ(Player(0), Player(1), bj_ALLIANCE_ALLIED_VISION)
+    call SetPlayerAllianceStateBJ(Player(1), Player(0), bj_ALLIANCE_ALLIED)
+    call Log("ally " + B(IsPlayerAlly(Player(0), Player(1))) + B(IsPlayerEnemy(Player(0), Player(2))) + B(GetPlayerAlliance(Player(0), Player(1), ALLIANCE_SHARED_VISION)) + B(GetPlayerAlliance(Player(1), Player(0), ALLIANCE_SHARED_VISION)) + " allies " + I2S(CountPlayersInForceBJ(GetPlayersAllies(Player(0)))) + " enemies " + I2S(CountPlayersInForceBJ(GetPlayersEnemies(Player(0)))))
+    call SetPlayerColor(Player(3), PLAYER_COLOR_PURPLE)
+    call SetPlayerTeam(Player(3), 1)
+    call SetPlayerTechMaxAllowed(Player(0), 'hfoo', 6)
+    call SetPlayerUnitAvailableBJ('hpea', false, Player(0))
+    call SetPlayerTechResearchedSwap('Rhme', 2, Player(0))
+    call DefineStartLocation(1, 512.0, -256.0)
+    call Log("slot " + B(GetPlayerSlotState(Player(0)) == PLAYER_SLOT_STATE_PLAYING) + B(GetPlayerSlotState(Player(14)) == PLAYER_SLOT_STATE_EMPTY) + " colour " + I2S(GetPlayerColor(Player(3))) + " team " + I2S(GetPlayerTeam(Player(3))) + " tech " + I2S(GetPlayerTechMaxAllowed(Player(0), 'hfoo')) + "," + I2S(GetPlayerTechMaxAllowed(Player(0), 'hpea')) + " researched " + I2S(GetPlayerTechCountSimple('Rhme', Player(0))) + " start " + R2S(GetStartLocationX(1)) + "," + R2S(GetPlayerStartLocationY(Player(1))))
+    // messages, chat, leaving, sounds
+    call DisplayTextToForce(GetPlayersAll(), "hello all")
+    call DisplayTimedTextToPlayer(Player(0), 0.0, 0.0, 5.0, "hello red")
+    call DisplayTimedTextToPlayer(Player(1), 0.0, 0.0, 5.0, "hello blue")
+    set tc = CreateTrigger()
+    call TriggerRegisterPlayerChatEvent(tc, Player(0), "-gold", false)
+    call TriggerRegisterPlayerChatEvent(tc, Player(1), "-exact", true)
+    call TriggerAddAction(tc, function Chat)
+    set tq = CreateTrigger()
+    call TriggerRegisterPlayerEventLeave(tq, Player(1))
+    call TriggerAddAction(tq, function Quit)
+    set s = CreateSound("Sound\\Interface\\Hint.wav", false, false, false, 10, 10, "")
+    call SetSoundDuration(s, 1500)
+    call SetSoundChannel(s, 0)
+    call PlaySoundBJ(s)
+    call Log("sound " + I2S(GetSoundDuration(s)) + " " + B(GetSoundIsPlaying(s)))
+    call Log("for " + I2S(GetForLoopIndexA()) + " " + I2S(ConvertPlayerColor(3)) + " " + B(GetBooleanAnd(true, false)) + B(GetBooleanOr(true, false)) + " " + R2S(DistanceBetweenPoints(Location(0.0, 0.0), PolarProjectionBJ(Location(0.0, 0.0), 50.0, 30.0))) + " " + R2S(AngleBetweenPoints(Location(0.0, 0.0), Location(0.0, 10.0))) + " " + R2S(GetRectWidthBJ(RectFromCenterSizeBJ(Location(5.0, 5.0), 40.0, 20.0))))
+endfunction
+]]
+lua, globals = transpile(GROUPS)
+local function talk_vm(V2, t)
+    if t >= 0.5 and t < 0.51 then V2:chat(0, "I want -gold now"); V2:chat(0, "nothing"); V2:chat(1, "-exact"); V2:chat(1, "-exact!") end
+    if t >= 0.7 and t < 0.71 then V2:player_event("EVENT_PLAYER_LEAVE", 1); V2:player_event("EVENT_PLAYER_LEAVE", 2) end
+end
+local function talk_shim(S2, _, t)
+    if t >= 0.5 and t < 0.51 then S2:chat(0, "I want -gold now"); S2:chat(0, "nothing"); S2:chat(1, "-exact"); S2:chat(1, "-exact!") end
+    if t >= 0.7 and t < 0.71 then S2:player_event("EVENT_PLAYER_LEAVE", 1); S2:player_event("EVENT_PLAYER_LEAVE", 2) end
+end
+V, vlog = run_vm(lua, globals, 1.6, talk_vm)
+local heard_msgs, heard_sounds = {}, {}
+do
+    local A8 = fake.new({ map_id = 900, update_ms = 20, ground = function() return 12.5 end })
+    S = shim.new(A8, made_data2({ strings = { TRIGSTR_007 = "a map's own words" } }),
+        { on_message = function(p, text) heard_msgs[#heard_msgs + 1] = p.id .. ":" .. text end,
+          on_sound = function(ev) heard_sounds[#heard_sounds + 1] = ev end })
+    slog = {}
+    rawset(S.env, "Log", function(s2) slog[#slog + 1] = { t = S:now(), text = s2 } end)
+    assert(S:load(lua, globals))
+    S:run_main()
+    for _ = 1, 80 do A8:advance(20); talk_shim(S, A8, S:now()) end
+    ok_ale, miss_ale = ale_listed(A8)
+    test("every ALE call is listed in shim.ALE_USED", ok_ale, miss_ale)
+end
+test("no errors either way", #S.errors == 0 and #V.errors == 0, (S.errors[1] and S.errors[1].message) or (V.errors[1] and tostring(V.errors[1].message)))
+test("nothing missing in the shim", next(S.missing) == nil, (function() local l = {} for k in pairs(S.missing) do l[#l + 1] = k end return table.concat(l, " ") end)())
+ok, why = same_log(vlog, slog, 0.021)
+test("the same lines at the same times", ok, (why or "") .. "\n    vm:   " .. show(vlog) .. "\n    shim: " .. show(slog))
+test("the script's run is long enough to mean something", #slog >= 14, #slog)
+test("chat: a match inside the text, and an exact one", show(slog):find("chat 0 said I want -gold now matched -gold", 1, true)
+    and show(slog):find("chat 1 said -exact matched -exact", 1, true) and not show(slog):find("-exact!", 1, true), show(slog))
+-- messages: the VM shows its local player's; the shim gives every player named its own
+local vm_texts, shim_red = {}, {}
+for _, m in ipairs(V.log or {}) do vm_texts[#vm_texts + 1] = m.text end
+for _, m in ipairs(S.messages) do if m.player == 0 then shim_red[#shim_red + 1] = m.text end end
+test("red's messages are the VM's local player's", table.concat(vm_texts, "|") == table.concat(shim_red, "|"),
+    table.concat(vm_texts, "|") .. " against " .. table.concat(shim_red, "|"))
+test("every player in the force hears it (16 slots), and only blue hears blue's", #heard_msgs == 18 and heard_msgs[1] == "0:hello all"
+    and heard_msgs[18] == "1:hello blue", #heard_msgs)
+test("TRIGSTR_ references are the map's own words", S:text("say TRIGSTR_007!") == "say a map's own words!")
+test("sounds: one play, heard by the hook, as the VM logs it", #heard_sounds == 1 and #V.sounds_played == 1
+    and heard_sounds[1].file == V.sounds_played[1].file, #heard_sounds)
+-- allies from the map's forces
+do
+    local S9 = shim.new(fake.new({ map_id = 900 }), made_data2({ factions = {
+        { template = 3000, players = { 0, 1 }, allied = true }, { template = 3001, players = { 2, 3 }, allied = false },
+        { template = 3002, players = { 12 }, allied = true, neutral = "hostile" } } }))
+    local N9 = S9.natives
+    test("an allied force's players start allied, as the VM's world allies them",
+        N9.IsPlayerAlly(S9:player(0), S9:player(1)) and N9.IsPlayerAlly(S9:player(1), S9:player(0)))
+    test("... an unallied force's don't, nor the neutrals", not N9.IsPlayerAlly(S9:player(2), S9:player(3))
+        and not N9.IsPlayerAlly(S9:player(12), S9:player(0)))
+    local S10 = shim.new(fake.new({ map_id = 900 }), made_data2({ players = { { number = 0, name = "TRIGSTR_001" } },
+        strings = { TRIGSTR_001 = "The Alliance" } }))
+    test("a player's name is the map's own", S10.natives.GetPlayerName(S10:player(0)) == "The Alliance"
+        and S10.natives.GetPlayerName(S10:player(1)) == "Player 2")
+end
+-- }}}
+
 -- {{{ The coverage report: a made script
 section("The coverage report: a made script")
 
@@ -480,7 +820,7 @@ do
     local scan = triggers.scan([[
 native UnitAlive takes unit id returns boolean
 function Helper takes nothing returns nothing
-    call KillUnit(CreateUnit(Player(0), 'h000', 0, 0, 0))
+    call UnitAddItemById(CreateUnit(Player(0), 'h000', 0, 0, 0), 'ratf')
 endfunction
 function main takes nothing returns nothing
     call Helper()
@@ -495,12 +835,12 @@ endfunction
     for _, e in ipairs(rep.natives) do by[e.name] = e end
     test("the script's own functions aren't natives", by.Helper == nil and by.main == nil)
     test("each native counted by call sites", by.CreateUnit and by.CreateUnit.calls == 2 and by.Player.calls == 2)
-    test("covered and not", by.CreateUnit.shim and by.CreateUnit.group == "units" and not by.KillUnit.shim)
-    test("the reference's answer is given", by.KillUnit.reference == "does" and by.NoSuchNative.reference == "missing")
+    test("covered and not", by.CreateUnit.shim and by.CreateUnit.group == "units" and not by.UnitAddItemById.shim)
+    test("the reference's answer is given", by.UnitAddItemById.reference == "does" and by.NoSuchNative.reference == "missing")
     test("a native the map declares is marked", by.UnitAlive and by.UnitAlive.declared_in_map == true)
-    test("the uncovered list", table.concat(rep.uncovered, " ") == "KillUnit NoSuchNative UnitAlive", table.concat(rep.uncovered, " "))
+    test("the uncovered list", table.concat(rep.uncovered, " ") == "NoSuchNative UnitAddItemById", table.concat(rep.uncovered, " "))
     test("unit types made with no template", table.concat(rep.unit_types_without_template, " ") == "h000")
-    test("counts", rep.counts.names == 5 and rep.counts.covered_names == 2 and rep.counts.calls == 7 and rep.counts.covered_calls == 4,
+    test("counts", rep.counts.names == 5 and rep.counts.covered_names == 3 and rep.counts.calls == 7 and rep.counts.covered_calls == 5,
         string.format("%d %d %d %d", rep.counts.names, rep.counts.covered_names, rep.counts.calls, rep.counts.covered_calls))
 end
 -- }}}
@@ -606,21 +946,27 @@ else
             test(name .. ": main() and ten seconds of its timers run on the shim with no error", S6.error_count == 0,
                 S6.errors[1] and S6.errors[1].message)
             test(name .. ": main() adopts every spawn W02b placed", S6.counts.adopted == #data.spawns, S6.counts.adopted .. " of " .. #data.spawns)
+            -- the unit types only the script makes have templates (W02e step 2)
+            test(name .. ": every unit type main() makes has a creature template (no ghosts)", S6.counts.ghosts == 0, S6.counts.ghosts)
+            local order_ok, n_script = true, 0
+            for k, t in ipairs(data.templates) do
+                if t.script then
+                    n_script = n_script + 1
+                    if t.faction ~= data.factions[#data.factions].template then order_ok = false end
+                elseif n_script > 0 then order_ok = false end
+                if t.entry ~= data.templates[1].entry + k - 1 then order_ok = false end
+            end
+            test(name .. ": ... after the placed types' templates, in Neutral Passive's faction", order_ok and n_script > 0, n_script)
+            test(name .. ": map-data has the map's bounds, players and forces' alliances", data.bounds and data.bounds.x1 > data.bounds.x0
+                and #data.players > 0 and data.factions[1].allied ~= nil)
             local Vr = vm.new(nil, { player = 0 })
             for _, g in ipairs(data.globals) do Vr.declared[g] = true end
-            -- the units the script makes through the natives the shim has
-            -- (others, CreateNUnitsAtLoc and the rest, are stubs there yet)
-            local vm_made = 0
-            for _, n2 in ipairs({ "CreateUnit", "CreateUnitAtLoc", "CreateUnitAtLocSaveLast" }) do
-                local f = Vr.env[n2]
-                rawset(Vr.env, n2, function(...) vm_made = vm_made + 1 return f(...) end)
-            end
             local chunk = assert(loadstring(read(out .. "/" .. P.script)))
             setfenv(chunk, Vr.env)
             chunk()
             Vr:run_main()
-            test(name .. ": main() makes as many units on the shim as on the VM, through the natives the shim has", made == vm_made,
-                made .. " against " .. vm_made .. " (" .. #Vr.world.units .. " in all on the VM)")
+            test(name .. ": main() makes as many units on the shim as on the VM", made == #Vr.world.units,
+                made .. " against " .. #Vr.world.units)
             local same_gold = true
             for p = 0, 11 do
                 local a1 = Vr.natives.GetPlayerState(Vr:player(p), "PLAYER_STATE_RESOURCE_GOLD")

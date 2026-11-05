@@ -47,7 +47,7 @@ local PREFIX = (... or "wc3shim"):gsub("%.init$", "")
 
 local shim = {}
 shim.VERSION = 1
-shim.MODULES = { "core", "world" }
+shim.MODULES = { "core", "world", "players", "units", "groups", "sounds" }
 shim.RECT_CHECK_MS = 100        -- the VM checks rects every 0.1 s (vm.RECT_CHECK_EVERY)
 shim.MIN_DELAY_MS = 1           -- a wait or timer of 0 still goes through ALE's event queue
 shim.ZERO_PERIOD_MS = 20        -- a periodic timer of timeout 0 (the VM fires it once a tick: 0.02 s in its tests)
@@ -70,6 +70,16 @@ shim.ALE_USED = {
     { name = "Creature:SetFaction", use = "a template's faction changed for one creature (another WC3 owner)", checked = false },
     { name = "Creature:DespawnOrUnsummon", use = "DespawnOrUnsummon(delay_ms): RemoveUnit", checked = false },
     { name = "Creature:GetGUIDLow", use = "the creature's low guid, for the report", checked = false },
+    -- W02e step 2 (units.lua)
+    { name = "Creature:GetHealth/GetMaxHealth", use = "health now and at most (the fraction WC3's life mirrors)", checked = false },
+    { name = "Creature:SetHealth", use = "SetHealth(amount): WC3's life fraction onto the creature", checked = false },
+    { name = "Creature:Kill", use = "creature:Kill(creature): KillUnit, life set to 0, timed life", checked = false },
+    { name = "Creature:NearTeleport", use = "NearTeleport(x, y, z, o): SetUnitPosition and the rest, on the same map", checked = false },
+    { name = "Creature:SetFacing", use = "SetFacing(o): SetUnitFacing", checked = false },
+    { name = "Creature:MoveTo", use = "MoveTo(id, x, y, z): a move, patrol or attack-move order", checked = false },
+    { name = "Creature:AttackStart", use = "AttackStart(target): an attack order on a unit", checked = false },
+    { name = "Creature:MoveStop", use = "stop and hold-position orders", checked = false },
+    { name = "Creature:Respawn", use = "ReviveHero: the dead creature back where it died, then teleported", checked = false },
 }
 -- }}}
 

@@ -56,6 +56,15 @@ Rules (decided 2026-11-04, W02b; the owner's to overturn):
              puts creatures on its own ground anyway); orientation from the
              WC3 facing (wowbuild.placements.orientation); a week to respawn
              (preplaced WC3 units don't come back; W02e's rules decide)
+  script     (W02e, decided 2026-11-05) a type the map's script makes
+             (opts.script_types: wowbuild.triggers.scan's created, the
+             literal rawcodes CreateUnit and the rest are given) and that no
+             placed unit has gets one template too, after the placed ones
+             (so their entries don't move), in Neutral Passive's faction:
+             the server's shim gives each creature its owner's faction when
+             it spawns it. Same name, level and model lookup as a placed
+             type. Types the script makes from variables can't be seen here
+             and stay unspawnable (counted by the shim)
   left out   start locations (sloc: listed as start_locations instead),
              placed items (ids the map's item table or the reader's item
              list knows, YYI*, iDNR) and random units (YYU*, uDNR), each
@@ -167,7 +176,8 @@ function creatures.prepare(map, layout, job, models, opts)
         guid_base = opts.guid_base or D.guid_base, display_base = opts.display_base or D.display_base,
         respawn = D.respawn,
         templates = {}, by_type = {}, displays = {}, spawns = {}, start_locations = {},
-        n = { units = 0, spawned = 0, start_locations = 0, items = 0, random = 0, unmapped = 0, outside = 0 },
+        n = { units = 0, spawned = 0, start_locations = 0, items = 0, random = 0, unmapped = 0, outside = 0,
+              script_types = 0 },
         unmapped = {}, used = {},
     }, { __index = creatures.C })
     local info = map.info
@@ -209,10 +219,28 @@ function creatures.prepare(map, layout, job, models, opts)
         end
     end
 
-    -- templates, in type-id order, then faction order
+    -- templates, in type-id order, then faction order; then the types only
+    -- the script makes (W02e), in type-id order, in Neutral Passive's faction
     local keys = {}
     for key in pairs(types) do keys[#keys + 1] = key end
     table.sort(keys)
+    local placed_type = {}
+    for _, t in pairs(types) do placed_type[t.id] = true end
+    local scripted = {}
+    for id in pairs(opts.script_types or {}) do
+        if type(id) == "string" and #id == 4 and not placed_type[id] and id ~= "sloc" and not is_item(id, items)
+            and not is_random({ id = id }) then
+            scripted[#scripted + 1] = id
+        end
+    end
+    table.sort(scripted)
+    local passive = C.factions[#C.factions]
+    for _, id in ipairs(scripted) do
+        local key = id .. "@" .. string.format("%06d", passive.template)
+        types[key] = { id = id, faction = passive, script = true }
+        keys[#keys + 1] = key
+        C.n.script_types = C.n.script_types + 1
+    end
     local display_of, row_of = {}, {}
     for k, key in ipairs(keys) do
         local id, faction = types[key].id, types[key].faction
@@ -250,7 +278,7 @@ function creatures.prepare(map, layout, job, models, opts)
         C.used[row.wow] = row
         local t = { entry = C.entry_base + k - 1, offset = k - 1, id = id, base = base, name = name, level = level,
                     display = display, source = source, wc3_model = wc3_model, hero = unitsdoo.is_hero(id),
-                    faction = faction }
+                    faction = faction, script = types[key].script or nil }
         C.templates[k] = t
         C.by_type[key] = t
     end
@@ -306,7 +334,7 @@ function creatures.C:counts()
         units = n.units, spawned = n.spawned, templates = #self.templates, displays = #self.displays,
         displays_unchecked = unchecked, factions = #self.factions, start_locations = #self.start_locations,
         sloc_units = n.start_locations, items_left_out = n.items, random_left_out = n.random,
-        outside = n.outside, unmapped_ids = ids, unmapped = n.unmapped,
+        outside = n.outside, unmapped_ids = ids, unmapped = n.unmapped, script_types = n.script_types,
         unit_types = n_types,
         ids = { map = self.map_id, entry = self.entry_base, guid = self.guid_base, display = self.display_base,
                 faction = self.factions[1] and self.factions[1].template or nil },
