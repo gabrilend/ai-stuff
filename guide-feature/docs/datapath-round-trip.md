@@ -15,7 +15,7 @@ The current design of one round. The issues that change it update this file.
                                                    │ on_receive (first) / on_update (later)
                                                    ▼
                                                  turn hook
-                                                   │ newest canvas → tmp/shared-memory/turn/waiting
+                                                   │ newest canvas → tmp/shared-memory/turn/<voice>/waiting
                                                    │ starts the turn runner if it is idle
                                                    ▼
                                                  turn runner (Lua)
@@ -45,14 +45,23 @@ The current design of one round. The issues that change it update this file.
 2. **rmail carries it** to each voice's `inbox/the-canvas`.
 3. **The turn hook on the voice** receives it (`on_receive` the first time,
    `on_update` after that). It writes the canvas body to
-   `tmp/shared-memory/turn/waiting`, replacing any canvas already waiting
-   there, since only the newest matters. It then starts the turn runner in the
-   background unless the runner's lock (a directory, made atomically) shows it
-   is already running. It prints nothing and exits.
+   `tmp/shared-memory/turn/<voice>/waiting`, replacing any canvas already
+   waiting there, since only the newest matters. It then starts the turn
+   runner in the background unless the runner's lock (a directory, put in
+   place in one step) shows it is already running. It prints nothing and
+   exits. Only a message whose subject is `the-canvas` from the `guide`
+   contact is taken. `<voice>` is the mailbox's own name, so voices sharing
+   a project keep apart. Built in `src/037-turn-hook.lua`, run as
+   `scripts/turn-hook` (issue 304).
 4. **The turn runner** takes the waiting canvas and runs one turn
    (`docs/datapath-voice-turn.md`). When the turn ends, it looks for a newer
    waiting canvas. If one is there it runs again, otherwise it removes its
-   lock and exits.
+   lock and exits, and then looks once more, so a canvas that came in the
+   moment before is not left waiting. A lock whose process is not running is
+   cleared with a log line. Built in `src/038-turn-runner.lua`, run as
+   `scripts/turn-runner`; in phase 3 the turn itself is the stand-in
+   `scripts/stand-in-turn` (`src/039-stand-in-turn.lua`), named by
+   `input/turn-runner`'s `turn` setting (issue 304).
 5. **The edited canvas** is written into the voice's `outbox/canvas` with
    `base: N` and carried to kuvalu.
 6. **The arrival hook on kuvalu** writes the body into
@@ -79,8 +88,9 @@ a file still being written; a file named `stop` is the blitter's clean stop
 | Data | Where | Type |
 |---|---|---|
 | the shared canvas, every version | kuvalu `tmp/shared-memory/canvas/` | text, `docs/canvas-format.md` |
-| a voice's waiting canvas | voice `tmp/shared-memory/turn/waiting` | text |
-| a voice's turn counter | voice, beside its mailbox (on disk, so a restart continues the count) | text, one number |
+| a voice's waiting canvas | voice `tmp/shared-memory/turn/<voice>/waiting` | text |
+| a voice's lock and events | voice `tmp/shared-memory/turn/<voice>/lock/pid`, `events` | text |
+| a voice's turn counter | voice `output/turn-counter-<voice>` (on disk, so a restart continues the count) | text, one number |
 | a voice's edited canvas in flight | voice `outbox/canvas`, then kuvalu `inbox/` | text |
 | arrivals waiting for the blitter | kuvalu `tmp/shared-memory/arrivals/` | text, one file each |
 | logs | each machine's `tmp/shared-memory/*.log` | text lines |

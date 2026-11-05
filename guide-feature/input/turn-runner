@@ -1,0 +1,12 @@
+# The turn runner's settings (src/038-turn-runner.lua), read by the turn hook
+# (src/037-turn-hook.lua) too. On each voice. Text goes in double quotes.
+
+# The contact the canvas comes from and the voice's canvas goes back to: the
+# guide mailbox on kuvalu, as this voice's mailbox names it in its contacts.
+guide = "guide"
+
+# The program that runs one turn, from this project's folder (or a whole
+# path). It is run as  <turn> --dir ROOT --voice NAME --turn N --canvas FILE
+# --out FILE  and writes the voice's canvas to --out. Phase 3's stand-in
+# writes one scripted word; the real turn (issue 405) is put here instead.
+turn = "scripts/stand-in-turn"
