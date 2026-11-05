@@ -1,6 +1,7 @@
 -- war3map.w3i Parser
 -- Parses WC3 map info files containing metadata: name, players, forces, etc.
--- Supports Frozen Throne (version 25) and Reign of Chaos (version 18) formats.
+-- Supports Frozen Throne (version 25), Reign of Chaos (version 18), and the
+-- later editors' 28 and 31 (their extra fields read and written back).
 -- Compatible with both LuaJIT and Lua 5.3+.
 
 local compat = require("compat")
@@ -60,6 +61,14 @@ local MAP_FLAGS = {
     PROPERTIES_OPENED      = 0x0400,
     SHOW_WAVES_CLIFF       = 0x0800,
     SHOW_WAVES_ROLLING     = 0x1000,
+    -- the later editors' flags (the W client's 083 and 084 read 0x2000 and
+    -- 0x10000; 2026-11-05)
+    USE_TERRAIN_FOG        = 0x2000,
+    REQUIRES_EXPANSION     = 0x4000,
+    ITEM_CLASSIFICATION    = 0x8000,
+    USE_WATER_TINT         = 0x10000,
+    ACCURATE_RANDOM        = 0x20000,
+    CUSTOM_ABILITY_SKINS   = 0x40000,
 }
 
 local FORCE_FLAGS = {
@@ -118,7 +127,7 @@ end
 
 -- {{{ parse_players
 -- Parses player slot definitions.
-local function parse_players(data, pos)
+local function parse_players(data, pos, version)
     local count = read_int32(data, pos)
     pos = pos + 4
 
@@ -140,6 +149,10 @@ local function parse_players(data, pos)
         player.start_y = read_float32(data, pos); pos = pos + 4
         player.ally_low = read_uint32(data, pos); pos = pos + 4
         player.ally_high = read_uint32(data, pos); pos = pos + 4
+        if version and version >= 31 then
+            player.enemy_low = read_uint32(data, pos); pos = pos + 4
+            player.enemy_high = read_uint32(data, pos); pos = pos + 4
+        end
 
         players[i] = player
     end
@@ -308,6 +321,11 @@ function w3i.parse(data)
     map.version = read_int32(data, pos); pos = pos + 4
     map.saves = read_int32(data, pos); pos = pos + 4
     map.editor_version = read_int32(data, pos); pos = pos + 4
+    -- version 28 on (the 1.31 editor): the game's version, four ints
+    if map.version >= 28 then
+        map.game_version = {}
+        for i = 1, 4 do map.game_version[i] = read_int32(data, pos); pos = pos + 4 end
+    end
 
     -- Version check
     if map.version ~= 18 and map.version ~= 25 and map.version ~= 28 and map.version ~= 31 then
@@ -393,9 +411,18 @@ function w3i.parse(data)
         -- Water color
         map.water_color = read_uint32(data, pos); pos = pos + 4
     end
+    -- version 28 on: the script's language (0 JASS, 1 Lua); 31 on: the
+    -- game modes the map supports and its game data version
+    if map.version >= 28 then
+        map.script_language = read_int32(data, pos); pos = pos + 4
+    end
+    if map.version >= 31 then
+        map.supported_modes = read_int32(data, pos); pos = pos + 4
+        map.game_data_version = read_int32(data, pos); pos = pos + 4
+    end
 
     -- Players
-    map.players, pos = parse_players(data, pos)
+    map.players, pos = parse_players(data, pos, map.version)
 
     -- Forces
     map.forces, pos = parse_forces(data, pos)
@@ -446,6 +473,8 @@ function w3i.write(map)
     local function flag(f) return type(f) == "table" and (f.raw or 0) or (f or 0) end
     local function char4(s) return ((s or "") .. "\0\0\0\0"):sub(1, 4) end
     b:i32(map.version or 25):i32(map.saves or 1):i32(map.editor_version or 6072)
+    local version = map.version or 25
+    if version >= 28 then for i = 1, 4 do b:i32((map.game_version or {})[i] or 0) end end
     b:cstr(map.name):cstr(map.author):cstr(map.description):cstr(map.players_recommended)
     for i = 1, 8 do b:f32(map.camera_bounds[i] or 0) end
     for i = 1, 4 do b:i32(map.margins[i] or 0) end
@@ -466,11 +495,14 @@ function w3i.write(map)
         b:str(((map.light_environment or "\0") .. "\0"):sub(1, 1))
         b:u32(map.water_color or 0xFFFFFFFF)
     end
+    if version >= 28 then b:i32(map.script_language or 0) end
+    if version >= 31 then b:i32(map.supported_modes or 0):i32(map.game_data_version or 0) end
     b:i32(#(map.players or {}))
     for _, p in ipairs(map.players or {}) do
         b:i32(p.number or 0):i32(p.type_id or PLAYER_IDS[p.type] or 1):i32(p.race_id or RACE_IDS[p.race] or 0)
         b:i32(p.fixed_start_raw or (p.fixed_start and 1 or 0)):cstr(p.name)
         b:f32(p.start_x or 0):f32(p.start_y or 0):u32(p.ally_low or 0):u32(p.ally_high or 0)
+        if version >= 31 then b:u32(p.enemy_low or 0):u32(p.enemy_high or 0) end
     end
     b:i32(#(map.forces or {}))
     for _, f in ipairs(map.forces or {}) do
