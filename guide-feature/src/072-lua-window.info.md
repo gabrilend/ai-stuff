@@ -44,7 +44,9 @@ machine").
 
 Receipt (`output/goodbye-lua-window`): `versions-received`,
 `versions-drawn`, `cut-short`, `frames-drawn`, `screenshots`,
-`keys-pressed`, `unreadable`, `seconds-run`.
+`keys-pressed`, `unreadable`, `seconds-run`. Each version's first frame is
+logged as `drew version N at SECONDS` (the wall clock, to the millisecond),
+which the phase 8 demo (804) sets beside when it was written.
 
 | Name | Meaning |
 |---|---|

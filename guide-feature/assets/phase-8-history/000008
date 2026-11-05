@@ -1,0 +1,37 @@
+canvas: 8
+size: 40x6
+mode: newest
+project: guide-feature 9f2c1e0
+written: 2026-11-05T19:05:15Z
+voices: fg-sora-1 fg-sora-2 fg-sora-3
+
+the dog     on the mat.
+a dog       by the door.
+it was a windy day.
+and then it rained.
+the end.
+
+marks:
+mark: 1 1 3 fg-sora-3 7 sentence
+mark: 1 5 6 fg-sora-3 7 word
+mark: 1 11 1 fg-sora-1 5 word
+mark: 1 13 2 fg-sora-3 7 sentence
+mark: 1 16 3 fg-sora-3 7 sentence
+mark: 1 20 4 fg-sora-3 7 sentence
+mark: 2 1 1 fg-sora-3 4 sentence
+mark: 2 3 3 fg-sora-3 4 sentence
+mark: 2 7 5 fg-sora-3 4 word
+mark: 2 13 2 fg-sora-3 4 sentence
+mark: 2 16 3 fg-sora-3 4 sentence
+mark: 2 20 5 fg-sora-3 4 sentence
+mark: 3 1 2 fg-sora-2 3 sentence
+mark: 3 4 3 fg-sora-2 3 sentence
+mark: 3 8 1 fg-sora-2 3 sentence
+mark: 3 10 5 fg-sora-2 3 word
+mark: 3 16 4 fg-sora-2 3 sentence
+mark: 4 1 3 fg-sora-1 8 word
+mark: 4 5 4 fg-sora-1 8 word
+mark: 4 10 2 fg-sora-1 8 word
+mark: 4 13 7 fg-sora-1 8 word
+mark: 5 1 3 fg-sora-2 6 word
+mark: 5 5 4 fg-sora-2 6 word

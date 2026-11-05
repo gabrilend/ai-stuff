@@ -498,9 +498,17 @@ end
 -- }}}
 
 -- {{{ clocks
--- The real one (monotonic, sleeping), and a pretend one for --fast and the
--- tests: sleeping moves it on at once, so a run draws the same frames
--- without the waiting.
+-- The wall clock, to the millisecond, for the log's "drew version" lines:
+-- the phase 8 demo sets them beside when each version was written.
+local function wall()
+    local spec = ffi.new("guide_view_timespec")
+    ffi.C.clock_gettime(0, spec)   -- CLOCK_REALTIME
+    return tonumber(spec.tv_sec) + tonumber(spec.tv_nsec) / 1e9
+end
+
+-- The run's clock: the real one (monotonic, sleeping), and a pretend one
+-- for --fast and the tests: sleeping moves it on at once, so a run draws the
+-- same frames without the waiting.
 function M.real_clock()
     local clock = {}
     function clock.now()
@@ -699,6 +707,11 @@ function M.run(opts)
         -- {{{ the next frame of the writing-over
         if writing and not writing.finished and t >= next_frame - EARLY then
             local frame = draw(math.min(t, writing.ends))
+            if not writing.logged then
+                -- its first frame: the new version is on the screen from here
+                writing.logged = true
+                run:log(string.format("drew version %d at %.3f", writing.view.version, wall()))
+            end
             if frame.done then
                 writing.finished = true
                 shown = writing.view
