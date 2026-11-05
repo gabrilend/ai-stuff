@@ -10,7 +10,9 @@ through this project's copy of the llama.cpp client,
 | Function | Meaning |
 |---|---|
 | `read(root)` | the endpoints file, checked (001's `read_endpoints`) |
-| `for_role(root, role)` | the endpoint record the role uses now: `name`, `url`, `kind`, `timeout`, `role` and any other field the file gives it |
+| `for_role(root, role)` | the endpoint record the role uses now: `name`, `url`, `kind`, `timeout`, `role` and any other field the file gives it, with `key` read from its key file |
+| `from_canvas(record, voice, root)` | a voice's endpoint for this turn, from its line in the canvas's `endpoints:` section (issue 402), its key read on this machine |
+| `load_key(endpoint, root)` | reads the endpoint's `key-file` into `endpoint.key`; an endpoint with none is left alone |
 | `chat(endpoint, messages, opts)` | the reply's text, and `{ usage, seconds, endpoint }` |
 | `count_tokens(endpoint, text)` | the exact token count from the endpoint's `/tokenize` |
 | `embed(endpoint, texts, opts)` | one vector per text, in the order given |
@@ -20,10 +22,13 @@ through this project's copy of the llama.cpp client,
 
 Refused, as Lua errors:
 - by `for_role`: a role with no `use.` line; an endpoint with no `timeout`
-  (every call needs a limit, and nothing has a default in code); an
-  endpoint with a `key-file` (keys come with issue 402); and everything the
-  reader refuses (a `use.` line naming an endpoint that is not there, or
-  one of the wrong kind);
+  (every call needs a limit, and nothing has a default in code); and
+  everything the reader refuses (a `use.` line naming an endpoint that is
+  not there, or one of the wrong kind);
+- by `from_canvas`: a voice the canvas names no endpoint for;
+- by `load_key` (from both): a key file inside the project, missing or
+  unreadable, or not holding one key on one line. The error names the
+  endpoint and the file, never the key;
 - by the calls: chat on an embedding endpoint or an embedding on a chat
   one, before anything is sent; and any failure of the request itself.
 

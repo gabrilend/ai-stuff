@@ -10,16 +10,19 @@
 -- place, so rmail never reads half a canvas. (issue 303)
 --
 -- The body is the canvas in its to-voices form (docs/canvas-format.md):
--- headers canvas, size, mode, project, endpoint, written; the rows; the
--- marks; and, when tell-the-voice is on, a `cuts:` section listing each
--- voice's cut words from its latest turn that landed, so every voice gets
--- the same body and reads its own lines. The project's commit is read from
--- its git checkout at every version.
+-- headers canvas, size, mode, project, written; the rows; the marks; when
+-- tell-the-voice is on, a `cuts:` section listing each voice's cut words
+-- from its latest turn that landed; and an `endpoints:` section, one line a
+-- voice, naming the model server each voice uses for its next turn, from the
+-- project-root `endpoints` file read again at every version (issue 402).
+-- Every voice gets the same body and reads its own lines. The project's
+-- commit is read from its git checkout at every version.
 --
 --   local to_voices = dofile(DIR .. "/src/035-to-voices.lua")
 --   local publisher = to_voices.publisher({ root = DIR, voices = { ... } })
 --   blitter.new({ publishers = { blitter.log_publisher, publisher } })
---   to_voices.body(record, settings, commit, cuts)    -- the to-voices text
+--   to_voices.body(record, commit, cuts, endpoints)    -- the to-voices text
+--   to_voices.endpoint_lines(root, voices)             -- each voice's line now
 --   to_voices.message(voices, body)                    -- the outbox file's text
 --
 -- Settings in input/to-voices. The receipt counts versions-to-voices.
@@ -45,7 +48,6 @@ M.SETTINGS = {
     ["send"]             = { type = "choice", of = { "on", "off" }, required = true },
     ["mailbox"]          = { type = "text", required = true },   -- the guide mailbox's folder
     ["tell-the-voice"]   = { type = "choice", of = { "on", "off" }, required = true },
-    ["endpoint"]         = { type = "text", required = true },   -- "name address", until 402
     ["project-checkout"] = { type = "text", required = true },   -- the project's git checkout
 }
 -- }}}
@@ -64,11 +66,42 @@ function M.commit_of(checkout)
 end
 -- }}}
 
+-- {{{ function M.endpoint_lines()
+-- Each voice's endpoint line, from the endpoints file as it is now: the
+-- endpoint its use. line names, with that endpoint's timeout, address and
+-- key file. Returns the lines and a list of reasons a voice has none (no use.
+-- line, no timeout, a key file path with a space in it); a voice without a
+-- line finds out at its next turn. A file that cannot be read is an error,
+-- which the publisher logs.
+function M.endpoint_lines(root, voices)
+    local file = settings.read_endpoints({ root = root })
+    local lines, missing = {}, {}
+    for _, voice in ipairs(voices) do
+        local name = file.use[voice]
+        local one = name and file.endpoints[name]
+        if not one then
+            missing[#missing + 1] = voice .. " has no use." .. voice .. " line in endpoints"
+        elseif not one.timeout then
+            missing[#missing + 1] = voice .. "'s endpoint " .. name .. " has no " .. name .. ".timeout"
+        elseif one["key-file"] and not string.match(one["key-file"], "^%S+$") then
+            missing[#missing + 1] = voice .. "'s endpoint " .. name
+                .. " has a key file path with a space, which a canvas line cannot carry"
+        elseif not string.match(one.url, "^https?://%S+$") then
+            missing[#missing + 1] = voice .. "'s endpoint " .. name .. " has no http:// address"
+        else
+            lines[#lines + 1] = { voice = voice, name = name, timeout = one.timeout,
+                                  address = one.url, key_file = one["key-file"] }
+        end
+    end
+    return lines, missing
+end
+-- }}}
+
 -- {{{ function M.body()
 -- The to-voices text of a version (a for-viewers record from the blitter).
--- `cuts` is nil when tell-the-voice is off, else a list of cut lines.
-function M.body(record, values, commit, cuts)
-    local endpoint = canvas.HEADERS.endpoint.read(values["endpoint"])
+-- `cuts` is nil when tell-the-voice is off, else a list of cut lines;
+-- `endpoints` is the voices' endpoint lines.
+function M.body(record, commit, cuts, endpoints)
     local copy = {
         set = "to-voices", width = record.width, height = record.height, rows = record.rows,
         marks = record.marks,
@@ -76,9 +109,10 @@ function M.body(record, values, commit, cuts)
             canvas = record.headers.canvas, size = record.headers.size,
             mode = record.headers.mode,
             project = { name = record.headers.project.name, commit = commit },
-            endpoint = endpoint, written = record.headers.written,
+            written = record.headers.written,
         },
         cuts = cuts,
+        endpoints = endpoints or {},
     }
     return canvas.write(copy, "to-voices")
 end
@@ -97,18 +131,19 @@ end
 -- The publisher for the blitter's list, or nil and the reason when
 -- input/to-voices says not to send. opts: root, voices (the blitter's
 -- voices, each of which must be a contact of the mailbox). Refuses to start
--- when the mailbox or a voice's contact is missing, or the endpoint or
--- checkout cannot be used, rather than send versions nowhere.
+-- when the mailbox or a voice's contact is missing, the endpoints file cannot
+-- be read, or the checkout cannot be used, rather than send versions nowhere.
+-- Once running, an endpoints file that cannot be read is logged and the
+-- version goes out with no endpoint lines, so every voice's turn fails saying
+-- why, rather than one being sent to a server the file no longer names.
 function M.publisher(opts)
     local root = opts.root or DIR
     local values = settings.read("to-voices", M.SETTINGS, { root = root })
     if values.send == "off" then
         return nil, "versions are not mailed to the voices (send is off in input/to-voices)"
     end
-    if not canvas.HEADERS.endpoint.read(values["endpoint"]) then
-        fail("input/to-voices: the endpoint must be a name and an address, like "
-            .. "\"voice-small http://192.168.1.100:20166\"; found " .. values["endpoint"])
-    end
+    local ok, problem = pcall(M.endpoint_lines, root, opts.voices or {})
+    if not ok then fail(problem) end
     local checkout = home(values["project-checkout"])
     if not M.commit_of(checkout) then
         fail("input/to-voices: " .. checkout .. " is not a git checkout, so the project's "
@@ -149,7 +184,18 @@ function M.publisher(opts)
             end
         end
         local commit = M.commit_of(checkout) or record.headers.project.commit
-        local text = M.message(blitter.settings.voices, M.body(record, values, commit, cuts))
+        local read, lines, missing = pcall(M.endpoint_lines, root, blitter.settings.voices)
+        if not read then
+            blitter.run:log("version " .. version .. " goes to the voices with no endpoints: "
+                .. tostring(lines))
+            blitter.run:count("versions-without-endpoints")
+            lines = {}
+        else
+            for _, reason in ipairs(missing) do
+                blitter.run:log("version " .. version .. ": " .. reason)
+            end
+        end
+        local text = M.message(blitter.settings.voices, M.body(record, commit, cuts, lines))
         local part = outbox .. "/." .. M.SUBJECT .. ".part"
         local handle = assert(io.open(part, "w"))
         handle:write(text)

@@ -8,7 +8,7 @@ blueprint.
 
 | Set | Direction | Headers, in order |
 |---|---|---|
-| `to-voices` | kuvalu → voices (`the-canvas`) | canvas size mode project endpoint written |
+| `to-voices` | kuvalu → voices (`the-canvas`) | canvas size mode project written |
 | `from-voice` | a voice → kuvalu (`canvas`) | voice turn base size written |
 | `for-viewers` | kuvalu → viewers | canvas size mode project written voices |
 
@@ -21,11 +21,12 @@ chain.
 | Field | Type |
 |---|---|
 | `set` | the header set it was read with |
-| `headers` | name to parsed value: `size` as `{ width, height }`, `project` as `{ name, commit }`, `endpoint` as `{ name, address }`, `voices` as a list, the rest as numbers or text |
+| `headers` | name to parsed value: `size` as `{ width, height }`, `project` as `{ name, commit }`, `voices` as a list, the rest as numbers or text |
 | `width`, `height` | whole numbers, from `size` |
 | `rows` | `height` strings, each padded to exactly `width` characters |
 | `marks` | list of `{ row, column, length, voice, version, kind }`, kind `word`, `sentence` or `orphan` |
 | `cuts` | to-voices only: nil when there is no `cuts:` section, else a list of `{ voice, version, row, column, text }` |
+| `endpoints` | to-voices only: nil when there is no `endpoints:` section, else a list of `{ voice, name, timeout, address, key_file }`, one per voice (issue 402) |
 | `ignored_marks` | from-voice only: how many mark lines the voice sent. A voice's marks are counted, never read, so a malformed one cannot refuse its edit |
 
 ## Exactly back

@@ -44,3 +44,13 @@ there) and for the machine's C library.
 ## Blocks
 
 704.
+
+## Note (2026-11-05, from issue 402)
+
+- The voices keep no `endpoints` file: kuvalu names each voice's endpoint
+  in the canvas it sends (`docs/endpoints.md`, "Where the file lives").
+  Step 2 is then only the key files, at the path the canvas line names.
+- `scripts/list-endpoints` runs on kuvalu, where `endpoints` is. The check
+  script here instead asks, from each voice, every address the newest
+  to-voices canvas names for that voice (the client's `--ping`, and a
+  token count where a key is needed), and reports which it can reach.

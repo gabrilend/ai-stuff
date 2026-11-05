@@ -13,20 +13,23 @@
 --   local text = canvas.write(record)
 --
 -- The three header sets (which lines come first, and in what order):
---   to-voices    kuvalu -> voices   canvas size mode project endpoint written
+--   to-voices    kuvalu -> voices   canvas size mode project written
 --   from-voice   a voice -> kuvalu  voice turn base size written
 --   for-viewers  kuvalu -> viewers  canvas size mode project written voices
 --
 -- The record:
 --   set            which header set it was read with
 --   headers        name -> parsed value (size as { width, height }, project as
---                  { name, commit }, endpoint as { name, address }, voices as
+--                  { name, commit }, voices as
 --                  a list of names, the rest as numbers or text)
 --   width, height  whole numbers, from size
 --   rows           `height` strings, each padded to exactly `width` characters
 --   marks          list of { row, column, length, voice, version, kind }
 --   cuts           (to-voices only) nil when the section is absent, else a list
 --                  of { voice, version, row, column, text }
+--   endpoints      (to-voices only) nil when the section is absent, else a list
+--                  of { voice, name, timeout, address, key_file }: the model
+--                  server each voice uses for its next turn (issue 402)
 --   ignored_marks  (from-voice only) how many mark lines a voice sent; a
 --                  voice's marks are ignored and counted, never read
 --
@@ -123,17 +126,6 @@ M.HEADERS = {
         write = function(value) return value.name .. " " .. value.commit end,
         looks = "a name and a commit, like guide-feature 9f2c1e0",
     },
-    endpoint = {
-        read = function(text)
-            local endpoint, address = string.match(text, "^(%S+) (%S+)$")
-            if endpoint and name(endpoint) then
-                return { name = endpoint, address = address }
-            end
-            return nil
-        end,
-        write = function(value) return value.name .. " " .. value.address end,
-        looks = "a name and an address, like voice-small http://192.168.1.100:20166",
-    },
     voices = {
         read = function(text)
             local list, seen = {}, {}
@@ -158,7 +150,7 @@ M.HEADERS = {
 -- {{{ M.SETS
 -- Which headers each direction carries, in order (docs/canvas-format.md).
 M.SETS = {
-    ["to-voices"]   = { "canvas", "size", "mode", "project", "endpoint", "written" },
+    ["to-voices"]   = { "canvas", "size", "mode", "project", "written" },
     ["from-voice"]  = { "voice", "turn", "base", "size", "written" },
     ["for-viewers"] = { "canvas", "size", "mode", "project", "written", "voices" },
 }
@@ -317,6 +309,52 @@ local function read_mark(line, width, height, source, number)
 end
 -- }}}
 
+-- {{{ local function endpoint_problem()
+-- Why an endpoint line cannot be written, or nil. The address is a URL with no
+-- spaces; the key file, when there is one, is a path with no spaces. The key
+-- itself never travels in a canvas (docs/endpoints.md).
+local function endpoint_problem(line)
+    if type(line.voice) ~= "string" or not name(line.voice) then
+        return "the voice is not a name"
+    end
+    if type(line.name) ~= "string" or not name(line.name) then
+        return "the endpoint is not a name"
+    end
+    if type(line.timeout) ~= "number" or line.timeout < 1 or line.timeout ~= math.floor(line.timeout) then
+        return "the timeout is not a whole number of seconds, at least 1"
+    end
+    if type(line.address) ~= "string" or not string.match(line.address, "^https?://%S+$") then
+        return "the address is not an http:// or https:// address without spaces"
+    end
+    if line.key_file ~= nil and (type(line.key_file) ~= "string"
+        or not string.match(line.key_file, "^%S+$")) then
+        return "the key file is not a path without spaces"
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ local function read_endpoint_line()
+local function read_endpoint_line(line, source, number)
+    local voice, endpoint, timeout, address, key_file = string.match(line,
+        "^endpoint: (%S+) (%S+) (%S+) (%S+) (%S+)$")
+    if not voice then
+        voice, endpoint, timeout, address = string.match(line, "^endpoint: (%S+) (%S+) (%S+) (%S+)$")
+    end
+    if not voice then
+        refuse(source, number, "an endpoint line is `endpoint: VOICE NAME TIMEOUT ADDRESS "
+            .. "[KEY-FILE]`; found: " .. line)
+    end
+    local result = { voice = voice, name = endpoint, timeout = whole(timeout), address = address,
+                     key_file = key_file }
+    local problem = endpoint_problem(result)
+    if problem then
+        refuse(source, number, "this endpoint line cannot be read: " .. problem)
+    end
+    return result
+end
+-- }}}
+
 -- {{{ local function read_cut()
 local function read_cut(line, width, height, source, number)
     local voice, version, row, column, text = string.match(line,
@@ -384,7 +422,8 @@ function M.read(text, set, source)
     if set == "from-voice" then
         record.ignored_marks = 0
     end
-    while lines[number] ~= nil and lines[number] ~= "cuts:" do
+    local function section(line) return line == "cuts:" or line == "endpoints:" end
+    while lines[number] ~= nil and not section(lines[number]) do
         local line = lines[number]
         if set == "from-voice" then
             if string.sub(line, 1, 6) ~= "mark: " then
@@ -402,8 +441,25 @@ function M.read(text, set, source)
         end
         record.cuts = {}
         number = number + 1
-        while lines[number] ~= nil do
+        while lines[number] ~= nil and lines[number] ~= "endpoints:" do
             record.cuts[#record.cuts + 1] = read_cut(lines[number], width, height, source, number)
+            number = number + 1
+        end
+    end
+    if lines[number] == "endpoints:" then
+        if set ~= "to-voices" then
+            refuse(source, number, "only a canvas sent to the voices has an `endpoints:` section")
+        end
+        record.endpoints = {}
+        local seen = {}
+        number = number + 1
+        while lines[number] ~= nil do
+            local line = read_endpoint_line(lines[number], source, number)
+            if seen[line.voice] then
+                refuse(source, number, "the voice " .. line.voice .. " has two endpoint lines")
+            end
+            seen[line.voice] = true
+            record.endpoints[#record.endpoints + 1] = line
             number = number + 1
         end
     end
@@ -415,8 +471,8 @@ end
 -- {{{ function M.write()
 -- A canvas record in, its text out: the headers of its set in order, a blank
 -- line, the rows without trailing spaces, `marks:` and its lines, and, for a
--- canvas to the voices that has them, `cuts:` and its lines. Every line ends
--- with a newline. The size header is written from width and height. A record
+-- canvas to the voices that has them, `cuts:` and `endpoints:` and their
+-- lines. Every line ends with a newline. The size header is written from width and height. A record
 -- that could not be read back the same is refused, so a mistake shows here and
 -- not on another machine.
 function M.write(record, set)
@@ -479,6 +535,25 @@ function M.write(record, set)
             end
             out[#out + 1] = string.format("cut: %s %d %d %d %s", cut.voice, cut.version,
                 cut.row, cut.column, cut.text)
+        end
+    end
+    if record.endpoints ~= nil then
+        if set ~= "to-voices" then
+            error("canvas.write: only a canvas sent to the voices has endpoints", 2)
+        end
+        out[#out + 1] = "endpoints:"
+        local seen = {}
+        for index, line in ipairs(record.endpoints) do
+            local problem = endpoint_problem(line)
+            if problem then
+                error("canvas.write: endpoint line " .. index .. ": " .. problem, 2)
+            end
+            if seen[line.voice] then
+                error("canvas.write: the voice " .. line.voice .. " has two endpoint lines", 2)
+            end
+            seen[line.voice] = true
+            out[#out + 1] = string.format("endpoint: %s %s %d %s%s", line.voice, line.name,
+                line.timeout, line.address, line.key_file and (" " .. line.key_file) or "")
         end
     end
     return table.concat(out, "\n") .. "\n"

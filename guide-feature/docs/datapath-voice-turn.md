@@ -30,8 +30,13 @@ output to the outbox with the correct formatting and such."
 1. **Read the canvas** with the canvas reader (`docs/canvas-format.md`).
 2. **Project clone.** The `project:` header names the project and commit
    being worked on. If this voice's clone is behind, it is fetched first.
-3. **Endpoint.** `endpoints` is read again (`docs/endpoints.md`), so a
-   change made while running takes effect on this turn.
+3. **Endpoint.** The voice's own line in the canvas's `endpoints:`
+   section (`docs/canvas-format.md`), which kuvalu writes from its
+   `endpoints` file for every version it sends (`docs/endpoints.md`), so a
+   switch made on kuvalu while running takes effect on the next version.
+   The key, for an endpoint that needs one, is read now from its key file
+   on this machine. No line, or a key file that cannot be used, fails the
+   turn, saying which (issue 402).
 4. **Conversation.** From an instruction file in `input/`, filled in:
    - who this voice is, and that two others edit the same canvas;
    - the rules: the canvas is real and stays on screen. Change as little as

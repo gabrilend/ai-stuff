@@ -41,3 +41,15 @@ Counts of done and open issues:
   - It counts asks, tries, problems by kind, look calls, tokens and seconds.
   - Run directly, it shows a real model being corrected. That run is for
     kuvalu with 401a's servers.
+- **402, choose endpoints at runtime** (2026-11-05):
+  - `scripts/use-endpoint ROLE NAME` checks the endpoint (kind, timeout,
+    key file, answers and takes the key), then rewrites the one `use.` line
+    through a checked temporary file. `scripts/list-endpoints` shows every
+    endpoint, whether it answers, and who uses it.
+  - Outside providers: the key is read from a file outside the repository
+    at the start of each turn and sent as `Authorization: Bearer`, never on
+    a command line.
+  - The canvas kuvalu sends has one endpoint line per voice, written from
+    a fresh read of `endpoints` at every version, so a switch reaches a
+    voice with the next version.
+  - Real key files and providers are the owner's.

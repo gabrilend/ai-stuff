@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# list-endpoints - every endpoint in the project-root endpoints file, its
+# kind, whether it answers now, its address, and which roles use it (issue
+# 402). Run it on kuvalu.
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/053-endpoint-tools.lua" --dir "${DIR}" list "$@"

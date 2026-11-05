@@ -122,6 +122,11 @@ function M.workspace(root, values, ws)
         if not text then fail("input/" .. name .. " is missing") end
         write(w.root .. "/input/" .. name, text)
     end
+    -- the endpoints file, which names each voice's endpoint in every version
+    -- the guide sends (402)
+    local endpoints = slurp(root .. "/endpoints")
+    if not endpoints then fail("there is no endpoints file in the project root") end
+    write(w.root .. "/endpoints", endpoints)
     -- the canvas to the voices: the project's endpoint and checkout, the
     -- workspace's guide mailbox, always sent
     local mailed = settings.read("to-voices", to_voices.SETTINGS, { root = root })
@@ -129,7 +134,6 @@ function M.workspace(root, values, ws)
     write(w.root .. "/input/to-voices", table.concat({
         "send = " .. text_value("on"), "mailbox = " .. text_value(w.guide),
         "tell-the-voice = " .. text_value(mailed["tell-the-voice"]),
-        "endpoint = " .. text_value(mailed.endpoint),
         "project-checkout = " .. text_value(mailed["project-checkout"]) }, "\n") .. "\n")
     local guide = settings.read("turn-runner", runner.SETTINGS, { root = w.root }).guide
     -- the four mailboxes, on this machine, by the mailbox setup (301)

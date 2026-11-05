@@ -2,7 +2,6 @@ canvas: 18
 size: 40x6
 mode: newest
 project: guide-feature 9f2c1e0
-endpoint: kuvalu-chat http://192.168.1.100:21223
 written: 2026-11-05T10:00:00Z
 
 the kitten  on the mat is very sleepy.
@@ -17,3 +16,6 @@ mark: 3 3 7 fg-sora-2 16 word
 cuts:
 cut: fg-sora-1 17 1 5 cat
 cut: fg-sora-2 16 3 3 lamp
+endpoints:
+endpoint: fg-sora-1 kuvalu-chat 300 http://192.168.1.100:21223
+endpoint: fg-sora-2 kuvalu-chat 300 http://192.168.1.100:21223

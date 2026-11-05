@@ -98,6 +98,8 @@ Most valuable first.
 - Should kuvalu tell each voice which endpoint to use? **Yes** ("I guess
   so?"): an `endpoint` header in the canvas kuvalu sends, and only kuvalu
   keeps the `endpoints` file. `docs/endpoints.md`, `docs/canvas-format.md`.
+  (2026-11-05, issue 402: one line per voice in an `endpoints:` section
+  instead of one header, so each voice can have its own endpoint.)
 - Should the voices argue their changes through their mailboxes? **Not
   planned.** "that's not necessary, and I worry it might lead to all of them
   speaking the same words or having the same voice. It's better if they drift

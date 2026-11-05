@@ -105,16 +105,35 @@ mailboxes.build(mailboxes.read_set(BASE .. "/set"), { root = ROOT })
 
 local function settings_text(over)
     local values = { send = '"on"', mailbox = '"' .. MAIL .. '"', ["tell-the-voice"] = '"on"',
-        endpoint = '"voice-small http://192.168.1.100:20166"',
         ["project-checkout"] = '"' .. CHECKOUT .. '"' }
     for key, value in pairs(over or {}) do values[key] = value end
     local out = {}
-    for _, key in ipairs({ "send", "mailbox", "tell-the-voice", "endpoint", "project-checkout" }) do
+    for _, key in ipairs({ "send", "mailbox", "tell-the-voice", "project-checkout" }) do
         out[#out + 1] = key .. " = " .. values[key]
     end
     return table.concat(out, "\n") .. "\n"
 end
 write(ROOT .. "/input/to-voices", settings_text())
+-- kuvalu's endpoints file: two voices on one server, the third on another,
+-- one of them needing a key
+local ENDPOINTS = table.concat({
+    'kuvalu-chat.url = "http://192.168.1.100:21223"', 'kuvalu-chat.kind = "chat"',
+    "kuvalu-chat.timeout = 300",
+    'far-away.url = "https://example.invalid/llama"', 'far-away.kind = "chat"',
+    "far-away.timeout = 120", 'far-away.key-file = "~/.config/guide-feature/keys/far-away"',
+    'kuvalu-embed.url = "http://192.168.1.100:21224"', 'kuvalu-embed.kind = "embedding"',
+    'use.fg-sora-1 = "kuvalu-chat"', 'use.fg-sora-2 = "kuvalu-chat"', 'use.fg-sora-3 = "far-away"',
+    'use.embedder = "kuvalu-embed"',
+}, "\n") .. "\n"
+write(ROOT .. "/endpoints", ENDPOINTS)
+local function lines_of(record)
+    local out = {}
+    for _, line in ipairs(record and record.endpoints or {}) do
+        out[#out + 1] = string.format("%s %s %d %s%s", line.voice, line.name, line.timeout,
+            line.address, line.key_file and (" " .. line.key_file) or "")
+    end
+    return table.concat(out, "; ")
+end
 local OUTBOX = MAIL .. "/outbox"
 local THE_CANVAS = OUTBOX .. "/the-canvas"
 
@@ -137,16 +156,21 @@ local to, record, body = sent()
 check("version 1 is in outbox/the-canvas as soon as the blitter starts",
     record and record.headers.canvas == 1, slurp(THE_CANVAS))
 check("one to: line for each voice, in order", to == "to: fg-sora-1\nto: fg-sora-2\nto: fg-sora-3", to)
-check("the to-voices headers: size, mode, the project and its checkout's commit, the endpoint",
+check("the to-voices headers: size, mode, the project and its checkout's commit",
     record.width == series.WIDTH and record.height == series.HEIGHT
     and record.headers.mode == "newest" and record.headers.project.name == "guide-feature"
-    and record.headers.project.commit == head() and record.headers.endpoint.name == "voice-small"
-    and record.headers.endpoint.address == "http://192.168.1.100:20166")
+    and record.headers.project.commit == head())
+check("each voice's endpoint line, from the endpoints file: name, timeout, address, key file",
+    lines_of(record) == "fg-sora-1 kuvalu-chat 300 http://192.168.1.100:21223; "
+    .. "fg-sora-2 kuvalu-chat 300 http://192.168.1.100:21223; "
+    .. "fg-sora-3 far-away 120 https://example.invalid/llama ~/.config/guide-feature/keys/far-away",
+    lines_of(record))
+check("the key itself is never in the canvas", not has(body, "Bearer"))
 check("with tell-the-voice on, a cuts: section, empty while nothing was cut",
     record.cuts ~= nil and #record.cuts == 0 and has(body, "\nmarks:\ncuts:\n"))
 
 local all_newest, only_one, rows_same, commits_follow = true, true, true, true
-local cuts_after = {}
+local cuts_after, endpoints_after = {}, {}
 for number = 1, #series.ROUNDS do
     local versions = {}
     for version = 1, b.version do versions[version] = b.history[version].rows end
@@ -154,6 +178,11 @@ for number = 1, #series.ROUNDS do
         write(ROOT .. "/tmp/shared-memory/arrivals/" .. one.name, one.text)
     end
     if number == 4 then shell(GIT .. "commit -q --allow-empty -m two") end
+    if number == 4 then
+        -- a use. line switched between versions, as scripts/use-endpoint does
+        write(ROOT .. "/endpoints", (ENDPOINTS:gsub('use.fg%-sora%-1 = "kuvalu%-chat"',
+            'use.fg-sora-1 = "far-away"')))
+    end
     b:step()
     to, record = sent()
     if not record or record.headers.canvas ~= b.version then all_newest = false end
@@ -169,6 +198,7 @@ for number = 1, #series.ROUNDS do
             cut.column, cut.text)
     end
     cuts_after[number] = table.concat(listed, "; ")
+    endpoints_after[number] = lines_of(record)
 end
 check("after every round, the-canvas holds the newest version", all_newest)
 check("and nothing else is in the outbox: no second message, no half-written file", only_one)
@@ -181,12 +211,44 @@ check("every voice's lines are in the one body, each from its own latest turn",
     cuts_after[4] == "fg-sora-1 5 1 9 sat; fg-sora-3 7 1 5 kitten", cuts_after[4])
 check("a voice's lines go when its next turn lands, the others' stay",
     cuts_after[6] == "fg-sora-3 7 1 5 kitten", cuts_after[6])
+check("the endpoints file is read at every version: a switched use. line shows at the next one",
+    endpoints_after[3]:match("^fg%-sora%-1 kuvalu%-chat") ~= nil
+    and endpoints_after[4]:match("^fg%-sora%-1 far%-away 120 https://example.invalid/llama") ~= nil,
+    endpoints_after[4])
+
+write(ROOT .. "/endpoints", (ENDPOINTS:gsub('use.fg%-sora%-2 = "kuvalu%-chat"\n', "")))
+b:publish(b.current, nil, "the same rows again, for the test")
+to, record = sent()
+local blog = slurp(ROOT .. "/tmp/shared-memory/blitter.log") or ""
+check("a voice with no use. line gets no line, and the log says so",
+    not has(lines_of(record), "fg-sora-2") and has(lines_of(record), "fg-sora-1")
+    and has(blog, "fg-sora-2 has no use.fg-sora-2 line in endpoints"), lines_of(record))
+write(ROOT .. "/endpoints", (ENDPOINTS
+    :gsub('use.fg%-sora%-2 = "kuvalu%-chat"', 'slow-chat.url = "http://192.168.1.100:21225"\n'
+        .. 'slow-chat.kind = "chat"\nuse.fg-sora-2 = "slow-chat"')
+    :gsub('far%-away.url = "https://', 'far-away.url = "')))
+b:publish(b.current, nil, "the same rows again, for the test")
+to, record = sent()
+blog = slurp(ROOT .. "/tmp/shared-memory/blitter.log") or ""
+check("an endpoint with no timeout, or no http:// address, gives its voice no line, logged",
+    lines_of(record):match("^fg%-sora%-1 kuvalu%-chat 300 [^;]*$") ~= nil
+    and has(blog, "fg-sora-2's endpoint slow-chat has no slow-chat.timeout")
+    and has(blog, "fg-sora-3's endpoint far-away has no http:// address"), lines_of(record))
+write(ROOT .. "/endpoints", "this is not an endpoints file\n")
+b:publish(b.current, nil, "the same rows again, for the test")
+to, record = sent()
+blog = slurp(ROOT .. "/tmp/shared-memory/blitter.log") or ""
+check("an endpoints file that cannot be read: the version still goes, with no endpoint lines, logged",
+    record and record.endpoints and #record.endpoints == 0
+    and has(blog, "goes to the voices with no endpoints: endpoints:1:"), blog:sub(-300))
+write(ROOT .. "/endpoints", ENDPOINTS)
 b:finish()
 local receipt = goodbye.read(ROOT .. "/output/goodbye-blitter")
 check("the receipt counts the versions handed to rmail: every one",
-    receipt.counters["versions-to-voices"] == 8
+    receipt.counters["versions-to-voices"] == 11
     and receipt.counters["versions-to-voices"] == receipt.counters["versions-in-history"],
     receipt.counters["versions-to-voices"])
+check("and the version that went with no endpoints", receipt.counters["versions-without-endpoints"] == 1)
 -- }}}
 
 io.write("\n=== the settings ===\n")
@@ -205,8 +267,8 @@ local none, why = to_voices.publisher({ root = ROOT, voices = VOICES })
 check("with send off there is no publisher, and the reason says where it is set",
     none == nil and has(why, "send is off in input/to-voices"))
 
-local function refused(over, voices, piece)
-    write(ROOT .. "/input/to-voices", settings_text(over))
+local function refused(over, voices, piece, extra)
+    write(ROOT .. "/input/to-voices", settings_text(over) .. (extra or ""))
     local ok, problem = pcall(to_voices.publisher, { root = ROOT, voices = voices or VOICES })
     return not ok and has(tostring(problem), piece), problem
 end
@@ -214,8 +276,12 @@ check("no mailbox at the folder: refused, naming the script that makes one",
     refused({ mailbox = '"' .. BASE .. '/nowhere"' }, nil, "make it with scripts/make-mailboxes"))
 check("a voice the mailbox has no contact for: refused, naming it",
     refused(nil, { "fg-sora-1", "fg-sora-4" }, "no contact called fg-sora-4"))
-check("an endpoint that is not a name and an address: refused",
-    refused({ endpoint = '"voice-small"' }, nil, "must be a name and an address"))
+shell("mv '" .. ROOT .. "/endpoints' '" .. ROOT .. "/endpoints.aside'")
+check("no endpoints file: refused at the start",
+    refused(nil, nil, "no endpoints file"))
+shell("mv '" .. ROOT .. "/endpoints.aside' '" .. ROOT .. "/endpoints'")
+check("an old endpoint setting is refused, as every unknown setting is",
+    refused({}, nil, "'endpoint' is not one of", "endpoint = \"voice-small http://x\"\n"))
 check("a project checkout that is not a git checkout: refused",
     refused({ ["project-checkout"] = '"' .. BASE .. '"' }, nil, "is not a git checkout"))
 check("a setting missing: refused, as every program's settings are",

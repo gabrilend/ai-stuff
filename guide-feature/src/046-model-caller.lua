@@ -12,7 +12,8 @@
 -- then look as if one model wrote it when another did. (issue 401b)
 --
 --   local caller = dofile(DIR .. "/src/046-model-caller.lua")
---   local endpoint = caller.for_role(root, "fg-sora-1")  -- read now, not cached
+--   local endpoint = caller.for_role(root, "distiller")  -- read now, not cached
+--   local endpoint = caller.from_canvas(record, "fg-sora-1", root)  -- a voice's
 --   local text, info = caller.chat(endpoint, messages)    -- info.usage, info.seconds
 --   local n = caller.count_tokens(endpoint, text)
 --   local vectors = caller.embed(caller.for_role(root, "embedder"), { "a", "b" })
@@ -76,12 +77,53 @@ function M.read(root)
 end
 -- }}}
 
+-- {{{ local function realpath()
+-- A path with ~ expanded and made absolute and plain (`realpath -m`, which
+-- does not need the path to exist).
+local function realpath(path)
+    path = path:gsub("^~", os.getenv("HOME") or "~")
+    local pipe = io.popen("realpath -m -- '" .. path:gsub("'", "'\\''") .. "' 2>/dev/null")
+    local real = pipe and pipe:read("*l")
+    if pipe then pipe:close() end
+    return real ~= "" and real or path
+end
+-- }}}
+
+-- {{{ function M.load_key()
+-- For an endpoint with a key file (an outside provider, issue 402): its key,
+-- read now, at the start of the turn, into endpoint.key. The file must be
+-- outside the project (`docs/endpoints.md`: the key itself is never in the
+-- repository), and must hold the key. Each refusal names the endpoint and
+-- the file, never the key. An endpoint with no key file is left alone.
+function M.load_key(endpoint, root)
+    local path = endpoint["key-file"]
+    if not path then return endpoint end
+    local file, project = realpath(path), realpath(root)
+    if file == project or file:sub(1, #project + 1) == project .. "/" then
+        fail(endpoint, "its key file " .. path .. " is inside the project; keys live "
+            .. "outside the repository")
+    end
+    local handle = io.open(file, "rb")
+    if not handle then
+        fail(endpoint, "its key file " .. path .. " is missing or cannot be read")
+    end
+    local key = (handle:read("*a") or ""):match("^%s*(.-)%s*$")
+    handle:close()
+    if key == "" or key:find("[%c%s]") then
+        fail(endpoint, "its key file " .. path .. " does not hold one key on one line")
+    end
+    endpoint.key = key
+    return endpoint
+end
+-- }}}
+
 -- {{{ function M.for_role()
 -- The endpoint record a role uses now: name, url, kind, timeout, and any other
--- field the file gives it. Refused: no use. line for the role; an endpoint
--- with no timeout (every call needs a limit, and nothing has a default in
--- code); an endpoint that needs a key (outside providers come with issue 402,
--- and a request sent without its key would only be refused there).
+-- field the file gives it, with its key read when it has a key file. Refused:
+-- no use. line for the role; an endpoint with no timeout (every call needs a
+-- limit, and nothing has a default in code); a key file that cannot be used.
+-- kuvalu's own roles (the distiller, the embedder) are found this way; a voice
+-- finds its endpoint in the canvas kuvalu sends it (from_canvas).
 function M.for_role(root, role)
     local file = M.read(root)
     local name = file.use[role]
@@ -95,11 +137,27 @@ function M.for_role(root, role)
         error("endpoints: the endpoint '" .. name .. "' has no " .. name
             .. ".timeout; every endpoint a role uses needs one, in seconds", 0)
     end
-    if endpoint["key-file"] then
-        fail(endpoint, "it needs a key (" .. name .. ".key-file), and endpoints with "
-            .. "keys come with issue 402; until then a role cannot use it")
+    return M.load_key(endpoint, root)
+end
+-- }}}
+
+-- {{{ function M.from_canvas()
+-- The endpoint a voice uses for this turn, from the canvas kuvalu sent it:
+-- its own line in the `endpoints:` section (docs/canvas-format.md), which
+-- kuvalu writes from its endpoints file at every version. Only kuvalu keeps
+-- that file (docs/endpoints.md). The key, when the line names a key file, is
+-- read from that file on this machine. Refused: no line for this voice.
+function M.from_canvas(record, voice, root)
+    for _, line in ipairs(record.endpoints or {}) do
+        if line.voice == voice then
+            local endpoint = { name = line.name, url = line.address, kind = "chat",
+                               timeout = line.timeout, role = voice,
+                               ["key-file"] = line.key_file }
+            return M.load_key(endpoint, root)
+        end
     end
-    return endpoint
+    error("the canvas names no endpoint for " .. voice .. ": kuvalu's endpoints file has "
+        .. "no use." .. voice .. " line, or could not be read when this version was sent", 0)
 end
 -- }}}
 

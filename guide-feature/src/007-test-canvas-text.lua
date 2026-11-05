@@ -104,6 +104,8 @@ local TO_VOICES = table.concat(code_block_after("docs/canvas-format.md",
     "## Headers, kuvalu → voices"), "\n") .. "\n\n" .. ROW_TEXT
     .. "marks:\nmark: 3 12 7 fg-sora-2 18 word\n"
     .. "cuts:\ncut: fg-sora-3 17 7 11 blitter\ncut: fg-sora-1 18 4 3 café,\n"
+    .. "endpoints:\nendpoint: fg-sora-1 kuvalu-chat 300 http://192.168.1.100:21223\n"
+    .. "endpoint: fg-sora-2 far-away 120 https://example.invalid/llama ~/.config/guide-feature/keys/far-away\n"
 local FROM_VOICE = table.concat(code_block_after("docs/canvas-format.md",
     "## Headers, voice → kuvalu"), "\n") .. "\n\n" .. ROW_TEXT .. "marks:\n"
 local protocol = code_block_after("docs/canvas-protocol.md", "## The text")
@@ -157,11 +159,10 @@ for _, example in ipairs({
 end
 
 local to = canvas.read(TO_VOICES, "to-voices")
-check("headers are parsed: numbers, size, project, endpoint",
+check("headers are parsed: numbers, size, project",
     to.headers.canvas == 18 and to.width == 60 and to.height == 20
     and to.headers.size.width == 60 and to.headers.mode == "newest"
     and to.headers.project.name == "guide-feature" and to.headers.project.commit == "9f2c1e0"
-    and to.headers.endpoint.name == "voice-small"
     and to.headers.written == "2026-10-21T22:10:05Z")
 check("a mark is read into its fields",
     to.marks[1].row == 3 and to.marks[1].column == 12 and to.marks[1].length == 7
@@ -170,6 +171,16 @@ check("a mark is read into its fields",
 check("cuts are read, with words of more than one byte",
     #to.cuts == 2 and to.cuts[2].text == "café," and to.cuts[1].column == 11)
 check("rows keep their characters", to.rows[4] == utf8.pad(ROWS[4], 60))
+check("endpoint lines are read: voice, name, timeout, address",
+    #to.endpoints == 2 and to.endpoints[1].voice == "fg-sora-1" and to.endpoints[1].name == "kuvalu-chat"
+    and to.endpoints[1].timeout == 300 and to.endpoints[1].address == "http://192.168.1.100:21223"
+    and to.endpoints[1].key_file == nil)
+check("and a key file's path, never a key",
+    to.endpoints[2].key_file == "~/.config/guide-feature/keys/far-away" and to.endpoints[2].timeout == 120)
+local only_endpoints = string.gsub(TO_VOICES, "cuts:\n.-endpoints:", "endpoints:")
+local eok, erecord = pcall(canvas.read, only_endpoints, "to-voices")
+check("endpoints without cuts", eok and erecord.cuts == nil and #erecord.endpoints == 2
+    and canvas.write(erecord) == only_endpoints, erecord)
 
 local from = canvas.read(FROM_VOICE, "from-voice")
 check("a voice's headers", from.headers.voice == "fg-sora-2" and from.headers.turn == 41
@@ -273,19 +284,33 @@ bad("too many rows", swap(FROM_VOICE, "row 20 of twenty.\n", "row 20 of twenty.\
 bad("no marks section", swap(FROM_VOICE, "marks:\n", ""),
     "from-voice", "c:27:", "found: the end of the canvas")
 bad("a mark with a field missing", swap(TO_VOICES, "mark: 3 12 7 fg-sora-2 18 word",
-    "mark: 3 12 7 fg-sora-2 18"), "to-voices", "c:29:", "a mark is `mark: ROW")
+    "mark: 3 12 7 fg-sora-2 18"), "to-voices", "c:28:", "a mark is `mark: ROW")
 bad("a mark below the last row", swap(TO_VOICES, "mark: 3 12", "mark: 21 12"),
-    "to-voices", "c:29:", "its row is not between 1 and 20")
+    "to-voices", "c:28:", "its row is not between 1 and 20")
 bad("a mark running past the width", swap(TO_VOICES, "mark: 3 12 7", "mark: 3 55 7"),
-    "to-voices", "c:29:", "runs past the width of 60")
+    "to-voices", "c:28:", "runs past the width of 60")
 bad("a mark of no kind", swap(TO_VOICES, "18 word", "18 letter"),
-    "to-voices", "c:29:", "its kind is not word, sentence or orphan")
+    "to-voices", "c:28:", "its kind is not word, sentence or orphan")
 bad("a line among the marks that is not one", swap(TO_VOICES, "cuts:\n", "hello\ncuts:\n"),
-    "to-voices", "c:30:", "a mark is `mark: ROW")
+    "to-voices", "c:29:", "a mark is `mark: ROW")
 bad("a cut whose word runs past the width", swap(TO_VOICES, "cut: fg-sora-3 17 7 11 blitter",
-    "cut: fg-sora-3 17 7 55 blitter"), "to-voices", "c:31:", "does not fit")
+    "cut: fg-sora-3 17 7 55 blitter"), "to-voices", "c:30:", "does not fit")
 bad("a cut with two words", swap(TO_VOICES, "11 blitter", "11 the blitter"),
-    "to-voices", "c:31:", "a cut is `cut: VOICE")
+    "to-voices", "c:30:", "a cut is `cut: VOICE")
+bad("an endpoint line with no timeout", swap(TO_VOICES, "kuvalu-chat 300 http", "kuvalu-chat http"),
+    "to-voices", "c:33:", "an endpoint line is `endpoint: VOICE NAME TIMEOUT ADDRESS")
+bad("an endpoint timeout of 0", swap(TO_VOICES, "kuvalu-chat 300", "kuvalu-chat 0"),
+    "to-voices", "c:33:", "the timeout is not a whole number")
+bad("an address that is not http", swap(TO_VOICES, "300 http://", "300 ftp://"),
+    "to-voices", "c:33:", "the address is not an http")
+bad("an endpoint name that is not a name", swap(TO_VOICES, "fg-sora-1 kuvalu-chat 300", "fg-sora-1 kuvalu/chat 300"),
+    "to-voices", "c:33:", "the endpoint is not a name")
+bad("a voice name that is not a name", swap(TO_VOICES, "endpoint: fg-sora-1 kuvalu-chat", "endpoint: fg:sora kuvalu-chat"),
+    "to-voices", "c:33:", "the voice is not a name")
+bad("a voice with two endpoint lines", swap(TO_VOICES, "endpoint: fg-sora-2 far-away", "endpoint: fg-sora-1 far-away"),
+    "to-voices", "c:34:", "the voice fg-sora-1 has two endpoint lines")
+bad("endpoints sent by a voice", FROM_VOICE .. "endpoints:\n", "from-voice",
+    "c:28:", "only a canvas sent to the voices has an `endpoints:` section")
 bad("cuts sent by a voice", FROM_VOICE .. "cuts:\n", "from-voice",
     "c:28:", "only a canvas sent to the voices has a `cuts:` section")
 bad("cuts sent to viewers", FOR_VIEWERS .. "cuts:\n", "for-viewers",
@@ -307,8 +332,17 @@ local function bad_write(name, change, part)
 end
 bad_write("a row too long", function(r) r.rows[2] = string.rep("y", 61) end,
     "row 2 is 61 characters")
-bad_write("a missing header", function(r) r.headers.endpoint = nil end,
-    "no 'endpoint' header")
+bad_write("a missing header", function(r) r.headers.written = nil end,
+    "no 'written' header")
+bad_write("an endpoint line without its address", function(r) r.endpoints[1].address = "here" end,
+    "endpoint line 1: the address is not")
+bad_write("a key file path with a space", function(r) r.endpoints[2].key_file = "my keys/far" end,
+    "endpoint line 2: the key file is not a path without spaces")
+bad_write("a voice with two endpoint lines", function(r) r.endpoints[2].voice = "fg-sora-1" end,
+    "the voice fg-sora-1 has two endpoint lines")
+bad_write("endpoints on a canvas for viewers", function(r)
+    r.set, r.cuts, r.headers.voices = "for-viewers", nil, { "a" } end,
+    "only a canvas sent to the voices has endpoints")
 bad_write("a mark off the canvas", function(r) r.marks[1].row = 40 end,
     "mark 1 cannot be on the canvas")
 bad_write("rows that disagree with the height", function(r) r.rows[20] = nil end,

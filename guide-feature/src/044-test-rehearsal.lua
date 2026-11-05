@@ -80,10 +80,11 @@ local CHECKOUT = BASE .. "/the-project"
 shell("mkdir -p '" .. CHECKOUT .. "' && git -C '" .. CHECKOUT .. "' init -q && git -C '" .. CHECKOUT
     .. "' -c user.name=test -c user.email=test@localhost commit -q --allow-empty -m one")
 write(ROOT .. "/input/blitter", series.SETTINGS)
+write(ROOT .. "/endpoints", slurp(DIR .. "/endpoints"))
 write(ROOT .. "/input/turn-runner", slurp(DIR .. "/input/turn-runner"))
 write(ROOT .. "/input/stand-in-turn", 'words = "lantern harbor kitten orchard"\nseconds = 0.5\n')
 write(ROOT .. "/input/to-voices", 'send = "off"\nmailbox = "~/guide-mail"\ntell-the-voice = "on"\n'
-    .. 'endpoint = "voice-small http://192.168.1.100:20166"\nproject-checkout = "' .. CHECKOUT .. '"\n')
+    .. 'project-checkout = "' .. CHECKOUT .. '"\n')
 local function rehearsal_settings(over)
     local values = { minutes = "0.33", carrier = '"stand-in"', ["first-port"] = "41223",
         pace = "1", jitter = "0.5", rmail = '"luajit /nowhere/rmail.lua"' }

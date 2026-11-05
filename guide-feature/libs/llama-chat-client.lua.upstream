@@ -12,3 +12,6 @@ changes: this project's own, made in the copy (issue 401b):
          - chat() also returns the whole decoded reply (for the token usage).
          - the unreachable message points at scripts/start-servers.
          - the CLI takes --url URL and --timeout SECONDS.
+         - an endpoint's key, when it has one, goes as an Authorization
+           bearer header, from a temporary file curl reads (-H @file), so
+           it is never on a command line (issue 402).
