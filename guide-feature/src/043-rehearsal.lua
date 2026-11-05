@@ -297,9 +297,14 @@ function M.run(opts)
                 local text = slurp(b.arrivals .. "/" .. name) or ""
                 local voice = string.match(text, "^voice: (%S+)\n")
                 local turn = tonumber(string.match(text, "\nturn: (%d+)\n"))
+                local r = voice and turn and row(voice, turn)
+                if r then
+                    -- the voice's own events may be read after its arrival
+                    r.base = r.base or tonumber(string.match(text, "\nbase: (%d+)\n"))
+                    r.published = r.published or (r.base and published[r.base])
+                end
                 local outcome = b:take(name)
-                if voice and turn then
-                    local r = row(voice, turn)
+                if r then
                     r.arrived, r.outcome = at, outcome
                     if outcome ~= "blitted" then r.blitted = runner.now() end
                     event(at, voice, "arrived", tonumber(string.match(text, "\nbase: (%d+)\n")),

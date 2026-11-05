@@ -54,3 +54,36 @@ moves the phase toward its goals.)
   machine, `carrier = "rmail"` runs real daemons instead. Rehearsing showed
   that rmail names the second and third voices' canvases
   `canvas-from-<voice>`. Both hooks now read that name.
+- **306, the phase 3 demo** (2026-11-05): `issues/completed/demos/phase-3-demo`
+  (also `./run-phase-demo 3`) runs the rehearsal for a few minutes with
+  rmail's own timers.
+  - Each version is drawn as it is made, with phase 2's marks, its voice,
+    its turn and its round trip.
+  - Then a timeline per voice, and a histogram of the round trips beside
+    the part spent waiting for rmail's timer.
+  - Then the canvases that waited and those replaced before use, and the
+    rehearsal's receipt.
+  - Every number is checked against the rehearsal's own records.
+
+## Phase 3 is complete
+
+All of phase 3's issues (301–306) are done, and the demo runs. On kuvalu,
+canvases go round the guide mailbox and three voice mailboxes as living
+messages. Each voice runs one turn at a time on the newest canvas, and
+every leg of every round trip is measured.
+
+The roadmap's last goal for phase 3, "the measured round trip through
+real rmail", is met only under the stand-in carrier here. The stand-in
+follows rmail's file-and-hook contract and its timers, but it is not rmail.
+
+Left for the owner's machine:
+- **Real rmail on kuvalu** (`carrier = "rmail"` in `input/rehearsal`),
+  with the four daemons. Real encryption and real sync timing are measured
+  only there. rmail's public-IP check has no off switch, so each daemon
+  asks an outside provider for kuvalu's address (`docs/network.md` wants a
+  switch).
+- **The guide mailbox's daemon on port 1223**, and the router.
+- **rmail and the turn hook on the fg-sora machines** (702, 704), with
+  real endpoints (401a, 402).
+- **The demo watched in a real terminal**, for its five minutes.
+
