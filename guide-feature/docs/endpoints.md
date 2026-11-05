@@ -46,6 +46,11 @@ comment, text in "quotes", bare whole numbers.
 | `NAME.key-file` | text, a path outside the repository | for endpoints that need a key: the file holding it. The key itself is never in `endpoints` |
 | `use.ROLE` | an endpoint name | which endpoint a role uses. Roles: each voice by name, `distiller`, `embedder` |
 
+Only kuvalu keeps this file. The voices learn their own endpoint, and the
+embedder's, from the `endpoints:` section of each canvas kuvalu sends them
+(`docs/canvas-format.md`): one line per voice, and since issue 503 one for
+`use.embedder`, which every voice's look tool uses.
+
 ## Selected at runtime
 
 The file is read again at the start of every turn and every distill, so

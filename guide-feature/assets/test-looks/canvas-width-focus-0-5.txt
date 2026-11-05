@@ -1,0 +1,8 @@
+   1  0.7071  src/006-canvas-text.lua 150-157 (structure)
+  39  0.4082  src/025-canvas-server.lua 51-63 (structure)
+  78  0.3536  src/051-ask-until-it-fits.lua 68-81 (structure)
+ 116  0.3000  src/040-test-turn.lua 349-408 (block)
+ 154  0.2673  src/023-test-viewer.lua 220-221 (block)
+ 192  0.2462  src/038-turn-runner.lua 376-406 (block)
+ 231  0.2236  src/055-turn.lua 98-125 (function)
+ 269  0.1826  src/009-test-words.lua 134-147 (block)

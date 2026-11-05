@@ -88,6 +88,27 @@ used, and `scripts/install-index-hooks` keeps it built after every commit,
 pull and checkout on kuvalu. guide-feature reads other projects' indexes
 and builds only its own.
 
+**On the voices** the index is copied, not built (issue 503). After the
+clone keeper brings the clone to the canvas's commit, it reads the meta of
+the index in the source's project folder (over the same SSH as the clone)
+and, when that index is at the clone's commit, copies it whole into the
+clone's project folder as `.embedding-index/` (`tar` over SSH, into a
+`.part` folder, checked with `src/060-embedding-index.lua`, then renamed
+in). An index at another commit whose project folder has the same `tree`
+is the same index, and is copied with its commit renamed. The log's next
+line, and the receipt, say which of these it was:
+
+| Count | Log line | Meaning |
+|---|---|---|
+| `index-already` | the embedding index is there, N pieces | the clone has it for this commit |
+| `index-copied` | the embedding index was copied from the source, N pieces | copied now |
+| `index-behind` | no embedding index for this commit yet: ... | the source has not rebuilt it yet; the look refuses |
+| `index-none` | no embedding index: ... | the source has none |
+| `index-failed` | the embedding index could not be copied: ... | unreachable, or the copy does not check |
+
+So the vectors are made once, on kuvalu, by the same embedding model, and a
+voice needs no embedding work of its own to keep its index.
+
 ## The look call
 
 The model calls `look` with:
@@ -116,6 +137,68 @@ The look tool:
 If the project has no index, the look call answers with an error saying so.
 It does not fall back to random files. The error reaches the model and is
 counted. A missing index is a problem to fix, not to hide.
+
+### As built (issue 503)
+
+`src/064-look.lua`, answered by the turn (`src/055-turn.lua`, its
+`looker`). The call's form stays the plain line of issue 403, `look
+focused: WORDS` or `look broad: WORDS`; `input/look` turns the two words
+into focuses (`focused = 1`, `broad = 0`), so the numbers can change
+without the model's words changing. A look:
+
+1. takes the names in WORDS by `names-v1`, the index's own rule, and asks
+   the embedder for their vector. The embedder is the `endpoint: embedder`
+   line of the canvas (`docs/canvas-format.md`), so it is chosen on kuvalu
+   like the voices' own endpoints;
+2. reads `.embedding-index/` in the clone's project folder, and refuses one
+   at another commit than the clone, one made by another name rule, and
+   one made by another model than the embedder serves (its `/v1/models`
+   name), or with vectors of another length;
+3. scores every piece in one pass over the vectors, held in one block of
+   memory with LuaJIT's FFI, ranking included: 0.8 ms for guide-feature's
+   1,074 pieces at 64 dimensions here, 1.7 ms at 768;
+4. ranks the pieces, nearest first, and chooses by focus, from
+   `input/look`:
+   - the number of pieces runs in a straight line from `nearest` (4) at
+     focus 1 to `spread` (12) at focus 0;
+   - they are evenly spaced from rank 1 down to the reach,
+     `(1 - focus) ^ curve` of the way to the last rank (`curve` = 2), and
+     never fewer ranks than pieces. At focus 1 that is the nearest four in
+     a row; at 0, twelve from the nearest to the farthest; at 0.5, eight
+     within the nearest quarter;
+5. answers with the pieces' source text, read from the clone's own files,
+   nearest first, each under a label
+
+       --- src/006-canvas-text.lua, lines 150-157 (structure), similarity 0.707
+
+   up to `budget` tokens (2000), counted with the voice's own chat
+   endpoint's tokenizer. A piece that does not fit is left out, a smaller
+   one after it still goes in, and the answer ends by saying how many were
+   left out.
+
+The token budget is a setting, not the endpoint's context length minus what
+the turn has used: the canvas line names no context length, and with
+`look-limit` 3 the looks add at most 6,000 tokens to a turn. It is set for
+the real model with the owner.
+
+A look with nothing to show answers with why, as one sentence the model
+reads, and the turn counts it (`look-refused-<kind>`): `no-clone`,
+`no-index`, `index-commit`, `index-model`, `no-embedder` or `no-names`
+(words such as "the if end" hold no names). It never shows other files
+instead. A look that cannot be asked at all (the embedder unreachable, no
+`input/look`) is answered "The look failed: ..." and counted `look-failed`;
+the turn goes on either way.
+
+Run by hand against a folder with an index:
+
+    luajit src/064-look.lua --project FOLDER --url EMBEDDER-URL \
+        [--count-url CHAT-URL] --focus 0.5 canvas width
+
+`src/065-test-look.lua` asks "canvas width" of guide-feature's own index
+(at the commit of issue 502, pinned) at focus 1, 0.5 and 0, and compares
+the pieces with `assets/test-looks/`. With the stand-in embedding model the
+similarities only count shared names, so many pieces tie at 0; the real
+model's will spread out.
 
 ## Where the embedding work runs
 

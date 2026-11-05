@@ -38,8 +38,8 @@
 --   local result = rehearsal.run({ root = ROOT, on_version = function(record, voice) end })
 --
 -- Settings in input/rehearsal; the voices' turn in input/turn-runner (the
--- real turn, 405, with input/turn, input/turn-instructions and the voices'
--- endpoints from the endpoints file; or the stand-in, with
+-- real turn, 405, with input/turn, input/turn-instructions, input/look and
+-- the voices' endpoints from the endpoints file; or the stand-in, with
 -- input/stand-in-turn), the canvas in input/blitter and the project's
 -- checkout in input/to-voices, all copied into the workspace. The voices'
 -- clone settings (input/project-clone, 501) are copied with each project
@@ -127,7 +127,7 @@ function M.workspace(root, values, ws)
         write(w.root .. "/input/" .. name, text)
     end
     -- the real turn's settings and words (405), when the project has them
-    for _, name in ipairs({ "turn", "turn-instructions" }) do
+    for _, name in ipairs({ "turn", "turn-instructions", "look" }) do
         local text = slurp(root .. "/input/" .. name)
         if text then write(w.root .. "/input/" .. name, text) end
     end

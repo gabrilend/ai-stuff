@@ -1,0 +1,4 @@
+   1  0.7071  src/006-canvas-text.lua 150-157 (structure)
+   2  0.6667  src/040-test-turn.lua 423-426 (block)
+   3  0.5774  src/014-blit.lua 243-254 (function)
+   4  0.5669  src/016-blitter.lua 90-101 (function)

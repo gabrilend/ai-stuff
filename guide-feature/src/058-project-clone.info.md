@@ -8,8 +8,11 @@ calls it at its start (step 2); `scripts/project-clone` runs it by hand:
 
 | Function | Meaning |
 |---|---|
-| `keep(opts)` | the keeper: `root`, `voice`, `project` (`{ name, commit }`); returns `{ place, path, project, made, fetched, checked_out, moved, was, bytes, estimate, why, seconds, ... }`, raises with the reason |
+| `keep(opts)` | the keeper: `root`, `voice`, `project` (`{ name, commit }`); returns `{ place, path, project, made, fetched, checked_out, moved, was, full, bytes, estimate, why, seconds, index, ... }`, raises with the reason |
 | `describe(kept)` | the log line |
+| `bring_index(kept)` | the project's embedding index copied from the source into the clone (503): `{ state = "already" \| "copied" \| "behind" \| "none" \| "failed", why, pieces, commit, renamed }`; never raises. `keep` calls it unless `opts.index` is false, into `kept.index` |
+| `describe_index(kept)` | the index's log line |
+| `on_host(repository, command)` | a shell command run where the source is: here, or over SSH |
 | `choose(opts)` | RAM or disk for a new clone, the reason, the numbers |
 | `measure(repository, commit, folder)` | the project folder's bytes and files at the commit on the source, and the commit's full name |
 | `on_source(repository, git_args)` | the shell command for git on the source: here, or `ssh -o BatchMode=yes HOST` |

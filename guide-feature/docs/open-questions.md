@@ -32,7 +32,9 @@ Most valuable first.
    in the reply that the turn recognises? `issues/403`. Answered for now
    in 403 (2026-11-05), until the owner decides: a plain line in the reply,
    `look focused: WORDS` or `look broad: WORDS`. It works whether or not the
-   server runs with `--jinja`.
+   server runs with `--jinja`. Kept in 503 (2026-11-05): `input/look` turns
+   the two words into focuses, 1 and 0, and the look tool takes any focus
+   between, so the form can grow without the code changing.
 4. **Characters or terminal columns?** Some characters take two columns in
    a terminal. If voices may write them, the fit check and the blit must
    count columns. `docs/fit-check.md`.

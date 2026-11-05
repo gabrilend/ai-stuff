@@ -16,9 +16,12 @@ then settled by writing the builder's guide
 `.embedding-index/` in the project's own folder, and ignored by git: beside
 `.git/` when the project is a repository of its own, inside its folder when
 it lives in a monorepo (guide-feature is `ai-stuff/guide-feature/`).
-It is made on each machine from that machine's clone, by a git hook
-(`post-commit` where commits are made, `post-merge` and `post-checkout` where
-they are pulled), so it always matches the checked-out commit.
+It is made where the project is worked on (for guide-feature, kuvalu's
+checkout) by a git hook (`post-commit` where commits are made, `post-merge`
+and `post-checkout` where they are pulled), so it always matches the
+checked-out commit. A voice does not build it: the clone keeper copies it
+from there into the voice's clone, whole, when it is at the clone's commit
+(issue 503, 2026-11-05).
 
 ## What
 
@@ -33,7 +36,7 @@ whole:
 | `dimensions` | whole number | the vector length |
 | `pieces` | whole number | how many pieces |
 | `rule` | text | the name of the name-extraction rule, so queries are embedded the same way (`names-v1`) |
-| `tree` | text, optional | the project folder's git tree at that commit, so a builder can tell a commit that did not touch the project; the look tool does not read it |
+| `tree` | text, optional | the project folder's git tree at that commit, so a builder can tell a commit that did not touch the project. The clone keeper reads it too: an index at another commit with the same tree is the same index, copied with its commit renamed. The look tool does not read it |
 
 `.embedding-index/pieces`: one line per piece, tab-separated:
 

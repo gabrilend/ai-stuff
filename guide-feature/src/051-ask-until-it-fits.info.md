@@ -7,8 +7,9 @@ will just keep spinning until it gets it right."
 Each ask:
 1. The model is asked with the whole conversation so far.
 2. A look call (`look focused: WORDS` or `look broad: WORDS`, 403) is
-   answered by `answer_look`. Until the look tool (503) exists, the answer is
-   `NO_LOOK_TOOL`. A call past `look_limit` is answered with `LOOKS_USED`.
+   answered by `answer_look`: the turn's look tool (503, 055's `looker`);
+   with none given, `NO_LOOK_TOOL`. A call past `look_limit` is answered
+   with `LOOKS_USED`.
    Either way the model is asked again.
 3. Otherwise the reply is a try. Any one Markdown fence around the whole
    reply is taken off. The rest is checked by the fit check and by the

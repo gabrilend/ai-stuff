@@ -34,7 +34,9 @@ output to the outbox with the correct formatting and such."
    first turn on the project, in RAM if it fits, fetched when it is behind.
    The log says where the clone is and why. A clone that cannot be had is
    logged and counted, and the turn goes on with the canvas alone
-   (`docs/datapath-looking-into-the-project.md`).
+   (`docs/datapath-looking-into-the-project.md`). The keeper then copies the
+   project's embedding index from the source when the source's is at the
+   clone's commit (issue 503), and the next log line says whether it did.
 3. **Endpoint.** The voice's own line in the canvas's `endpoints:`
    section (`docs/canvas-format.md`), which kuvalu writes from its
    `endpoints` file for every version it sends (`docs/endpoints.md`), so a
@@ -69,7 +71,11 @@ output to the outbox with the correct formatting and such."
 5. **Ask.** The model may answer with a look call instead of a canvas.
    The call is answered (`docs/datapath-looking-into-the-project.md`), the
    result is added to the conversation, and the model is asked again. The
-   number of look calls per turn is limited by a setting.
+   number of look calls per turn is limited by a setting. Each look is
+   logged (`look focused (canvas width): 4 of 1074 pieces, similarity 0.707
+   to 0.567, T tokens`) and counted in the receipt: `look-pieces`,
+   `look-tokens`, `look-left-out`, or `look-refused` and
+   `look-refused-<kind>` when there was nothing to show, or `look-failed`.
 6. **Fit check.** The reply is the whole edited canvas. It is checked
    against the size; the change counts become an advisory note, never a
    refusal. On failure the compiler-style report goes back to the model, with
@@ -80,9 +86,9 @@ output to the outbox with the correct formatting and such."
    Built in issue 404 (`src/051-ask-until-it-fits.lua`), as `until_fits`:
    - It is handed the opening conversation and a function that asks the
      role's endpoint.
-   - A look call is answered (until 503: that the look tool is not built
-     yet), up to `look-limit` a turn. A call past the limit is told the
-     calls are used up.
+   - A look call is answered by the look tool (issue 503,
+     `src/064-look.lua`), up to `look-limit` a turn. A call past the limit
+     is told the calls are used up.
    - A canvas reply is checked by the fit check, beside the copied-ruler
      check (403). Any one Markdown fence around the whole reply is taken
      off; nothing else is changed.

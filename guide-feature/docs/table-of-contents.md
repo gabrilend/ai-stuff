@@ -37,8 +37,8 @@ and issue files do not; they have their own indexes.
   - docs/datapath-voice-turn.md - one turn on a mini-computer.
   - docs/datapath-blit.md - how changes land on the shared canvas, in both
     merge modes.
-  - docs/datapath-looking-into-the-project.md - the project clone and the
-    look tool.
+  - docs/datapath-looking-into-the-project.md - the project clone, the
+    index copied to each voice, and the look tool.
   - docs/datapath-viewers.md - from the canvas to a person's eyes.
 
 ## Phases

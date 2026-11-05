@@ -21,7 +21,8 @@
 --       base = record,                                 -- the canvas it started from
 --       recommended = { words = 12, sentences = 1 },
 --       look_limit = 3,
---       answer_look = function(look) return text end,  -- 503; until then ask.NO_LOOK_TOOL
+--       answer_look = function(look) return text end,  -- the look tool (503, 055's looker);
+--                                                      -- without one, ask.NO_LOOK_TOOL
 --       log = function(line) run:log(line) end,        -- optional
 --       give_way = function() return reason or nil end, -- optional (405)
 --   })
@@ -57,7 +58,8 @@ local prompt = dofile(DIR .. "/src/049-turn-prompt.lua")
 local M = {}
 
 -- {{{ the answers the loop gives of its own
--- Until the look tool is built (503), a look call is answered with this.
+-- A look call with no look tool given is answered with this (the turn gives
+-- one since 503).
 M.NO_LOOK_TOOL = "the look tool is not built yet, so there is nothing to show. "
     .. "write the whole canvas again now, with your change in it."
 -- A look call past the turn's limit is answered with this.

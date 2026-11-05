@@ -62,6 +62,7 @@ local DIR = string.match(SOURCE, "^@(.+)/src/[^/]*$")
 -- }}}
 
 local settings = dofile(DIR .. "/src/001-settings.lua")
+local index = dofile(DIR .. "/src/060-embedding-index.lua")
 
 local M = {}
 
@@ -359,12 +360,134 @@ local function make_clone(repository, folder, dest)
 end
 -- }}}
 
+-- {{{ function M.on_host()
+-- The shell command that runs `command` where the source repository is:
+-- here, or over SSH on its host, as on_source does for git.
+function M.on_host(repository, command)
+    local where = assert(M.parse_repository(repository))
+    if not where.host then return command end
+    return "ssh -o BatchMode=yes -o ConnectTimeout=10 " .. quote(where.host) .. " " .. quote(command)
+end
+-- }}}
+
+-- {{{ function M.bring_index()
+-- The project's embedding index (502), copied from the source into the
+-- clone's project folder, as .embedding-index/, when the source's index is
+-- at the clone's commit. guide-feature builds only its own index (the
+-- build guide): another project's index is built where that project is
+-- worked on, by that project's tooling, and the voice copies it. An index
+-- at another commit whose project folder is the same tree (a commit that
+-- touched only the monorepo's other projects) is the same index, and is
+-- copied with its commit renamed, as the builder renames its own.
+-- Returns { state, why, pieces, commit }; state is
+--   "already"  the clone has the index for its commit;
+--   "copied"   it was copied now;
+--   "behind"   the source's index is at another commit, not yet rebuilt;
+--   "none"     the source has no index;
+--   "failed"   it could not be copied (why says).
+-- Never raises: a look without an index says so to the model (503).
+function M.bring_index(r)
+    local here = r.project .. "/" .. index.FOLDER
+    local full = head(r.path)
+    if not full then return { state = "failed", why = "the clone has no commit checked out" } end
+    local tree_said, tree_status = git(r.path, "rev-parse --verify --quiet "
+        .. quote("HEAD:" .. (r.folder == "." and "" or r.folder)))
+    local tree = tree_status == 0 and string.match(tree_said, "^%x+$") or nil
+    local handle = io.open(here .. "/meta", "rb")
+    local mine = handle and index.read_meta(handle:read("*a"))
+    if handle then handle:close() end
+    if mine and mine.commit == full then
+        return { state = "already", commit = full, pieces = mine.pieces }
+    end
+
+    local where = assert(M.parse_repository(r.repository))
+    local path = where.path
+    if not where.host and string.sub(path, 1, 2) == "~/" then
+        path = (os.getenv("HOME") or "") .. string.sub(path, 2)
+    end
+    local source = r.folder == "." and path or (path .. "/" .. r.folder)
+    local said, status = shell(M.on_host(r.repository, "if test -f " .. quote(source .. "/"
+        .. index.FOLDER .. "/meta") .. "; then cat " .. quote(source .. "/" .. index.FOLDER
+        .. "/meta") .. "; else echo 'no index'; fi"))
+    if status ~= 0 then
+        return { state = "failed", why = "cannot read the source's index: " .. first_line(said) }
+    end
+    if said == "no index" then
+        return { state = "none", why = "the source has no index at " .. source .. "/" .. index.FOLDER }
+    end
+    local theirs, bad = index.read_meta(said)
+    if not theirs then return { state = "failed", why = "the source's index: " .. bad } end
+    local same_tree = theirs.tree and tree and theirs.tree == tree
+    if theirs.commit ~= full and not same_tree then
+        return { state = "behind", why = string.format("the source's index is at %s and the clone "
+            .. "at %s; it is rebuilt there after each commit", string.sub(theirs.commit, 1, 7),
+            string.sub(full, 1, 7)) }
+    end
+
+    local part = here .. ".part"
+    shell("rm -rf " .. quote(part) .. " && mkdir -p " .. quote(part))
+    shell(M.on_host(r.repository, "tar -C " .. quote(source) .. " -cf - " .. index.FOLDER)
+        .. " | tar -C " .. quote(part) .. " -xf -")
+    local copied = part .. "/" .. index.FOLDER
+    local found, problems = index.check(copied, {})
+    local function drop() shell("rm -rf " .. quote(part)) end
+    if not found or #problems > 0 then
+        drop()
+        return { state = "failed", why = "the copy does not check: "
+            .. table.concat(problems or {}, "; ") }
+    end
+    -- the builder may have moved on while it was copied
+    local renamed = false
+    if found.meta.commit ~= full then
+        if not (found.meta.tree and found.meta.tree == tree) then
+            drop()
+            return { state = "behind", why = "the source's index moved to "
+                .. string.sub(found.meta.commit, 1, 7) .. " while it was copied" }
+        end
+        local meta = {}
+        for key, value in pairs(found.meta) do meta[key] = value end
+        meta.commit = full
+        local out = assert(io.open(copied .. "/meta", "wb"))
+        out:write(index.meta_text(meta))
+        out:close()
+        renamed = true
+    end
+    shell("rm -rf " .. quote(here .. ".old"))
+    os.rename(here, here .. ".old")
+    local moved, why = os.rename(copied, here)
+    shell("rm -rf " .. quote(here .. ".old") .. " " .. quote(part))
+    if not moved then return { state = "failed", why = "cannot put the index in place: " .. tostring(why) } end
+    return { state = "copied", commit = full, pieces = found.count, renamed = renamed,
+             why = renamed and "its project folder is the same at both commits" or nil }
+end
+-- }}}
+
+-- {{{ function M.describe_index()
+-- The log line for the index, after describe()'s.
+function M.describe_index(r)
+    local i = r.index or { state = "failed", why = "not looked for" }
+    if i.state == "already" then
+        return string.format("the embedding index is there, %d pieces", i.pieces or 0)
+    elseif i.state == "copied" then
+        return string.format("the embedding index was copied from the source, %d pieces%s",
+            i.pieces or 0, i.renamed and (", renamed to this commit since " .. i.why) or "")
+    elseif i.state == "behind" then
+        return "no embedding index for this commit yet: " .. i.why
+    elseif i.state == "none" then
+        return "no embedding index: " .. i.why
+    end
+    return "the embedding index could not be copied: " .. tostring(i.why)
+end
+-- }}}
+
 -- {{{ function M.keep()
 -- The clone keeper, at the start of a turn. opts: root, voice, project
 -- ({ name, commit }, from the canvas), and the seams. Returns { name,
 -- commit, repository, folder, place ("ram"|"disk"), path (the clone),
 -- project (the project's folder in it), made, fetched, checked_out, moved,
--- was (the commit it was at), bytes (the clone's size), why, seconds }.
+-- was (the commit it was at), full (the commit it is at, in full), bytes
+-- (the clone's size), why, seconds,
+-- index (bring_index's answer; opts.index = false leaves it out) }.
 -- Raises with the reason when there is no clone to give.
 function M.keep(opts)
     local started = now()
@@ -449,6 +572,8 @@ function M.keep(opts)
         end
     end
     result.project = folder == "." and result.path or (result.path .. "/" .. folder)
+    result.full = head(result.path)
+    if opts.index ~= false then result.index = M.bring_index(result) end
     result.bytes = M.size_of(result.path)
     result.seconds = now() - started
     return result

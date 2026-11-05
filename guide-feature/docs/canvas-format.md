@@ -100,6 +100,15 @@ canvas. Every voice receives the same body and reads only its own line, as
 with the cuts. A voice with no line has no endpoint, and its turn fails
 saying so (issue 402).
 
+When kuvalu's `endpoints` file has a `use.embedder` line, one more line
+comes last, with `embedder` in place of the voice: the embedding endpoint
+every voice's look tool reads its words with (issue 503):
+
+    endpoint: embedder kuvalu-embed 60 http://192.168.1.100:21224
+
+A canvas with no embedder line still works: a look then tells the model
+there is no embedding model to read its words with.
+
 ## Headers, kuvalu → voices (`the-canvas`)
 
     canvas: 18
