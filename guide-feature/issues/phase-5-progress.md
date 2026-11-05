@@ -51,3 +51,41 @@ Counts of done and open issues:
     "canvas width" at focus 1, 0.5 and 0 gives three visibly different
     sets, kept as reference files. The real models' numbers are for the
     owner's machine.
+- **504, the phase 5 demo** (2026-11-05): `issues/completed/demos/phase-5-demo`
+  (also `./run-phase-demo 5`).
+  - Builds kuvalu's side here: guide-feature's own code in a one-commit
+    monorepo, and its index. A voice's clone of it is made in RAM, with
+    the index copied in.
+  - Asks one question ("canvas width", or `--about`) at focus 1, 0.75,
+    0.5, 0.25 and 0: 4 to 12 pieces, each list with a similarity chart and
+    a strip of where the pieces sit among all 1,100 or so, so the reach
+    can be seen widening; then the focused answer as the model reads it.
+  - Runs the rehearsal with the real turn in all three voices, whose
+    stand-in models look focused, then broad, then not, and shows every
+    look from the turns' logs (about what, at what focus, what came back),
+    one answer as its model read it, and where each voice's clone went,
+    RAM or disk, and why.
+  - The test checks the output against the look tool's own answers, the
+    turns' logs and receipts, and a run where no clone fits in RAM.
+
+## Phase 5 is done here, apart from the real models
+
+501–504 are done. Each voice keeps a clone of the project the canvas names,
+in RAM when it fits; kuvalu's embedding index of the project is built after
+every commit and copied into each voice's clone; and a voice's model can
+look into the project, focused or broad, before it writes. The roadmap's
+goal for phase 5, "the same question asked at several focus levels, then
+a turn that used the look tool", is met here against stand-in models.
+
+Left for the owner's machine:
+- **SSH from each voice to kuvalu by key, and git 2.25 or later on the
+  voices** (501; issue 701's survey).
+- **The first real clone of the monorepo** on an fg-sora, and `ram-share`
+  and `working-room` set for those machines.
+- **`scripts/install-index-hooks` on kuvalu**, once `kuvalu-embed` runs
+  (401a), and the first real index.
+- **The real embedding model**: its name in `endpoints`, and the look's
+  `budget`, `nearest`, `spread` and `curve` tried with it and the real chat
+  model.
+- **The demos against the real servers.**
+
