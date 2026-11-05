@@ -240,3 +240,9 @@ not into new issues.
 - *2026-11-05:* `server-stamp` exists now (W02f step 1): not a line but a
   small text file naming each file the server reads with its CRC-32 and
   size, written by every conversion; a build without one counts as new.
+- *2026-11-05:* W02f step 2 in data form: the converter copies the shim
+  into the build (`server/ale/`) and writes `install-plan.lua`, which rows
+  go into which database and table and which files go to which of the
+  server's folders, checked against a stand-in for W02h's empty world
+  database. Nothing installs it yet, and every place and table in it is
+  from memory (W02f's unchecked list).

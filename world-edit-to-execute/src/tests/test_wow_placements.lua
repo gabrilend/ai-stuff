@@ -763,6 +763,10 @@ else
                         or rel:match("^server/triggers/[%w_]+/[%w%-]+%.lua$")
                         -- and W02f's (2026-11-05): the server's stamp
                         or rel == "server-stamp"
+                        -- and W02f step 2's (2026-11-05): the install plan, and the
+                        -- shim copied from this repository for it, with its licence
+                        or rel == "install-plan.lua" or rel:match("^server/ale/wc3shim/[%w_]+%.lua$")
+                        or rel == "server/ale/LICENSE"
                     if not (made or rel:match("^World/Maps/") or rel == wowbuild.SQL or rel == wowbuild.PLACEMENTS or rel == wowbuild.REPORT
                             or rel:lower():match("%.mdx$") or rel:lower():match("%.blp$") or rel:lower():match("%.tga$")) then
                         other[#other + 1] = rel

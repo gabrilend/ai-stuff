@@ -17,6 +17,11 @@ The boundary, kept by `src/tests/test_wow_triggers.lua`:
   `ale/wc3shim/covered.lua`, the list of natives the shim implements. It
   loads it in an empty environment, as it reads `registration.lua`; it
   runs none of the shim's code.
+- The converter also copies this folder's modules (all but
+  `fake_ale.lua`) and `LICENSE` into the build, as bytes, to
+  `<build>/server/ale/`, for W02f's install plan
+  (`src/wowbuild/install_plan.lua`); it runs none of them. The copies
+  keep this folder's licence.
 - What the converter writes for the server (`<build>/server/triggers/`:
   the transpiled `war3map.lua` and `map-data.lua`) is program output and
   carries the map's own rights, not this folder's licence.

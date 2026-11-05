@@ -65,6 +65,13 @@ The build folder is a loose overlay as the W client reads one (its issue
   <build>/server/triggers/<dir>/map-data.lua      what the shim reads of the build (data, W02e)
   <build>/server/triggers/<dir>/natives-report.lua  the natives the script calls, which the shim
                                                   has, which it lacks (data, W02e)
+  <build>/server/ale/wc3shim/*.lua, server/ale/LICENSE
+                                                  the shim (server-side/ale/wc3shim/), copied
+                                                  as bytes for the install (W02f step 2)
+  <build>/install-plan.lua                        what installing the build into AzerothCore
+                                                  means: which rows into which database and
+                                                  table, which files to which of the server's
+                                                  folders (data, W02f step 2; wowbuild.install_plan)
   <build>/server-stamp                            the files the server reads, each with its
                                                   CRC-32 and size, written last (W02f step 1;
                                                   wowbuild.server_stamp)
@@ -95,6 +102,7 @@ local wterrain = require("wowbuild.terrain")
 local adt = require("wowbuild.adt")
 local placements = require("wowbuild.placements")
 local server_stamp = require("wowbuild.server_stamp")
+local install_plan = require("wowbuild.install_plan")
 local creatures = require("wowbuild.creatures")
 local registration = require("wowbuild.registration")
 local loadscreen = require("wowbuild.loadscreen")
@@ -119,7 +127,7 @@ wowbuild.STAGES_NOT_BUILT = {
     "W02d server data for new maps",
     "W02e's server loader and the remaining natives (steps 1-2 built: the coverage report, the transpiled script, 574 natives)",
     "W02h empty world database",
-    "W02f launcher and loader (step 1 built: the server's stamp, server-stamp)",
+    "W02f launcher and loader (steps 1-2 built: the server's stamp, server-stamp, and the install plan, install-plan.lua; nothing installs it yet)",
 }
 -- this project's folder (the shim's list of natives is read from it)
 wowbuild.DIR = (debug.getinfo(1, "S").source:match("^@(.-)src/wowbuild/init%.lua$")) or "./"
@@ -405,6 +413,7 @@ function wowbuild.convert(map_path, build_dir, opts)
     -- the server's stamp goes first, so one never outlives the files it
     -- names (a conversion that stops part way leaves none); written last
     server_stamp.remove(build_dir)
+    install_plan.remove(build_dir)
 
     -- this map's folder, emptied first: the converter owns the build folder
     local rel = "World/Maps/" .. name
@@ -512,6 +521,13 @@ function wowbuild.convert(map_path, build_dir, opts)
     end
     for _, f in ipairs(trig_files) do files[#files + 1] = f end
 
+    -- the shim, copied into the build for the install, and the install's
+    -- plan: which rows into which tables, which files to which of the
+    -- server's folders (W02f step 2: data; nothing installs it yet)
+    for _, f in ipairs(install_plan.copy_shim(build_dir, opts.dir or wowbuild.DIR)) do files[#files + 1] = f end
+    local plan, plan_text = install_plan.write(build_dir, serialize)
+    files[#files + 1] = { path = install_plan.FILE, bytes = #plan_text }
+
     -- the server's stamp, after every file the server reads (W02f): the
     -- editor starts the server again only when it changes
     local stamp_text, stamp_files = server_stamp.write(build_dir)
@@ -544,6 +560,8 @@ function wowbuild.convert(map_path, build_dir, opts)
         },
         triggers = trig,
         server_stamp = { file = server_stamp.FILE, files = stamp_files },
+        install_plan = { file = install_plan.FILE, sql = #plan.sql, tables = #plan.tables, files = #plan.files,
+                         waiting = #plan.waiting },
         not_built = wowbuild.STAGES_NOT_BUILT,
     }
     report.warnings = report.terrain.warnings + pc.unmapped_ids + #report.units.unmapped_ids + #warnings
