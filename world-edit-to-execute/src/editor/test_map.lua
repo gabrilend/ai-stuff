@@ -61,6 +61,15 @@ makes the baseline set from this project's tables found by it. The
 build's stamp leaves the converter's report out, so an unchanged map
 reuses the server.
 
+Since the W02 chain was merged in (2026-11-05): the build must hold
+W02c's map.lua (test_map.read_map_file), which the W client opens the map
+by; a build without a good one stops before the server starts. The camera
+goes by map.lua's wc3_to_wow, the W client's own rule, checked against the
+report's placement.client (whose bounds it borrows); if they ever disagree,
+map.lua's rule wins and the disagreement is said (test_map.camera_placement).
+The stamp leaves out every report that holds a time
+(test_map.STAMP_LEAVES_OUT).
+
 The editor stops the W client only when the editor itself closes (a
 killed client writes no receipt, and nobody is left to read one then);
 otherwise the client is always left to close itself.
@@ -85,6 +94,18 @@ test_map.REPORT = "conversion-report.lua"     -- the converter's, in the build f
 test_map.REPORT_FORMAT = 1                   -- the newest report format read here
 test_map.REPORT_MAX_BYTES = 32 * 1024 * 1024 -- a 64 x 64-tile map's report is well under a megabyte
 test_map.REPORT_MAX_STEPS = 50 * 1000 * 1000
+test_map.MAP_FILE = "map.lua"                -- W02c's, in the build folder (wowbuild.MAP_FILE): the map the W client opens
+test_map.MAP_FORMAT = 1                      -- the one format the W client reads (its 073-converted-map.c)
+test_map.AGREE_SCALE = 1e-12                 -- map.lua's rule and the report's placement agree within this share of the scale
+test_map.AGREE_YARDS = 0.001                 -- and this many yards of x0 and y0
+-- the build's files left out of its stamp: reports for people and the
+-- converter's own record, which the server never reads and which hold
+-- when they were written or how long that took (-path patterns from ./)
+test_map.STAMP_LEAVES_OUT = {
+    "./conversion-report.lua",                -- W02's report
+    "./World/Maps/*/registration.lua",        -- W02c's record of the map's slot and rows (the rows reach the server through server/)
+    "./server/triggers/*/natives-report.lua", -- W02e's coverage report (the shim reads war3map.lua and map-data.lua)
+}
 
 local T = {}
 T.__index = T
@@ -298,12 +319,69 @@ function test_map.read_placement(build_dir)
 end
 -- }}}
 
+-- {{{ test_map.read_map_file: W02c's map.lua, the map the W client opens
+-- The W client opens a test map by <build>/map.lua (its 1109 step 1b:
+-- the map's id and folder, its start, and wc3_to_wow, the rule from WC3
+-- positions to its world). Read here as data, as the report is; checked
+-- only for what the editor relies on: format 1 and the rule. The table,
+-- or nil, why and "missing" or "refused"
+function test_map.read_map_file(build_dir)
+    local path = build_dir .. "/" .. test_map.MAP_FILE
+    local f = io.open(path, "rb")
+    if not f then return nil, "the converter wrote no " .. test_map.MAP_FILE, "missing" end
+    local text = f:read(test_map.REPORT_MAX_BYTES + 1) or ""
+    f:close()
+    if #text > test_map.REPORT_MAX_BYTES then return nil, "its " .. test_map.MAP_FILE .. " is too big", "refused" end
+    local t, why = receipt.run_data(text, path, test_map.REPORT_MAX_STEPS)
+    if not t then return nil, "its " .. test_map.MAP_FILE .. " can't be read: " .. why, "refused" end
+    if t.format ~= test_map.MAP_FORMAT then
+        return nil, string.format("its %s's format is %s; the W client and this editor read %d",
+            test_map.MAP_FILE, tostring(t.format), test_map.MAP_FORMAT), "refused"
+    end
+    local r = t.wc3_to_wow
+    local function finite(v) return type(v) == "number" and v == v and v ~= math.huge and v ~= -math.huge end
+    if type(r) ~= "table" or not finite(r.scale) or r.scale <= 0 or not finite(r.x0) or not finite(r.y0) then
+        return nil, "its " .. test_map.MAP_FILE .. " has no good wc3_to_wow (scale above 0, x0, y0)", "refused"
+    end
+    return t
+end
+-- }}}
+
+-- {{{ test_map.camera_placement: the rule the camera is turned by
+-- map.lua's wc3_to_wow is the rule the W client itself places the map by
+-- (its start and its placements), so it is the one the camera goes by;
+-- the report's placement.client gives the map's bounds (wc3_min, wc3_max:
+-- map.lua has none), and its own rule, which must agree: by
+-- test_map.AGREE_SCALE of the scale and test_map.AGREE_YARDS of x0 and y0.
+-- When they don't, map.lua's rule wins and the disagreement is the note.
+-- Returns the placement (scale, x0, y0, wc3_min, wc3_max) and a note, or
+-- nil and why
+function test_map.camera_placement(build_dir)
+    local p, pwhy = test_map.read_placement(build_dir)
+    local m, mwhy = test_map.read_map_file(build_dir)
+    if not p then
+        if m then return nil, pwhy .. ", so the map's bounds aren't known" end
+        return nil, pwhy
+    end
+    if not m then return p, mwhy .. "; the report's placement.client used" end
+    local r = m.wc3_to_wow
+    local agree = math.abs(r.scale - p.scale) <= test_map.AGREE_SCALE * p.scale
+        and math.abs(r.x0 - p.x0) <= test_map.AGREE_YARDS and math.abs(r.y0 - p.y0) <= test_map.AGREE_YARDS
+    if agree then return p end
+    local note = string.format("%s's wc3_to_wow (scale %.9g, x0 %.3f, y0 %.3f) and %s's placement.client"
+        .. " (scale %.9g, x0 %.3f, y0 %.3f) disagree; %s's, the W client's own, used",
+        test_map.MAP_FILE, r.scale, r.x0, r.y0, test_map.REPORT, p.scale, p.x0, p.y0, test_map.MAP_FILE)
+    return { scale = r.scale, x0 = r.x0, y0 = r.y0, wc3_min = p.wc3_min, wc3_max = p.wc3_max }, note
+end
+-- }}}
+
 -- {{{ T:client_camera: a point of the view as the W client's --camera
 -- wx, wy in WC3 world units -> the W client's world x, y in yards, or nil
 -- and why
 function T:client_camera(wx, wy)
-    local p, why = test_map.read_placement(self.build_dir)
+    local p, why = test_map.camera_placement(self.build_dir)
     if not p then return nil, why end
+    if why then self:say("Test Map: " .. why) end
     local x, y, moved = coords.wc3_to_client(p, wx, wy)
     if not x then return nil, y end
     self:log(string.format("camera: the view's (%.1f, %.1f) in WC3 units is the W client's (%.2f, %.2f) in yards%s",
@@ -314,8 +392,8 @@ end
 
 -- {{{ the build's stamp: what decides whether the server starts again
 -- the converter's own <build>/server-stamp when it writes one (the parts
--- the server reads), else a checksum of every file in the build but its
--- conversion-report.lua
+-- the server reads), else a checksum of every file in the build but those
+-- test_map.STAMP_LEAVES_OUT names
 function T:stamp()
     local f = io.open(self.build_dir .. "/server-stamp", "r")
     if f then
@@ -327,7 +405,9 @@ function T:stamp()
     -- the converter's report is left out: the server never reads it, and it
     -- holds when it was written and how long that took, so counting it
     -- would start the server again on every F5 of an unchanged map
-    local p = io.popen("cd " .. q(self.build_dir) .. " && find . -type f ! -path " .. q("./" .. test_map.REPORT)
+    local leave = {}
+    for _, pat in ipairs(test_map.STAMP_LEAVES_OUT) do leave[#leave + 1] = "! -path " .. q(pat) end
+    local p = io.popen("cd " .. q(self.build_dir) .. " && find . -type f " .. table.concat(leave, " ")
         .. " -print0 | sort -z | xargs -0 -r cksum | cksum")
     local out = p and p:read("*a") or ""
     if p then p:close() end
@@ -356,6 +436,13 @@ function T:step()
                 code and (" (code " .. code .. ")") or "", self.log_dir))
         end
         self:log("converted")
+        -- the W client opens the map by its map.lua (W02c); without a good
+        -- one it would only stop with an error receipt, so say it now
+        local mf, mwhy = test_map.read_map_file(self.build_dir)
+        if not mf then
+            return self:fail(mwhy .. ": the W client opens a test map by it (W02c); its log: "
+                .. self.log_dir .. "/convert.log")
+        end
         local how, why = self.keeper:begin(self.build_dir, self:stamp())
         if not how then return self:fail(why) end
         if how == "reused" then self:say("Test Map: reusing the server the editor started")

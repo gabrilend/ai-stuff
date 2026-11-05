@@ -99,6 +99,11 @@ the owner's machine, and W02c's `map.lua` (draft PR #243), which the W
 client reads to know which map it is and which this branch's converter
 (W02a only) doesn't write yet. Criterion 3 still needs the real window.
 
+*2026-11-05, with the W02 chain merged in:* the build now holds W02c's
+`map.lua`, and Test Map checks it and turns the camera by its rule.
+Criterion 1 still needs the real run: an AzerothCore and the W client
+on the owner's machine (and W02d/W02f for the server's side of the map).
+
 ## Open Questions
 
 1. ~~**The old in-editor play.**~~ Answered 2026-11-04: they are one
@@ -339,6 +344,49 @@ what the real one does (no password, a bad account or realm) with the
 real one's sentence, an error receipt and exit 2, and writes receipts in
 the real one's layout.
 
+## Decisions (2026-11-05, Test Map through W02c; each the owner's to overturn)
+
+The W02 chain (W02a, W02b, W02c, W02e and the ground and info files beside
+`map.lua`, draft PRs #240 and #242 to #247) is merged into the Test Map
+branch, so the converter Test Map runs writes `map.lua`. `src/wowbuild/init.lua`
+merged on its own: the report keeps W02c's `placement` fields (`rule`,
+`first_tile`, `wc3_offset`) and #241's `placement.client`, and the
+numbers keep #241's shortest exact form (which `map.lua` now gets too).
+
+- **The camera goes by `map.lua`'s `wc3_to_wow`; if it and the report's
+  `placement.client` ever disagree, `map.lua` wins.** `map.lua` is what
+  the W client itself reads: its start, its placements and the ground
+  under them are placed by that rule (its 073-converted-map.c), so a
+  camera turned by any other rule would land somewhere the client didn't
+  put the map. Today both are made by the same arithmetic
+  (`L:to_wow(0, 0)` and `coords.YARDS_PER_UNIT`), and on Daow 4.4 they are
+  equal to the last bit. They count as agreeing within 1e-12 of the scale
+  and a millimetre (0.001 yards) of x0 and y0. When they disagree, the
+  camera takes `map.lua`'s scale, x0 and y0 with the report's bounds
+  (`wc3_min`, `wc3_max`; `map.lua` has none), and the status line and
+  log say both rules: a disagreement is a converter bug to see, not one
+  to hide. A report without a placement still means no `--camera`, since
+  the edge can't be kept to without bounds; a build with no `map.lua`
+  doesn't get that far (next).
+- **A build without a good `map.lua` stops before the server starts.** The
+  W client opens a test map by it and stops with an error receipt
+  without it, so Test Map reads it after converting (format 1, a
+  `wc3_to_wow` with a scale above 0) and says what is wrong, naming
+  W02c and the converter's log. Only what the editor relies on is
+  checked; the rest is the W client's to check.
+- **The stamp leaves out each report that holds a time.** With the whole
+  converter, two conversions of unchanged Daow 4.4 differ in three files:
+  `conversion-report.lua`, `World/Maps/<dir>/registration.lua` (W02c's
+  record of the slot and rows, with when it was written; the rows reach
+  the server through `server/`), and `server/triggers/<dir>/natives-report.lua`
+  (W02e's coverage report, with how long it took; the shim reads
+  `war3map.lua` and `map-data.lua`). The server reads none of them, so
+  all three are left out (`test_map.STAMP_LEAVES_OUT`); without that,
+  every F5 started the server again.
+- **`W_CLIENT_SRC` names the W client's folder**, as `test_wow_registration`
+  already takes it, not its `src/` (this branch's 2026-11-05 note above
+  said `src/`; the two tests now read it the same way).
+
 ## Related Documents
 
 - `docs/wow-client-bridge.md` ("2026-11-04: the editor keeps its own
@@ -494,3 +542,37 @@ path. Now (decisions of 2026-11-05, above):
   `src/wowbuild/init.lua` reports both need keeping: #241's
   `placement.client` and W02c's `placement` fields and `map.lua`.
 - The W client's open question 5 (a receipt when it is stopped).
+
+*(2026-11-05, Test Map through W02c)*
+
+How it was before: the Test Map branch had W02a's converter only, so its
+builds had no `map.lua` and the W client, which opens a test map by it,
+would have stopped with an error receipt; the camera went by the
+report's placement alone; and with the whole converter, every F5 would
+have started the server again (two more reports carry a time). Now
+(decisions above):
+
+- Merged `claude/wete-w02-w3i-copy` (#247, the W02 chain's tip) with a
+  merge commit. One conflict, `src/cli/wow-convert.info.md`'s table of
+  files: W02c's rows kept, with `placement.client` described on the
+  report's row.
+- `src/editor/test_map.lua`: `test_map.read_map_file`,
+  `test_map.camera_placement` (`T:client_camera` goes by it), the build
+  checked for `map.lua` before the server, `test_map.STAMP_LEAVES_OUT`.
+- `src/tests/fixtures/test-map/fake-convert.sh` writes `map.lua` as W02c
+  does, and has `nomap`, `badmap` and `disagree` modes.
+- **Tests** (`src/tests/test_test_map.lua`): 164 -> 177 with the W
+  client's sources and reader library (`W_CLIENT_SRC`, `W_CLIENT_BUILD`),
+  159 -> 172 without (one section skipped): `map.lua` read, missing,
+  refused (format 2, a scale of 0, one that runs forever); the rule
+  agreeing, disagreeing (map.lua's used with the report's bounds, and
+  said), and either file missing; runs stopped before the server for a
+  missing or unreadable `map.lua`; a disagreeing build's camera by
+  `map.lua`'s rule; W02's converter on Daow 4.4 writing `map.lua` whose
+  rule is `placement.client`'s exactly, and reusing the server on a
+  second F5 (it failed, 2 starts then 4, before the stamp list).
+  The W02 chain's own tests pass unchanged on the merge:
+  `test_wow_registration` 93, `test_wow_placements` 90,
+  `test_wow_triggers` 138, `test_wow_config` 43, and `test_wow_terrain`
+  177 (161 on the W02 tip, 177 on the Test Map branch: the camera
+  section joins); `test_editor` 83, `test_editor_integration` 44.

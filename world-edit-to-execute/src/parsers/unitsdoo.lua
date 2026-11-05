@@ -2,6 +2,21 @@
 -- Parses WC3 unit/building/item placement files.
 -- Units include heroes, regular units, buildings, and preplaced items.
 -- Compatible with both LuaJIT and Lua 5.3+.
+--
+-- An entry, in file order (checked on every map in assets/ that has the
+-- file: each is read to its last byte; issue W02b):
+--   type id, variation, x y z, angle, scale x y z, flags (byte), player,
+--   two unknown bytes, hit points, mana (-1 default),
+--   [version 8] item table pointer, item sets (count, then per set: count,
+--   then id + chance per item), gold (12500), target acquisition (float),
+--   hero level (1 for a unit that is no hero), [version 8] strength,
+--   agility, intelligence bonuses, inventory (count, then slot + id),
+--   modified abilities (count, then id + autocast + level),
+--   random flag and its data (parse_random_unit), custom colour,
+--   waygate destination, creation number.
+-- Before W02b the gold, target acquisition and colour were not read and
+-- the hero section only for heroes, so every Frozen Throne map with units
+-- failed to parse (Conquest-v8-fix, Master-Crafters-Final-Conquest).
 
 local compat = require("compat")
 
@@ -175,14 +190,17 @@ end
 --           ...
 --       }
 --   }
-local function parse_item_drops(data, pos)
+local function parse_item_drops(data, pos, version)
     local item_drops = {
         table_pointer = -1,
         sets = {}
     }
 
-    -- Item table pointer (-1 = none, >= 0 = external table index)
-    item_drops.table_pointer = read_int32(data, pos); pos = pos + 4
+    -- Item table pointer (-1 = none, >= 0 = external table index); the
+    -- Frozen Throne's files only (version 8)
+    if (version or 8) >= 8 then
+        item_drops.table_pointer = read_int32(data, pos); pos = pos + 4
+    end
 
     -- Number of item sets dropped (one random set chosen on death)
     local num_item_sets = read_int32(data, pos); pos = pos + 4
@@ -246,20 +264,24 @@ end
 -- }}}
 
 -- {{{ parse_hero_data
--- Parse the hero-specific data section.
--- Only call this for hero units (capital first letter in type ID).
+-- Parse the hero section. Every entry has one (issue W02b: a unit that is
+-- no hero holds level 1, no bonuses and usually no items); the stat bonuses
+-- are the Frozen Throne's (version 8).
 -- Returns hero_data table and the new position after parsing.
 -- Hero data includes level, stat bonuses from tomes, and inventory items.
-local function parse_hero_data(data, pos)
+local function parse_hero_data(data, pos, version)
     local hero_data = {}
 
     -- Hero level (1+)
     hero_data.level = read_int32(data, pos); pos = pos + 4
 
     -- Stat bonuses from tomes
-    hero_data.str_bonus = read_int32(data, pos); pos = pos + 4
-    hero_data.agi_bonus = read_int32(data, pos); pos = pos + 4
-    hero_data.int_bonus = read_int32(data, pos); pos = pos + 4
+    hero_data.str_bonus, hero_data.agi_bonus, hero_data.int_bonus = 0, 0, 0
+    if (version or 8) >= 8 then
+        hero_data.str_bonus = read_int32(data, pos); pos = pos + 4
+        hero_data.agi_bonus = read_int32(data, pos); pos = pos + 4
+        hero_data.int_bonus = read_int32(data, pos); pos = pos + 4
+    end
 
     -- Number of items in inventory
     local num_items = read_int32(data, pos); pos = pos + 4
@@ -296,53 +318,69 @@ end
 -- }}}
 
 -- {{{ parse_random_unit
--- Parse the random unit/item data section.
--- Returns the random_unit structure (or nil) and the new position.
--- Structure:
+-- Parse the random unit/item section. Every entry has one: a flag, then
+--   0  three bytes of level (-1 any) and an item class byte (0 any): what a
+--      random unit or item of a level (YYU#, YYI#) draws from; a placed
+--      unit that isn't random holds 0 and four filler bytes here
+--   1  a random group of the map's (war3map.w3i): its number, then the
+--      column in it
+--   2  a table of its own: a count, then a four-character id and a chance
+--      for each
+-- (Before issue W02b this read flag 0 as "nothing follows", 1 as level and
+-- 2 as group, which fit no map's bytes.)
+-- Returns the random_unit structure (nil for a unit that isn't random) and
+-- the new position. Structure, as before (flag is the reader's number, not
+-- the file's, which is raw_flag):
 --   random_unit = {
---       flag = 0/1/2,           -- 0=not random, 1=from level, 2=from group
+--       flag = 1/2/3,           -- 1=from level, 2=from group, 3=from its own table
+--       raw_flag = 0/1/2,       -- the file's flag
 --       type = "unit"/"item",   -- Only for flag=1
 --       level = N,              -- Only for flag=1
 --       group_index = N,        -- Only for flag=2
 --       position = N,           -- Only for flag=2
+--       choices = { {id, chance}, ... }   -- Only for flag=3
 --   }
-local function parse_random_unit(data, pos)
-    -- Random unit flag (0=not random, 1=random from level, 2=random from group)
-    local random_flag = read_int32(data, pos); pos = pos + 4
+local function is_random_id(type_id)
+    return type(type_id) == "string" and (type_id:sub(1, 2) == "YY" or type_id == "uDNR" or type_id == "iDNR")
+end
 
-    if random_flag == 0 then
-        -- Not random, no additional data
-        return nil, pos
+local function parse_random_unit(data, pos, type_id)
+    local raw_flag = read_int32(data, pos); pos = pos + 4
 
-    elseif random_flag == 1 then
-        -- Random from level: 4 bytes = 3 char prefix + 1 level char
-        local prefix = data:sub(pos, pos + 2)  -- "YYU" or "YYI"
-        local level_char = data:sub(pos + 3, pos + 3)
+    if raw_flag == 0 then
+        local b1, b2, b3, class = data:byte(pos, pos + 3)
         pos = pos + 4
+        if not is_random_id(type_id) then return nil, pos end
+        local level = b1 + b2 * 256 + b3 * 65536
+        if level >= 8388608 then level = level - 16777216 end
+        -- a YYU1/YYIA id names its level in its last character; "YYU#"
+        -- leaves it to the bytes
+        if type_id:sub(1, 2) == "YY" and type_id:sub(4, 4):match("[%dA-Z]") then
+            level = decode_random_level(type_id:sub(4, 4))
+        end
+        return {
+            flag = 1, raw_flag = 0,
+            type = (type_id:sub(3, 3) == "I" or type_id == "iDNR") and "item" or "unit",
+            level = level, item_class = class,
+        }, pos
 
-        local random_unit = {
-            flag = 1,
-            type = (prefix:sub(3, 3) == "I") and "item" or "unit",
-            level = decode_random_level(level_char),
-        }
-        return random_unit, pos
-
-    elseif random_flag == 2 then
-        -- Random from group: 4 bytes group index + 4 bytes position
+    elseif raw_flag == 1 then
         local group_index = read_int32(data, pos); pos = pos + 4
         local group_position = read_int32(data, pos); pos = pos + 4
+        return { flag = 2, raw_flag = 1, group_index = group_index, position = group_position }, pos
 
-        local random_unit = {
-            flag = 2,
-            group_index = group_index,
-            position = group_position,
-        }
-        return random_unit, pos
-
-    else
-        -- Unknown flag, skip nothing and return nil
-        return nil, pos
+    elseif raw_flag == 2 then
+        local n = read_int32(data, pos); pos = pos + 4
+        local choices = {}
+        for k = 1, math.max(n, 0) do
+            local id
+            id, pos = read_id(data, pos)
+            choices[k] = { id = id, chance = read_int32(data, pos) }
+            pos = pos + 4
+        end
+        return { flag = 3, raw_flag = 2, choices = choices }, pos
     end
+    error(string.format("unknown random unit flag %d at byte %d", raw_flag, pos - 4), 0)
 end
 -- }}}
 
@@ -397,20 +435,32 @@ local function parse_unit_entry(data, pos, version)
     unit.mp = read_int32(data, pos); pos = pos + 4
 
     -- Item drop table (variable length)
-    unit.item_drops, pos = parse_item_drops(data, pos)
+    unit.item_drops, pos = parse_item_drops(data, pos, version)
+
+    -- Gold in a gold mine (12500 by default), target acquisition range
+    -- (-1 normal, -2 camp)
+    unit.gold = read_int32(data, pos); pos = pos + 4
+    unit.target_acquisition = read_float32(data, pos); pos = pos + 4
+
+    -- The hero section, which every entry has; kept as hero_data for heroes
+    -- (a unit that is no hero keeps its inventory, if any, as inventory)
+    local hero
+    hero, pos = parse_hero_data(data, pos, version)
+    if unit.is_hero then
+        unit.hero_data = hero
+    else
+        unit.hero_data = nil
+        if next(hero.inventory) ~= nil then unit.inventory = hero.inventory end
+    end
 
     -- Modified abilities (variable length)
     unit.abilities, pos = parse_abilities(data, pos)
 
-    -- Hero-specific data (conditional - only for heroes)
-    if unit.is_hero then
-        unit.hero_data, pos = parse_hero_data(data, pos)
-    else
-        unit.hero_data = nil
-    end
-
     -- Random unit data (variable length - parsed in 202e)
-    unit.random_unit, pos = parse_random_unit(data, pos)
+    unit.random_unit, pos = parse_random_unit(data, pos, unit.id)
+
+    -- Custom colour (-1 = the owner's)
+    unit.custom_color = read_int32(data, pos); pos = pos + 4
 
     -- Waygate destination (-1 = inactive, else region creation number)
     unit.waygate_dest = read_int32(data, pos); pos = pos + 4
@@ -468,7 +518,11 @@ function unitsdoo.parse(data)
                 i, unit_count, pos, #data)
         end
 
-        local unit, new_pos = parse_unit_entry(data, pos, result.version)
+        local ok, unit, new_pos = pcall(parse_unit_entry, data, pos, result.version)
+        if not ok or new_pos > #data + 1 then
+            return nil, string.format("unit %d/%d at pos %d runs past the end of the data (size %d)%s",
+                i, unit_count, pos, #data, ok and "" or (": " .. tostring(unit)))
+        end
         -- its bytes as read, for writing back (issue 911a)
         unit.raw = data:sub(pos, new_pos - 1)
         result.units[i] = unit
