@@ -629,7 +629,7 @@ Phase 8 issues kept in this project:
 | 803 | Gameplay messages, with the server inside the client | In progress (steps 1-4 built) | 401, 515c |
 | 804 | Crossing armies, drawn from across the network | In progress (built; the owner to try the window) | 405f, 803, 515c |
 | 801 | Matchmaking server | Pending; its shape waits on question Q-1 | Phase 5, 6 |
-| 801a | Protocol specification | Pending | None |
+| 801a | Protocol specification | **Completed** | None |
 | 801b | Server core | Pending | 801a |
 | 801c | Client library | Pending | 801a, 801b |
 | 801d | NAT traversal | Pending | 801a, 801b |
