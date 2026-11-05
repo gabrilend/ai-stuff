@@ -456,3 +456,15 @@ them as the map holds them.
 Checked: `test_wow_registration.lua` 71 pass (7 skipped),
 `test_wow_placements.lua` 72 (5 skipped), `test_wow_terrain.lua` 70 (14
 skipped), `test_wow_triggers.lua` 138.
+
+*2026-11-05 (the columns the W client reads):* custom-client's draft PR
+#29 checks the tables `dbc.write` makes against the client's own layouts
+(its 097), and all eleven agree. It found gaps only in `dbc.lua`'s `seen`
+lists, which say which columns the W client reads. These are now filled:
+- field 1 (ID) for AreaTable, LoadingScreens, FactionTemplate and Faction,
+  since the client's 074-tables.c finds every table's rows by it;
+- for W02i's LightIntBand and LightFloatBand, every Time1-16 and Data1-16
+  (fields 3-34), since 026-light.c's `band_at` reads as many as Num says.
+  The lists had named only Num, the first and the last.
+
+`test_wow_registration.lua` checks both.

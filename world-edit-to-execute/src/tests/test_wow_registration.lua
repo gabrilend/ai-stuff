@@ -203,6 +203,17 @@ do
         end
     end
     test("the columns the W client's readers use are where these layouts put them", seen_ok)
+    -- every table's rows are found by their id (the W client's 074), and a
+    -- light band's sixteen moments and values are all read (026's band_at)
+    local ids_seen, bands = true, true
+    for _, layout in pairs(dbc.LAYOUTS) do if not (layout.seen and layout.seen[1] == "ID") then ids_seen = false end end
+    for _, name in ipairs({ "LightIntBand", "LightFloatBand" }) do
+        local n = 0
+        for f in pairs(dbc.LAYOUTS[name].seen) do if f >= 3 and f <= 34 then n = n + 1 end end
+        if n ~= 32 then bands = false end
+    end
+    test("every table's id column is listed as read (field 1)", ids_seen)
+    test("the light bands' Time1-16 and Data1-16 listed as read (fields 3-34)", bands)
     local unchecked = true
     for _, layout in pairs(dbc.LAYOUTS) do if layout.checked ~= false then unchecked = false end end
     test("every layout is marked unchecked (from memory, not from a source here)", unchecked)
