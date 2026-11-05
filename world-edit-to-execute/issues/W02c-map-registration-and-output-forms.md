@@ -130,6 +130,7 @@ Build folder, added to W02a's and W02b's:
 | `DBFilesClient/<Table>.dbc` | the seven tables, **only this folder's maps' rows** | the W client (overlay first, per row; its 106) |
 | `map.lua` | which map to open: id, folder, name, zone, the start, the WC3 → WoW transform, the folder's maps (data) | the W client's test-map run (1109's open question 4) |
 | `war3map.w3e` | the map's own ground file, copied whole (added 2026-11-05) | the W client's WC3-tileset ground (custom-client 078) |
+| `war3map.w3i` | the map's own info file, copied whole (added 2026-11-05) | the W client's WC3 water tint and fog (custom-client 081's plan, step 3) |
 | `world/creatures-<id>.tsv` | the spawns, in 035-creatures.h's format | the W client's `--world` |
 | `server/dbc.sql` | `REPLACE INTO <table>_dbc` for six tables | AzerothCore's world database |
 | `server/dbc/<Table>.dbc` | the stock tables with these maps' rows added (only when stock tables are given; no LoadingScreens) | AzerothCore's `dbc` folder |
@@ -426,4 +427,16 @@ Checked: `test_wow_registration.lua` (69 pass, 7 skipped here: no W
 client library, no StormLib), `test_wow_placements.lua` (72 pass; the
 real maps' "nothing else is copied" check allows the ground file),
 `test_wow_terrain.lua` (70 pass) and `test_wow_triggers.lua` (138 pass).
+
+### 2026-11-05: the info file beside it too
+
+The W client's WC3 water (custom-client PR 14, its 1109 decision 67)
+takes the map's water tint and fog from `war3map.w3i`. The converter now
+copies that file to `<build>/war3map.w3i` (`wowbuild.INFO_FILE`) the same
+way as the ground file: byte for byte, replacing an earlier map's, and
+not into `patch-W.MPQ`. Tests pass the bytes in with `opts.info_bytes`.
+
+Checked: `test_wow_registration.lua` 70 pass (7 skipped),
+`test_wow_placements.lua` 72, `test_wow_terrain.lua` 70,
+`test_wow_triggers.lua` 138.
 
