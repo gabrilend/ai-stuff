@@ -236,6 +236,13 @@ function receive.UNREGISTER_GAME(self, m)
     close_lobby(self, "the lobby closed")
 end
 
+function receive.ASSET_PACKS_AVAILABLE(self, m)
+    local lobby = ours(self, m)
+    if not lobby then return "asset packs of another lobby" end
+    lobby.mirror = { contact = m.contact, packs = m.packs }
+    emit(lobby, "asset_packs", lobby.mirror)
+end
+
 function receive.PONG(self, m)
     local sent = self.pings[m.nonce]
     if not sent then return "a PONG not asked for" end
@@ -445,6 +452,16 @@ function Lobby:leave()
     live(self, "leaving")
     send(self.conn, self.is_host and "UNREGISTER_GAME" or "LEAVE_GAME", { game_id = self.game_id })
     if self.conn.lobby == self then close_lobby(self.conn, "left") end
+end
+
+-- The lobby's packs the player lacks and where to fetch each (801f):
+-- `have` is { [id] = hash } or a registry of packs.lua. Each: { id, hash,
+-- from = "mirror" or "host", size }; fetching goes over rmail, from
+-- `lobby.mirror.contact` or the host. nil and why when the lobby's packs
+-- aren't known (joined by id alone).
+function Lobby:missing_packs(have)
+    if not (self.game and self.game.asset_packs) then return nil, "the lobby's packs are not known" end
+    return require("matchmaking.packs").plan(self.game.asset_packs, have, self.mirror and self.mirror.packs)
 end
 
 function Lobby:get_players() return self.players end

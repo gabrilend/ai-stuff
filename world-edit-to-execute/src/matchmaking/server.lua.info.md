@@ -17,7 +17,8 @@ connection non-blocking, one `select()` a tick. LuaSocket is loaded only by
   starts at START_GAME; above 0, after that many seconds, 801e). Also `clock` (seconds) and `log`
   (a function taking one line), and `codec` (`encode`, `read_frame`;
   `protocol.lua` by default: the seam for question Q-1, should matchmaking
-  speak 803's message layer).
+  speak 803's message layer), and `mirror` (801f: `{ contact, packs }`,
+  the mirror's rmail contact and a registry of `packs.lua`).
 
 The core:
 
@@ -60,6 +61,7 @@ Who may do what:
 | NAT_PUNCH | a member | to the host (from a player) or the named player (from the host), the sender's id stamped, an empty ip filled with the sender's address |
 | CHAT_MSG | a member, not empty | CHAT_MSG to every member, the sender's id stamped |
 | PING | anyone | PONG with its nonce |
+| (with a mirror) REGISTER_GAME or JOIN_GAME accepted | the server, after the JOIN_ACK | ASSET_PACKS_AVAILABLE: the lobby's packs the mirror holds (same id and hash) and its contact; nothing when it holds none |
 
 Anything else a client may send is ignored and logged; GAME_LIST,
 JOIN_ACK, JOIN_REJECT, GAME_START and PONG are the server's to send. A

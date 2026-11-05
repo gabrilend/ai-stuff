@@ -24,6 +24,7 @@ message's fields are described once in `protocol.FIELDS`.
 | 0x0E | CHAT_MSG | game_id, player_id, text |
 | 0x0F | PING | nonce |
 | 0x10 | PONG | nonce |
+| 0x11 | ASSET_PACKS_AVAILABLE | game_id, contact (the mirror's rmail contact), packs (id, hash, size): the lobby's packs the mirror holds (801f) |
 
 Numbers are whole, 0 to 2^32-1; text is at most `MAX_TEXT` (1024) bytes; a
 list at most `MAX_LIST` (4096) records; a payload at most `MAX_PAYLOAD`

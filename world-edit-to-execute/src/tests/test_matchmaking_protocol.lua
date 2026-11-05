@@ -137,6 +137,7 @@ local samples = {
     CHAT_MSG = { game_id = 7, player_id = 2, text = "gl hf — ready when you are" },
     PING = { nonce = 4294967295 },
     PONG = { nonce = 0 },
+    ASSET_PACKS_AVAILABLE = { game_id = 3, contact = "mirror@example", packs = { { id = "medieval-v1", hash = "sha256:00", size = 47185920 } } },
 }
 local count = 0
 for name, id in pairs(protocol.TYPES) do
@@ -158,7 +159,8 @@ for name, id in pairs(protocol.TYPES) do
             msgpack.decode(bytes:sub(9)).v == protocol.VERSION)
     end
 end
-test("sixteen message types, numbered 1 to 16", count == 16 and protocol.NAMES[1] == "REGISTER_GAME" and protocol.NAMES[16] == "PONG")
+test("seventeen message types, numbered 1 to 17", count == 17 and protocol.NAMES[1] == "REGISTER_GAME" and protocol.NAMES[16] == "PONG"
+    and protocol.NAMES[17] == "ASSET_PACKS_AVAILABLE")
 test("LIST_GAMES with no filters at all", same(select(2, protocol.decode(protocol.encode("LIST_GAMES", {}))), { v = 1 }))
 test("a message naming its own version is fine", protocol.decode(protocol.encode("PING", { nonce = 1, v = 1 })) == "PING")
 -- }}}
@@ -233,7 +235,7 @@ test("a missing field, read", refused(function()
 test("a payload that is not a map", refused(function() protocol.decode("WC\0\15\0\0\0\1\5") end, "should be a map"))
 test("a payload that is not MessagePack", refused(function() protocol.decode("WC\0\15\0\0\0\1\193") end, "PING: msgpack"))
 test("a wrong magic", refused(function() protocol.decode("WD" .. ping:sub(3)) end, "magic is 0x5744"))
-test("an unknown type", refused(function() protocol.decode("WC\0\17" .. ping:sub(5)) end, "0x11 is not a message type"))
+test("an unknown type", refused(function() protocol.decode("WC\0\18" .. ping:sub(5)) end, "0x12 is not a message type"))
 test("type 0", refused(function() protocol.decode("WC\0\0" .. ping:sub(5)) end, "0x00 is not a message type"))
 test("a payload past the limit", refused(function() protocol.decode("WC\0\15\0\16\0\1") end, "over 1048576"))
 test("a message whose payload would pass the limit is refused, written", refused(function()

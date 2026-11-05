@@ -42,6 +42,9 @@ Who may do what (decisions of 2026-11-05, in the issue):
   - NAT_PUNCH from a player goes to the host, and from the host to the
     player it names; the player id is rewritten to the sender's, and an
     empty ip is filled with the sender's address as the server sees it.
+  - With a mirror (801f), whoever opens or joins a lobby whose packs the
+    mirror holds (same id, same hash) is sent ASSET_PACKS_AVAILABLE: those
+    packs and the mirror's rmail contact, which hands them out.
   - When a lobby closes (its host unregistered, left or went, or it was
     quiet past lobby_timeout_seconds), every member left is sent
     UNREGISTER_GAME with its game id.
@@ -52,6 +55,7 @@ Who may do what (decisions of 2026-11-05, in the issue):
 ]]
 
 local protocol = require("matchmaking.protocol")
+local packs = require("matchmaking.packs")
 
 local server = {}
 server.__index = server
@@ -87,7 +91,7 @@ function server.new(config)
     self.config = {}
     for k, v in pairs(server.DEFAULTS) do self.config[k] = v end
     for k, v in pairs(config) do
-        if k ~= "clock" and k ~= "log" and k ~= "codec" then
+        if k ~= "clock" and k ~= "log" and k ~= "codec" and k ~= "mirror" then
             if server.DEFAULTS[k] == nil then error("matchmaking server: " .. tostring(k) .. " is not a setting", 0) end
             if type(v) ~= type(server.DEFAULTS[k]) then
                 error("matchmaking server: " .. k .. " should be a " .. type(server.DEFAULTS[k]), 0)
@@ -102,6 +106,11 @@ function server.new(config)
     end
     self.log = config.log or function() end
     self.codec = config.codec or protocol
+    if config.mirror ~= nil and not (type(config.mirror) == "table" and type(config.mirror.contact) == "string"
+        and config.mirror.contact ~= "" and type(config.mirror.packs) == "table" and config.mirror.packs.get) then
+        error("matchmaking server: mirror should be { contact = an rmail contact, packs = a registry of packs.lua }", 0)
+    end
+    self.mirror = config.mirror
     self.conns, self.lobbies, self.sockets = {}, {}, {}
     self.next_conn, self.next_game, self.next_player = 1, 1, 1
     self.started_at = self.clock()
@@ -180,6 +189,14 @@ local function leave(self, conn, why, kicked)
     cancel_countdown(self, lobby, player_id, "player " .. player_id .. " " .. why)
 end
 
+-- The lobby's packs the mirror holds, told to one member (801f).
+local function advertise(self, conn, lobby)
+    if not self.mirror then return end
+    local list = packs.available(self.mirror.packs, lobby.asset_packs)
+    if #list == 0 then return end
+    send(self, conn, "ASSET_PACKS_AVAILABLE", { game_id = lobby.game_id, contact = self.mirror.contact, packs = list })
+end
+
 local function good_name(self, name)
     return #name >= 1 and #name <= self.config.max_name
 end
@@ -222,6 +239,7 @@ function handlers.REGISTER_GAME(self, conn, m)
     self.next_player = self.next_player + 1
     send(self, conn, "JOIN_ACK", { game_id = lobby.game_id, player_id = conn.player.player_id,
         players = players_of(self, lobby) })
+    advertise(self, conn, lobby)
     self.log(string.format("lobby %d opened by connection %d (%s:%d): %s, %d players, %s, %s",
         lobby.game_id, conn.id, conn.ip, conn.port, m.map_name, m.max_players, m.game_mode, m.region))
 end
@@ -293,6 +311,7 @@ function handlers.JOIN_GAME(self, conn, m)
     lobby.last_active = self.clock()
     local players = players_of(self, lobby)
     send(self, conn, "JOIN_ACK", { game_id = lobby.game_id, player_id = conn.player.player_id, players = players })
+    advertise(self, conn, lobby)
     broadcast(self, lobby, "LOBBY_UPDATE", { game_id = lobby.game_id, event = "join",
         player_id = conn.player.player_id, players = players }, conn.id)
     self.log("lobby " .. lobby.game_id .. ": player " .. conn.player.player_id .. " joined from connection " .. conn.id)

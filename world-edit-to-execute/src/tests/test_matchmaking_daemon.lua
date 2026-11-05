@@ -216,6 +216,41 @@ test("an address not on this machine is refused", none == nil and said:find("can
 none, said = daemon("--frobnicate")
 test("an unknown option is refused", none == nil and said:find("--frobnicate is not an option", 1, true) ~= nil, said)
 
+-- the asset mirror (801f): a folder of its own, made with mktemp -d (under $TMPDIR when set)
+none, said = daemon("--bind 127.0.0.1:0 --mirror-contact m@example")
+test("--mirror-contact without --packs-dir is refused", none == nil and said:find("go together", 1, true) ~= nil, said)
+none, said = daemon("--bind 127.0.0.1:0 --mirror-contact m@example --packs-dir /nonexistent-wete-packs")
+test("a packs folder that isn't there is refused", none == nil and said:find("no folder /nonexistent-wete-packs", 1, true) ~= nil, said)
+local mp = io.popen("mktemp -d -t wete-mirror.XXXXXX")
+local mdir = mp:read("*l")
+mp:close()
+if mdir and mdir:match("/wete%-mirror%.%w+$") then
+    local f = assert(io.open(mdir .. "/medieval-v1.pack", "wb"))
+    f:write("hello\n")
+    f:close()
+    local mpid, mip, mport, mpipe = daemon("--bind 127.0.0.1:0 --seconds 20 --mirror-contact mirror@example --packs-dir " .. quote(mdir))
+    if mpid then
+        local h = client(mip, mport)
+        local g = {}
+        for k, v in pairs(game) do g[k] = v end
+        g.asset_packs = { { id = "medieval-v1", hash = "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03" } }
+        put(h, "REGISTER_GAME", g)
+        local n1 = get(h)
+        local n2, m2 = get(h)
+        test("--packs-dir: a lobby needing a mirrored pack hears of it", n1 == "JOIN_ACK" and n2 == "ASSET_PACKS_AVAILABLE"
+            and m2.contact == "mirror@example" and m2.packs[1].id == "medieval-v1" and m2.packs[1].size == 6, tostring(n2))
+        h:close()
+        os.execute("kill " .. mpid)
+        mpipe:read("*a")
+        mpipe:close()
+    else
+        test("--packs-dir is taken", false, mip)
+    end
+    os.execute("rm -rf -- " .. quote(mdir))
+else
+    test("a folder of its own for the mirror", false, mdir)
+end
+
 -- --countdown (801e): the start comes that many seconds after START_GAME
 local cpid, cip, cport, cpipe = daemon("--bind 127.0.0.1:0 --seconds 20 --quiet --countdown 1")
 if cpid then
