@@ -193,9 +193,19 @@ local stale = distill.build({ instructions = INSTRUCTIONS, recommended = { words
         { voice = "fg-sora-2", canvas = record({ "the cat sat on", "a mat. no" }),
           found = changes.find(base, record({ "the cat sat on", "a mat. no" })), turn = 3, base = 4 },
     } })
-check("a change the canvas no longer shows the old word for is passed over, and the voice "
-    .. "listed first keeps a contested place", stand_in.distill(stale)
-    == "the bird sat on\na mat. ok\nend\n", stand_in.distill(stale))
+check("a voice's change lands even when its base is behind (the word under it is blanked), "
+    .. "and the voice listed first keeps a contested place", stand_in.distill(stale)
+    == "the dog  sat on\na mat. ok\nend\n", stand_in.distill(stale))
+local claimed = distill.build({ instructions = INSTRUCTIONS, recommended = { words = 1, sentences = 1 },
+    current = record({ "willow tree" }, 20, 3, 12),
+    newest = {
+        { voice = "fg-sora-1", canvas = record({ "lantern tree" }),
+          found = changes.find(record({ "oak tree" }), record({ "lantern tree" })), turn = 2, base = 9 },
+        { voice = "fg-sora-2", canvas = record({ "willow tree" }),
+          found = changes.find(record({ "lantern tree" }), record({ "willow tree" })), turn = 4, base = 11 },
+    } })
+check("an older change never writes over a word another voice's newest wrote",
+    stand_in.distill(claimed) == "willow tree\n\n\n", stand_in.distill(claimed))
 local wide = stand_in.distill(conversation, true)
 check("wide: the first row runs past the edge", has(wide, "the dog sat on       past the edge"))
 local server = stand_in.new({ kind = "chat", replies = { { distill = true, wide_every = 2 } } })

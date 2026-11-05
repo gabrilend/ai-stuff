@@ -14,8 +14,10 @@ Its servers and the rehearsal's mailboxes listen on 127.0.0.1 only. About
   parts. The changed-word lines; the conversation (size, counts, voice
   count, the current canvas first in its ruler, each voice in order with
   its turn, base and words).
-- **The stand-in distiller**: every voice's changes applied; an old change
-  and a contested place passed over; wide replies.
+- **The stand-in distiller**: every voice's changes applied; a change from a
+  voice whose base is behind still lands; a word another voice's newest
+  wrote is never written over by an older change;
+  the voice listed first keeping a contested place; wide replies.
 - **The blitter in distill mode**, with the distiller in-process: newest
   mode keeps each voice's newest; arrivals held, a second from one voice
   replacing the first; one distill for all of them, shown every voice's
