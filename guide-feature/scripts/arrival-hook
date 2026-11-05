@@ -1,0 +1,12 @@
+#!/bin/sh
+#
+# arrival-hook - kuvalu's rmail hook, for on_receive and on_update (issue
+# 302). The guide mailbox's hooks/guide-hook runs this with a first word,
+# receive or update, then rmail's arguments. It writes a voice's canvas into
+# tmp/shared-memory/arrivals/ for the blitter, prints nothing, and exits.
+#
+# The project is the one this script sits in, so the mailbox's wrapper
+# needs only this script's path.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/033-arrival-hook.lua" --dir "${DIR}" "$@"
