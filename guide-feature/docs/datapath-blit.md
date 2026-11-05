@@ -54,6 +54,10 @@ For each written word, in reading order:
    all** of its letters to the write is a **cut word**. What happens to a cut
    word is decided by the collision rule (below). A word that lost all of its
    letters is simply gone under the new one, whatever the rule.
+3. A word in `C` directly touching the written word, with no space between,
+   has lost no letters but would read as one word glued to it. It is a cut
+   word too, so the rule decides: `blank-whole` blanks it, `keep-fragments`
+   leaves the two run together (issue 106).
 
 ### Collision rules
 
