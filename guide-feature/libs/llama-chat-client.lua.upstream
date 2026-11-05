@@ -1,0 +1,14 @@
+source: /mnt/mtwo/programming/ai-stuff/delta-version/scripts/libs/llama-chat-client.lua
+commit: f12d85693838a3ddf3b0e6bcfce89fe018e96f42
+copied: 2026-11-05
+changes: this project's own, made in the copy (issue 401b):
+         - dkjson is found beside this file (libs/dkjson.lua), not through
+           AISTUFF_ROOT, so nothing outside the project is loaded.
+         - every call takes an endpoint record { name, url, timeout }
+           instead of one configured host and port; configure() and the
+           INFERENCE_CHAT_HOST override are gone, so each role reaches its
+           own endpoint and nothing can re-point it from the environment.
+         - an embedding call, embed(endpoint, texts), on /v1/embeddings.
+         - chat() also returns the whole decoded reply (for the token usage).
+         - the unreachable message points at scripts/start-servers.
+         - the CLI takes --url URL and --timeout SECONDS.

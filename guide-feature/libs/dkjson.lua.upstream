@@ -1,0 +1,5 @@
+source: /mnt/mtwo/programming/ai-stuff/libs/lua/dkjson.lua
+commit: 472e9b9deb8df52a2046f166219651574eb61997
+copied: 2026-11-05
+changes: none. dkjson 2.5, the JSON reader and writer the llama.cpp client
+         uses. It tries lpeg and works without it.

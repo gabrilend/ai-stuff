@@ -1,2 +1,10 @@
 Libraries the project brings in. An external library may be given
 a very high index, so a reader can skip it.
+
+Each single-file copy sits beside a <file>.upstream note: its source, the
+source's commit at copy time, the date, and what this project changed
+(docs/vendored-code.md). scripts/refresh-vendored copies them again.
+- llama-chat-client.lua: the llama.cpp client, from delta-version, with an
+  endpoint record per call and an embedding call (issue 401b).
+- dkjson.lua: the JSON reader and writer it uses.
+- ensure-ram-tiers.lua, ensure-ram-tiers: the RAM folders under tmp/.
