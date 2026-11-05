@@ -4,14 +4,16 @@ Tests for W02e (triggers on the server), step 1: the shim
 own runtime (src/jass/vm.lua) on the same scripts, and the converter's
 coverage report (src/wowbuild/triggers.lua) for the maps in assets/.
 
-    luajit src/tests/test_wow_triggers.lua <project folder>
+    luajit src/tests/test_wow_triggers.lua [project folder]
 
 The maps need StormLib (STORMLIB_PATH, or the project's deps/); without it
 their part is skipped.
 ]]
 
 -- {{{ Setup paths
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or (debug.getinfo(1, "S").source:match("^@(.-)/?src/tests/[^/]*$"))
+    or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+if DIR == "" then DIR = "." end
 if DIR:sub(-1) ~= "/" then DIR = DIR .. "/" end
 package.path = DIR .. "src/?.lua;" .. DIR .. "src/?/init.lua;" ..
                DIR .. "server-side/ale/?.lua;" .. DIR .. "server-side/ale/?/init.lua;" .. package.path
