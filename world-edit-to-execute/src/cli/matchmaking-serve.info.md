@@ -15,6 +15,8 @@ error, stamped with the UTC time. Needs LuaSocket.
 | `--quiet` | no log |
 | `--max-lobbies N`, `--max-players N` | the most lobbies, the most players in one |
 | `--lobby-timeout N`, `--idle-timeout N` | seconds before a quiet lobby, a silent connection, is closed |
+| `--nat-port P` | also runs the NAT reflector of `nat.lua` (issue 801d) on UDP ports P and P+1 of the bind address (P 0: any two free ports), and prints a second line, `nat IP PORT ALT_PORT` |
+| `--nat-alt-ip IP` | the reflector also answers from this second address of the machine, so a full cone NAT can be told apart (needs `--nat-port`) |
 
-Exits 1 when it can't listen, 2 on a bad option. The full tool (status,
+Exits 1 when it can't listen (or the reflector can't), 2 on a bad option. The full tool (status,
 lobby lists, configuration files, asset packs) is issue 801g.

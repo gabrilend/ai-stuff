@@ -632,7 +632,7 @@ Phase 8 issues kept in this project:
 | 801a | Protocol specification | **Completed** | None |
 | 801b | Server core | **Completed** | 801a |
 | 801c | Client library | **Completed** | 801a, 801b |
-| 801d | NAT traversal | Pending | 801a, 801b |
+| 801d | NAT traversal | Built; the check against a public STUN server waits on the owner | 801a, 801b |
 | 801e | Lobby UI | Pending | 801c, Phase 5 |
 | 801f | Asset mirror integration | Pending | 801b |
 | 801g | CLI server application | Pending | 801b, 801f |

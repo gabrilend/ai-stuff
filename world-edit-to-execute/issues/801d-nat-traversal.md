@@ -137,3 +137,98 @@ local udp_socket = punch:get_socket()
 - STUN servers are free public infrastructure (Google, Cloudflare provide)
 - Consider adding UPnP/NAT-PMP as alternative for compatible routers
 - Document user-facing error messages ("Connection failed - check firewall/router")
+
+---
+
+## Decisions (2026-11-05)
+
+Made without the owner, each one theirs to overturn. Question Q-1
+(`issues/CRITICAL-PATH.md`) is still open.
+
+1. **Our own reflector, not a public STUN server.** The issue's example
+   asks Google's STUN server; nothing here sends anything to an outside
+   service, so the matchmaking daemon runs a small UDP reflector of its
+   own (`matchmaking-serve.lua --nat-port P`, ports P and P+1, and a
+   second address with `--nat-alt-ip`). The players already trust that
+   server. Its packets are this module's own, not STUN's (RFC 5389): a
+   STUN client is a later piece if the owner wants public servers.
+2. **The detection asks four questions** (where am I; answer from your
+   other address; answer from your other port; where am I, at your other
+   port), the classic order of RFC 3489 with one change: the
+   other-port answer is asked before anything is sent to the other port,
+   or a port-restricted router passes for a restricted one. Without a
+   second address a full cone reads as restricted (they punch alike).
+3. **No relay** (open question 1): a punch that fails is reported within
+   five seconds and the game says so ("Couldn't reach the host directly.
+   One of you may need to forward a port on the router."). Relaying
+   through the matchmaking server costs its bandwidth and is the owner's
+   call.
+4. **No port prediction for symmetric routers** (open question 2). A
+   symmetric side still opens with any cone that isn't port-restricted,
+   because the punch moves to the port the other side's probes really
+   come from. Symmetric with symmetric or port-restricted fails, as the
+   issue expects.
+5. **IPv4 only** (open question 3): the packets carry four-byte
+   addresses; an IPv6 path would need its own kind of BOUND.
+6. **Endpoints, not sockets.** Every piece works on anything with `send`,
+   `receive` and `local_address`, so the same code runs on LuaSocket UDP
+   (`nat.udp`) and on the simulated routers of `src/tests/natsim.lua`,
+   where every kind of NAT can be tried in one run with no network.
+7. **Open on an answer, not on a probe.** A side counts the path open when
+   an ACK to its own probe comes back (both ways work), not when the
+   other side's probe arrives (only one way known).
+8. **Tokens keep punches apart:** each punch's packets carry a token made
+   from the game id and the player's id, so the host's punches to several
+   players share one UDP socket, and a stray or old packet is ignored.
+9. **Keepalive every 15 s, lost after 45 s of silence.** Home routers
+   commonly forget a UDP mapping after 30 s or more; the simulation's
+   lapse at 30 s is kept open by the keepalives. A lost path keeps
+   sending keepalives and is open again when heard.
+10. **The endpoints travel in the existing NAT_PUNCH message** (801a,
+    801b): no new matchmaking message. A player without a detected
+    address sends an empty one and the server fills in the address it
+    sees; the port is then the socket's own, right for an open machine or
+    a router that keeps ports.
+11. **The packets are separate from the matchmaking messages** because
+    they ride UDP, not the TCP stream: if Q-1 brings in 803's message
+    layer, only `nat.encode` and `nat.decode` would change.
+
+## What happened (2026-11-05)
+
+- `src/matchmaking/nat.lua` with its info page (the packets, the
+  detection's questions, the punch, the lobby session, and the table of
+  which kinds of NAT punch through).
+- `src/cli/matchmaking-serve.lua` runs the reflector with `--nat-port P`
+  (and `--nat-alt-ip IP`), printing `nat IP PORT ALT_PORT`.
+- `src/tests/natsim.lua`: simulated routers of every kind, with mapping
+  lapses and seeded loss.
+- `src/tests/test_matchmaking_nat.lua` (116 checks, no network): packets;
+  the reflector; every kind detected, within five seconds, through 30%
+  loss; the punch for all 25 pairs of kinds (symmetric with symmetric or
+  port-restricted fails within 5 s, every other pair opens in under a
+  second); rates at 20% loss (full cone with any kind: all; restricted
+  pairs and port-restricted pairs: 100% of 20 runs each, against the
+  issue's 90% and 70%); 90 s of keepalives holding 30 s mappings open;
+  lost after 45 s of silence and back when heard; a lobby's session
+  through the matchmaking server's core with three and four players.
+- `src/tests/test_matchmaking_nat_net.lua` (13 checks, under
+  `unshare -rn`, against the daemon): the reflector over real UDP, from
+  its second address and port; this machine found open; blocked where
+  nothing answers; a host and a player punching through each other over
+  real UDP via the server, and game datagrams both ways.
+- Both are in `run-net-tests.sh`, and `src/cli/run-tests.sh -d DIR
+  matchmaking` runs and counts them.
+- Mutation check: 46 mutants of `nat.lua` and the daemon's reflector
+  lines, with `ulimit -f`. All 46 are caught, seven of them only after
+  checks were added (half the "WN" mark, an address part of 256, a game
+  datagram bringing a lost path back, a failed punch still answering,
+  tokens alike for two players, data put down to the wrong player, a
+  closed session still listening). A 47th, the 32-bit wrap in `u32`, was
+  equivalent (every byte is already taken modulo 256); the redundant line
+  was removed.
+
+**Left for the owner:** the acceptance check "tested with public STUN
+server" needs a STUN (RFC 5389) client and a datagram to an outside
+service, neither done here; the three open questions (relay, symmetric
+prediction, IPv6) are answered "no" for now in the decisions above. So the
+issue stays open.

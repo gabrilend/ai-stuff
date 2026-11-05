@@ -8,17 +8,25 @@ and keeps it going until it is killed or its time is up. Prints one line,
 started it with port 0 learns the port. Logs every connection and lobby
 event to standard error, each line stamped with the time in UTC.
 
+With --nat-port it also runs the UDP reflector of nat.lua (issue 801d)
+on that port and the next, so players can learn their outside address
+and kind of NAT; it prints a second line, "nat IP PORT ALT_PORT".
+
 The full command-line tool (status, lobby lists, configuration files,
 asset packs) is issue 801g; this is only enough to run the server.
 
 Usage: luajit src/cli/matchmaking-serve.lua [DIR] [--bind HOST:PORT]
          [--seconds N] [--quiet] [--max-lobbies N] [--max-players N]
-         [--lobby-timeout N] [--idle-timeout N]
+         [--lobby-timeout N] [--idle-timeout N] [--nat-port P] [--nat-alt-ip IP]
   DIR        the project (default /mnt/mtwo/programming/ai-stuff/world-edit-to-execute)
   --bind     where to listen (default 127.0.0.1:8080; 0.0.0.0:PORT opens it
              to every network the machine is on)
   --seconds  stop by itself after N seconds (default: run until killed)
   --quiet    no log lines
+  --nat-port the UDP reflector on the bind address, ports P and P+1
+             (P 0: any two free ports)
+  --nat-alt-ip  a second address of this machine the reflector also
+             answers from, so the detector can tell a full cone NAT
 ]]
 
 local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
@@ -27,9 +35,10 @@ if args[1] and args[1]:sub(1, 2) ~= "--" then DIR = table.remove(args, 1) end
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local server = require("matchmaking.server")
+local nat = require("matchmaking.nat")
 
 -- {{{ the arguments
-local config, seconds, quiet = {}, nil, false
+local config, seconds, quiet, nat_port, nat_alt_ip = {}, nil, false, nil, nil
 local numeric = { ["--max-lobbies"] = "max_lobbies", ["--max-players"] = "max_players_per_lobby",
     ["--lobby-timeout"] = "lobby_timeout_seconds", ["--idle-timeout"] = "idle_timeout_seconds" }
 local i = 1
@@ -49,10 +58,13 @@ while i <= #args do
     if a == "--bind" then config.bind = value(a)
     elseif a == "--seconds" then seconds = number(a)
     elseif a == "--quiet" then quiet = true
+    elseif a == "--nat-port" then nat_port = number(a)
+    elseif a == "--nat-alt-ip" then nat_alt_ip = value(a)
     elseif numeric[a] then config[numeric[a]] = number(a)
     else io.stderr:write("matchmaking-serve: " .. a .. " is not an option\n") os.exit(2) end
     i = i + 1
 end
+if nat_alt_ip and not nat_port then io.stderr:write("matchmaking-serve: --nat-alt-ip needs --nat-port\n") os.exit(2) end
 -- }}}
 
 if not quiet then
@@ -66,10 +78,22 @@ local ok, err = pcall(srv.start, srv)
 if not ok then io.stderr:write(err, "\n") os.exit(1) end
 local ip, port = srv:address()
 io.stdout:write("listening ", ip, " ", port, "\n")
+local reflector
+if nat_port then
+    local rok, r = pcall(nat.reflector_udp, ip, nat_port, nat_alt_ip)
+    if not rok then io.stderr:write(r, "\n") srv:stop() os.exit(1) end
+    reflector = r
+    io.stdout:write("nat ", reflector.ip, " ", reflector.port, " ", reflector.alt_port, "\n")
+    if config.log then config.log("NAT reflector on " .. reflector.ip .. ":" .. reflector.port .. " and :" .. reflector.alt_port
+        .. (nat_alt_ip and (", and " .. nat_alt_ip) or "")) end
+end
 io.stdout:flush()
 
+-- The reflector's answers wait at most one short tick.
 local stop_at = seconds and srv.clock() + seconds
 while not stop_at or srv.clock() < stop_at do
-    srv:tick(0.05)
+    srv:tick(reflector and 0.01 or 0.05)
+    if reflector then reflector:poll() end
 end
+if reflector then reflector:close() end
 srv:stop()
