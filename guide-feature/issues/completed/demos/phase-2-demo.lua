@@ -307,6 +307,7 @@ end
 -- {{{ starting the blitter, the server and the readers
 write(ROOT .. "/input/blitter", (string.gsub(series.SETTINGS, "mark%-lifetime = %d+",
     "mark-lifetime = " .. LIFETIME)))
+write(ROOT .. "/input/to-voices", series.TO_VOICES_OFF)
 write(ROOT .. "/input/canvas-server", table.concat({
     'listen-address = "127.0.0.1"', "port = 0", "max-connections = 8",
     "max-request-bytes = 4096", "request-seconds = 5", "wait-seconds = 60",

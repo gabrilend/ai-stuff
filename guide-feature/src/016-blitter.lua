@@ -309,7 +309,7 @@ function Blitter:publish(new, report, summary, voice)
             #marked.marks))
     end
     for _, publisher in ipairs(self.publishers) do
-        publisher(self, new, report)
+        publisher(self, new, report, voice)
     end
 end
 -- }}}
@@ -494,11 +494,24 @@ end
 
 -- {{{ run as a program
 if arg and arg[0] and string.match(arg[0], "016%-blitter%.lua$") then
-    local root
+    local root = DIR
     for index = 1, #arg do
         if arg[index] == "--dir" then root = arg[index + 1] end
     end
-    M.main({ root = root })
+    -- the publishers: the log, and the voices' living message (303), as
+    -- input/to-voices says
+    local to_voices = dofile(DIR .. "/src/035-to-voices.lua")
+    local voices = settings.read("blitter", M.SETTINGS, { root = root }).voices
+    local mailer, why_not = to_voices.publisher({ root = root, voices = voices })
+    local publishers = { M.log_publisher }
+    if mailer then
+        publishers[#publishers + 1] = mailer
+    else
+        publishers[#publishers + 1] = function(self, record)
+            if record.headers.canvas == self.first_version then self.run:log(why_not) end
+        end
+    end
+    M.main({ root = root, publishers = publishers })
 end
 -- }}}
 

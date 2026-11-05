@@ -250,6 +250,8 @@ check("the log says how it waits", string.find(final_log, "waiting for arrivals"
 
 io.write("\n=== the real program, stopped by a signal ===\n")
 -- {{{
+write(ROOT .. "/input/to-voices", 'send = "off"\nmailbox = "~/guide-mail"\n'
+    .. 'tell-the-voice = "off"\nendpoint = "none none"\nproject-checkout = "."\n')
 local pid = shell("cd '" .. ROOT .. "' && (scripts/run-blitter '" .. ROOT
     .. "' > /dev/null 2>&1 & echo $!)")
 local function wait_until(test, seconds)

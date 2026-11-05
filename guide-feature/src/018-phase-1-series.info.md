@@ -10,6 +10,7 @@ through the series.
     local series = dofile(DIR .. "/src/018-phase-1-series.lua")
     series.arrivals(round, versions, latest)   -- { name, text, rows, base, ... }
     series.ROUNDS, series.SETTINGS, series.WIDTH, series.HEIGHT
+    series.TO_VOICES_OFF        -- input/to-voices for a throwaway project: mails nothing
 
 A base is `"latest"` (the newest version when the round starts) or a
 version's number. The bases' rows come from the caller (the demo reads them
