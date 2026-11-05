@@ -81,7 +81,10 @@ shell("mkdir -p '" .. CHECKOUT .. "' && git -C '" .. CHECKOUT .. "' init -q && g
     .. "' -c user.name=test -c user.email=test@localhost commit -q --allow-empty -m one")
 write(ROOT .. "/input/blitter", series.SETTINGS)
 write(ROOT .. "/endpoints", slurp(DIR .. "/endpoints"))
-write(ROOT .. "/input/turn-runner", slurp(DIR .. "/input/turn-runner"))
+-- phase 3's rehearsal: the stand-in turn, with no model (405's real turn is
+-- rehearsed in 056)
+write(ROOT .. "/input/turn-runner", (slurp(DIR .. "/input/turn-runner")
+    :gsub('\nturn = "[^"]*"', '\nturn = "scripts/stand-in-turn"')))
 write(ROOT .. "/input/stand-in-turn", 'words = "lantern harbor kitten orchard"\nseconds = 0.5\n')
 write(ROOT .. "/input/to-voices", 'send = "off"\nmailbox = "~/guide-mail"\ntell-the-voice = "on"\n'
     .. 'project-checkout = "' .. CHECKOUT .. '"\n')

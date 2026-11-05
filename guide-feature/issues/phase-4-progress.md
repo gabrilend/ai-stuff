@@ -53,3 +53,16 @@ Counts of done and open issues:
     a fresh read of `endpoints` at every version, so a switch reaches a
     voice with the next version.
   - Real key files and providers are the owner's.
+- **405, the turn** (2026-11-05):
+  - `scripts/turn` (`src/055-turn.lua`) is the voice's real turn, named in
+    `input/turn-runner`. It reads the canvas, takes its own endpoint from
+    the canvas, builds the prompt with last turn's note, and asks until the
+    reply fits. It then writes the voice's canvas, read back first.
+  - Its log and receipt name the endpoint, and count the tries, the
+    problems by kind, the look calls, the tokens and the seconds.
+  - A turn still asking keeps going when a newer canvas arrives (the
+    owner's word). `newer-canvas = "give-way"` in `input/turn` makes it
+    stop instead.
+  - Run in the rehearsal with the real turn in all three voices against a
+    stand-in model. The run against kuvalu's servers is for the owner's
+    machine.

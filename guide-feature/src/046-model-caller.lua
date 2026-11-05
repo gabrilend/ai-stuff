@@ -35,10 +35,11 @@ local ffi = require("ffi")
 local settings = dofile(DIR .. "/src/001-settings.lua")
 local client = dofile(DIR .. "/libs/llama-chat-client.lua")
 
-pcall(ffi.cdef, [[
-    typedef struct { long tv_sec; long tv_nsec; } guide_model_timespec;
-    int clock_gettime(int clock, guide_model_timespec *spec);
-]])
+-- The same declarations, by the same names, as the turn runner (038) makes:
+-- C has one clock_gettime, so a process that loads both (the turn, 405) must
+-- see one struct type for it, whichever file declared it first.
+pcall(ffi.cdef, "typedef struct { long tv_sec; long tv_nsec; } guide_timespec;")
+pcall(ffi.cdef, "int clock_gettime(int clock, guide_timespec *tp);")
 
 local M = {}
 M.client = client
@@ -47,7 +48,7 @@ M.client = client
 -- Seconds, with milliseconds, from the monotonic clock (1): how long a call
 -- took, unaffected by the wall clock being set.
 local function now()
-    local spec = ffi.new("guide_model_timespec")
+    local spec = ffi.new("guide_timespec")
     if ffi.C.clock_gettime(1, spec) == 0 then
         return tonumber(spec.tv_sec) + tonumber(spec.tv_nsec) / 1e9
     end

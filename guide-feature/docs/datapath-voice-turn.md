@@ -129,6 +129,36 @@ canvas sent. In phase 3 the turn is the stand-in (`scripts/stand-in-turn`),
 which writes one word from `input/stand-in-turn` into the voice's third of
 the canvas; the real turn (issue 405) replaces it in that setting.
 
+## The real turn
+
+Built in issue 405: `src/055-turn.lua`, run as `scripts/turn`, which
+`input/turn-runner` now names. It is the seven steps above, in order:
+the canvas read; the project clone, a logged no-op until issue 501; the
+voice's own endpoint line from the canvas, its key read on this machine;
+the opening conversation with last turn's advisory note; ask until it fits;
+the voice's canvas, read back before it is written to `--out`. A failure
+at any step (a canvas that does not read, no endpoint line, a key file, the
+model) is logged, counted (`failed`) and exits 1; the runner sends nothing.
+
+Last turn's advisory note is kept in `output/turn-note-<voice>`: written
+when the turn's changes were over the recommendation, removed when they
+were not, and put in the next turn's prompt.
+
+### A newer canvas while the model is still asked
+
+A turn can spend a while asking again and again. If a newer canvas arrives
+meanwhile, it waits in `turn/<voice>/waiting` (above). `input/turn` says
+what the turn does then:
+
+- `newer-canvas = "keep-going"`, the default and the owner's word ("it will
+  just keep spinning until it gets it right"): the turn asks until its reply
+  fits and sends it; the blitter blits it onto the newer version, as with any
+  turn that crossed a version in the mail.
+- `newer-canvas = "give-way"`: before each new ask the turn looks for a
+  waiting canvas. If there is one it stops, writes nothing and exits 3. The
+  runner counts `turns-gave-way`, sends nothing, keeps the turn number, and
+  takes the newer canvas next.
+
 ## What the turn counts
 
 In the log and the goodbye receipt (`tmp/shared-memory/` and `output/` on
@@ -142,4 +172,18 @@ canvas); its log gives the seconds of every turn. Each step is also a line
 in `tmp/shared-memory/turn/<voice>/events`, `<unix time, ms> <event>
 <version> [turn]`, with the events `received`, `replaced`, `taken`, `sent`,
 `unchanged`, `failed`, `refused` and `busy`, which the rehearsal (305)
-reads for its timings. The rest come with the real turn (405).
+reads for its timings, and `gave-way` (405).
+
+The real turn (405) adds the rest. Each turn is a run of its own: its log
+is `tmp/shared-memory/turn-<voice>.log`, and its receipt is
+`output/goodbye-turn-<voice>` (the last turn's; the one before is
+`.previous`). The log's last line for a turn that fitted gives every number:
+
+    turn 7 on version 12 fits: endpoint kuvalu-chat (http://...), asks 3,
+    tries 2, problems: too-wide 1, look calls 0, tokens 1200 + 300, 4.21
+    seconds, 3 words and 0 sentences changed (12 and 1 recommended)
+
+The receipt counts the same: `endpoint-<name>`, `asks`, `tries`,
+`problems-<kind>`, `look-calls`, `looks-<focus>`, `tokens-prompt`,
+`tokens-completion`, `model-milliseconds`, `words-changed`,
+`sentences-changed`, `over-recommended`, and `gave-way` or `failed`.

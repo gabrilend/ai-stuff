@@ -26,6 +26,14 @@ or `{ "content": ..., "delay": seconds }`, or `{ "status": 500, "error":
 ... }`. `--requests` gets one JSON line per request (`method`, `path`,
 `body`), so a test can read every conversation sent.
 
+A reply `{ "rewrite": "w1 w2 ...", "wide_every": N }` (issue 405) plays a
+model doing turns: it reads the canvas it was shown (the ruler in the first
+user turn, 049's `unruler`) and changes the first word of one row to one of
+the words, never to the word already there; the row and the word move on
+with every chat request, and a blank canvas gets the word at the start of a
+row. Every Nth request its row runs past the edge, so a turn sees a reply
+that does not fit. `rewrite(messages, n, words, wide)` is the same, pure.
+
 `--key-file` (issue 402) makes it ask for the key in that file, as
 llama-server's `--api-key-file` does: every route but `GET /v1/models` and
 `/health` needs `Authorization: Bearer KEY`, and gets 401 "Invalid API

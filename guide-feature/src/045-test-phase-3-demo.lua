@@ -83,7 +83,9 @@ for _, link in ipairs({ "src", "libs", "scripts", "issues", "run-phase-demo" }) 
     shell("ln -s " .. q(DIR .. "/" .. link) .. " " .. q(PROJECT .. "/" .. link))
 end
 write(PROJECT .. "/input/blitter", series.SETTINGS)
-write(PROJECT .. "/input/turn-runner", slurp(DIR .. "/input/turn-runner"))
+-- phase 3's demo shows the stand-in turn (the real one is 405's)
+write(PROJECT .. "/input/turn-runner", (slurp(DIR .. "/input/turn-runner")
+    :gsub('\nturn = "[^"]*"', '\nturn = "scripts/stand-in-turn"')))
 -- a turn longer than the carrier's timers, so canvases wait and are replaced
 write(PROJECT .. "/input/stand-in-turn", 'words = "lantern harbor kitten orchard"\nseconds = 1.5\n')
 write(PROJECT .. "/input/to-voices", slurp(DIR .. "/input/to-voices"))
