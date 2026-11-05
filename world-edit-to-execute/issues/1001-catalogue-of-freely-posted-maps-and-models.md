@@ -134,13 +134,22 @@ One page serves all three; what differs is only who draws it.
    three), or does the web browser get the separate JavaScript viewer
    answer 4 left for later? And does the launcher draw the page itself
    (it would need an HTML engine) or open it in the user's web browser?
-   Partly answered the same day, the owner: "no to fengari." Still open:
-   the scripts meant are the page's moving parts (the search that narrows
-   as one types, download progress, the live model box), which answer 4
-   wrote in Lua for the W client; an ordinary web browser runs only
-   JavaScript, so without Fengari the web page's moving parts are
-   JavaScript, or the web page goes without them. Which, and how does the
-   launcher show the page?
+   Answered the same day, the owner: "no to fengari", then: "Let's do
+   javascript, and run a little browser inside the client as an addon. We
+   need feature parity with WoW's client, so... we need addons, and plenty
+   of them have created web-browsers inside the client." So the page's
+   moving parts (the search that narrows as one types, download progress,
+   the live model box) are JavaScript, and this replaces answer 4's Lua.
+   One page: an ordinary web browser opens it as it is, and inside the W
+   client a web browser addon opens it (W client issue 710).
+6. ~~**How does the launcher show the page?**~~ Answered 2026-11-04, the
+   owner: "the user could visit the page on their browser, or view it in
+   their client / launcher. the client / launcher don't open the
+   browser." So the launcher shows the page itself, with a full browser
+   engine (the owner, same day: "full browser engine"), the same one the
+   W client's browser addon (its 710) uses. The question as asked: by
+   opening it in the user's own web browser, or with a page engine of its
+   own?
 
 ## Related Documents
 

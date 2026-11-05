@@ -37,6 +37,10 @@ tmp/
 *.temp
 *~
 
+# The map editor's settings (issue 913): this machine's folders and a
+# test account; editor-settings.example.lua lists the fields
+editor-settings.lua
+
 # OS files
 .DS_Store
 Thumbs.db

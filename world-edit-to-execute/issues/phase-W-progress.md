@@ -15,6 +15,10 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | W02 | [Build WC3 maps into the WoW client](./W02-build-wc3-maps-into-the-wow-client.md) | open | W01 |
 | W02a | [Terrain to ADT writer](./W02a-terrain-to-adt-writer.md) | built 2026-11-04; open: texture paths and Noggit to check on the owner's machine | W01 (checking only) |
 | W02b | [Doodads and units to placements](./W02b-doodads-and-units-to-placements.md) | built 2026-11-04; open: model paths, the SQL on AzerothCore and the stock client to check on the owner's machine | W02a |
+| W02c | [Map registration and output forms](./W02c-map-registration-and-output-forms.md) | built 2026-11-04; open: table layouts, the stock client, the SQL on AzerothCore to check on the owner's machine; the W client's side (custom-client) | W02a, W02b |
+| W02e | [Triggers on the server](./W02e-triggers-on-the-server.md) | steps 1-2 of 8 built 2026-11-04/05 (coverage report, the shim's skeleton, 574 natives on a fake ALE: 95.5% of call sites over the 19 maps, was 58.9%; templates for types only the script makes); open: ALE's API to check on the owner's machine, the server's loader, steps 3-8 | W02b, W02c |
+| W02f | [Launcher and loader](./W02f-launcher-and-loader.md) | steps 1-2 of 5 built 2026-11-05 (the server's stamp, by which Test Map reuses the server; the install plan as data, `install-plan.lua`, with the shim copied into the build); open: running the install on AzerothCore, the stock client, the character at the start | W02c, W02d |
+| W02i | [A converted map's own light](./W02i-a-converted-maps-own-light.md) | built 2026-11-05 (the stock client and AzerothCore's side on the owner's machine open) | W02c, the W client's light through its tables (custom-client #26) |
 | W03 | [Show WoW models with WC3 unit behavior](./W03-show-wow-models-with-wc3-unit-behavior.md) | open | W01, 508, 601, 602 |
 | W04 | [Compare the real client against the open client](./W04-compare-the-real-client-against-the-open-client.md) | open | W02, W03 |
 | W05 | [Asset forge: find or generate a replacement model](./W05-asset-forge-find-or-generate-a-replacement-model.md) | open | W03, 604 |

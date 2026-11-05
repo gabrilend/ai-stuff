@@ -130,3 +130,10 @@
 - decision 9's checks on the owner's machine;
 - AreaTable rows for a map's own zones (decision 6), and a new-area tool that adds one;
 - the window's area brush and a map of the areas.
+
+*2026-11-05, on joining the W02 chain into this stack:* W02c's converter
+writes the map's own zone (its area id, 9000 + 10 x slot) in every chunk,
+not 0. So on the joined branch a converted map reads as one area, the
+zone, and a tile added beside it takes the zone by decision 4; the
+acceptance line "W02's tiles read 0 everywhere" holds for W02a alone.
+`test_wow_areas.lua` takes the zone from the map's registration.

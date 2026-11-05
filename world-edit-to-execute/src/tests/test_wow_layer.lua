@@ -124,12 +124,17 @@ local made_map = {
 local BUILD = TMP .. "/build"
 local report = wowbuild.convert("made.w3x", BUILD, { terrain = terrain, map = made_map, models = models, name = "WC3_made" })
 local MAPDIR = BUILD .. "/World/Maps/WC3_made"
+-- the files the converter leaves in the map's folder: the WDT, the WDL, two
+-- tiles, and (W02c, since the stacks were joined) its registration and
+-- loading screen
+local NFILES = #mapfile.walk(MAPDIR)
 -- }}}
 
 -- {{{ A map's files
 section("A WoW map's files, from the files present")
 do
     test("the converter made a WoW map", report and read(MAPDIR .. "/WC3_made.wdt") ~= nil)
+    test("its folder: the WDT, the WDL, two tiles, its registration and loading screen", NFILES == 6, NFILES)
     test("its folder is a WoW map: it holds its WDT", table.concat(wowmap.maps(BUILD), ",") == "WC3_made")
     write(BUILD .. "/World/Maps/NoWdt/NoWdt_1_1.adt", "not a map")
     test("a folder without its WDT isn't one", table.concat(wowmap.maps(BUILD), ",") == "WC3_made")
@@ -137,10 +142,11 @@ do
     test("the WDT, the WDL and the tiles, by kind", f.wdt == "WC3_made.wdt" and f.wdl == "WC3_made.wdl" and #f.tiles == 2)
     test("tiles sorted, numbered west to east, then north to south", f.tiles[1].tx + 1 == f.tiles[2].tx
         and f.tiles[1].ty == f.tiles[2].ty and f.tiles[1].file == string.format("WC3_made_%d_%d.adt", f.tiles[1].tx, f.tiles[1].ty))
+    local others = #f.other                -- W02c's registration and loading screen, on the joined stacks
     write(MAPDIR .. "/WC3_made_99_1.adt", "out of range")
     write(MAPDIR .. "/notes.txt", "a note")
     f = wowmap.files(BUILD, "WC3_made")
-    test("a tile number past 63, or another file: not a tile", #f.tiles == 2 and #f.other == 2)
+    test("a tile number past 63, or another file: not a tile", #f.tiles == 2 and #f.other == others + 2)
     os.remove(MAPDIR .. "/WC3_made_99_1.adt")
     os.remove(MAPDIR .. "/notes.txt")
     local m, why = wowmap.open(BUILD, "Missing")
@@ -222,7 +228,7 @@ else
     test("a WC3 map exported as a project", ok, rep)
     test("its README says what wow/ holds", (read(P .. "/wow/README.txt") or ""):find("World/Maps", 1, true) ~= nil)
     local aok, arep = mapfile.add_wow(P, BUILD, "WC3_made")
-    test("the WoW map added to it", aok and arep.files == 4 and arep.tiles == 2, arep)
+    test("the WoW map added to it", aok and arep.files == NFILES and arep.tiles == 2, arep)
     local same, why = same_tree(MAPDIR, P .. "/wow/World/Maps/WC3_made")
     test("... byte for byte, at the client's own paths", same, why)
     local layer = mapfile.read_data(read(P .. "/wow/layer.lua") or "", "layer")
@@ -234,7 +240,7 @@ else
     local probs = mapfile.validate(P, "wow")
     test("the WoW layer validates", not has(probs, "error", "") and not has(probs, "warn", ""), levels(probs))
     local wprobs = mapfile.validate(P, "wc3")
-    test("a WC3 build: the WoW map left out, said once", has(wprobs, "info", "the WoW map WC3_made (4 files): WoW-only")
+    test("a WC3 build: the WoW map left out, said once", has(wprobs, "info", "the WoW map WC3_made (" .. NFILES .. " files): WoW-only")
         and not has(wprobs, "error", ""), levels(wprobs))
     local B = TMP .. "/proj.w3x"
     local bok = mapfile.build(P, B)
@@ -243,10 +249,10 @@ else
     -- the WoW build: the layer out as a loose folder, byte for byte
     local OUT = TMP .. "/wow-out"
     local wok, wrep = mapfile.build_wow(P, OUT)
-    test("the WoW build: the layer out as a loose folder", wok and wrep.files == 4 and wrep.maps == 1, wrep)
+    test("the WoW build: the layer out as a loose folder", wok and wrep.files == NFILES and wrep.maps == 1, wrep)
     same, why = same_tree(MAPDIR, OUT .. "/World/Maps/WC3_made")
     test("... the map that was added, byte for byte", same, why)
-    test("... and nothing of the WC3 part, nor the layer's own notes", #mapfile.walk(OUT) == 4)
+    test("... and nothing of the WC3 part, nor the layer's own notes", #mapfile.walk(OUT) == NFILES)
 
     -- a WC3 export again leaves the layer as it is
     mapfile.export(DIR .. "assets/Daow4.4.w3x", P)

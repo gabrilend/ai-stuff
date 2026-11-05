@@ -204,6 +204,10 @@ end
 local HUT = "World\\Test\\Hut.wmo"
 local orig = { west = read(MAPDIR .. "/" .. WEST), east = read(MAPDIR .. "/" .. EAST), wdl = read(MAPDIR .. "/WC3_made.wdl"),
                wdt = read(MAPDIR .. "/WC3_made.wdt") }
+-- the converted map's own zone: W02c's area id for its slot, which W02a
+-- writes in every chunk
+local reg = require("wowbuild.registration").read(MAPDIR .. "/registration.lua")
+local Z = reg and reg.ids and reg.ids.area or 0
 local function same_files(folder)
     return read(folder .. "/" .. WEST) == orig.west and read(folder .. "/" .. EAST) == orig.east
         and read(folder .. "/WC3_made.wdl") == orig.wdl and read(folder .. "/WC3_made.wdt") == orig.wdt
@@ -232,19 +236,20 @@ do
     local root = copy_map()
     local m = wowmap.open(root, "WC3_made")
     local w, e = m:tile(31, 32), m:tile(32, 32)
-    test("every chunk of both tiles: area 0, as W02a writes it", w and e and every(w, function(c) return c.area == 0 end)
-        and every(e, function(c) return c.area == 0 end))
+    test("the map's zone: W02c's id for slot 0, 9000", Z == 9000, Z)
+    test("every chunk of both tiles: in it, as W02a writes it", w and e and every(w, function(c) return c.area == Z end)
+        and every(e, function(c) return c.area == Z end))
     local a = wowmap.chunk_areas(orig.west)
     local n = 0
     for _ in pairs(a) do n = n + 1 end
-    test("chunk_areas: 256 chunks, by iy * 16 + ix", n == 256 and a[1] == 0 and a[256] == 0)
+    test("chunk_areas: 256 chunks, by iy * 16 + ix", n == 256 and a[1] == Z and a[256] == Z)
     local made = with_area(with_area(orig.west, 1, 9010), 16 * 3 + 7 + 1, 65535)
     a = wowmap.chunk_areas(made)
     test("... reading the header's byte 52 (chunk 0,0 and 7,3 set by hand)", a[1] == 9010 and a[16 * 3 + 7 + 1] == 65535
-        and a[2] == 0)
-    test("wt.areas: one area, 512 chunks over both tiles", summary(wt.areas(m)) == "0:512:31_32,32_32", summary(wt.areas(m)))
+        and a[2] == Z)
+    test("wt.areas: one area, 512 chunks over both tiles", summary(wt.areas(m)) == Z .. ":512:31_32,32_32", summary(wt.areas(m)))
     local here = wt.area_at(m, chunk_centre(32, 32, 3, 4))
-    test("wt.area_at: the area under a point", here == 0)
+    test("wt.area_at: the area under a point", here == Z)
     test("... nil off the map", wt.area_at(m, ORIGIN - 40 * TILE, ORIGIN - 40 * TILE) == nil)
 end
 -- }}}
@@ -258,7 +263,7 @@ local K = 5 * 16 + 5 + 1
 do
     local got, why = wt.area(m, rx, ry, { area = 5 })
     test("set: one chunk of the west tile", got and got.chunks == 1 and list(got.tiles) == "31_32", why)
-    test("wt.area_at reads it", wt.area_at(m, rx, ry) == 5 and wt.area_at(m, rx + CHUNK, ry) == 0)
+    test("wt.area_at reads it", wt.area_at(m, rx, ry) == 5 and wt.area_at(m, rx + CHUNK, ry) == Z)
     local again = wt.area(m, rx, ry, { area = 5 })
     test("set again to the same: nothing changed", again and again.chunks == 0)
     local written = wt.save(m)
@@ -269,8 +274,8 @@ do
     test("the east tile, the WDT and the WDL untouched", read(folder .. "/" .. EAST) == orig.east
         and read(folder .. "/WC3_made.wdl") == orig.wdl and read(folder .. "/WC3_made.wdt") == orig.wdt)
     local t2 = wowmap.open(root, "WC3_made"):tile(31, 32)
-    test("read again (adt_read and the header): area 5 there, 0 elsewhere", t2 and t2.chunks[K].area == 5
-        and t2.chunks[K + 1].area == 0)
+    test("read again (adt_read and the header): area 5 there, the zone elsewhere", t2 and t2.chunks[K].area == 5
+        and t2.chunks[K + 1].area == Z)
     local w = m:tile(31, 32)
     local same = t2 ~= nil
     for k = 1, 256 do
@@ -295,8 +300,8 @@ do
     for _, d in ipairs({ { w, 15, 7 }, { w, 15, 8 }, { w, 15, 9 }, { w, 14, 8 }, { e, 0, 7 }, { e, 0, 8 }, { e, 0, 9 }, { e, 1, 8 } }) do
         if d[1].chunks[d[3] * 16 + d[2] + 1].area ~= 7 then ok = false end
     end
-    test("... the chunks expected", ok and w.chunks[6 * 16 + 15 + 1].area == 0 and e.chunks[8 * 16 + 2 + 1].area == 0)
-    test("wt.areas: 0, 5 and 7 with their chunks and tiles", summary(wt.areas(m)) == "0:503:31_32,32_32 5:1:31_32 7:8:31_32,32_32",
+    test("... the chunks expected", ok and w.chunks[6 * 16 + 15 + 1].area == Z and e.chunks[8 * 16 + 2 + 1].area == Z)
+    test("wt.areas: 5, 7 and the zone with their chunks and tiles", summary(wt.areas(m)) == "5:1:31_32 7:8:31_32,32_32 " .. Z .. ":503:31_32,32_32",
         summary(wt.areas(m)))
     local written = wt.save(m)
     table.sort(written)
@@ -304,7 +309,7 @@ do
     local m2 = wowmap.open(root, "WC3_made")
     test("read again: the same areas", summary(wt.areas(m2)) == summary(wt.areas(m)))
     local a = wowmap.chunk_areas(read(folder .. "/" .. EAST))
-    test("... in the east file's headers", a[8 * 16 + 1] == 7 and a[8 * 16 + 2] == 7 and a[8 * 16 + 3] == 0)
+    test("... in the east file's headers", a[8 * 16 + 1] == 7 and a[8 * 16 + 2] == 7 and a[8 * 16 + 3] == Z)
 end
 -- }}}
 
@@ -391,8 +396,8 @@ do
     test("opts.area 9: area 9", t and every(t, function(c) return c.area == 9 end), why)
     tiles.remove(m3, 33, 32)
     t, why = tiles.add(m3, 33, 32, { height = 20 })
-    test("taken off, added again with neighbours all 0: area 0, nothing to write for it",
-        t and every(t, function(c) return c.area == 0 and not c.dirty.area end), why)
+    test("taken off, added again: the map's zone, its neighbours'",
+        t and every(t, function(c) return c.area == Z and c.dirty.area end), why)
     for _, v in ipairs({ -3, 70000, 2.5, "x" }) do
         tiles.remove(m3, 33, 32)
         local nope, nwhy = tiles.add(m3, 33, 32, { height = 20, area = v })
@@ -468,7 +473,7 @@ do
     test("one stroke over two chunks: one step", ok and name and name:find("^Set area") and wt.area_at(em, rx, ry) == 12
         and wt.area_at(em, x2, y2) == 12, name)
     e:undo()
-    test("undone", wt.area_at(em, rx, ry) == 0 and wt.area_at(em, x2, y2) == 0)
+    test("undone", wt.area_at(em, rx, ry) == Z and wt.area_at(em, x2, y2) == Z)
     e:redo()
     test("redone", wt.area_at(em, rx, ry) == 12)
 
@@ -476,7 +481,7 @@ do
     e:wow_stroke_begin("area", ORIGIN - (32 * 16 + 8.5) * CHUNK, ORIGIN - 32 * TILE)
     e:wow_stroke(ORIGIN - (32 * 16 + 8.5) * CHUNK, ORIGIN - 32 * TILE)
     e:wow_stroke_end()
-    test("a wider stroke over the tile edge", summary(wt.areas(em)) == "0:502:31_32,32_32 12:2:31_32 30:8:31_32,32_32",
+    test("a wider stroke over the tile edge", summary(wt.areas(em)) == "12:2:31_32 30:8:31_32,32_32 " .. Z .. ":502:31_32,32_32",
         summary(wt.areas(em)))
     e.brush = { size = 1, strength = 1, wow_radius = 0 }
     e:wow_stroke_begin("area", rx, ry)
@@ -497,7 +502,7 @@ do
     e:redo() e:redo() e:redo() e:redo()
     e:wow_save()
     local m2 = wowmap.open(P .. "/wow", "WC3_made")
-    test("redone after that, saved: the areas and the set back", summary(wt.areas(m2)) == "0:502:31_32,32_32 12:2:31_32 30:8:31_32,32_32"
+    test("redone after that, saved: the areas and the set back", summary(wt.areas(m2)) == "12:2:31_32 30:8:31_32,32_32 " .. Z .. ":502:31_32,32_32"
         and m2:tile(32, 32).buildings[1].doodad_set == 5, summary(wt.areas(m2)))
     e:undo()
     e:wow_save()
