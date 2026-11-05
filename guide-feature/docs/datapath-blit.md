@@ -89,7 +89,7 @@ Example, on one row, under `blank-whole`:
     before:          the cat sat on the mat
     write "kitten" at the column where "cat" starts
     "kitten" covers all of "cat" and the "sa" of "sat"
-    after:           the kitten   on the mat
+    after:           the kitten  on the mat
 
 A shorter word written over a longer one is the same case seen from the
 other side. `dog` written over the start of `kitten` cuts `kitten`, so its

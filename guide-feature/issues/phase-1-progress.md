@@ -30,3 +30,7 @@ moves the phase toward its goals.)
   word with its row, column and length in characters, which word covers each
   cell, and the sentences. It is what the change finder (104), the blit (106)
   and the marks (201) measure with.
+- **104, what a voice changed** (2026-11-05): `src/010-changes.lua` compares
+  a voice's canvas with its base: the words kept, written, erased and
+  overwritten, and the counts of words changed and sentences rewritten whole.
+  The fit check (105) and the blit (106) both take their changes from it.
