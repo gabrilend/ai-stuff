@@ -9,10 +9,15 @@
 -- every way; one changed field must change it.
 --
 -- Run with: luajit src/tests/test_null_render.lua [DIR] [BUILD]
--- Builds in BUILD (default DIR/tmp/null-render).
+-- DIR defaults to the project this file is in. Builds in BUILD, or in
+-- $WETE_TEST_BUILD/null-render when that is set, or in DIR/tmp/null-render.
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
-local BUILD = arg[2] or (DIR .. "/tmp/null-render")
+-- The project: the argument, or the folder this test sits in (run-tests.sh
+-- runs each test by its full path, from the project), or the owner's.
+local DIR = arg[1] or arg[0]:match("^(.+)/src/tests/[^/]+%.lua$") or (arg[0]:match("^src/tests/") and ".")
+    or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local env_build = os.getenv("WETE_TEST_BUILD")
+local BUILD = arg[2] or (env_build and env_build ~= "" and env_build .. "/null-render") or (DIR .. "/tmp/null-render")
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local ffi = require("ffi")
@@ -246,5 +251,6 @@ again:close()
 package.loaded.render = nil
 -- }}}
 
-print(string.format("\nnull renderer: %d of %d passed", pass_count, test_count))
+print(string.format("\nTests: %d passed, %d failed", pass_count, test_count - pass_count))
+print(string.format("null renderer: %d of %d passed", pass_count, test_count))
 os.exit(pass_count == test_count and 0 or 1)

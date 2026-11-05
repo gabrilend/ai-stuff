@@ -209,3 +209,10 @@ Made without the owner, each one theirs to overturn.
   added for it. The other writes a mesh id one past the kinds into
   `by_kind[4]`, which is the `placeholders` field in memory, so it gives
   the same counts: equivalent by layout, though undefined in C.
+
+## Decisions, second round (2026-11-05)
+
+6. **The test finds its project** from its own path when given none, as
+   `src/cli/run-tests.sh` runs it, ends with a `Tests: N passed, M failed`
+   line the runner counts, and builds in `$WETE_TEST_BUILD/null-render`
+   when that is set (else `DIR/tmp/null-render`, which git ignores).

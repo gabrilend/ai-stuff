@@ -11,5 +11,6 @@ same on every run; a changed field must change it, and calls after close
 must do nothing.
 
 - **Usage:** `luajit src/tests/test_null_render.lua [DIR] [BUILD]`
-  (BUILD defaults to `DIR/tmp/null-render`); exits 1 on a failure. Needs
+  (DIR defaults to the project the test is in; BUILD to
+  `$WETE_TEST_BUILD/null-render` when that is set, else `DIR/tmp/null-render`); exits 1 on a failure. Needs
   gcc.
