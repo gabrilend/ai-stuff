@@ -170,8 +170,9 @@ guide-feature follows this guide with:
 
 On kuvalu: `scripts/install-index-hooks` once, then every commit, pull and
 checkout keeps the index built, with the embedder `endpoints` names. On each
-voice, the turn builds the index of its clone after bringing it to the
-canvas's commit (issue 503), with the embedder the canvas names.
+voice, the clone keeper copies that index into the voice's clone after
+bringing the clone to the canvas's commit (issue 503): a voice builds no
+index, so guide-feature builds only its own, and only on kuvalu.
 
 Built against a stand-in embedding model here, guide-feature's index is
 about 1,070 pieces from about 90 files: functions, structures and blocks

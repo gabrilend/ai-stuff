@@ -1,0 +1,24 @@
+# The look tool's settings (issue 503), on each voice. Numbers bare.
+# docs/datapath-looking-into-the-project.md, "The look call".
+
+# What the model's words mean, as a focus from 0 (a broad reaching
+# exploration) to 1 (a highly focused insight). The model writes
+# "look focused: WORDS" or "look broad: WORDS" (input/turn-instructions).
+focused = 1
+broad   = 0
+
+# How many pieces a look chooses: `nearest` at focus 1, `spread` at focus 0,
+# and a straight line between.
+nearest = 4
+spread  = 12
+
+# How far down the pieces, ranked by similarity, a look reaches: at focus 1
+# only the nearest; at focus 0 all the way to the farthest; in between,
+# (1 - focus) to this power of the way. 1 is a straight line; above 1 keeps
+# a middling focus close to the nearest pieces.
+curve = 2
+
+# The most tokens of source text one look may give back, counted with the
+# voice's own chat model's tokenizer. A piece that does not fit is left out,
+# and the answer says how many were.
+budget = 2000

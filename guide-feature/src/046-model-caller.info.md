@@ -11,7 +11,7 @@ through this project's copy of the llama.cpp client,
 |---|---|
 | `read(root)` | the endpoints file, checked (001's `read_endpoints`) |
 | `for_role(root, role)` | the endpoint record the role uses now: `name`, `url`, `kind`, `timeout`, `role` and any other field the file gives it, with `key` read from its key file |
-| `from_canvas(record, voice, root)` | a voice's endpoint for this turn, from its line in the canvas's `endpoints:` section (issue 402), its key read on this machine |
+| `from_canvas(record, voice, root)` | a voice's endpoint for this turn, from its line in the canvas's `endpoints:` section (issue 402), its key read on this machine. With `"embedder"` for the voice, the embedder's line (503), an embedding endpoint |
 | `load_key(endpoint, root)` | reads the endpoint's `key-file` into `endpoint.key`; an endpoint with none is left alone |
 | `chat(endpoint, messages, opts)` | the reply's text, and `{ usage, seconds, endpoint }` |
 | `count_tokens(endpoint, text)` | the exact token count from the endpoint's `/tokenize` |

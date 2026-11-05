@@ -11,8 +11,9 @@ as `scripts/rehearse [ROOT] [--minutes M] [--keep]`, or as a library with
   - the guide, with the arrival hook;
   - `fg-sora-1` to `-3`, each with the turn hook.
 - The voices run the turn `input/turn-runner` names: the real turn (405),
-  with `input/turn` and `input/turn-instructions` copied in and each
-  voice's endpoint from the copied `endpoints`; or phase 3's stand-in turn
+  with `input/turn`, `input/turn-instructions` and `input/look` copied in
+  and each voice's endpoint, and the embedder's, from the copied
+  `endpoints`; or phase 3's stand-in turn
   with `input/stand-in-turn`. `scripts/use-endpoint` on the workspace's
   copy switches a voice while it runs (402).
 - `input/project-clone` is copied with the project named to come from the

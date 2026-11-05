@@ -8,11 +8,13 @@
 --
 --   1. read the canvas kuvalu sent (to-voices, 006);
 --   2. the project clone: this voice's clone of the project the canvas
---      names, brought to its commit, in RAM if it fits (501, 058);
+--      names, brought to its commit, in RAM if it fits (501, 058), with
+--      the project's embedding index copied in (503);
 --   3. the endpoint: this voice's own line in the canvas (402), its key read
 --      on this machine;
 --   4. the opening conversation (403), with last turn's advisory note;
---   5-6. ask until the reply fits (404);
+--   5-6. ask until the reply fits (404), answering look calls with the
+--      look tool (503, 064);
 --   7. write the voice's canvas (from-voice, base: the version read), read
 --      back with the canvas reader before it is written, so the voice never
 --      sends a canvas the blitter would refuse for its form.
@@ -60,6 +62,7 @@ local caller = dofile(DIR .. "/src/046-model-caller.lua")
 local prompt = dofile(DIR .. "/src/049-turn-prompt.lua")
 local ask = dofile(DIR .. "/src/051-ask-until-it-fits.lua")
 local clone = dofile(DIR .. "/src/058-project-clone.lua")
+local look = dofile(DIR .. "/src/064-look.lua")
 
 local M = {}
 
@@ -102,6 +105,9 @@ function M.note_path(root, voice) return root .. "/output/turn-note-" .. voice e
 -- clone-fetched, clone-moved and clone-milliseconds. A clone that cannot be
 -- made is logged and counted (clone-failed), and the turn goes on with the
 -- canvas alone: the canvas is the work, the clone only what a look sees.
+-- The keeper also copies the project's embedding index from the source
+-- (503), and the next log line says whether it did; the receipt counts
+-- index-already, index-copied, index-behind, index-none or index-failed.
 -- Returns the kept clone, or nil and why. opts.clone passes the keeper's
 -- seams (memory, filesystem_of, free_space) through, for tests.
 function M.project(opts, record, run, where)
@@ -120,7 +126,59 @@ function M.project(opts, record, run, where)
     if kept.moved then run:count("clone-moved") end
     run:count("clone-milliseconds", math.floor(kept.seconds * 1000 + 0.5))
     run:log(where .. ": " .. clone.describe(kept))
+    if kept.index then
+        run:count("index-" .. kept.index.state)
+        run:log(where .. ": " .. clone.describe_index(kept))
+    end
     return kept
+end
+-- }}}
+
+-- {{{ function M.looker()
+-- The answer to a look call (503): the look tool against this voice's clone
+-- and its index, the words read by the embedder the canvas names, the
+-- pieces' tokens counted with the voice's own chat endpoint. Each look is
+-- logged (look.describe) and counted: look-pieces, look-tokens and
+-- look-left-out, or look-refused and look-refused-<kind> when it had
+-- nothing to show, or look-failed when it could not be asked. The model
+-- reads why, every time. input/look is read at the first look; opts.look
+-- passes seams (embed, model_name, count_tokens) through, for tests.
+function M.looker(opts, record, kept, no_clone, chat, run, where)
+    local values, embedder, no_embedder
+    local seams = opts.look or {}
+    return function(call)
+        local ok, text, info = pcall(function()
+            values = values or look.read_settings(opts.root)
+            if not embedder and not no_embedder then
+                local found, endpoint = pcall(caller.from_canvas, record, "embedder", opts.root)
+                if found then embedder = endpoint else no_embedder = tostring(endpoint) end
+            end
+            return look.answer({
+                project = kept and kept.project, commit = kept and kept.full,
+                no_clone = no_clone, embedder = embedder, no_embedder = no_embedder,
+                words = call.words, name = call.focus, focus = look.focus_of(call.focus, values),
+                values = values, embed = seams.embed, model_name = seams.model_name,
+                count_tokens = seams.count_tokens
+                    or function(piece) return caller.count_tokens(chat, piece) end,
+            })
+        end)
+        if not ok then
+            run:count("look-failed")
+            run:log(string.format("%s, look %s (%s) failed: %s", where, call.focus, call.words,
+                tostring(text)))
+            return "The look failed: " .. tostring(text) .. ". Write the canvas from what you have."
+        end
+        if info.refused then
+            run:count("look-refused")
+            run:count("look-refused-" .. info.refused)
+        else
+            run:count("look-pieces", info.pieces)
+            run:count("look-tokens", info.tokens)
+            if info.left_out > 0 then run:count("look-left-out", info.left_out) end
+        end
+        run:log(where .. ", " .. look.describe(info))
+        return text
+    end
 end
 -- }}}
 
@@ -214,7 +272,7 @@ function M.run(opts)
         local where = string.format("turn %d on version %d", number, version)
         run:log(where .. ": started")
         -- 2. the project clone
-        M.project(opts, record, run, where)
+        local kept, no_clone = M.project(opts, record, run, where)
         -- 3. the endpoint
         local endpoint = caller.from_canvas(record, voice, root)
         run:log(where .. ": endpoint " .. caller.describe(endpoint)
@@ -242,6 +300,7 @@ function M.run(opts)
             call = function(turns) return caller.chat(endpoint, turns) end,
             conversation = conversation, base = record, recommended = recommended,
             look_limit = values["look-limit"],
+            answer_look = M.looker(opts, record, kept, no_clone, endpoint, run, where),
             log = function(line) run:log(where .. ", " .. line) end,
             give_way = give_way,
         })

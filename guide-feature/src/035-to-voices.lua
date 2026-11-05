@@ -72,11 +72,16 @@ end
 -- key file. Returns the lines and a list of reasons a voice has none (no use.
 -- line, no timeout, a key file path with a space in it); a voice without a
 -- line finds out at its next turn. A file that cannot be read is an error,
--- which the publisher logs.
+-- which the publisher logs. When the file has a use.embedder line, the
+-- embedder's endpoint gets a line too, last, with "embedder" for the voice:
+-- the voices' look tool (503) reads their words with it.
 function M.endpoint_lines(root, voices)
     local file = settings.read_endpoints({ root = root })
     local lines, missing = {}, {}
-    for _, voice in ipairs(voices) do
+    local roles = {}
+    for _, voice in ipairs(voices) do roles[#roles + 1] = voice end
+    if file.use.embedder then roles[#roles + 1] = "embedder" end
+    for _, voice in ipairs(roles) do
         local name = file.use[voice]
         local one = name and file.endpoints[name]
         if not one then

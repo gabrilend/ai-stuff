@@ -9,7 +9,8 @@
 -- pieces with their names (060's pieces-v1 and names-v1), asks the
 -- embedder endpoint for a vector per piece, and writes the index the look
 -- tool reads (docs/embedding-index-contract.md). It is run by git hooks on
--- kuvalu (scripts/install-index-hooks) and on each voice's clone (503).
+-- kuvalu (scripts/install-index-hooks); the voices copy what it builds into
+-- their clones (058's bring_index, issue 503).
 --
 -- Rebuilding is cheap. A commit that did not touch the project's folder
 -- (the monorepo's other projects) only renames the index to the new commit.

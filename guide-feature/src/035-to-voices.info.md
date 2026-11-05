@@ -27,7 +27,7 @@ counted as `versions-without-endpoints`.
 |---|---|
 | `publisher(opts)` | the publisher, or nil and why (send off). Refuses a missing mailbox, a voice with no contact, an `endpoints` file that cannot be read, or a folder that is not a checkout. `opts.root`, `opts.voices` |
 | `body(record, commit, cuts, endpoints)` | a version's to-voices text |
-| `endpoint_lines(root, voices)` | each voice's endpoint line now, and the reasons for any voice left out |
+| `endpoint_lines(root, voices)` | each voice's endpoint line now, then the embedder's when `endpoints` has `use.embedder` (503), and the reasons for any left out |
 | `message(voices, body)` | the outbox file's text |
 | `commit_of(checkout)` | seven hex digits, or nil |
 

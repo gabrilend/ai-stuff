@@ -149,10 +149,14 @@ end
 -- kuvalu writes from its endpoints file at every version. Only kuvalu keeps
 -- that file (docs/endpoints.md). The key, when the line names a key file, is
 -- read from that file on this machine. Refused: no line for this voice.
+-- The canvas also carries the embedder's line (503), found the same way
+-- with the role "embedder": that one is an embedding endpoint, every other
+-- line a chat one.
 function M.from_canvas(record, voice, root)
     for _, line in ipairs(record.endpoints or {}) do
         if line.voice == voice then
-            local endpoint = { name = line.name, url = line.address, kind = "chat",
+            local endpoint = { name = line.name, url = line.address,
+                               kind = voice == "embedder" and "embedding" or "chat",
                                timeout = line.timeout, role = voice,
                                ["key-file"] = line.key_file }
             return M.load_key(endpoint, root)

@@ -36,3 +36,18 @@ Counts of done and open issues:
   - guide-feature's own index, built against a stand-in embedding model, is
     about 1,070 pieces. The real model's index on kuvalu is for the owner's
     machine.
+- **503, the look tool, focused or broad** (2026-11-05):
+  - `src/064-look.lua` answers every look call in a turn: the pieces of
+    the project nearest the model's words, from the voice's clone and its
+    embedding index, four in a row for `look focused`, twelve spread from
+    nearest to farthest for `look broad` (`input/look`), with their source
+    text, up to 2000 tokens a look.
+  - The clone keeper copies kuvalu's index into each voice's clone when it
+    is at the clone's commit; the voices build none. The embedder travels
+    in the canvas, as one more endpoint line.
+  - A look with nothing to show tells the model why and is counted; it
+    never shows other files instead.
+  - Tested against guide-feature's own index at a pinned commit:
+    "canvas width" at focus 1, 0.5 and 0 gives three visibly different
+    sets, kept as reference files. The real models' numbers are for the
+    owner's machine.
