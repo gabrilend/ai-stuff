@@ -1,0 +1,5 @@
+source: /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+commit: 9e9117fe52f9fa72de2e68b6b31585786e7f4d79
+copied: 2026-11-05
+changes: none. It is the bash library the Lua file above calls; the Lua
+         file only asks it, so it comes too (it needs jq).
