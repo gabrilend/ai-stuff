@@ -48,6 +48,8 @@ M.SETTINGS = "canvas-size = " .. M.WIDTH .. "x" .. M.HEIGHT .. "\n"
     .. "merge-mode = \"newest\"\n"
     .. "collision-rule = \"blank-whole\"\n"
     .. "mark-lifetime = 12\n"
+    .. "project = \"guide-feature\"\n"
+    .. "voices = \"" .. table.concat(M.VOICES, " ") .. "\"\n"
 -- The first arrival's time in its name; each later one is a second after.
 M.FIRST_TIME = 1793000000
 -- }}}

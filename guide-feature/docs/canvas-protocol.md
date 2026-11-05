@@ -39,6 +39,16 @@ In the project's RAM folder, `tmp/shared-memory/canvas/`:
 | `current` | the newest version, replaced as a whole by rename, so a reader never sees half a canvas |
 | `history/NNNNNN` | every version this run, six-digit zero-padded, never rewritten. The blitter also reads these to find each voice's base. |
 
+Each version is written to `history/` first, then to `current`. Both are
+written under a name starting with `.` and renamed into place. When the
+blitter starts, it empties the folder, so the history is this run's only.
+Its numbering carries on from the previous run's last version, which it
+reads from `current` and, so that it outlives a reboot, from
+`output/blitter-version` on disk. A version number is never used twice. So a
+viewer waiting for a version above N still gets the next one after a
+restart, and a voice's base from before is refused rather than mistaken for
+a new version (issue 203).
+
 ### Over HTTP
 
 The canvas server on kuvalu (port set in `input/canvas-server`):

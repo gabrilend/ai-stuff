@@ -19,3 +19,10 @@ collision-rule = "blank-whole"
 # this many versions old, so 0 shows a change only on the version that made
 # it. Read again on every arrival.
 mark-lifetime  = 12
+
+# The project the voices work on, as the viewers' `project:` header names it
+# (with the commit the project is at, read from git when the blitter starts).
+project        = "guide-feature"
+
+# The voices, in the order viewers give them colours (the `voices:` header).
+voices         = "fg-sora-1 fg-sora-2 fg-sora-3"

@@ -85,4 +85,6 @@ Everything under `tmp/shared-memory/` is RAM and is emptied by a reboot.
 The blitter needs the history to find a voice's base. A voice whose base is
 older than anything in the history (after a restart, for example) has its
 canvas refused, and it is sent the current version. The history does
-not survive a restart; the owner chose to keep it in RAM only.
+not survive a restart; the owner chose to keep it in RAM only. The version
+numbers do carry on across restarts and reboots (`output/blitter-version`),
+so an old base can never match a new version (issue 203).
