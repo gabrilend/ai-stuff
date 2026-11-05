@@ -195,6 +195,11 @@ return function(E)
     function E:save(path)
         -- a project (issue 911c): the map saved, then written back as the project
         if not path and self.project then
+            -- the WoW layer's edited tiles, over their files in the project (issue W10b)
+            if self.wow_save then
+                local written, werr = self:wow_save()
+                if not written then return nil, werr end
+            end
             local tmp = os.tmpname() .. ".w3x"
             local ok, rep = self:save(tmp)
             if not ok then return nil, rep end
