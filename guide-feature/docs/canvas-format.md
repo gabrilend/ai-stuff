@@ -51,7 +51,10 @@ any marks it sends are ignored and counted.
 
 A **sentence** is the words, in reading order (left to right, top to
 bottom), between sentence-ending punctuation (`.` `!` `?` at the end of a
-word) or an entirely empty row.
+word) or an entirely empty row. Closing quotes and brackets after the
+mark are looked past, so `"go."` ends a sentence; a full stop inside a word
+(`3.14`) does not. The last words of a canvas are a sentence even without a
+full stop (issue 103).
 
 A cell has at most one mark: the newest. When a newer change covers older
 marks, the older ones are gone. Marks older than a setting's number of
