@@ -33,3 +33,18 @@ Counts of done and open issues:
   viewer up. Checked by `src/075-test-crypto.lua` and
   `src/078-test-html-page.lua` (with `079-test-html-page.js` in node). The
   look in Firefox waits for the owner's machine.
+- **804 the phase 8 demo** (2026-11-05): `issues/completed/demos/phase-8-demo`
+  replays a recorded history (`assets/phase-8-history`, the real blitter's
+  phase 1 series) or watches a live canvas folder (`--attach`), with the
+  terminal view, the Lua window and the HTML page watching together. It
+  shows the versions each drew, the delay from written to drawn (here about
+  0.1 to 0.2 s for the two that look every 0.25 s, under 0.1 s for the
+  page's long poll), and the three screenshots at the same version side by
+  side, filed in `development-history/`. The page's numbers come from its
+  own script in node; its Firefox screenshot waits for the owner's machine.
+  Checked by `src/080-test-phase-8-demo.lua`.
+
+## Phase 8 done
+All four issues are in `issues/completed/`. What waits for kuvalu: the Lua
+window's real window (SDL2 or LÖVE), the page's look in Firefox (and the
+demo's Firefox screenshot), and a key for each viewer outside the house.

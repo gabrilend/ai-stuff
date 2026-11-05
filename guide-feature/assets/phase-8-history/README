@@ -1,0 +1,15 @@
+A recorded canvas history for the phase 8 demo (issue 804).
+
+000001 to 000008 are the canvas files the real blitter (src/016-blitter.lua)
+wrote while taking every round of the phase 1 series (src/018-phase-1-series.lua):
+a 40x6 canvas, three voices, the kitten, the dog and the windy day, with
+word and sentence marks aging out. They are exactly what canvas/history
+holds on kuvalu, so the viewers read them as they read the live canvas.
+
+issues/completed/demos/phase-8-demo replays them, one each second, into
+its own throwaway canvas folder while the three viewers watch.
+issues/completed/demos/phase-8-record.lua made them, and makes them again:
+
+    luajit issues/completed/demos/phase-8-record.lua . assets/phase-8-history
+
+Only the written: lines change from one recording to the next.

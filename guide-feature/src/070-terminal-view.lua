@@ -216,6 +216,13 @@ local function now()
     return tonumber(spec.tv_sec) + tonumber(spec.tv_nsec) / 1e9
 end
 local function sleep(seconds) ffi.C.poll(nil, 0, math.floor(seconds * 1000)) end
+-- The wall clock, to the millisecond, for the log's "drew version" lines:
+-- the phase 8 demo sets them beside when each version was written.
+local function wall()
+    local spec = ffi.new("guide_view_timespec")
+    ffi.C.clock_gettime(0, spec)   -- CLOCK_REALTIME
+    return tonumber(spec.tv_sec) + tonumber(spec.tv_nsec) / 1e9
+end
 local function list_folder(path)
     local names = {}
     local pipe = io.popen("ls -1A '" .. string.gsub(path, "'", "'\\''") .. "' 2>/dev/null")
@@ -269,6 +276,7 @@ function M.run(opts)
         write(screen)
         if drawn then
             run:count("versions-drawn")
+            run:log(string.format("drew version %d at %.3f", view.version, wall()))
         else
             run:count("too-small")
             run:log(string.format("version %d: %s", view.version, M.too_small(view, columns, rows)))

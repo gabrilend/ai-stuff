@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+#
+# phase-8-demo - three viewers, one canvas: what phase 8 built, running.
+#
+# The terminal view (801), the Lua window (802) and the HTML page (803)
+# watch the same canvas at once while versions are written to it, one
+# after another, as the blitter writes them. Then each is screenshotted at
+# the same version. It shows the versions each viewer drew, how long after
+# a version was written each viewer drew it, and the three screenshots side
+# by side (as text here; as pictures in the folder it files them in).
+#
+# The canvas is a recorded history, replayed: assets/phase-8-history/ (made
+# by the real blitter from the phase 1 series), or --from FOLDER. With
+# --attach FOLDER it watches a live canvas folder instead (the live
+# system's tmp/shared-memory/canvas), for --seconds, writing nothing to it.
+#
+# It runs in a throwaway copy of the project (src/, libs/ and scripts/
+# linked in, its own input/ and RAM tiers) with its own canvas server on
+# 127.0.0.1, which counts 127.0.0.1 as outside the house: so the page signs
+# in with a key made for the demo, and every canvas reaches it locked, as
+# it would reach a browser away from home. The copy, the key with it, is
+# removed at the end.
+#
+# The HTML page: its own script, as the server sends it, runs in node for
+# the numbers. Its screenshot is Firefox's (headless) where Firefox is
+# installed; otherwise the page's own drawing, written as HTML. Without
+# node, the page is left out and the demo says so.
+#
+# Usage:
+#   issues/completed/demos/phase-8-demo [<dir>] [--from FOLDER] [--attach FOLDER]
+#                                       [--every SECONDS] [--seconds SECONDS]
+#                                       [--out FOLDER] [--keep]
+#     <dir>             the project (run-phase-demo passes it)
+#     --from FOLDER     replay these canvas files (default assets/phase-8-history)
+#     --attach FOLDER   watch this live canvas folder instead of replaying
+#     --every SECONDS   between replayed versions (default 1)
+#     --seconds SECONDS how long to watch a live canvas (default 30)
+#     --out FOLDER      where the screenshots go (default the next numbered
+#                       development-history/NNN-phase-8-demo/)
+#     --keep            leave the throwaway copy, to read its logs and receipts
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+KEEP=""
+ARGS=()
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --keep) KEEP="yes" ;;
+        --from|--attach)
+            FOLDER="$(cd "$2" 2>/dev/null && pwd -P)"
+            if [ -z "${FOLDER}" ]; then echo "phase-8-demo: no folder at $2" >&2; exit 1; fi
+            ARGS+=("$1" "${FOLDER}"); shift ;;
+        --every|--seconds)
+            if ! [[ "${2:-}" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+                echo "phase-8-demo: $1 takes a number of seconds" >&2; exit 1
+            fi
+            ARGS+=("$1" "$2"); shift ;;
+        --out) mkdir -p "$2" && ARGS+=(--out "$(cd "$2" && pwd -P)"); shift ;;
+        *) DIR="$1" ;;
+    esac
+    shift
+done
+if [ ! -f "${DIR}/src/070-terminal-view.lua" ] || [ ! -f "${DIR}/src/076-html-page.lua" ]; then
+    echo "phase-8-demo: ${DIR} is not the guide-feature project" >&2
+    exit 1
+fi
+
+BASE="$(mktemp -d)"
+ROOT="${BASE}/guide-feature"
+mkdir -p "${ROOT}/input" "${ROOT}/output" "${BASE}/exec" "${BASE}/shm" "${BASE}/keys"
+chmod 700 "${BASE}/keys"
+for LINK in src libs scripts; do
+    ln -s "${DIR}/${LINK}" "${ROOT}/${LINK}"
+done
+export EXEC_TIER_ROOT="${BASE}/exec"
+export ARTIFACT_TIER_ROOT="${BASE}/shm"
+
+# Waits up to three seconds for a process to end.
+wait_for_end() {
+    for _ in $(seq 30); do
+        kill -0 "$1" 2>/dev/null || return 0
+        sleep 0.1
+    done
+}
+
+# Whatever happens, everything the demo started is stopped (the viewers by
+# their stop files, the server by TERM, which its wrapper turns into a clean
+# stop) and the copy is removed.
+clean_up() {
+    SHM="${ROOT}/tmp/shared-memory"
+    mkdir -p "${SHM}/terminal-view" "${SHM}/lua-window" 2>/dev/null
+    : > "${SHM}/terminal-view/stop" 2>/dev/null
+    : > "${SHM}/lua-window/stop" 2>/dev/null
+    : > "${BASE}/page.stop" 2>/dev/null
+    for NAME in terminal lua-window page canvas-server; do
+        [ -f "${BASE}/${NAME}.pid" ] || continue
+        PID="$(cat "${BASE}/${NAME}.pid")"
+        [ -n "${PID}" ] || continue
+        if [ "${NAME}" = "canvas-server" ]; then kill "${PID}" 2>/dev/null; fi
+        wait_for_end "${PID}"
+        kill "${PID}" 2>/dev/null
+    done
+    if [ -n "${KEEP}" ]; then
+        echo "kept the throwaway project at ${ROOT}"
+    else
+        rm -rf "${BASE}"
+    fi
+}
+trap clean_up EXIT
+trap 'exit 130' INT TERM
+
+luajit "${DIR}/issues/completed/demos/phase-8-demo.lua" \
+    --dir "${DIR}" --root "${ROOT}" --base "${BASE}" "${ARGS[@]}"

@@ -27,7 +27,9 @@ st's plain style, with plain escape codes and no curses.
   `--once`, or after `--for`.
 
 Receipt (`output/goodbye-terminal-view`): `versions-read`,
-`versions-drawn`, `too-small`, `unreadable`, `seconds-run`.
+`versions-drawn`, `too-small`, `unreadable`, `seconds-run`. Each version drawn
+is logged as `drew version N at SECONDS` (the wall clock, to the
+millisecond), which the phase 8 demo (804) sets beside when it was written.
 
 | Name | Meaning |
 |---|---|
