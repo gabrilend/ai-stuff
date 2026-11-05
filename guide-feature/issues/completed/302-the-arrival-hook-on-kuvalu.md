@@ -91,3 +91,16 @@ because `on_update` holds rmail up while it runs.
 
 **Needs the owner's machine:** the hook called by the live guide mailbox on
 kuvalu. The rehearsal (305) calls it through stand-in mailboxes here.
+
+## Note (2026-11-05, issue 305)
+
+The rehearsal's carrier names inbox files the way rmail does. That showed
+that rmail calls the second and third voices' `canvas` in the guide
+mailbox `canvas-from-fg-sora-2` and `canvas-from-fg-sora-3`
+(`handle_deliver`), so their edits reached the hook under a name it left
+alone. Decision 2 now reads: `on_update`'s subject is the inbox file's
+name, with a `-from-<sender>` ending taken back off when it names the
+sender. `canvas-2` and other numbered names are still left alone. The
+code is `M.subject_of` in `src/033-arrival-hook.lua`, and the same
+function is in `src/037-turn-hook.lua`. It is tested in
+`src/034-test-arrival-hook.lua` (25 pass).

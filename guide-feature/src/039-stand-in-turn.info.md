@@ -9,7 +9,9 @@ It reads the to-voices canvas, waits `seconds`, and writes the from-voice
 canvas with one word from `words` (both in `input/stand-in-turn`):
 word `(turn-1) % #words + 1`, at row `(turn-1) % height + 1`, column
 `1 + (n-1) * floor(width/3)` where `n` is the number ending the voice's
-name, cut to fit its third. A word already there makes an unchanged turn.
+name, cut to fit its third. When that word is there already, the next word
+in the list that is not is written; only when all are there is the turn
+unchanged.
 
 | Function | Meaning |
 |---|---|

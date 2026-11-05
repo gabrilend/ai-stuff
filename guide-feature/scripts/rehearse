@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# rehearse - the whole round on kuvalu, with three stand-in voices (issue
+# 305): the guide mailbox and fg-sora-1, -2 and -3, made in RAM by the
+# mailbox setup, the arrival and turn hooks, the turn runners with the
+# stand-in turn, and the blitter mailing every version, for input/rehearsal's
+# minutes. Each voice turn's timings go to tmp/shared-memory/rehearsal-timings.
+#
+# Usage:
+#   scripts/rehearse [<dir>] [--minutes M] [--keep]
+#
+# Whatever happens, the turn runners still running are stopped and the
+# workspace (tmp/shared-memory/rehearsal/) is removed, unless --keep.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -n "${1:-}" ] && [ "${1#--}" = "$1" ]; then
+    DIR="$1"
+    shift
+fi
+KEEP=""
+for ARG in "$@"; do [ "${ARG}" = "--keep" ] && KEEP="yes"; done
+
+cleanup() {
+    WS="${DIR}/tmp/shared-memory/rehearsal"
+    for PIDFILE in "${WS}"/shm/guide-feature/turn/*/lock/pid "${WS}"/project/guide-feature/tmp/shared-memory/turn/*/lock/pid; do
+        # the runner and its turn: its own process group (setsid)
+        [ -f "${PIDFILE}" ] && kill -- "-$(cut -d' ' -f1 "${PIDFILE}")" 2>/dev/null
+    done
+    if [ -f "${WS}/daemons" ]; then
+        for PID in $(cat "${WS}/daemons"); do kill -- "-${PID}" "${PID}" 2>/dev/null; done
+    fi
+    [ -z "${KEEP}" ] && rm -rf "${WS}"
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+luajit "${DIR}/src/043-rehearsal.lua" --dir "${DIR}" "$@"

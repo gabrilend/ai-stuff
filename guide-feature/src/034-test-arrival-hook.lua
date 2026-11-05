@@ -154,6 +154,19 @@ check("two edits are two arrivals, never one written over the other",
     and (slurp(ARRIVALS .. "/" .. list[1]) .. slurp(ARRIVALS .. "/" .. list[2])):len() == 6)
 check("no dot file (one half written) is left behind", not has(shell("ls -A '" .. ARRIVALS .. "'"), "."))
 clear()
+
+-- rmail names the second and third voices' `canvas` in the guide's inbox
+-- canvas-from-<sender> (its handle_deliver)
+out, status = shell(rmail_calls("on_update", "fg-sora-2", MAIL .. "/inbox/canvas-from-fg-sora-2", EDIT))
+list = arrivals()
+check("an edit of inbox/canvas-from-fg-sora-2 from fg-sora-2 is that voice's canvas", status == 0
+    and #list == 1 and string.match(list[1], "^fg%-sora%-2%-") ~= nil, out)
+clear()
+for _, name in ipairs({ "canvas-from-fg-sora-1", "canvas-from-fg-sora-2-2" }) do
+    shell(rmail_calls("on_update", "fg-sora-2", MAIL .. "/inbox/" .. name, EDIT))
+    check("but inbox/" .. name .. " from fg-sora-2 is not", #arrivals() == 0)
+    clear()
+end
 -- }}}
 
 io.write("\n=== what it leaves alone, and what it refuses ===\n")

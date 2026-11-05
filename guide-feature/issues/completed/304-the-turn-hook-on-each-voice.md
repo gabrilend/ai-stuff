@@ -128,3 +128,17 @@ None.
 **Needs the owner's machine:** the hook under a real rmail daemon on each
 fg-sora (702, 704), where `on_update` holds the daemon up for as long as
 the hook runs. The rehearsal (305) runs it under a stand-in carrier.
+
+## Note (2026-11-05, issue 305)
+
+Two changes from the rehearsal:
+
+- **The turn hook reads rmail's `-from-<sender>` inbox names too** (see
+  302's note).
+- **The stand-in no longer repeats itself (decision 11).** Its rows and
+  words come round again (every 12 turns with 6 rows and 4 words), and a
+  turn that writes a word already there sends nothing and keeps its
+  number. So a long rehearsal stopped changing the canvas. The stand-in
+  now writes the next word in the list that is not already there. A turn
+  is unchanged only when every word is. `src/040-test-turn.lua` has 61
+  passing tests.

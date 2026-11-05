@@ -390,7 +390,8 @@ check("run as <turn> --dir ROOT --voice NAME --turn N --canvas FILE --out FILE",
 reset_events()
 runner_settings("scripts/stand-in-turn")
 local base12 = canvas.read(to_voices(12), "to-voices")
-local done = stand_in.edit(base12, VOICE, 8, { "lantern", "harbor", "kitten", "orchard" })
+write(ROOT .. "/input/stand-in-turn", 'words = "lantern"\nseconds = 0\n')
+local done = stand_in.edit(base12, VOICE, 8, { "lantern" })
 before = slurp(OUT_CANVAS)
 deliver(to_voices(12, done.rows))
 wait_until(function() return idle() and #events() >= 3 end, 10)
@@ -398,6 +399,7 @@ check("a turn that changes nothing sends nothing, and keeps its number",
     said(events()) == "received 12, taken 12, unchanged 12" and slurp(OUT_CANVAS) == before
     and slurp(COUNTER) == "7\n", said(events()))
 check("counted as an unchanged turn", receipt_when(function(c) return c["unchanged-turns"] == 1 end) ~= nil)
+stand_in_settings(0)
 
 reset_events()
 deliver("not a canvas\n")
@@ -416,6 +418,11 @@ check("the stand-in writes in the voice's own third, cut to fit it (40 columns: 
     thirds[1] == "longer-than-a" .. string.rep(" ", 27)
     and thirds[2] == string.rep(" ", 13) .. "longer-than-a" .. string.rep(" ", 14)
     and thirds[3] == string.rep(" ", 26) .. "longer-than-a" .. " ", thirds[3])
+
+local again = stand_in.edit({ width = 40, height = 6, headers = { canvas = 3 },
+    rows = done.rows }, VOICE, 8, { "lantern", "harbor" })
+check("when the turn's word is there already, the stand-in writes the next one that is not",
+    string.sub(again.rows[2], 1, 6) == "harbor", again.rows[2])
 
 io.write("\n=== what the hook leaves alone or refuses ===\n")
 -- {{{
@@ -444,8 +451,14 @@ out, status = shell("cd " .. q(MAIL) .. " && " .. rmail_calls("on_update", "guid
     to_voices(15)))
 check("an inbox path relative to where rmail runs is found", status == 0 and wait_until(function()
     return idle() and has(said(events()), "sent 15 9") end, 10), said(events()))
+write(MAIL .. "/inbox/the-canvas-from-guide", "")
+out, status = shell(rmail_calls("on_update", "guide", MAIL .. "/inbox/the-canvas-from-guide",
+    to_voices(16)))
+check("an edit of inbox/the-canvas-from-guide (rmail's name when another's the-canvas was there) is taken",
+    status == 0 and wait_until(function()
+        return idle() and has(said(events()), "sent 16 10") end, 10), said(events()))
 write(ROOT .. "/input/turn-runner", "guide = guide\n")
-out, status = shell(rmail_calls("on_update", "guide", MAIL .. "/inbox/the-canvas", to_voices(16)))
+out, status = shell(rmail_calls("on_update", "guide", MAIL .. "/inbox/the-canvas", to_voices(17)))
 check("settings that do not read: exit 1, so rmail sends it again", status == 1
     and has(slurp(HOOK_LOG), "input/turn-runner"), slurp(HOOK_LOG))
 runner_settings("scripts/stand-in-turn")
