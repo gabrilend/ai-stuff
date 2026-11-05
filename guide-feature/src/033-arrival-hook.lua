@@ -55,6 +55,18 @@ local function random_part()
 end
 -- }}}
 
+-- {{{ function M.subject_of()
+-- The subject of an inbox file's name. rmail names a message after its
+-- subject, or `<subject>-from-<sender>` when another sender's message
+-- already has that name (handle_deliver), as the second and third voices'
+-- `canvas` in the guide's inbox are. A name numbered -2, -3 ... is a second
+-- message, not the living one, and is its own subject.
+function M.subject_of(name, sender)
+    if name == M.SUBJECT .. "-from-" .. tostring(sender) then return M.SUBJECT end
+    return name
+end
+-- }}}
+
 -- {{{ function M.arrive()
 -- One call. `args` are the arguments after --dir; `stdin` a function giving
 -- standard input (read only when the body is not in the arguments).
@@ -69,6 +81,9 @@ function M.arrive(root, args, stdin, now)
         end
     elseif kind == "update" and #args == 4 then
         subject = string.match(args[3], "([^/]+)$")
+        -- rmail names a second sender's message of the same subject
+        -- <subject>-from-<sender>
+        subject = M.subject_of(subject, sender)
         body = args[4]
         if body == "" then body = stdin() or "" end
     else

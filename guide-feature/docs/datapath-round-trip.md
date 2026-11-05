@@ -103,3 +103,40 @@ canvas refused, and it is sent the current version. The history does
 not survive a restart; the owner chose to keep it in RAM only. The version
 numbers do carry on across restarts and reboots (`output/blitter-version`),
 so an old base can never match a new version (issue 203).
+
+## The rehearsal
+
+`scripts/rehearse` (`src/043-rehearsal.lua`, issue 305) runs this whole
+path on kuvalu before any mini-computer is set up.
+
+**What it sets up**
+- Four mailboxes in RAM, made by `scripts/make-mailboxes`: the guide, and
+  `fg-sora-1` to `-3` with the turn hook and the stand-in turn.
+- The blitter mailing every version.
+- The mail carried between the mailboxes by rmail's rules, either:
+  - by the stand-in carrier (`src/041-stand-in-carrier.lua`), on this
+    machine only, with rmail's timers; or
+  - on the owner's machine, by real rmail daemons.
+
+**What it times, for every voice turn**
+
+| Stage | When |
+|---|---|
+| published | the version was written to the guide's outbox |
+| received | the voice's hook left it waiting |
+| taken | the voice's turn runner took it |
+| finished | the voice's canvas was in its outbox |
+| delivered | it was carried to kuvalu |
+| arrived | it was in `arrivals/` |
+| blitted | the blitter took it |
+| back | the voice received the version its turn made |
+
+The timings are written to `tmp/shared-memory/rehearsal-timings`, and
+every event to `rehearsal-events`.
+
+A turn whose canvas was replaced in the voice's outbox by its next turn's,
+before rmail carried it, is `superseded`. Only the newest version of a
+living message travels.
+
+It stays the test bench for the real turn (405) and distill mode (601).
+

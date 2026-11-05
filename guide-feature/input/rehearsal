@@ -1,0 +1,25 @@
+# The rehearsal's settings (src/043-rehearsal.lua, scripts/rehearse): the
+# whole round on kuvalu with three stand-in voices (issue 305). Text goes in
+# double quotes; numbers bare. The voices' turn is input/turn-runner and
+# input/stand-in-turn; the canvas is input/blitter.
+
+# How long it runs, in minutes.
+minutes = 5
+
+# What carries the mail: "stand-in" plays rmail's part on this machine
+# (src/041-stand-in-carrier.lua); "rmail" starts a real rmail daemon for each
+# of the four mailboxes, with the command below.
+carrier = "stand-in"
+
+# The guide mailbox's port; the voices take the next three. Spare ports on
+# this machine, apart from the real guide mailbox's 1223.
+first-port = 41223
+
+# The stand-in's timers, in seconds: a contact is due this long after an
+# exchange, give or take the jitter. rmail's own are 30 and 30.
+pace = 30
+jitter = 30
+
+# For carrier = "rmail": the command that runs one rmail daemon, given a
+# mailbox's config file after it.
+rmail = "luajit /home/ritz/programming/ai-stuff/r-mail/rmail.lua"

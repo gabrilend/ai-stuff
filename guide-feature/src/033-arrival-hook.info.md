@@ -9,7 +9,8 @@ which runs `scripts/arrival-hook` with a first word from the config line:
 
 It writes the body to `tmp/shared-memory/arrivals/<sender>-<unix
 time>-<random>` (a dot name, then a rename), prints nothing and exits.
-`on_update`'s subject is its inbox file's name; only `canvas` is taken,
+`on_update`'s subject is its inbox file's name, `-from-<sender>` taken back
+off (rmail's name for a second sender's `canvas`, issue 305); only `canvas` is taken,
 anything else is logged and left alone, as is a sender that is not a plain
 name. An empty `<new body>` (rmail #215, a body over 64 KiB) is read from
 standard input. The RAM tiers are made sure of first, since a reboot

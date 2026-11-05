@@ -12,7 +12,9 @@ dot name, then a rename), replacing a canvas already waiting, then starts
 the turn runner (038) detached, unless the voice's lock is held by a
 running process. It prints nothing and exits at once. `<voice>` is the
 `name` in the config of the mailbox holding the inbox file (a relative
-path is taken from where rmail runs). Only subject `the-canvas` from the
+path is taken from where rmail runs). `on_update`'s subject is the inbox
+file's name, a `-from-<sender>` ending taken back off. Only subject
+`the-canvas` from the
 `guide` contact of `input/turn-runner` is taken; anything else is logged
 and left alone. An empty `<new body>` (rmail #215) is read from standard
 input.

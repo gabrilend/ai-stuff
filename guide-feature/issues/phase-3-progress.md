@@ -43,3 +43,14 @@ moves the phase toward its goals.)
   turn is a program named in `input/turn-runner`: phase 3's stand-in
   (`src/039-stand-in-turn.lua`) writes scripted words, and 405's real
   turn takes its place there.
+- **305, the rehearsal** (2026-11-05): `scripts/rehearse`
+  (`src/043-rehearsal.lua`) runs the whole round on kuvalu. Four mailboxes
+  are made in RAM by the mailbox setup: the guide, and three stand-in
+  voices with the turn hook and the stand-in turn. The blitter mails every
+  version. Each voice turn is timed at eight points, from the version
+  published to the voice receiving the version its turn made. The mail
+  goes by rmail's own file-and-hook rules and timers, carried by
+  `src/041-stand-in-carrier.lua` on this machine only. On the owner's
+  machine, `carrier = "rmail"` runs real daemons instead. Rehearsing showed
+  that rmail names the second and third voices' canvases
+  `canvas-from-<voice>`. Both hooks now read that name.

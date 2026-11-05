@@ -54,7 +54,10 @@ alone builds the shared canvas.
 
 **Delivery is paced by rmail's timers.** By default each contact is sent to
 at most every 30 seconds or so, and backs off after failures (rmail
-`docs/protocol.md`, "Sync timing"). The owner's view: "we can adjust things
+`docs/protocol.md`, "Sync timing"). A contact that has just delivered to a
+mailbox is due at once, so kuvalu answers a voice's canvas with the next
+version straight away, but the voice's next canvas waits for its own timer.
+The rehearsal (305) measures this. The owner's view: "we can adjust things
 like this on a per-implementation basis." The pacing lives in rmail's own
 code and settings, and in the hook scripts and Lua programs, which are meant
 to be edited per setup.
@@ -63,6 +66,15 @@ to be edited per setup.
 turn is running. The turn hook keeps only the newest waiting canvas, and the
 turn runner starts again on it when the current turn ends
 (`docs/datapath-voice-turn.md`). A voice never runs two turns at once.
+
+**Three voices send kuvalu the same subject.** rmail names an arriving
+message after its subject, and when another sender's message already has
+that name it uses `<subject>-from-<sender>` (rmail `rmail.lua`,
+`handle_deliver`). In the guide mailbox, the first voice's canvas is
+therefore `inbox/canvas` and the others' `inbox/canvas-from-fg-sora-2` and
+so on. `on_update` passes only the inbox file, so the arrival and turn
+hooks read the subject back from both forms. A name numbered `-2`, `-3`
+is a different message and is left alone (issues 302, 305).
 
 **rmail's own needs on the mini-computers.** LuaJIT (or Lua 5.3/5.4),
 LuaSocket and OpenSSL, normally compiled by rmail's `scripts/install.sh`. The

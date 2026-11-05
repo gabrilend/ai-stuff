@@ -14,8 +14,11 @@
 --   the column   1 + (n - 1) * floor(width / 3), n being the number at the
 --                end of the voice's name (fg-sora-2: 2), or 1
 -- so the three voices write in their own thirds and move down a row a turn.
--- The word is cut to fit its third. Writing a word that is already there
--- changes nothing, which the runner counts as an unchanged turn.
+-- The word is cut to fit its third. When that word is there already (the
+-- rows and the words come round again), the next word in the list that is
+-- not is written instead, so a long rehearsal keeps changing the canvas; only
+-- when every word is there already does the turn change nothing, which the
+-- runner counts as an unchanged turn.
 --
 --   scripts/stand-in-turn --dir ROOT --voice fg-sora-1 --turn 3 \
 --       --canvas turn/fg-sora-1/taken --out turn/fg-sora-1/turn-out
@@ -55,9 +58,20 @@ function M.edit(record, voice, turn, words)
     local n = tonumber(string.match(voice, "(%d+)$")) or 1
     local column = 1 + ((n - 1) % 3) * third
     local row = (turn - 1) % height + 1
-    local word = utf8.split(words[(turn - 1) % #words + 1])
     local room = math.min(third, width - column + 1)
     local cells = utf8.split(record.rows[row])
+    -- the turn's word, or, when it is there already, the next word that is not
+    local first = (turn - 1) % #words
+    local word
+    for step = 0, #words - 1 do
+        word = utf8.split(words[(first + step) % #words + 1])
+        local same = true
+        for index = 1, math.min(#word, room) do
+            if cells[column + index - 1] ~= word[index] then same = false break end
+        end
+        if not same then break end
+        word = utf8.split(words[first + 1])
+    end
     for index = 1, math.min(#word, room) do
         cells[column + index - 1] = word[index]
     end
