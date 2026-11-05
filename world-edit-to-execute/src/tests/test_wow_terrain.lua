@@ -803,7 +803,9 @@ do
     local p = io.popen("find " .. quote(TMP .. "/build") .. " -type f 2>/dev/null")
     local kinds = {}
     -- (2026-11-05: and W02f's server-stamp, which has no ending)
-    for f in p:lines() do kinds[#kinds + 1] = f:match("%.([%w]+)$") or (f:match("/server%-stamp$") and "stamp") or "?" end
+    -- (and W02f step 2's: the shim's licence, copied with the shim's .lua files)
+    for f in p:lines() do kinds[#kinds + 1] = f:match("%.([%w]+)$") or (f:match("/server%-stamp$") and "stamp")
+        or (f:match("/server/ale/LICENSE$") and "licence") or "?" end
     p:close()
     local only = #kinds > 0
     -- (since W02b also the placement list, .lua, and the creatures' SQL; the
@@ -811,7 +813,8 @@ do
     -- with this map's rows only (.dbc; no stock tables were given), the
     -- creature list (.tsv), the loading screen drawn from the map itself
     -- (.blp) and patch-W.MPQ (left out here); W02c's tests check them)
-    local allowed = { adt = true, wdt = true, wdl = true, lua = true, sql = true, dbc = true, tsv = true, blp = true, MPQ = true, stamp = true }
+    local allowed = { adt = true, wdt = true, wdl = true, lua = true, sql = true, dbc = true, tsv = true, blp = true, MPQ = true, stamp = true,
+                      licence = true }
     for _, k in ipairs(kinds) do if not allowed[k] then only = false end end
     if #kinds == 0 then skip("build folder contents", "no map was converted")
     else test("the build holds ADT, WDT, WDL, the report, the placement list, the SQL and W02c's own tables only (no textures of Blizzard's)", only, table.concat(kinds, " ")) end

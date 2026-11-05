@@ -24,13 +24,16 @@ holds, for every map converted into it:
   server/dbc/<Table>.dbc               the stock tables with the maps' rows (W02c)
   server/triggers/<dir>/war3map.lua    the script for the shim (W02e)
   server/triggers/<dir>/map-data.lua   what the shim reads of the build (W02e)
+  server/ale/wc3shim/<module>.lua      the shim itself, copied into the build
+                                       for the install (W02f step 2)
   patch-W.MPQ                          what the extractors read for the
                                        server's maps, vmaps and mmaps (W02c, W02d)
 
 Not the W client's files (map.lua, DBFilesClient/, the loose ground
 files, world/, the map's imports), and not the reports (conversion-report.lua,
 placements.lua, World/Maps/<dir>/registration.lua,
-server/triggers/<dir>/natives-report.lua).
+server/triggers/<dir>/natives-report.lua), and not what the server never
+reads (install-plan.lua, which the install reads; the shim's licence).
 
     local server_stamp = require("wowbuild.server_stamp")
     local text, files = server_stamp.write(build_dir)
@@ -53,6 +56,9 @@ server_stamp.READS = {
     { folder = "server/dbc", ending = ".dbc" },
     { folder = "server/triggers", each_map = "war3map.lua" },
     { folder = "server/triggers", each_map = "map-data.lua" },
+    -- the shim's own code, since step 2's install plan installs it from
+    -- the build (2026-11-05): a changed shim starts the server again
+    { folder = "server/ale/wc3shim", ending = ".lua" },
     { path = "patch-W.MPQ" },
 }
 

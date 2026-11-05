@@ -250,7 +250,12 @@ do
     local l = lines(starts)
     test("each started once, given the build ({build} and WETE_TEST_MAP_BUILD)", #l == 2
         and l[1] == auth .. " " .. TMP .. "/build-a " .. TMP .. "/build-a", #l .. ": " .. tostring(l[1]))
-    test("their pids written down", count_lines(logs .. "/server.pids") == 2)
+    local written = server_keeper.read_pids(logs .. "/server.pids")
+    test("their pids written down, with their start times, commands, the build and stamp, and the editor's pid",
+        written and #written.programs == 2 and written.programs[1].pid == k.running[1].pid
+        and written.programs[1].started == proc.start_time(k.running[1].pid) and written.programs[2].port == world
+        and written.programs[1].command[5] == TMP .. "/build-a" and written.build == TMP .. "/build-a"
+        and written.stamp == "one" and written.editor and written.editor.pid == proc.self())
     test("the same build again: reused", k:begin(TMP .. "/build-a", "one") == "reused" and k:step() == "ready"
         and count_lines(starts) == 2)
     local old = k.running[1].pid
@@ -298,6 +303,180 @@ do
     k5:stop()
     test("and never stopped by the editor", proc.alive(other))
     proc.stop(other, 2)
+end
+-- }}}
+
+-- {{{ A closed editor's server
+test_section("A server a killed editor left behind (server.pids)")
+-- an editor in another LuaJIT: starts the fake servers through a keeper,
+-- waits until they accept, prints their pids, and is killed (SIGKILL), so
+-- it never stops them
+local function killed_editor(logs, cfg, build, stamp)
+    local function lit(v) return string.format("%q", v) end
+    local progs = {}
+    for _, pr in ipairs(cfg.programs) do
+        local words = {}
+        for i, a in ipairs(pr.command) do words[i] = lit(a) end
+        progs[#progs + 1] = string.format("{ name = %s, port = %d, command = { %s } }", lit(pr.name), pr.port, table.concat(words, ", "))
+    end
+    local script = TMP .. "/killed-editor.lua"
+    write(script, table.concat({
+        "package.path = " .. lit(package.path),
+        "local ffi = require('ffi')",
+        "local proc = require('editor.proc')",
+        "local k = require('editor.server_keeper').new({ host = '127.0.0.1', login_port = " .. cfg.login_port
+            .. ", start_seconds = 10, stop_seconds = 2, programs = { " .. table.concat(progs, ", ") .. " } },",
+        "  { log_dir = " .. lit(logs) .. ", poll_every = 0.05 })",
+        "k:begin(" .. lit(build) .. ", " .. lit(stamp) .. ")",
+        "local t0 = proc.now()",
+        "while k:step() == 'waiting' and proc.now() - t0 < 10 do proc.sleep(0.02) end",
+        "local o = { k.state }",
+        "for _, r in ipairs(k.running or {}) do o[#o + 1] = r.pid end",
+        "print(table.concat(o, ' ')); io.stdout:flush()",
+        "ffi.C.kill(ffi.C.getpid(), 9)",
+    }, "\n"))
+    local out = shell("luajit " .. proc.quote(script) .. " 2>&1")
+    local pids = {}
+    for n in out:gmatch("%d+") do pids[#pids + 1] = track(tonumber(n)) end
+    return out:match("^(%a+)"), pids
+end
+local function all_alive(pids)
+    for _, pid in ipairs(pids) do if not proc.alive(pid) then return false end end
+    return #pids > 0
+end
+local function none_alive(pids)
+    for _, pid in ipairs(pids) do if proc.alive(pid) then return false end end
+    return true
+end
+do
+    local logs = TMP .. "/reclaim"
+    local starts = TMP .. "/starts-reclaim"
+    local auth, world = free_port(), free_port()
+    local cfg = { host = "127.0.0.1", login_port = auth, start_seconds = 10, stop_seconds = 2,
+                  programs = fake_programs(starts, auth, world) }
+    local build = TMP .. "/build-r"
+    local heard = {}
+    local function keeper()
+        return server_keeper.new(cfg, { log_dir = logs, poll_every = 0.05, say = function(t) heard[#heard + 1] = t end })
+    end
+    local function heard_it(needle)
+        for _, t in ipairs(heard) do if t:find(needle, 1, true) then return true end end
+        return false
+    end
+
+    -- the same build: taken over and reused, nothing started
+    local state, left = killed_editor(logs, cfg, build, "one")
+    test("a killed editor leaves its server running", state == "ready" and #left == 2 and all_alive(left), state)
+    local k = keeper()
+    test("the next editor takes it over: reclaimed", k:begin(build, "one") == "reclaimed")
+    test("... waits on it, ready without starting anything", wait_keeper(k) == "ready" and count_lines(starts) == 2
+        and k.running[1].pid == left[1] and k.running[2].pid == left[2])
+    test("... and says so", heard_it("took over the server a closed editor started"))
+    local now = server_keeper.read_pids(logs .. "/server.pids")
+    test("server.pids now names this editor", now and now.editor.pid == proc.self() and now.programs[1].pid == left[1])
+    test("then kept as its own: the same build again is reused", k:begin(build, "one") == "reused")
+    test("and stopped when this editor stops it", k:stop() == 2 and none_alive(left) and read(logs .. "/server.pids") == nil)
+
+    -- another build: taken over, then started again for it
+    state, left = killed_editor(logs, cfg, build, "one")
+    k = keeper()
+    local before = count_lines(starts)
+    test("a new build after a killed editor (another stamp): taken over, then started again", state == "ready"
+        and k:begin(build, "two") == "restarted" and none_alive(left))
+    for _, r in ipairs(k.running or {}) do track(r.pid) end
+    test("... ready on it", wait_keeper(k) == "ready" and count_lines(starts) == before + 2)
+    k:stop()
+
+    -- another build folder: its commands name another folder, so it is
+    -- stopped and the server started anew
+    state, left = killed_editor(logs, cfg, build, "one")
+    k = keeper()
+    test("another build folder after a killed editor: its server stopped, started anew", state == "ready"
+        and k:begin(TMP .. "/build-s", "one") == "started" and none_alive(left))
+    for _, r in ipairs(k.running or {}) do track(r.pid) end
+    test("... ready on that folder", wait_keeper(k) == "ready" and lines(starts)[#lines(starts)]:find(TMP .. "/build-s", 1, true) ~= nil)
+    k:stop()
+
+    -- one of its programs died since: the rest stopped, all started anew
+    state, left = killed_editor(logs, cfg, build, "one")
+    proc.stop(left[2], 2)
+    heard = {}
+    before = count_lines(starts)
+    k = keeper()
+    local how_part = k:begin(build, "one")
+    test("part of it left: what is left stopped, the server started anew", how_part == "started"
+        and none_alive(left) and heard_it("stopped what was left of the server a closed editor started (1 of 2 programs)"))
+    for _, r in ipairs(k.running or {}) do track(r.pid) end
+    test("... ready", wait_keeper(k) == "ready" and count_lines(starts) == before + 2)
+    k:stop()
+
+    -- started otherwise than the settings say now: stopped, started anew
+    state, left = killed_editor(logs, cfg, build, "one")
+    heard = {}
+    local cfg2 = { host = "127.0.0.1", login_port = auth, start_seconds = 10, stop_seconds = 2,
+                   programs = fake_programs(starts, auth, world, "listen", 0.1) }
+    k = server_keeper.new(cfg2, { log_dir = logs, poll_every = 0.05, say = function(t) heard[#heard + 1] = t end })
+    test("the settings changed since: stopped, started as they say now", k:begin(build, "one") == "started"
+        and none_alive(left) and heard_it("started otherwise than the settings say now"))
+    for _, r in ipairs(k.running or {}) do track(r.pid) end
+    wait_keeper(k)
+    k:stop()
+
+    -- every program gone: the file removed, a server started
+    state, left = killed_editor(logs, cfg, build, "one")
+    for _, pid in ipairs(left) do proc.stop(pid, 2) end
+    heard = {}
+    k = keeper()
+    test("all of it gone: the file removed, a server started", k:begin(build, "one") == "started"
+        and heard_it("is gone"))
+    for _, r in ipairs(k.running or {}) do track(r.pid) end
+    wait_keeper(k)
+    k:stop()
+
+    -- a pid taken since by another process: never stopped
+    local stranger = track(proc.spawn({ "sleep", "30" }, {}))
+    proc.sleep(0.05)
+    write(logs .. "/server.pids", string.format("return { format = 1, build = %q, stamp = 'one', programs = {\n"
+        .. "  { name = 'authserver', pid = %d, started = %d, port = %d, command = {} } } }\n",
+        build, stranger, proc.start_time(stranger) - 1, auth))
+    heard = {}
+    k = keeper()
+    test("a pid another process took since: left alone", k:begin(build, "one") == "started" and proc.alive(stranger)
+        and heard_it("is gone"))
+    for _, r in ipairs(k.running or {}) do track(r.pid) end
+    wait_keeper(k)
+    k:stop()
+    test("... and still left alone once the new server stops", proc.alive(stranger))
+
+    -- an older editor's file (name and pid, no start times): nothing stopped
+    write(logs .. "/server.pids", "authserver " .. stranger .. "\n")
+    heard = {}
+    k = keeper()
+    test("an older editor's file: left as it is, nothing in it stopped", k:begin(build, "one") == "started"
+        and proc.alive(stranger) and heard_it("left as it is, and nothing in it stopped"))
+    for _, r in ipairs(k.running or {}) do track(r.pid) end
+    wait_keeper(k)
+    k:stop()
+
+    -- an editor still running: its server is its own
+    local other_editor = track(proc.spawn({ "sleep", "30" }, {}))
+    local other_server = track(proc.spawn({ "luajit", FIX .. "/fake-server.lua", tostring(auth), TMP .. "/starts-theirs", "-", "listen", "0" }, {}))
+    local t0 = proc.now()
+    while not proc.port_open("127.0.0.1", auth, 50) and proc.now() - t0 < 5 do proc.sleep(0.05) end
+    proc.sleep(0.05)
+    write(logs .. "/server.pids", string.format("return { format = 1, editor = { pid = %d, started = %d }, build = %q, stamp = 'one',\n"
+        .. "  programs = { { name = 'authserver', pid = %d, started = %d, port = %d, command = {} } } }\n",
+        other_editor, proc.start_time(other_editor), build, other_server, proc.start_time(other_server), auth))
+    heard = {}
+    k = keeper()
+    test("another editor still runs: its server is left to it (used as it is)", k:begin(build, "one") == "outside"
+        and heard_it("another editor's"))
+    k:stop()
+    test("... and never stopped by this one", proc.alive(other_server) and read(logs .. "/server.pids") ~= nil)
+    proc.stop(other_server, 2)
+    proc.stop(other_editor, 1)
+    proc.stop(stranger, 1)
+    os.remove(logs .. "/server.pids")
 end
 -- }}}
 
@@ -1017,6 +1196,39 @@ do
     test("the editor closed: its W client stopped", cpid and not proc.alive(cpid))
     test("the editor closed: the server it started stopped", spid and not proc.alive(spid)
         and not proc.port_open("127.0.0.1", s.test_map.server.login_port, 100))
+
+    -- killed instead (SIGKILL: nothing of it runs): the next editor's F5
+    -- takes over the server it left and reuses it for the same build
+    local killed = script:gsub("%.lua$", "-killed.lua")
+    -- (its map at a known path, so the next editor converts the same map)
+    local same_map = TMP .. "/killed-editor-map.w3x"
+    write(killed, read(script):gsub("local map = os%.tmpname%(%)", function() return "local map = " .. lit(same_map) end)
+        .. "\nlocal ffi = require('ffi'); ffi.C.kill(ffi.C.getpid(), 9)\n")
+    out = shell("luajit " .. proc.quote(killed) .. " 2>&1")
+    stage, cpid, spid = out:match("(%S+)%s+(%d+)%s+(%d+)")
+    cpid, spid = tonumber(cpid), tonumber(spid)
+    if cpid then track(cpid) end
+    if spid then track(spid) end
+    test("an editor killed while its W client is open: its server left running", stage == "playing" and spid
+        and proc.alive(spid), out)
+    if cpid then proc.stop(cpid, 2) end
+    local starts_before = count_lines(base .. "/starts")
+    s.test_map.w_client = { FIX .. "/fake-w-client.sh", "closed" }
+    s.test_map.server.programs = { { name = "authserver", port = s.test_map.server.login_port,
+        command = { "luajit", FIX .. "/fake-server.lua", tostring(s.test_map.server.login_port), base .. "/starts", "{build}" } } }
+    said = {}
+    local T = new_run(s, { save = function() return same_map end })
+    test("the next editor's F5: the run goes through", T:start() == true and T:wait(30) and T.last.outcome == "closed",
+        T.last and T.last.message)
+    local heard_reclaim, heard_reuse = false, false
+    for _, t in ipairs(said) do
+        heard_reclaim = heard_reclaim or t:find("took over the server a closed editor started", 1, true) ~= nil
+        heard_reuse = heard_reuse or t:find("reusing it: it runs this build's stamp", 1, true) ~= nil
+    end
+    test("... on the server the killed editor left, taken over and reused (nothing started)", heard_reclaim and heard_reuse
+        and count_lines(base .. "/starts") == starts_before and T.keeper.running[1].pid == spid)
+    T:close()
+    test("... which this editor stops when it closes", not proc.alive(spid))
 end
 -- }}}
 
