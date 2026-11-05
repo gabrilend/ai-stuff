@@ -83,6 +83,7 @@ protocol.FIELDS = {
         { "map_name", "str" }, { "map_hash", "str" }, { "asset_packs", { list = pack } },
         { "max_players", "uint" }, { "game_mode", "str" }, { "region", "str" },
         { "host_port", "uint" },                                   -- where the game itself will listen
+        { "host_name", "str", true },                              -- the host's name in its lobby (801b)
     },
     UNREGISTER_GAME = { { "game_id", "uint" } },
     UPDATE_GAME = { { "game_id", "uint" }, { "players", "uint" }, { "max_players", "uint" } },

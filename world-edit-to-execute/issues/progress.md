@@ -630,7 +630,7 @@ Phase 8 issues kept in this project:
 | 804 | Crossing armies, drawn from across the network | In progress (built; the owner to try the window) | 405f, 803, 515c |
 | 801 | Matchmaking server | Pending; its shape waits on question Q-1 | Phase 5, 6 |
 | 801a | Protocol specification | **Completed** | None |
-| 801b | Server core | Pending | 801a |
+| 801b | Server core | **Completed** | 801a |
 | 801c | Client library | Pending | 801a, 801b |
 | 801d | NAT traversal | Pending | 801a, 801b |
 | 801e | Lobby UI | Pending | 801c, Phase 5 |
