@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+#
+# make-mailboxes - makes, or adopts, every rmail mailbox in a mailbox set
+# (issue 301): input/mailboxes unless --set names another file.
+#
+# Usage:
+#   scripts/make-mailboxes [<dir>] [--set FILE]
+#     <dir>       the project (default: this checkout's usual place)
+#     --set FILE  a mailbox set other than input/mailboxes (the rehearsal's)
+#
+# It prints what it made, adopted or added. It never prints a secret.
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+if [ -n "${1:-}" ] && [ "${1}" != "--set" ]; then
+    DIR="$1"
+    shift
+fi
+exec luajit "${DIR}/src/031-mailboxes.lua" --dir "${DIR}" "$@"

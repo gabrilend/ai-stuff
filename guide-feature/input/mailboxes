@@ -1,0 +1,44 @@
+# The rmail mailboxes of guide-feature (scripts/make-mailboxes, issue 301).
+# Every mailbox is made from this list, one way, on kuvalu: the voices'
+# folders are then copied to the mini-computers (issue 702). Each pair of
+# mailboxes that name each other in `contacts` gets its own shared secret,
+# written only into the two `contacts` files, never into this repository.
+# A folder already there is adopted: its secrets are kept, and nothing in
+# it is overwritten.
+#
+#   NAME.folder    where the mailbox is made (~ is the home folder)
+#   NAME.port      the port its rmail daemon listens on
+#   NAME.local-ip  its address on the home network (NAME.ip: from anywhere)
+#   NAME.hook      "arrival" (kuvalu, issue 302), "turn" (a voice, 304) or "none"
+#   NAME.project   where guide-feature is on that machine, for its hook
+#   NAME.contacts  the mailboxes it talks to
+
+# kuvalu's guide mailbox, separate from the owner's own ~/mail/. Port 1223
+# is the owner's choice (notes/first-answers.md).
+guide.folder       = "~/guide-mail"
+guide.port         = 1223
+guide.local-ip     = "192.168.1.100"
+guide.hook         = "arrival"
+guide.project      = "/mnt/mtwo/programming/ai-stuff/guide-feature"
+guide.contacts     = "fg-sora-1 fg-sora-2 fg-sora-3"
+
+# The voices. Their folders are made on kuvalu beside the guide mailbox and
+# copied to each mini-computer's home folder in issue 702; their project
+# path is where 702 puts guide-feature there.
+fg-sora-1.folder   = "~/guide-mail-fg-sora-1"
+fg-sora-1.port     = 10101
+fg-sora-1.local-ip = "192.168.1.11"
+fg-sora-1.hook     = "turn"
+fg-sora-1.project  = "/home/ritz/guide-feature"
+
+fg-sora-2.folder   = "~/guide-mail-fg-sora-2"
+fg-sora-2.port     = 20202
+fg-sora-2.local-ip = "192.168.1.12"
+fg-sora-2.hook     = "turn"
+fg-sora-2.project  = "/home/ritz/guide-feature"
+
+fg-sora-3.folder   = "~/guide-mail-fg-sora-3"
+fg-sora-3.port     = 30303
+fg-sora-3.local-ip = "192.168.1.13"
+fg-sora-3.hook     = "turn"
+fg-sora-3.project  = "/home/ritz/guide-feature"

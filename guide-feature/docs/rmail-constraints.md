@@ -68,3 +68,24 @@ turn runner starts again on it when the current turn ends
 LuaSocket and OpenSSL, normally compiled by rmail's `scripts/install.sh`. The
 mini-computers have a BusyBox userland, so installing rmail there is its own
 piece of work (phase 7).
+
+## How the mailboxes are made
+
+Every mailbox, kuvalu's guide mailbox, the voices' and the rehearsal's
+stand-ins, is made by `scripts/make-mailboxes` from a mailbox set
+(`input/mailboxes`; `src/031-mailboxes.lua`, issue 301). It writes rmail's
+`config` and `contacts` files as rmail reads them (rmail `README.md`,
+"Configuration"), with a new secret for each pair of mailboxes, and adopts
+a mailbox already there without overwriting anything in it. The config
+turns rmail's port mapping off (`auto_port_forward = false`): the router's
+ports are the owner's.
+
+Both hooks run the mailbox's own `hooks/guide-hook` with a first word,
+`receive` or `update`, written into the config line. rmail runs a hook
+path through the shell without quoting it (rmail `rmail.lua`, `run_hook`),
+so that word reaches the hook as its first argument, and the hook never
+has to guess which call it is from the shape of the others.
+
+rmail's check of its public address has no switch to turn it off (rmail
+`rmail.lua`, `check_public_ip`). `docs/network.md` wants one; it is
+rmail's to add.
