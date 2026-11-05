@@ -6,7 +6,10 @@
 -- tmp/shared-memory/arrivals/. The blitter takes them one at a time, oldest
 -- first. It reads each (102), checks who sent it and that it is the size of
 -- the version it started from (105), finds what that voice changed (104), and
--- writes those changes onto the shared canvas (106). When the canvas changed,
+-- writes those changes onto the shared canvas (106); or, in distill mode
+-- (601), keeps it as that voice's newest and, once the arrivals waiting are
+-- taken, has the distiller make one canvas from every voice's newest and
+-- writes that, under the name kuvalu. When the canvas changed,
 -- that is the next version, and it is handed to every publisher. An arrival
 -- that fails a check is moved to arrivals-refused/ with a log line saying
 -- why; nothing is dropped silently. With no network yet, the files are
@@ -26,7 +29,12 @@
 -- As a library (the tests, the phase-1 demo):
 --   local blitter = dofile(DIR .. "/src/016-blitter.lua")
 --   local b = blitter.new({ root = ROOT })
---   b:step()            -- takes every arrival waiting; true once told to stop
+--   b:step()            -- takes every arrival waiting, then distills what
+--                       -- distill mode held (601); true once told to stop
+--   b:take(name)        -- one arrival: "blitted", "unchanged", "held", or
+--                       -- the reason it was refused
+--   b:distill_held()    -- the distill, when anything is held (601)
+--   b.newest[voice]     -- each voice's newest accepted canvas (601)
 --   b.version, b.current, b.run.counters
 --   b.history[n]        -- version n, read back from its history file
 --   b:finish()
@@ -75,16 +83,48 @@ M.SETTINGS = {
 -- }}}
 
 -- {{{ M.MODES
--- The merge modes: a table from mode name to a function that takes the
--- blitter, the arrived voice canvas and its base, and returns the new canvas
--- and the blit's report. `distill` (601) is added here when it is built; until
--- then an arrival in that mode is refused, never quietly blitted.
+-- The merge modes: a table from mode name to a function that returns the new
+-- canvas and the blit's report. A mode not in the table is refused at
+-- arrival, never quietly blitted.
+--   newest   blits each voice's changes as they arrive: it is given the
+--            blitter and the arrival's entry { voice, canvas, base, found }.
+--   distill  (601) blits the distiller's canvas, made from every voice's
+--            newest (067): it is given the blitter only. It is one of
+--            M.HELD: an arrival in it is kept as its voice's newest and held,
+--            and the distill runs once for everything held, after the
+--            arrivals waiting are taken (Blitter:distill_held), so arrivals
+--            that come during a distill wait and no queue builds up.
 M.MODES = {
-    newest = function(self, voice, base)
-        local found = changes.find(base, voice)
-        return blit.apply(self.current, found, self.settings["collision-rule"])
+    newest = function(self, entry)
+        return blit.apply(self.current, entry.found, self.settings["collision-rule"])
+    end,
+    distill = function(self)
+        local newest = {}
+        for _, voice in ipairs(self.settings.voices) do
+            if self.newest[voice] then newest[#newest + 1] = self.newest[voice] end
+        end
+        -- voices not (or no longer) in the list, in name order, after them
+        local others = {}
+        for voice, entry in pairs(self.newest) do
+            local listed = false
+            for _, name in ipairs(self.settings.voices) do listed = listed or name == voice end
+            if not listed then others[#others + 1] = entry end
+        end
+        table.sort(others, function(a, b) return a.voice < b.voice end)
+        for _, entry in ipairs(others) do newest[#newest + 1] = entry end
+        local result = M.distiller.run({ root = self.root, current = self.current,
+            newest = newest, call = self.distill_call,
+            log = function(line) self.run:log("distill: " .. line) end })
+        local found = changes.find(self.current, result.rows)
+        local new, report = blit.apply(self.current, found, self.settings["collision-rule"])
+        report.distill = { counts = result.counts, note = result.note,
+                           endpoint = result.endpoint, voices = #newest }
+        return new, report
     end,
 }
+M.HELD = { distill = true }
+-- the distill mode's asking (067), replaceable by tests
+M.distiller = dofile(DIR .. "/src/067-distill.lua")
 -- }}}
 
 -- {{{ M.log_publisher()
@@ -237,13 +277,11 @@ function Blitter:take(name)
     end
 
     self:reread()
-    local mode = M.MODES[self.settings["merge-mode"]]
-    if not mode then
+    if not M.MODES[self.settings["merge-mode"]] then
         return self:refuse(name, "mode-not-built", "merge mode "
             .. self.settings["merge-mode"] .. " is not built yet")
     end
 
-    -- {{{ accepted: blit it
     if last and voice.headers.turn > last + 1 then
         self.run:count("turns-skipped", voice.headers.turn - last - 1)
     end
@@ -251,16 +289,48 @@ function Blitter:take(name)
     if voice.ignored_marks > 0 then
         self.run:count("voice-marks-ignored", voice.ignored_marks)
     end
+    os.remove(self.arrivals .. "/" .. name)
+    return self:accept(parts.sender, voice, base, name)
+end
+-- }}}
 
-    local new, report = mode(self, voice, base)
+-- {{{ function Blitter:accept()
+-- An arrival that passed every check, in the mode input/blitter names now:
+-- kept as its voice's newest (601), then blitted (newest) or held for the
+-- next distill (distill). Returns "blitted", "unchanged" or "held". The
+-- phase 6 demo replays recorded arrivals through here, with the base each
+-- voice started from.
+function Blitter:accept(sender, voice, base, name)
+    local found = changes.find(base, voice)
+    local entry = { voice = sender, canvas = voice, base = voice.headers.base,
+                    turn = voice.headers.turn, found = found, name = name }
+    self.newest[sender] = entry
+    local mode_name = self.settings["merge-mode"]
+
+    if M.HELD[mode_name] then
+        local earlier = self.held[sender]
+        if earlier then
+            self.run:count("held-replaced")
+            self.replaced[#self.replaced + 1] = earlier
+            self.run:log(string.format("%s: turn %d replaces turn %d from %s, held for the "
+                .. "next distill", name, entry.turn, earlier.turn, sender))
+        else
+            self.run:log(string.format("%s: turn %d on base %d, held for the next distill",
+                name, entry.turn, entry.base))
+        end
+        self.held[sender] = entry
+        self.run:count("arrivals-held")
+        return "held"
+    end
+
+    local new, report = M.MODES[mode_name](self, entry)
     for counter, value in pairs(report.counts) do
         self.run:count(counter, value)
     end
-    os.remove(self.arrivals .. "/" .. name)
-    self.reports[#self.reports + 1] = { name = name, voice = parts.sender, report = report }
+    self.reports[#self.reports + 1] = { name = name, voice = sender, report = report }
 
     local summary = string.format("%s: turn %d on base %d, %d written, %d removed, "
-        .. "%d conflicts, %d cut", name, voice.headers.turn, voice.headers.base,
+        .. "%d conflicts, %d cut", name, entry.turn, entry.base,
         report.counts["words-written"], report.counts["removals-applied"],
         report.counts["conflicts"], #report.cut)
     if not report.changed then
@@ -269,9 +339,70 @@ function Blitter:take(name)
         return "unchanged"
     end
     self.run:count("versions-made")
-    self:publish(new, report, summary, parts.sender)
+    self:publish(new, report, summary, sender)
     return "blitted"
-    -- }}}
+end
+-- }}}
+
+-- {{{ function Blitter:distill_held()
+-- The distill for the arrivals held since the last one (601): every voice's
+-- newest canvas, distilled into one, blitted onto the current canvas under
+-- the name kuvalu. Run once after the arrivals waiting are taken (step, and
+-- the rehearsal's loop), whatever the mode is by then: they were taken in
+-- distill mode. Returns nil when nothing is held; else "blitted",
+-- "unchanged" or "failed", and the arrivals it took in ({ voice, turn,
+-- name } each, and the ones they replaced). A failed distill (the distiller
+-- unreachable, its words unreadable) is logged and counted, and the
+-- arrivals stay held for the next try.
+function Blitter:distill_held()
+    if next(self.held) == nil then return nil end
+    local held = {}
+    for _, voice in ipairs(self.settings.voices) do
+        if self.held[voice] then held[#held + 1] = self.held[voice] end
+    end
+    for voice, entry in pairs(self.held) do
+        local listed = false
+        for _, name in ipairs(self.settings.voices) do listed = listed or name == voice end
+        if not listed then held[#held + 1] = entry end
+    end
+    local replaced = self.replaced
+    local from = {}
+    for _, entry in ipairs(held) do
+        from[#from + 1] = string.format("%s turn %d", entry.voice, entry.turn)
+    end
+    local ok, new, report = pcall(M.MODES.distill, self)
+    if not ok then
+        self.run:count("distills-failed")
+        self.run:log("distill of " .. table.concat(from, ", ") .. " failed; they stay held "
+            .. "for the next try: " .. tostring(new))
+        return "failed", held, replaced
+    end
+    self.held, self.replaced = {}, {}
+    local d = report.distill
+    d.held, d.replaced = held, replaced
+    self.run:count("distills")
+    self.run:count("distill-asks", d.counts.asks)
+    self.run:count("distill-tries", d.counts.tries)
+    self.run:count("distill-milliseconds", math.floor(d.counts.seconds * 1000 + 0.5))
+    for counter, value in pairs(report.counts) do
+        self.run:count(counter, value)
+    end
+    self.reports[#self.reports + 1] = { name = "distill", voice = M.distiller.VOICE,
+                                        report = report }
+    local summary = string.format("distill of %s on %s (%d voices' newest): %d asks, %d tries, "
+        .. "%.2f s; %d written, %d removed, %d conflicts, %d cut", table.concat(from, ", "),
+        d.endpoint, d.voices, d.counts.asks, d.counts.tries, d.counts.seconds,
+        report.counts["words-written"], report.counts["removals-applied"],
+        report.counts["conflicts"], #report.cut)
+    if d.note then self.run:log("distill: over the recommended changes: " .. d.note) end
+    if not report.changed then
+        self.run:count("unchanged-distills")
+        self.run:log(summary .. "; nothing changed")
+        return "unchanged", held, replaced
+    end
+    self.run:count("versions-made")
+    self:publish(new, report, summary, M.distiller.VOICE)
+    return "blitted", held, replaced
 end
 -- }}}
 
@@ -322,6 +453,7 @@ function Blitter:step()
     for _, name in ipairs(names) do
         self:take(name)
     end
+    self:distill_held()
     if stop then
         os.remove(self.arrivals .. "/stop")
         self.run:log("stop file found")
@@ -433,7 +565,9 @@ end
 -- mistaken for a new version: it is refused, as not in the history.
 -- opts: root, clock (tests), publishers (default: the log), wait (a function
 -- called between steps; default: the once-a-second listing), commit (the
--- project's commit for the viewers' header; default: git's, in the root).
+-- project's commit for the viewers' header; default: git's, in the root),
+-- distill_call (tests: a function(conversation) standing in for the
+-- distiller; default: the endpoints file's use.distiller).
 function M.new(opts)
     opts = opts or {}
     local root = opts.root or DIR
@@ -446,6 +580,11 @@ function M.new(opts)
         canvas_folder = root .. "/tmp/shared-memory/canvas",
         publishers = opts.publishers or { M.log_publisher },
         last_turn = {}, reports = {},
+        -- each voice's newest accepted canvas, and those held for a distill
+        -- (601)
+        newest = {}, held = {}, replaced = {},
+        -- tests give the distiller's call; by default the distiller endpoint
+        distill_call = opts.distill_call,
     }, Blitter)
     os.execute("mkdir -p " .. shell_quote(self.arrivals) .. " " .. shell_quote(self.refused))
 

@@ -19,7 +19,13 @@ as `scripts/rehearse [ROOT] [--minutes M] [--keep]`, or as a library with
 - `input/project-clone` is copied with the project named to come from the
   checkout `input/to-voices` names, here on this machine (its top and the
   project's folder in it), so each voice clones it at its first turn (501).
-- It runs the blitter in-process with the to-voices publisher.
+- `input/distill` and `input/distill-instructions` are copied in when the
+  project has them, so distill mode (601) can be rehearsed: the workspace's
+  `input/blitter` can be switched to `merge-mode = "distill"` while it
+  runs, and the distiller is the copied `endpoints`' `use.distiller`.
+- It runs the blitter in-process with the to-voices publisher. After the
+  arrivals of each round are taken, it runs the blitter's distill for
+  anything distill mode held (601).
 - The mail is carried by the stand-in carrier (041), or by real rmail
   daemons when `carrier = "rmail"`.
 
@@ -28,6 +34,9 @@ delivered, arrived, blitted, back.
 
 **Outcome of each turn**
 - `blitted` or `unchanged`;
+- `distilled`: taken into a distill that made a version (kuvalu's); `held`:
+  held for a distill that had not made one by the end; `replaced`: held,
+  then replaced by the same voice's newer canvas before the distill (601);
 - `superseded`: the voice's next canvas replaced it before it was carried;
 - `in-flight`: still on its way when the rehearsal ended.
 
@@ -46,5 +55,5 @@ stopped by process group. `scripts/rehearse` does this again on any exit.
 
 | Function | Meaning |
 |---|---|
-| `run(opts)` | `root`, `minutes`, `keep`, `on_version(record, voice, blitter, row)`; returns turns, events, versions, per-voice counts |
+| `run(opts)` | `root`, `minutes`, `keep`, `on_version(record, voice, blitter, row)` (a distill's voice is `kuvalu`, its row nil), `on_arrival(name, text, blitter)` (before each arrival is taken); returns turns, events, versions, per-voice counts |
 | `workspace(root, values, base)` | makes the copy and the mailboxes |

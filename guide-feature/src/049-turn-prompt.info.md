@@ -41,9 +41,11 @@ of each row. `ruler_problem(reply)` finds a reply that copied any of it.
 |---|---|
 | `read_instructions(root)` | `input/turn-instructions`'s text |
 | `parse(text)` | its parts, checked: `{ system, user, look }` |
+| `parse_spec(text, spec)` | any instruction file's parts by a spec `{ source, parts, markers, required }`; the distill prompt (067) reads `input/distill-instructions` with it |
+| `fill(body, values)` | a part with its markers filled; a marker alone on its line filled with nothing takes the line |
 | `build(opts)` | `{ { role = "system", content }, { role = "user", content } }`; opts: `instructions`, `canvas` (a to-voices record), `voice`, `turn`, `recommended = { words, sentences }`, `look_limit`, `note` |
 | `ruler(record)` | the canvas as the model sees it |
 | `ruler_problem(reply)` | `{ kind = "ruler", rows }` or nil; 012 has its report line |
 | `unruler(text)` | the rows of a ruler drawn in a text, or nil (the stand-in model reads its canvas with it, 405) |
 | `look_call(reply)` | `{ focus = "focused"\|"broad", words }` when the reply is one `look FOCUS: WORDS` line, else nil |
-| `SOURCE`, `PARTS`, `MARKERS`, `REQUIRED` | the file's name, parts and markers |
+| `SOURCE`, `PARTS`, `MARKERS`, `REQUIRED`, `SPEC` | the file's name, parts and markers, and the four as one spec |

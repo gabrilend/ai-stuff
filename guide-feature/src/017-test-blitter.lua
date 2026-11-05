@@ -201,11 +201,16 @@ check("a settings file that no longer reads keeps the last good settings",
     b.run.counters["settings-not-read"] == 1 and b.version == 7
     and b.settings["collision-rule"] == "keep-fragments")
 
+-- both modes are built since 601 (src/068-test-distill.lua tests distill);
+-- a mode taken out of the table stands for one not built
+local distill_mode = blitter.MODES.distill
+blitter.MODES.distill = nil
 settings_file("distill", "blank-whole")
 arrive("fg-sora-2-3003-a", voice_text("fg-sora-2", 5, 7, { "x", "", "" }))
 b:step()
 check("a merge mode not built yet refuses the arrival rather than blit it",
     b.run.counters["refused-mode-not-built"] == 1 and b.version == 7)
+blitter.MODES.distill = distill_mode
 settings_file("newest", "blank-whole")
 -- }}}
 

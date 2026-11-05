@@ -26,10 +26,16 @@ checked in this order, and the first failure moves it to
 | `turn-not-newer` | its turn is after the last one taken from that voice |
 | `base-not-in-history` | its base version is in the history |
 | `wrong-size` | it is the size of its base (105's `arrival`) |
-| `mode-not-built` | the merge mode in `input/blitter` is built |
+| `mode-not-built` | the merge mode in `input/blitter` is built (both are, since 601) |
 
-Then the settings are read again, and the merge mode's function finds the
-changes (104) and blits them (106). The file is deleted after its blit. If a
+Then the settings are read again, and the arrival is kept as its voice's
+newest (`b.newest[voice]`: its canvas, base, turn, and the changes found
+against its base, 104). In `newest` mode the mode's function blits those
+changes (106). In `distill` mode (601) the arrival is held instead, and
+after the arrivals waiting are taken `b:distill_held()` has the distiller
+(`src/067-distill.lua`) make one canvas from every voice's newest, which is
+blitted onto the current canvas under the name `kuvalu`; see
+`docs/datapath-blit.md`, "distill", "As built". The file is deleted after its blit. If a
 cell changed, that is the next version. It is marked (201,
 `src/020-marks.lua`) and written as viewers read it (203) to
 `tmp/shared-memory/canvas/history/NNNNNN` and `canvas/current`, each under a
@@ -79,15 +85,21 @@ is the seam where a binding would go.
 `unchanged-turns`, `voice-marks-ignored`, `settings-not-read`, and the
 blit's counts summed: `words-written`, `removals-applied`, `conflicts`,
 `words-covered`, `cut-<outcome>`; and the marks' counts, in cells:
-`cells-marked-word`, `cells-marked-sentence`, `marks-expired`.
+`cells-marked-word`, `cells-marked-sentence`, `marks-expired`. Distill mode
+(601): `arrivals-held`, `held-replaced`, `distills`, `distills-failed`,
+`unchanged-distills`, `distill-asks`, `distill-tries`,
+`distill-milliseconds` (the distiller's time, summed).
 
 | Name | Type | Meaning |
 |---|---|---|
-| `new(opts)` | function | a blitter: settings read, run started, folders made, the canvas folder emptied, the first version published. `opts.root`, `clock`, `publishers`, `wait`, `commit` |
-| `b:step()` | method | takes every arrival waiting; true when the stop file was there |
-| `b:take(name)` | method | one arrival; `"blitted"`, `"unchanged"` or the refusal's reason |
+| `new(opts)` | function | a blitter: settings read, run started, folders made, the canvas folder emptied, the first version published. `opts.root`, `clock`, `publishers`, `wait`, `commit`, `distill_call` (tests: stands in for the distiller) |
+| `b:step()` | method | takes every arrival waiting, then distills what was held; true when the stop file was there |
+| `b:take(name)` | method | one arrival; `"blitted"`, `"unchanged"`, `"held"` or the refusal's reason |
+| `b:accept(sender, voice, base, name)` | method | an arrival past its checks, in the mode now set (the phase 6 demo replays recorded arrivals through it) |
+| `b:distill_held()` | method | the distill, when anything is held: `"blitted"`, `"unchanged"` or `"failed"`, the entries taken in and those they replaced; nil when nothing is held |
 | `b:finish()` | method | the goodbye receipt |
 | `main(opts)` | function | steps and waits until a clean stop |
-| `MODES`, `SETTINGS`, `log_publisher`, `pending`, `arrival_name` | | the mode table, the settings declared, the phase-1 publisher, the folder's order, a name's parts |
+| `MODES`, `HELD`, `SETTINGS`, `log_publisher`, `pending`, `arrival_name` | | the mode table, the modes that hold arrivals, the settings declared, the phase-1 publisher, the folder's order, a name's parts |
+| `distiller` | table | 067, replaceable |
 
-Tests: `017-test-blitter.lua`.
+Tests: `017-test-blitter.lua`, `068-test-distill.lua`.

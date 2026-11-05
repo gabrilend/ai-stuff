@@ -63,6 +63,13 @@ M.REQUIRED = {
 }
 -- }}}
 
+-- {{{ M.SPEC
+-- The turn's instruction file as parse_spec reads it: where it lives, its
+-- parts, their markers, and the markers each part must hold. The distill
+-- prompt (601, src/067-distill.lua) reads its own file with its own spec.
+M.SPEC = { source = M.SOURCE, parts = M.PARTS, markers = M.MARKERS, required = M.REQUIRED }
+-- }}}
+
 -- {{{ local function fail()
 local function fail(line, text)
     error(M.SOURCE .. (line and (":" .. line) or "") .. ": " .. text, 0)
@@ -82,12 +89,20 @@ function M.read_instructions(root)
 end
 -- }}}
 
--- {{{ function M.parse()
--- The instruction text as its parts: { system = text, user = text, look =
--- text }, comments dropped, each part's leading and trailing blank lines
--- trimmed. Refused: text before the first part, an unknown or repeated part,
--- a missing part, an unknown marker, a part without a marker it needs.
-function M.parse(text)
+-- {{{ function M.parse_spec()
+-- An instruction text as its parts, by a spec ({ source, parts, markers,
+-- required }, as M.SPEC): { part = text, ... }, comments dropped, each
+-- part's leading and trailing blank lines trimmed. Refused, naming the
+-- spec's file and the line: text before the first part, an unknown or
+-- repeated part, a missing part, an unknown marker, a part without a marker
+-- it needs.
+function M.parse_spec(text, spec)
+    local function fail(line, message) error(spec.source .. (line and (":" .. line) or "")
+        .. ": " .. message, 0) end
+    local names = {}
+    for _, part in ipairs(spec.parts) do names[#names + 1] = "[" .. part .. "]" end
+    local listed = #names == 1 and names[1]
+        or table.concat(names, ", ", 1, #names - 1) .. " and " .. names[#names]
     local parts, lines_of, current, seen = {}, {}, nil, {}
     local number = 0
     for line in (text .. (text:sub(-1) == "\n" and "" or "\n")):gmatch("([^\n]*)\n") do
@@ -96,9 +111,9 @@ function M.parse(text)
         local name = line:match("^%[([%w%-]+)%]%s*$")
         if name then
             local known = false
-            for _, part in ipairs(M.PARTS) do known = known or part == name end
+            for _, part in ipairs(spec.parts) do known = known or part == name end
             if not known then
-                fail(number, "[" .. name .. "] is not a part; the parts are [system], [user] and [look]")
+                fail(number, "[" .. name .. "] is not a part; the parts are " .. listed)
             end
             if seen[name] then fail(number, "[" .. name .. "] is given twice") end
             seen[name], current = number, name
@@ -106,11 +121,11 @@ function M.parse(text)
         elseif not line:match("^#") then
             if not current then
                 if line:match("%S") then
-                    fail(number, "text before the first part; start with [system]")
+                    fail(number, "text before the first part; start with " .. names[1])
                 end
             else
                 for marker in line:gmatch("{{([^}]*)}}") do
-                    if not M.MARKERS[marker] then
+                    if not spec.markers[marker] then
                         fail(number, "{{" .. marker .. "}} is not a marker this file can use")
                     end
                 end
@@ -121,10 +136,10 @@ function M.parse(text)
             end
         end
     end
-    for _, part in ipairs(M.PARTS) do
+    for _, part in ipairs(spec.parts) do
         if not lines_of[part] then fail(nil, "there is no [" .. part .. "] part") end
         local body = table.concat(lines_of[part], "\n"):gsub("^%s*\n", ""):gsub("%s+$", "")
-        for _, needed in ipairs(M.REQUIRED[part]) do
+        for _, needed in ipairs(spec.required[part] or {}) do
             if not body:find("{{" .. needed .. "}}", 1, true) then
                 fail(seen[part], "the [" .. part .. "] part has no {{" .. needed .. "}}")
             end
@@ -135,11 +150,18 @@ function M.parse(text)
 end
 -- }}}
 
--- {{{ local function fill()
+-- {{{ function M.parse()
+-- The turn's instruction text as its parts: { system, user, look }.
+function M.parse(text)
+    return M.parse_spec(text, M.SPEC)
+end
+-- }}}
+
+-- {{{ function M.fill()
 -- A part with its markers filled from `values`. A marker alone on its line
 -- that is filled with nothing takes its line with it; runs of blank lines
 -- are then closed up to one, so a missing note leaves no gap.
-local function fill(body, values)
+function M.fill(body, values)
     local out = {}
     for line in (body .. "\n"):gmatch("([^\n]*)\n") do
         local alone = line:match("^%s*{{([^}]+)}}%s*$")
@@ -308,10 +330,10 @@ function M.build(opts)
         cuts = cuts_text(record, opts.voice),
         canvas = M.ruler(record),
     }
-    values.look = opts.look_limit > 0 and fill(parts.look, values) or ""
+    values.look = opts.look_limit > 0 and M.fill(parts.look, values) or ""
     return {
-        { role = "system", content = fill(parts.system, values) },
-        { role = "user", content = fill(parts.user, values) },
+        { role = "system", content = M.fill(parts.system, values) },
+        { role = "user", content = M.fill(parts.user, values) },
     }
 end
 -- }}}
