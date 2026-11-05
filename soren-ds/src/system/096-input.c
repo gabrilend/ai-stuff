@@ -43,6 +43,43 @@ const char *direction_name(int direction)
 }
 /* }}} */
 
+/* {{{ input_stick_inside */
+/* Is (x, y) closer to the middle than `radius`? A circle, not a square,
+ * so a small push on a diagonal rests exactly as a small push straight. */
+int input_stick_inside(int32_t x, int32_t y, int32_t radius)
+{
+    int64_t r = radius < 0 ? 0 : radius;
+    return (int64_t)x * x + (int64_t)y * y < r * r;
+}
+/* }}} */
+
+/* {{{ input_stick_direction */
+/* One of the eight directions by angle, with no floating point: a point
+ * is straight on when its smaller axis is within `edge` millionths of its
+ * larger (the tangent of its angle from the axis), and diagonal
+ * otherwise. Centred is none. */
+int32_t input_stick_direction(int32_t x, int32_t y, int32_t edge)
+{
+    if (x == 0 && y == 0) {
+        return DIRECTION_NONE;
+    }
+    if (edge < 0) edge = 0;
+    if (edge > 1000000) edge = 1000000;
+    int64_t ax = x < 0 ? -(int64_t)x : x;
+    int64_t ay = y < 0 ? -(int64_t)y : y;
+    if (ay * 1000000 <= ax * edge) {
+        return x > 0 ? DIRECTION_E : DIRECTION_W;
+    }
+    if (ax * 1000000 <= ay * edge) {
+        return y > 0 ? DIRECTION_N : DIRECTION_S;
+    }
+    if (x > 0) {
+        return y > 0 ? DIRECTION_NE : DIRECTION_SE;
+    }
+    return y > 0 ? DIRECTION_NW : DIRECTION_SW;
+}
+/* }}} */
+
 /* {{{ input_poll_start */
 int input_poll_start(struct input_poll *poll, struct map_report *report)
 {
