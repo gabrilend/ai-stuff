@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+#
+# phase-3-demo - the round trip through rmail: what phase 3 built, running.
+#
+# Runs the rehearsal (scripts/rehearse, src/043-rehearsal.lua) for a few
+# minutes: kuvalu's guide mailbox and three stand-in voices, fg-sora-1, -2
+# and -3, made in RAM by the mailbox setup; the arrival hook and the turn
+# hooks; a turn runner per voice with the stand-in turn; and the blitter
+# mailing every version, the mail carried by rmail's rules and timers. Each
+# version is drawn as it is made, with phase 2's marks coloured by voice,
+# and who made it and how long its round trip took. It ends with:
+#   - per voice, a timeline of canvases received, turns run and canvases
+#     sent;
+#   - the round trip from a version published to the voice's edit of it
+#     blitted, as a histogram, which shows rmail's pacing;
+#   - the canvases that waited (arrived during a turn) and the ones replaced
+#     before use.
+# Every number is read from the rehearsal's own timings, events and receipt.
+#
+# It runs in a throwaway copy of the project (src/, libs/ and scripts/
+# linked in, its own input/ and RAM tiers), so nothing already running on
+# the project is touched, and the copy is removed at the end. Nothing leaves
+# this machine: the stand-in carrier carries mail only to 127.0.0.1.
+#
+# Usage:
+#   issues/completed/demos/phase-3-demo [<dir>] [--minutes M] [--plain] [--keep]
+#     <dir>        the project (run-phase-demo passes it)
+#     --minutes M  how long the rehearsal runs (input/rehearsal's otherwise)
+#     --plain      show marks as letters under each row instead of colours
+#                  (the default when the output is not a terminal)
+#     --keep       leave the throwaway copy, to read its logs and receipts
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+PLAIN=""
+KEEP=""
+MINUTES=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --plain) PLAIN="--plain" ;;
+        --keep) KEEP="yes" ;;
+        --minutes) MINUTES="--minutes $2"; shift ;;
+        *) DIR="$1" ;;
+    esac
+    shift
+done
+if [ ! -f "${DIR}/src/043-rehearsal.lua" ]; then
+    echo "phase-3-demo: ${DIR} is not the guide-feature project" >&2
+    exit 1
+fi
+
+BASE="$(mktemp -d)"
+ROOT="${BASE}/guide-feature"
+mkdir -p "${ROOT}/input" "${ROOT}/output" "${BASE}/exec" "${BASE}/shm"
+for LINK in src libs scripts; do
+    ln -s "${DIR}/${LINK}" "${ROOT}/${LINK}"
+done
+for NAME in blitter turn-runner stand-in-turn rehearsal to-voices; do
+    cp "${DIR}/input/${NAME}" "${ROOT}/input/${NAME}"
+done
+# the project's checkout, for the commit the voices are sent: this one
+sed -i "s|^project-checkout *=.*|project-checkout = \"${DIR}\"|" "${ROOT}/input/to-voices"
+export EXEC_TIER_ROOT="${BASE}/exec"
+export ARTIFACT_TIER_ROOT="${BASE}/shm"
+
+# Whatever happens, the turn runners (and their turns) are stopped by their
+# process groups, and the copy is removed.
+clean_up() {
+    for PIDFILE in "${BASE}"/shm/guide-feature/rehearsal/shm/guide-feature/turn/*/lock/pid; do
+        [ -f "${PIDFILE}" ] && kill -- "-$(cut -d' ' -f1 "${PIDFILE}")" 2>/dev/null
+    done
+    if [ -n "${KEEP}" ]; then
+        echo "kept the throwaway project at ${ROOT}"
+    else
+        rm -rf "${BASE}"
+    fi
+}
+trap clean_up EXIT
+trap 'exit 130' INT TERM
+
+luajit "${DIR}/issues/completed/demos/phase-3-demo.lua" \
+    --dir "${DIR}" --root "${ROOT}" ${MINUTES} ${PLAIN}
