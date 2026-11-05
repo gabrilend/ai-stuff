@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+#
+# phase-5-demo - looking into the project: what phase 5 built, running.
+#
+# First, kuvalu's side, here: a checkout of guide-feature's own files (a
+# monorepo with the project in its guide-feature folder, one commit), and
+# its embedding index built by scripts/build-embedding-index's builder
+# (issue 502) with a stand-in embedding model. A voice's clone of it is
+# made by the clone keeper (issue 501), in RAM if it fits, and the index
+# copied in. Then one question is asked of the look tool (issue 503) at five
+# focuses, 1, 0.75, 0.5, 0.25 and 0, and for each it shows the pieces that
+# came back, a chart of their similarities, and where they sit among all
+# the pieces, so the shift from a focused insight to a broad exploration
+# can be seen.
+#
+# Then a rehearsal with the real turn in all three voices, whose stand-in
+# models look before they write, focused one turn and broad the next. It
+# shows each look the models made: about what, at what focus, what came
+# back; and whether each voice's clone went in RAM or on disk, and why.
+#
+# It runs in a throwaway copy of the project (src/, libs/ and scripts/
+# linked in, its own input/ and RAM tiers), so nothing already running is
+# touched, and the copy is removed at the end. The RAM tier is a folder in
+# /dev/shm when that can be written, and a plain folder otherwise; the demo
+# says which. Nothing leaves this machine: the models and the mail are on
+# 127.0.0.1 only. No model is installed; the run against kuvalu's own
+# servers and a real index is for the owner's machine.
+#
+# Usage:
+#   issues/completed/demos/phase-5-demo [<dir>] [--about WORDS] [--minutes M]
+#                                       [--plain] [--keep]
+#     <dir>         the project (run-phase-demo passes it)
+#     --about WORDS the question asked at five focuses (default "canvas width")
+#     --minutes M   how long the rehearsal runs (default 1)
+#     --plain       ASCII charts (the default when the output is not a terminal)
+#     --keep        leave the throwaway copy, to read its logs and receipts
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+PLAIN=""
+KEEP=""
+MINUTES="--minutes 1"
+ABOUT="canvas width"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --plain) PLAIN="--plain" ;;
+        --keep) KEEP="yes" ;;
+        --minutes) MINUTES="--minutes $2"; shift ;;
+        --about) ABOUT="$2"; shift ;;
+        *) DIR="$1" ;;
+    esac
+    shift
+done
+if [ ! -f "${DIR}/src/064-look.lua" ]; then
+    echo "phase-5-demo: ${DIR} is not the guide-feature project" >&2
+    exit 1
+fi
+
+BASE="$(mktemp -d)"
+# the RAM tier: a tmpfs when one can be written here, else a plain folder
+SHM_BASE="$(mktemp -d -p /dev/shm 2>/dev/null || true)"
+if [ -z "${SHM_BASE}" ]; then
+    SHM_BASE="${BASE}/shm"
+fi
+ROOT="${BASE}/guide-feature"
+mkdir -p "${ROOT}/input" "${ROOT}/output" "${BASE}/exec" "${SHM_BASE}"
+for LINK in src libs scripts; do
+    ln -s "${DIR}/${LINK}" "${ROOT}/${LINK}"
+done
+for NAME in blitter turn-runner turn turn-instructions stand-in-turn rehearsal to-voices look \
+            project-clone; do
+    cp "${DIR}/input/${NAME}" "${ROOT}/input/${NAME}"
+done
+# the real turn (405), whatever the project's own setting says
+sed -i 's|^turn *=.*|turn = "scripts/turn"|' "${ROOT}/input/turn-runner"
+export EXEC_TIER_ROOT="${BASE}/exec"
+export ARTIFACT_TIER_ROOT="${SHM_BASE}"
+
+# Whatever happens, the turn runners (and their turns) are stopped by their
+# process groups, and the copy is removed. The stand-in models leave by
+# themselves once the demo's process is gone (--parent).
+clean_up() {
+    for PIDFILE in "${SHM_BASE}"/guide-feature/rehearsal/shm/guide-feature/turn/*/lock/pid; do
+        [ -f "${PIDFILE}" ] && kill -- "-$(cut -d' ' -f1 "${PIDFILE}")" 2>/dev/null
+    done
+    if [ -n "${KEEP}" ]; then
+        echo "kept the throwaway project at ${ROOT} (its RAM tier at ${SHM_BASE})"
+    else
+        rm -rf "${BASE}"
+        if [ "${SHM_BASE}" != "${BASE}/shm" ]; then
+            rm -rf "${SHM_BASE}"
+        fi
+    fi
+}
+trap clean_up EXIT
+trap 'exit 130' INT TERM
+
+luajit "${DIR}/issues/completed/demos/phase-5-demo.lua" \
+    --dir "${DIR}" --root "${ROOT}" --base "${BASE}" --about "${ABOUT}" ${MINUTES} ${PLAIN}
