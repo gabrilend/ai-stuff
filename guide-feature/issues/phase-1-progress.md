@@ -52,3 +52,19 @@ moves the phase toward its goals.)
   versions kept in memory, publishes each to the log, and says goodbye on a
   stop file or (through `scripts/run-blitter`) a signal. What remains of
   phase 1 is its demo (108).
+- **108, the phase 1 demo** (2026-11-05): `issues/completed/demos/phase-1-demo`
+  (also `./run-phase-demo 1`) runs the real blitter in a throwaway copy of
+  the project. It plays a generated series of three voices' edits
+  (`src/018-phase-1-series.lua`): single-word edits, overlapping writes,
+  stale bases, a conflict, a turn that changes nothing, and an oversized
+  canvas refused with the fit check's report. It draws every version with
+  its changed cells marked, and the words written, blanked whole, removed
+  and in conflict. Every number is read from the blitter's log and receipt,
+  checked against each other at the end.
+
+## Phase 1 is complete
+
+All of phase 1's issues (101-108) are done, and its demo runs. The goal in
+`docs/roadmap.md` is met: three scripted voices edit one canvas, counted
+version by version. Running it on kuvalu and viewing the highlighted form
+in a real terminal are the owner's to do.
