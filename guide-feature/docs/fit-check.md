@@ -22,6 +22,13 @@ Against the base canvas the turn started from:
 |---|---|---|
 | no row is longer than `W` characters | `too-wide` | `row 7: 64 characters, 4 over the width of 60` |
 | there are exactly `H` rows | `wrong-height` | `the canvas has 22 rows; it must have exactly 20` |
+| every character has a width: no tab or other control character, and only valid UTF-8 | `bad-character` | `row 4: a tab or other control character at column 2; use spaces` |
+
+A row with a `bad-character` problem is not measured for width, and a reply
+with one cannot be compared with its base, so it has no change counts. On
+arrival, the blitter checks only that a voice's canvas is the size of its
+base, which adds `wrong-width` (`the canvas is 64 characters wide; it must be
+exactly 60`). Issue 105.
 
 A word counts as changed when the word at that row and column is different
 from the base, or is new, or was removed (`docs/datapath-blit.md` defines

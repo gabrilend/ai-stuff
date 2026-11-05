@@ -34,3 +34,9 @@ moves the phase toward its goals.)
   a voice's canvas with its base: the words kept, written, erased and
   overwritten, and the counts of words changed and sentences rewritten whole.
   The fit check (105) and the blit (106) both take their changes from it.
+- **105, the fit check** (2026-11-05): `src/012-fit-check.lua` measures a
+  model's reply against its base canvas and reports misfits as compiler-style
+  lines, word for word as `docs/fit-check.md` has them. The change counts
+  from 104 become the soft-budget note, and the blitter's size check on
+  arrival is here too. The blit (106) is the last piece before the blitter
+  loop (107).
