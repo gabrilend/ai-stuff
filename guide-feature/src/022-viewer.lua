@@ -15,6 +15,7 @@
 --   view.cells[row][column].mark              -- nil, or { voice, version, kind, age }
 --   viewer.changed(view, previous_view)       -- { { row, column, was, now }, ... }
 --   viewer.too_small(view, columns, rows)     -- the error to show, or nil
+--   viewer.layout(view, window_w, window_h, letter)   -- size and place (205)
 --   viewer.colour_of(view, "fg-sora-2")       -- 2: its place in the voices header
 --
 -- It follows only docs/canvas-protocol.md and the canvas reader, so the
@@ -108,6 +109,30 @@ function M.too_small(view, columns, rows)
             view.height, columns, rows)
     end
     return nil
+end
+-- }}}
+
+-- {{{ function M.layout()
+-- Where and how big a viewer draws a canvas in its window (issue 205): at the
+-- largest letter size that fits the window and is no larger than the
+-- viewer's maximum, centred left to right and top to bottom. Sizes in the
+-- viewer's own unit (pixels or points). `letter` is { across, down, max,
+-- min }: a cell's width and height for a letter size of 1, the largest
+-- letter size, and the smallest readable one. Returns { size, left, top,
+-- width, height }, or nil and the error to show when even the smallest
+-- letters do not fit (a screen never crops or squeezes the canvas).
+function M.layout(view, window_width, window_height, letter)
+    local fits = math.min(window_width / (view.width * letter.across),
+                          window_height / (view.height * letter.down))
+    local size = math.floor(math.min(fits, letter.max))
+    if size < letter.min then
+        return nil, string.format("the canvas is %dx%d; this window holds it only at letter "
+            .. "size %.1f, below the smallest of %s", view.width, view.height, fits, letter.min)
+    end
+    local width, height = view.width * letter.across * size, view.height * letter.down * size
+    return { size = size, width = width, height = height,
+             left = math.floor((window_width - width) / 2),
+             top = math.floor((window_height - height) / 2) }
 end
 -- }}}
 

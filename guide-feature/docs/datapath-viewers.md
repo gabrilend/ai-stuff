@@ -50,13 +50,34 @@ the format).
 | terminal view | any terminal on kuvalu | the voice's colour, in a few brightness steps by age, using standard colour codes | no animation |
 | HTML page | a browser | CSS colour and a transition | the remote-access viewer |
 | Android app | phone | colour fading with age | |
-| Apple Watch app | watch | colour | the smallest screen; whether the canvas size should follow it is an open question |
+| Apple Watch app | watch | colour | the smallest screen; it gets a canvas of its own size, or in `smallest` mode sets the one canvas's size |
 
 A `word` mark is drawn stronger than a `sentence` mark, so the exact
 changed words stand out inside their changed sentence.
 
 A screen smaller than the canvas shows an error naming both sizes. It does
 not crop or rewrap.
+
+## One canvas for each screen
+
+Each watched screen gets a canvas made at its own size, so no canvas is
+ever resized and no word is cut off by a moving edge (issue 205). The screen
+mode, in `input/screens`, says how:
+
+- `round`: one canvas per watched screen, refreshed one after another,
+  largest first; a context change mid-round waits for the round to end;
+- `asynchronous`: one canvas per watched screen, all at once, each turn on
+  an endpoint of its own;
+- `smallest`: one canvas, as narrow as the narrowest watched screen and as
+  short as the shortest.
+
+A screen whose own canvas is not made yet (it opened with a canvas cached
+at another size) shows a loading animation until it is. In `smallest` mode
+every viewer draws the canvas centred left to right and top to bottom, at
+the largest letter size that fits its window and is no larger than its own
+maximum; below its smallest readable size it shows the too-small error.
+`viewer.layout` in `src/022-viewer.lua` works out the size and place; the
+plan of canvases and turns is `src/028-screens.lua`.
 
 ## What each viewer counts
 

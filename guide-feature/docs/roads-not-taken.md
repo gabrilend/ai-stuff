@@ -43,6 +43,11 @@ every voice's words at once. That deserves its own design. The canvas size
 is a setting, and how it changes is an open question
 (`docs/open-questions.md`).
 
+**Now** (2026-11-05): no canvas is resized; each watched screen gets its
+own. The smallest viewer setting the size came back as one of three screen
+modes, `smallest`, where bigger screens draw the one canvas centred.
+`docs/datapath-viewers.md`, issue 205.
+
 ## Remote models as a separate kind of backend
 
 **What it was.** A table with local llama.cpp, remote llama.cpp, and hosted
