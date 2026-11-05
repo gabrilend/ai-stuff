@@ -67,12 +67,18 @@ Each unit entry contains fixed fields followed by optional variable-length secti
 | int32 | HP | Hit points (-1 = default) |
 | int32 | MP | Mana points (-1 = default) |
 
-#### Item Drop Table (Optional)
+Every section below is in **every** entry, in this order (checked on every
+map in `assets/` that has the file: each reads to its last byte and writes
+back the same bytes; issue W02b). Earlier versions of this page put the
+abilities before the hero data, gave the hero data to heroes only, the gold
+to buildings only, and left out the custom colour, which fit no map's bytes.
+
+#### Item Drops
 
 | Type | Field | Description |
 |------|-------|-------------|
-| int32 | TablePointer | -1 = none, else table index |
-| int32 | SetCount | Number of item sets |
+| int32 | TablePointer | -1 = none, else the map's item table index (version 8 only) |
+| int32 | SetCount | Number of item sets (one is picked on death) |
 
 For each item set:
 
@@ -87,12 +93,32 @@ For each item:
 | char(4) | ItemID | Item type (e.g., "ratc") |
 | int32 | Chance | Drop chance percentage (0-100) |
 
-#### Gold/Lumber (Buildings Only)
+#### Gold and Target Acquisition
 
 | Type | Field | Description |
 |------|-------|-------------|
-| int32 | Gold | Gold in building (-1 = default) |
-| float32 | TargetAcq | Target acquisition range (-1.0 = default) |
+| int32 | Gold | Gold in a gold mine (12500 default; every entry holds it) |
+| float32 | TargetAcq | Target acquisition range (-1.0 = default, -2.0 = camp) |
+
+#### Hero Data (every entry)
+
+A unit that is no hero holds level 1, no bonuses and usually no items; a
+unit's inventory (for units with an inventory ability) is kept here too.
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | Level | Hero level (1 for other units) |
+| int32 | StrBonus | Strength bonus from tomes (version 8 only) |
+| int32 | AgiBonus | Agility bonus (version 8 only) |
+| int32 | IntBonus | Intelligence bonus (version 8 only) |
+| int32 | ItemCount | Inventory item count |
+
+For each inventory item:
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | Slot | Inventory slot (0-5) |
+| char(4) | ItemID | Item type |
 
 #### Modified Abilities
 
@@ -108,44 +134,39 @@ For each ability:
 | int32 | Autocast | 1 = autocast enabled |
 | int32 | Level | Ability level |
 
-#### Hero Data (Heroes Only)
-
-Present only if TypeID starts with capital letter (hero unit).
-
-| Type | Field | Description |
-|------|-------|-------------|
-| int32 | Level | Hero level |
-| int32 | StrBonus | Strength bonus (from tomes) |
-| int32 | AgiBonus | Agility bonus |
-| int32 | IntBonus | Intelligence bonus |
-| int32 | ItemCount | Inventory item count |
-
-For each inventory item:
-
-| Type | Field | Description |
-|------|-------|-------------|
-| int32 | Slot | Inventory slot (0-5) |
-| char(4) | ItemID | Item type |
-
 #### Random Unit Data
 
 | Type | Field | Description |
 |------|-------|-------------|
-| int32 | RandomFlag | 0=normal, 1=random level, 2=random group |
+| int32 | RandomFlag | 0 = by level (or not random), 1 = from a random group, 2 = from its own list |
 
-If RandomFlag == 1 (random from level):
+If RandomFlag == 0 (every unit that isn't random holds 0 and filler bytes here):
 
 | Type | Field | Description |
 |------|-------|-------------|
-| char(3) | Prefix | "YYU" for unit, "YYI" for item |
-| byte | LevelChar | '0'-'9' or 'A'-'Z' (level 0-35) |
+| byte(3) | Level | Level, 24-bit (-1 = any); a `YYU1`-style id names it in its last character instead |
+| byte | ItemClass | Item class for random items (0 = any) |
 
-If RandomFlag == 2 (random from group):
+If RandomFlag == 1 (from a random group, war3map.w3i):
 
 | Type | Field | Description |
 |------|-------|-------------|
 | int32 | GroupIndex | Random group table index |
-| int32 | Position | Position within group |
+| int32 | Position | Column within the group |
+
+If RandomFlag == 2 (from its own list):
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | Count | Number of choices |
+
+For each choice: char(4) unit id, int32 chance (percent).
+
+#### Custom Colour
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | Colour | -1 = the owner's colour, else a player colour index |
 
 #### Waygate Destination
 
