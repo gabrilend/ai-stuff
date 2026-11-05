@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+#
+# phase-2-demo - the canvas for viewers: what phase 2 built, running.
+#
+# Plays the phase 1 series (src/018-phase-1-series.lua) into the real
+# blitter, with the real canvas server (src/025-canvas-server.lua) serving
+# its canvas files on 127.0.0.1, while two readers watch: one on the canvas
+# files in RAM, one holding GET /canvas?after= requests on the server. Each
+# version is drawn with its marks coloured by voice and dimmed by age, with
+# the blitter's own mark numbers for it, how long it took to reach each
+# reader, and whether the two copies are byte for byte equal. It ends with
+# each program's numbers, checked against each other.
+#
+# It runs in a throwaway copy of the project (src/, libs/ and scripts/ linked
+# in, its own input/ and RAM tiers), so nothing already running on the
+# project is touched, and the copy is removed at the end. The server listens
+# on 127.0.0.1 only, on a free port.
+#
+# Usage:
+#   issues/completed/demos/phase-2-demo [<dir>] [--plain] [--keep]
+#     <dir>     the project (run-phase-demo passes it)
+#     --plain   show marks as letters under each row instead of colours
+#               (the default when the output is not a terminal)
+#     --keep    leave the throwaway copy, to read its logs and receipts
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+PLAIN=""
+KEEP=""
+for ARG in "$@"; do
+    case "${ARG}" in
+        --plain) PLAIN="--plain" ;;
+        --keep) KEEP="yes" ;;
+        *) DIR="${ARG}" ;;
+    esac
+done
+if [ ! -f "${DIR}/src/016-blitter.lua" ] || [ ! -f "${DIR}/src/025-canvas-server.lua" ]; then
+    echo "phase-2-demo: ${DIR} is not the guide-feature project" >&2
+    exit 1
+fi
+
+BASE="$(mktemp -d)"
+ROOT="${BASE}/guide-feature"
+mkdir -p "${ROOT}/input" "${ROOT}/output" "${BASE}/exec" "${BASE}/shm" \
+    "${BASE}/readers/files" "${BASE}/readers/http"
+for LINK in src libs scripts; do
+    ln -s "${DIR}/${LINK}" "${ROOT}/${LINK}"
+done
+export EXEC_TIER_ROOT="${BASE}/exec"
+export ARTIFACT_TIER_ROOT="${BASE}/shm"
+
+# Waits up to three seconds for a process to end.
+wait_for_end() {
+    for _ in $(seq 30); do
+        kill -0 "$1" 2>/dev/null || return 0
+        sleep 0.1
+    done
+}
+
+# Whatever happens, everything the demo started is stopped (the readers by
+# their stop files, the server and the blitter by TERM, which their wrappers
+# turn into a clean stop) and the copy is removed.
+clean_up() {
+    for READER in files http; do
+        : > "${BASE}/readers/${READER}/stop" 2>/dev/null
+    done
+    for NAME in files-reader http-reader canvas-server blitter; do
+        [ -f "${BASE}/${NAME}.pid" ] || continue
+        PID="$(cat "${BASE}/${NAME}.pid")"
+        case "${NAME}" in
+            *-reader) wait_for_end "${PID}"; kill "${PID}" 2>/dev/null ;;
+            *) kill -0 "${PID}" 2>/dev/null && kill -TERM "${PID}" 2>/dev/null
+               wait_for_end "${PID}" ;;
+        esac
+    done
+    if [ -n "${KEEP}" ]; then
+        echo "kept the throwaway project at ${ROOT}"
+    else
+        rm -rf "${BASE}"
+    fi
+}
+trap clean_up EXIT
+trap 'exit 130' INT TERM
+
+luajit "${DIR}/issues/completed/demos/phase-2-demo.lua" \
+    --dir "${DIR}" --root "${ROOT}" --base "${BASE}" ${PLAIN}

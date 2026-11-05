@@ -51,3 +51,26 @@ moves the phase toward its goals.)
   lorem-ipsum example of the exact shape and cuts a reply too large;
   `viewer.layout` centres a smaller canvas. Running the turns and a
   blitter per canvas wait for 404, 405 and the display programs.
+- **206, the phase 2 demo** (2026-11-05): `issues/completed/demos/phase-2-demo`
+  (also `./run-phase-demo 2`) plays the phase 1 series into the real
+  blitter, with the real canvas server on 127.0.0.1, while two readers
+  watch: one on the canvas files, one holding `GET /canvas?after=`. Each
+  version is drawn with its marks coloured by voice and dimmed by age (or
+  as letters under each row), with the blitter's mark numbers, the marks by
+  age, the time to each reader, and the two copies checked byte for byte
+  against `canvas/history`. Every number is checked against the programs'
+  receipts at the end.
+
+## Phase 2 is complete
+
+All of phase 2's issues (201-206) are done, and its demo runs. The goal in
+`docs/roadmap.md` is met: two readers, one on files and one on HTTP,
+receive identical versions while the marks age. Left for the owner's
+machine:
+- the canvas server on kuvalu at its real port, with the router forwarding
+  it;
+- the encrypted canvas (803);
+- the screen modes with real screens being watched;
+- the demo's colours in a real terminal.
+
+What 205 leaves behind seams is listed in its issue.
