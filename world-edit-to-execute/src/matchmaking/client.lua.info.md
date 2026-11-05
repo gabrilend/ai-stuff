@@ -49,7 +49,9 @@ A connection is in at most one lobby: asking for a second raises.
 
 - **Fields:** `game_id`, `player_id` (ours), `is_host`, `state` ("opening",
   "waiting", "in_progress", "closed"), `players` (`player_id`, `name`,
-  `ready`), `host_connection` once started.
+  `ready`), `host_id` (the host's player id: always the first player),
+  `game` (the game it was opened or joined from, when known),
+  `host_connection` once started.
 - **`lobby:send_chat(text)`**, **`lobby:set_ready(bool)`**,
   **`lobby:leave()`** (a host's lobby is unregistered),
   **`lobby:start_game()`** and **`lobby:set_max_players(n)`** (the host
@@ -57,12 +59,16 @@ A connection is in at most one lobby: asking for a second raises.
   endpoint, issue 801d: a player's goes to the host, the host's to the
   player named; an empty or missing ip asks the server to fill in the
   address it sees), **`lobby:get_players()`**,
-  **`lobby:get_host_connection() -> {ip, port}`**. Sending in a lobby that
+  **`lobby:get_host_connection() -> {ip, port}`**, and (801e)
+  **`lobby:kick(player_id)`** and **`lobby:cancel_start()`** (the host
+  only), **`lobby:starting_in() -> seconds`** (nil with no countdown).
+  Sending in a lobby that
   is not waiting or in progress raises.
-- **Events:** `player_join(player)`, `player_leave(player)` (as it was
-  before it left), `player_ready(player, ready)`, `chat(player, text)`,
+- **Events:** `player_join(player)`, `player_leave(player, how)` (as it
+  was before it left; how is "left" or "kicked"), `countdown(seconds)`,
+  `countdown_cancel(player)` (who stopped it), `player_ready(player, ready)`, `chat(player, text)`,
   `game_start({ip, port})` (where the host is), `nat_punch({player_id, ip,
-  port})`, `closed(why)`: "left", "the lobby closed" (its host closed it
+  port})`, `closed(why)`: "left", "kicked by the host", "the lobby closed" (its host closed it
   or the server timed it out) or "disconnected".
 
 **The core**, for tests and other transports: **`client.new(options)`** (a

@@ -170,6 +170,7 @@ function receive.JOIN_ACK(self, m)
     local lobby = self.lobby
     if not lobby or lobby.state ~= "opening" then return "a JOIN_ACK not asked for" end
     lobby.game_id, lobby.player_id, lobby.players = m.game_id, m.player_id, m.players
+    lobby.host_id = m.players[1] and m.players[1].player_id      -- the host is always the first player
     lobby.state = "waiting"
     self.log("in lobby " .. m.game_id .. " as player " .. m.player_id)
     if lobby.callback then lobby.callback(lobby) end
@@ -195,10 +196,18 @@ function receive.LOBBY_UPDATE(self, m)
     lobby.players = m.players
     if m.event == "join" then
         emit(lobby, "player_join", player_in(m.players, m.player_id))
-    elseif m.event == "leave" then
-        emit(lobby, "player_leave", player_in(before, m.player_id) or { player_id = m.player_id })
+    elseif m.event == "leave" or m.event == "kick" then
+        if m.player_id == lobby.player_id then return close_lobby(self, "kicked by the host") end
+        emit(lobby, "player_leave", player_in(before, m.player_id) or { player_id = m.player_id },
+            m.event == "kick" and "kicked" or "left")
     elseif m.event == "ready" or m.event == "unready" then
         emit(lobby, "player_ready", player_in(m.players, m.player_id), m.event == "ready")
+    elseif m.event == "countdown" then
+        lobby.start_at = self.clock() + (m.seconds or 0)
+        emit(lobby, "countdown", m.seconds or 0)
+    elseif m.event == "cancel" then
+        lobby.start_at = nil
+        emit(lobby, "countdown_cancel", player_in(m.players, m.player_id) or { player_id = m.player_id })
     end
 end
 
@@ -211,7 +220,7 @@ end
 function receive.GAME_START(self, m)
     local lobby = ours(self, m)
     if not lobby then return "a GAME_START of another lobby" end
-    lobby.state = "in_progress"
+    lobby.state, lobby.start_at = "in_progress", nil
     lobby.host_connection = { ip = m.host_ip, port = m.host_port }
     emit(lobby, "game_start", lobby.host_connection)
 end
@@ -339,7 +348,7 @@ function Conn:create_lobby(game, callback)
     m.asset_packs = m.asset_packs or {}
     one_lobby(self)
     send(self, "REGISTER_GAME", m)
-    local lobby = setmetatable({ handlers = {}, conn = self, is_host = true, state = "opening", players = {} }, Lobby)
+    local lobby = setmetatable({ handlers = {}, conn = self, is_host = true, state = "opening", players = {}, game = m }, Lobby)
     return open_lobby(self, lobby, callback)
 end
 -- }}}
@@ -352,7 +361,8 @@ function Conn:join_game(game, name, callback)
     local id = type(game) == "table" and (game.game_id or game.id) or game
     one_lobby(self)
     send(self, "JOIN_GAME", { game_id = id, player_name = name or self.options.name })
-    local lobby = setmetatable({ handlers = {}, conn = self, is_host = false, state = "opening", players = {} }, Lobby)
+    local lobby = setmetatable({ handlers = {}, conn = self, is_host = false, state = "opening", players = {},
+        game = type(game) == "table" and game or nil }, Lobby)
     return open_lobby(self, lobby, callback)
 end
 -- }}}
@@ -393,6 +403,27 @@ function Lobby:start_game()
     if not self.is_host then error("matchmaking client: only the host starts the game", 0) end
     live(self, "start")
     send(self.conn, "START_GAME", { game_id = self.game_id })
+end
+
+-- Stops the countdown before the start (801e).
+function Lobby:cancel_start()
+    if not self.is_host then error("matchmaking client: only the host stops the countdown", 0) end
+    live(self, "a cancel")
+    send(self.conn, "LOBBY_UPDATE", { game_id = self.game_id, event = "cancel", player_id = self.player_id, players = {} })
+end
+
+-- Sends a player out of the lobby (801e).
+function Lobby:kick(player_id)
+    if not self.is_host then error("matchmaking client: only the host kicks", 0) end
+    if player_id == self.player_id then error("matchmaking client: the host can't kick itself; leave instead", 0) end
+    live(self, "a kick")
+    send(self.conn, "LEAVE_GAME", { game_id = self.game_id, player_id = player_id })
+end
+
+-- Seconds until the game starts, while a countdown runs; nil otherwise.
+function Lobby:starting_in()
+    if not self.start_at then return nil end
+    return math.max(0, self.start_at - self.conn.clock())
 end
 
 function Lobby:set_max_players(n)

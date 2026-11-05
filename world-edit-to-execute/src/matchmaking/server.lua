@@ -31,7 +31,14 @@ Who may do what (decisions of 2026-11-05, in the issue):
   - Chat goes to every member, the sender among them, its player id
     stamped by the server.
   - START_GAME from the host sends GAME_START to every member with the
-    host's address as the server sees it and the port it registered.
+    host's address as the server sees it and the port it registered;
+    with countdown_seconds above 0 (801e), it first sends LOBBY_UPDATE
+    "countdown" with the seconds, and GAME_START follows when they are
+    up. A player leaving, kicked or unready, or the host sending
+    LOBBY_UPDATE "cancel", stops the countdown: LOBBY_UPDATE "cancel",
+    and the lobby waits again. Nobody joins during a countdown.
+  - LEAVE_GAME from the host naming a player kicks that player (801e):
+    every member, the kicked one among them, gets LOBBY_UPDATE "kick".
   - NAT_PUNCH from a player goes to the host, and from the host to the
     player it names; the player id is rewritten to the sender's, and an
     empty ip is filled with the sender's address as the server sees it.
@@ -60,6 +67,7 @@ server.DEFAULTS = {
     rate_burst = 100,                 -- ...and at most this many at once
     max_output_bytes = 4194304,       -- unsent bytes a connection may pile up
     max_name = 64,                    -- bytes in a player's name
+    countdown_seconds = 0,            -- seconds from START_GAME to GAME_START (801e); 0 starts at once
 }
 
 -- {{{ server.new
@@ -143,8 +151,18 @@ local function close_lobby(self, lobby, why)
     self.log("lobby " .. lobby.game_id .. " closed: " .. why)
 end
 
--- `conn` leaves its lobby: the lobby closes if it was the host.
-local function leave(self, conn, why)
+-- A countdown stops: the lobby waits again and every member hears why.
+local function cancel_countdown(self, lobby, player_id, why)
+    if lobby.state ~= "countdown" then return end
+    lobby.state, lobby.start_at = "waiting", nil
+    broadcast(self, lobby, "LOBBY_UPDATE", { game_id = lobby.game_id, event = "cancel",
+        player_id = player_id, players = players_of(self, lobby) })
+    self.log("lobby " .. lobby.game_id .. ": countdown stopped, " .. why)
+end
+
+-- `conn` leaves its lobby: the lobby closes if it was the host. With
+-- `kicked`, the event is "kick" and the kicked player hears it too.
+local function leave(self, conn, why, kicked)
     local lobby = conn.lobby
     if not lobby then return end
     if lobby.host == conn.id then return close_lobby(self, lobby, "its host " .. why) end
@@ -154,9 +172,12 @@ local function leave(self, conn, why)
     end
     conn.lobby, conn.player = nil, nil
     lobby.last_active = self.clock()
-    broadcast(self, lobby, "LOBBY_UPDATE", { game_id = lobby.game_id, event = "leave",
-        player_id = player_id, players = players_of(self, lobby) })
+    local update = { game_id = lobby.game_id, event = kicked and "kick" or "leave",
+        player_id = player_id, players = players_of(self, lobby) }
+    broadcast(self, lobby, "LOBBY_UPDATE", update)
+    if kicked and conn.open then send(self, conn, "LOBBY_UPDATE", update) end
     self.log("lobby " .. lobby.game_id .. ": player " .. player_id .. " " .. why)
+    cancel_countdown(self, lobby, player_id, "player " .. player_id .. " " .. why)
 end
 
 local function good_name(self, name)
@@ -261,6 +282,7 @@ function handlers.JOIN_GAME(self, conn, m)
     if conn.lobby then return reject("already in lobby " .. conn.lobby.game_id) end
     local lobby = self.lobbies[m.game_id]
     if not lobby then return reject("no such game") end
+    if lobby.state == "countdown" then return reject("the game is starting") end
     if lobby.state ~= "waiting" then return reject("the game has started") end
     if #lobby.members >= lobby.max_players then return reject("the lobby is full") end
     if not good_name(self, m.player_name) then return reject("a name is 1 to " .. self.config.max_name .. " bytes") end
@@ -277,30 +299,59 @@ function handlers.JOIN_GAME(self, conn, m)
 end
 
 function handlers.LEAVE_GAME(self, conn, m)
-    if not own_lobby(conn, m.game_id) then return "LEAVE_GAME of a lobby it is not in" end
-    leave(self, conn, "left")
+    local lobby, host = own_lobby(conn, m.game_id)
+    if not lobby then return "LEAVE_GAME of a lobby it is not in" end
+    if not m.player_id then return leave(self, conn, "left") end
+    if not host then return "a kick from a player" end
+    if lobby.state ~= "waiting" and lobby.state ~= "countdown" then return "a kick after the game started" end
+    for _, id in ipairs(lobby.members) do
+        local c = self.conns[id]
+        if id ~= conn.id and c.player.player_id == m.player_id then
+            return leave(self, c, "was kicked by the host", true)
+        end
+    end
+    return "a kick of player " .. m.player_id .. ", not in lobby " .. lobby.game_id
 end
 
 function handlers.LOBBY_UPDATE(self, conn, m)
-    local lobby = own_lobby(conn, m.game_id)
+    local lobby, host = own_lobby(conn, m.game_id)
     if not lobby then return "LOBBY_UPDATE of a lobby it is not in" end
+    if m.event == "cancel" then
+        if not host then return "a cancel from a player" end
+        if lobby.state ~= "countdown" then return "a cancel with no countdown" end
+        lobby.last_active = self.clock()
+        return cancel_countdown(self, lobby, conn.player.player_id, "cancelled by the host")
+    end
     if m.event ~= "ready" and m.event ~= "unready" then return "LOBBY_UPDATE " .. m.event .. " from a player" end
-    if lobby.state ~= "waiting" then return "LOBBY_UPDATE after the game started" end
+    if lobby.state ~= "waiting" and lobby.state ~= "countdown" then return "LOBBY_UPDATE after the game started" end
     conn.player.ready = m.event == "ready"
     lobby.last_active = self.clock()
     broadcast(self, lobby, "LOBBY_UPDATE", { game_id = lobby.game_id, event = m.event,
         player_id = conn.player.player_id, players = players_of(self, lobby) })
+    if m.event == "unready" then
+        cancel_countdown(self, lobby, conn.player.player_id, "player " .. conn.player.player_id .. " is not ready")
+    end
+end
+
+local function start_now(self, lobby)
+    local host = self.conns[lobby.host]
+    lobby.state = "starting"
+    broadcast(self, lobby, "GAME_START", { game_id = lobby.game_id, host_ip = host.ip, host_port = lobby.host_port })
+    lobby.state, lobby.start_at = "in_progress", nil
+    self.log("lobby " .. lobby.game_id .. " started with " .. #lobby.members .. " players")
 end
 
 function handlers.START_GAME(self, conn, m)
     local lobby, host = own_lobby(conn, m.game_id)
     if not host then return "START_GAME of a lobby it does not host" end
     if lobby.state ~= "waiting" then return "START_GAME twice" end
-    lobby.state = "starting"
     lobby.last_active = self.clock()
-    broadcast(self, lobby, "GAME_START", { game_id = lobby.game_id, host_ip = conn.ip, host_port = lobby.host_port })
-    lobby.state = "in_progress"
-    self.log("lobby " .. lobby.game_id .. " started with " .. #lobby.members .. " players")
+    local seconds = self.config.countdown_seconds
+    if seconds <= 0 then return start_now(self, lobby) end
+    lobby.state, lobby.start_at = "countdown", self.clock() + seconds
+    broadcast(self, lobby, "LOBBY_UPDATE", { game_id = lobby.game_id, event = "countdown",
+        player_id = conn.player.player_id, players = players_of(self, lobby), seconds = math.ceil(seconds) })
+    self.log("lobby " .. lobby.game_id .. " starts in " .. seconds .. " seconds")
 end
 
 function handlers.NAT_PUNCH(self, conn, m)
@@ -449,7 +500,9 @@ function server:sweep()
     table.sort(gids)
     for _, gid in ipairs(gids) do
         local l = self.lobbies[gid]
-        if l and now - l.last_active >= self.config.lobby_timeout_seconds then
+        if l and l.state == "countdown" and now >= l.start_at then
+            start_now(self, l)
+        elseif l and now - l.last_active >= self.config.lobby_timeout_seconds then
             close_lobby(self, l, "quiet for " .. self.config.lobby_timeout_seconds .. " seconds")
         end
     end
