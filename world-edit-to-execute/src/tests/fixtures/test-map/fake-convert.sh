@@ -14,6 +14,9 @@
 #   toonew    as ok, the report's format 2
 #   fail      exits with code 2
 #   slow      takes a second, then as ok
+#   stamped   as ok, the report also holding when it was written and how
+#             long that took, as W02's real report does (so it differs on
+#             every conversion of the same map)
 mode="$1" map="$2" build="$3"
 [[ -f "${map}" ]] || { echo "no map ${map}" >&2; exit 1; }
 case "${mode}" in
@@ -32,10 +35,12 @@ case "${mode}" in
     badplace) scale='"wide"' ;;
     toonew)   format=2 ;;
 esac
+written=""
+[[ "${mode}" == stamped ]] && written="written = \"$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)\", seconds = 0.$(date +%N),"
 if [[ "${placement}" == yes ]]; then
     cat > "${report}" <<EOF
 -- the fake converter's report
-return { format = ${format}, map = "fake", placement = { client = {
+return { format = ${format}, map = "fake", ${written} placement = { client = {
     scale = ${scale}, x0 = 1000, y0 = 2000, wc3_min = { -5000, -5000 }, wc3_max = { 5000, 5000 } } } }
 EOF
 elif [[ "${placement}" == none ]]; then

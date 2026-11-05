@@ -567,7 +567,187 @@ do
         local tx, ty = coords.client_adt(tonumber(cx) or 0, tonumber(cy) or 0)
         local adt_file = string.format("%s/build/World/Maps/WC3_Daow4_4/WC3_Daow4_4_%d_%d.adt", base2, tx, ty)
         test("the ADT the W client opens there is one the converter wrote", read(adt_file) ~= nil, adt_file)
+        -- (2026-11-05) F5 again on the unchanged map: W02's report is written
+        -- anew (when, and how long it took), and the server is still reused
+        local starts = count_lines(base2 .. "/starts")
+        T2:start(); T2:wait(60)
+        test("W02's converter, a second F5 on the unchanged map: the server is reused",
+            T2.last.outcome == "closed" and count_lines(base2 .. "/starts") == starts,
+            starts .. " then " .. count_lines(base2 .. "/starts"))
         T2:close()
+    end
+end
+-- }}}
+
+-- {{{ The W client's contract as it stands (its issue 1109, 2026-11-05)
+test_section("The W client's contract, checked before a run")
+do
+    local function tm_with(t)
+        local x = { password = PASSWORD, account = "tester" }
+        for k, v in pairs(t or {}) do if v == false then x[k] = nil else x[k] = v end end  -- false: left out
+        return x
+    end
+    local B, R = "/tmp/build", "/tmp/log/receipt.lua"
+    local function check(name, t, host, port, words, build, rec)
+        local ok, why = test_map.check_launch(tm_with(t), host or "127.0.0.1", port or 3724, build or B, rec or R)
+        if words then
+            test(name .. ": refused, saying why", ok == nil and (why or ""):find(words, 1, true) ~= nil, why)
+        else
+            test(name, ok == true, why)
+        end
+    end
+    check("a launch the W client takes", {})
+    check("no account: the W client takes none", { account = false })
+    check("no password", { password = false }, nil, nil, "W_CLIENT_PASSWORD")
+    check("an empty password", { password = "" }, nil, nil, "W_CLIENT_PASSWORD")
+    check("a password of 255 bytes", { password = string.rep("p", 255) })
+    check("a password of 256 bytes", { password = string.rep("p", 256) }, nil, nil, "255 bytes")
+    check("an account of 63 characters", { account = string.rep("a", 63) })
+    check("an account of 64 characters", { account = string.rep("a", 64) }, nil, nil, "1 to 63")
+    check("an account with a space", { account = "my tester" }, nil, nil, "no spaces")
+    check("an account with a control byte", { account = "te\tster" }, nil, nil, "no spaces")
+    check("an account starting with --", { account = "--x" }, nil, nil, "starting with --")
+    check("an IPv6 host", {}, "::1", nil, "no IPv6")
+    check("an empty host", {}, "", nil, "test_map.server.host")
+    check("a host with a space", {}, "local host", nil, "test_map.server.host")
+    check("port 0", {}, nil, 0, "1 to 65535")
+    check("port 65536", {}, nil, 65536, "1 to 65535")
+    check("a port that isn't whole", {}, nil, 3724.5, "1 to 65535")
+    check("a build folder of 599 bytes", {}, nil, nil, nil, "/" .. string.rep("b", 598))
+    check("a build folder of 600 bytes", {}, nil, nil, "build folder", "/" .. string.rep("b", 599))
+    check("a receipt path of 579 bytes", {}, nil, nil, nil, nil, "/" .. string.rep("r", 578))
+    check("a receipt path of 580 bytes", {}, nil, nil, "receipt", nil, "/" .. string.rep("r", 579))
+
+    -- a run the W client would refuse stops before anything is saved,
+    -- converted or started
+    local s, base = fake_settings("contract1")
+    s.test_map.password = nil
+    local saved = false
+    local T = new_run(s, { save = function() saved = true return TMP .. "/edited.w3x" end })
+    test("no password: F5 stops at once, naming W_CLIENT_PASSWORD", T:start() == nil and not T:busy()
+        and T.last.outcome == "failed" and T.last.message:find("W_CLIENT_PASSWORD", 1, true) ~= nil, T.last and T.last.message)
+    test("no password: nothing saved, converted or started", not saved and read(base .. "/build/map.cksum") == nil
+        and read(base .. "/starts") == nil and T.keeper.running == nil)
+    test("no password: the log says why", (read(base .. "/log/test-map.log") or ""):find("W_CLIENT_PASSWORD", 1, true) ~= nil)
+    s.test_map.password, s.test_map.account = PASSWORD, "my tester"
+    test("an account the W client refuses: stopped at once", T:start() == nil and T.last.outcome == "failed"
+        and T.last.message:find("isn't one the W client takes", 1, true) ~= nil and read(base .. "/starts") == nil, T.last.message)
+    T:close()
+
+    -- what the W client itself writes when it refuses (the fake does as the
+    -- real one does): an error receipt, read and shown as one
+    local s2, base2 = fake_settings("contract2")
+    local T2 = new_run(s2)
+    T2:start(); T2:wait(30)
+    local pids = server_pids(T2)
+    test("the W client's receipt in its own layout read (comment line, one field a line)",
+        T2.last.outcome == "closed" and (read(base2 .. "/log/receipt.lua") or ""):find("^%-%- the W client's goodbye receipt") ~= nil,
+        T2.last.message)
+    s2.test_map.w_client[2] = "error"
+    T2:start(); T2:wait(30)
+    test("an error receipt's why read back byte for byte (quotes, backslashes, a new line)",
+        T2.last.outcome == "error" and T2.last.receipt.why == 'The map ground tiles are missing: "World\\Maps\\x"\n(two lines).',
+        T2.last.receipt and T2.last.receipt.why)
+    -- the editor's check passed over (as if an older editor launched it):
+    -- the W client's own refusal still comes back as an error, not a crash
+    s2.test_map.w_client[2] = "closed"
+    local real_check = test_map.check_launch
+    test_map.check_launch = function() return true end
+    s2.test_map.password = nil
+    T2:start(); T2:wait(30)
+    test_map.check_launch = real_check
+    s2.test_map.password = PASSWORD
+    test("the W client's own refusal of a missing password: its error receipt shown",
+        T2.last.outcome == "error" and T2.last.message:find("password from W_CLIENT_PASSWORD, and it is not set", 1, true) ~= nil,
+        T2.last.message)
+
+    -- the build's stamp leaves out the converter's report, which holds when
+    -- it was written: an unchanged map reuses the server
+    s2.test_map.convert[2] = "stamped"
+    T2:start(); T2:wait(30)
+    local before = count_lines(base2 .. "/starts")
+    local report1 = read(base2 .. "/build/conversion-report.lua")
+    T2:start(); T2:wait(30)
+    test("the converter's two reports differ (when written, how long)", report1 ~= nil
+        and report1 ~= read(base2 .. "/build/conversion-report.lua"))
+    test("a report written anew each time doesn't start the server again", T2.last.outcome == "closed"
+        and count_lines(base2 .. "/starts") == before and proc.alive(pids[1]),
+        before .. " then " .. count_lines(base2 .. "/starts"))
+
+    -- WETE: scripts/run finds this project by it
+    local args = read(base2 .. "/log/fake-w-client.args") or ""
+    local want = os.getenv("WETE")
+    if want == nil or want == "" then want = DIR:sub(1, 1) == "/" and DIR or ((os.getenv("PWD") or ".") .. "/" .. DIR) end
+    test("WETE given to the W client: this project, or the one already set", args:find("wete=" .. want .. "\n", 1, true) ~= nil, args)
+
+    -- scripts/run named alone: given its client's folder as its first word
+    local client = TMP .. "/w-client-alone"
+    os.execute("mkdir -p " .. proc.quote(client .. "/scripts"))
+    write(client .. "/scripts/run", "#!/bin/bash\n# as the W client's scripts/run: the folder first, then the options\n"
+        .. "dir=\"$1\"; shift\nexec " .. proc.quote(FIX .. "/fake-w-client.sh") .. " \"$dir\" closed \"$@\"\n")
+    os.execute("chmod +x " .. proc.quote(client .. "/scripts/run"))
+    s2.test_map.w_client = { client .. "/scripts/run" }
+    T2:start(); T2:wait(30)
+    args = read(base2 .. "/log/fake-w-client.args") or ""
+    test("scripts/run named alone gets its client's folder first", T2.last.outcome == "closed"
+        and args:find("client-dir=" .. client .. "\n", 1, true) ~= nil, args)
+    test("test_map.client_folder: only a scripts/run", test_map.client_folder("/a/b/scripts/run") == "/a/b"
+        and test_map.client_folder("/a/b/w-client") == nil and test_map.client_folder("/a/scripts/run2") == nil)
+    T2:close()
+end
+
+-- the W client's own receipt writer (its src/068-goodbye.c), compiled here
+-- when its sources are found ($W_CLIENT_SRC, else the owner's checkout):
+-- what it writes is what receipt.read takes, byte for byte
+do
+    local src = os.getenv("W_CLIENT_SRC") or "/mnt/kaun/custom-client/src"
+    local have = read(src .. "/068-goodbye.c") and read(src .. "/013-errors.c")
+    local cc = shell("command -v cc 2>/dev/null"):gsub("%s+$", "")
+    if not have or cc == "" then
+        print("  [SKIP] the W client's own receipt writer: " .. (have and "no C compiler" or ("no " .. src .. "/068-goodbye.c")))
+    else
+        local driver = TMP .. "/goodbye-driver.c"
+        write(driver, [[
+#include "068-goodbye.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+/* receipt map reason why frames: as the W client ends a run */
+int main(int argc, char **argv)
+{
+    if (argc != 6) return 64;
+    Goodbye *g = NULL;
+    WWhy why = { W_OK, "" };
+    if (goodbye_begin(argv[1], argv[2], &g, &why)) { fprintf(stderr, "%s\n", why.text); return 1; }
+    for (int i = atoi(argv[5]); i > 0; --i) goodbye_frame(g);
+    GoodbyeReason r = !strcmp(argv[3], "closed") ? GOODBYE_CLOSED : !strcmp(argv[3], "error") ? GOODBYE_ERROR : GOODBYE_LOST_CONNECTION;
+    if (goodbye_end(g, r, argv[4], &why)) { fprintf(stderr, "%s\n", why.text); goodbye_free(g); return 1; }
+    goodbye_free(g);
+    return 0;
+}
+]])
+        local bin = TMP .. "/goodbye-driver"
+        local built = shell(cc .. " -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -I" .. proc.quote(src) .. " "
+            .. proc.quote(driver) .. " " .. proc.quote(src .. "/068-goodbye.c") .. " " .. proc.quote(src .. "/013-errors.c")
+            .. " -o " .. proc.quote(bin) .. " 2>&1 && echo built")
+        test("the W client's receipt writer builds", built:find("built", 1, true) ~= nil, built)
+        local function goodbye(map, reason, why, frames)
+            local path = TMP .. "/real-receipt.lua"
+            os.remove(path)
+            shell(proc.quote(bin) .. " " .. proc.quote(path) .. " " .. proc.quote(map) .. " " .. reason .. " "
+                .. proc.quote(why) .. " " .. frames .. " 2>&1")
+            return path
+        end
+        local map = "/home/me/maps/daow \"4.4\" \\ build\nnext\1 caf\195\169"
+        local r, why = receipt.read(goodbye(map, "closed", "", 9873), map)
+        test("its closed receipt read, the map's path byte for byte (quotes, a backslash, a new line, a control byte, UTF-8)",
+            r and r.reason == "closed" and r.frames == 9873 and r.map == map and r.why == nil, why)
+        local sentence = "no ground at the start (12.5, -300) in map 900 from \"World\\Maps\\WC3_Daow4_4\"\n\tsecond line"
+        r, why = receipt.read(goodbye(map, "error", sentence, 0), map)
+        test("its error receipt read, the why byte for byte", r and r.reason == "error" and r.why == sentence, why)
+        r, why = receipt.read(goodbye(map, "lost", "", 3), map)
+        test("its lost-connection receipt read", r and r.reason == "lost-connection" and r.frames == 3, why)
+        test("what it writes is what describe() shows", r and receipt.describe(r):find("lost its connection", 1, true) ~= nil)
     end
 end
 -- }}}
@@ -587,7 +767,7 @@ do
         "local s = { path = 'x', found = true, test_map = {",
         "  convert = { " .. lit(FIX .. "/fake-convert.sh") .. ", 'ok' }, convert_seconds = 20,",
         "  build_dir = " .. lit(base .. "/build") .. ", log_dir = " .. lit(base .. "/log") .. ",",
-        "  w_client = { " .. lit(FIX .. "/fake-w-client.sh") .. ", 'hang' },",
+        "  w_client = { " .. lit(FIX .. "/fake-w-client.sh") .. ", 'hang' }, password = 'x',",
         "  server = { host = '127.0.0.1', login_port = " .. s.test_map.server.login_port .. ", start_seconds = 10, stop_seconds = 2,",
         "    programs = { { name = 'authserver', port = " .. s.test_map.server.login_port .. ", command = { 'luajit', "
             .. lit(FIX .. "/fake-server.lua") .. ", '" .. s.test_map.server.login_port .. "', " .. lit(base .. "/starts") .. ", '{build}' } } } } } }",

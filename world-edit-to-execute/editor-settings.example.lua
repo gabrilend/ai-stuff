@@ -22,12 +22,20 @@ return {
         -- the editor after these) through unchanged (W client issue 1109).
         -- A failure inside scripts/run before the client starts (a failed
         -- build, no data) leaves no receipt, so it is reported as a crash.
+        -- Named alone, scripts/run is given the folder above scripts/ as
+        -- its first word (2026-11-05: without it, scripts/run runs its own
+        -- default folder wherever it is); give more words to choose them.
+        -- The W client is given WETE (this project's folder, unless WETE is
+        -- already set), where scripts/run finds the tables it makes the
+        -- baseline set from.
         w_client = nil,                            -- e.g. { "/path/to/custom-client/scripts/run" }
         w_client_dir = nil,                        -- where it runs; the folder above scripts/ when unset
 
         -- the local AzerothCore's test account. The name may be here or in
-        -- $W_CLIENT_ACCOUNT; the password is better kept in
-        -- $W_CLIENT_PASSWORD than here. The editor never writes it down.
+        -- $W_CLIENT_ACCOUNT (1 to 63 characters, no spaces); the password is
+        -- better kept in $W_CLIENT_PASSWORD than here. The W client needs a
+        -- password in every test-map run, so Test Map stops before
+        -- anything else when there is none. The editor never writes it down.
         account = nil,
 
         server = {
