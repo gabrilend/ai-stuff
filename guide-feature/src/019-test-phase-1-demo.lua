@@ -229,7 +229,10 @@ if kept then shell("rm -rf '" .. string.match(kept, "^(.*)/[^/]+$") .. "'") end
 io.write("\n=== the demo through run-phase-demo ===\n")
 -- {{{
 local listed = shell("'" .. DIR .. "/run-phase-demo' '" .. DIR .. "' 9")
-check("run-phase-demo offers phase 1", has(listed, "Phases with one: 1"), listed)
+check("run-phase-demo offers phase 1",
+    string.match(listed, "Phases with one: ([%d ]+)") ~= nil
+    and (" " .. string.match(listed, "Phases with one: ([%d ]+)") .. " "):find(" 1 ", 1, true) ~= nil,
+    listed)
 local again, again_status = shell("'" .. DIR .. "/run-phase-demo' '" .. DIR .. "' 1")
 check("run-phase-demo runs it, plain when the output is not a terminal",
     again_status == 0 and has(again, "are marked ^ below them") and not has(again, "\27["))
