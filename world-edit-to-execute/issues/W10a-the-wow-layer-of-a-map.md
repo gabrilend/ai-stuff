@@ -168,3 +168,10 @@ now come from its WDT's MAIN, read through the W client's `wdt_read`
 (098-wdt.c, custom-client draft PR #25). A listed tile whose file is
 missing, and an ADT the WDT doesn't list, are told apart. The files present
 are used only when the reader library has no `wdt_read`.
+
+*(2026-11-05, W10h)* The folder's forms that the editor writes beside
+the maps (`DBFilesClient/*.dbc`, `server/dbc.sql`, `server/dbc/*.dbc`,
+`patch-W.MPQ`) are now part of a project's WoW layer
+(`mapfile.wow_form`): `validate_wow` no longer warns about them, and
+`build_wow` carries them out with the maps
+(`W10h-patch-w-never-behind-and-more-areas.md` decision 4).

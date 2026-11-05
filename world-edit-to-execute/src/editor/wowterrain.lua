@@ -951,9 +951,12 @@ end
 -- every edited tile written over its file (the file as it stands is what
 -- is patched), and the map's WDL with the far view of the tiles whose
 -- ground or holes changed (editor/wowwdl.lua); with the map's own areas
--- changed (W10g, editor/wowareas.lua), its registration.lua and the
--- folder's tables (wowbuild.output: the overlay's DBFilesClient, the
--- server's SQL, patch-W.MPQ). The map's files written, or nil and why
+-- changed (W10g, editor/wowareas.lua), its registration.lua; and after
+-- anything written to a map W02c registered, the folder's tables and
+-- patch-W.MPQ made again (W10h, wowareas.forms: the overlay's
+-- DBFilesClient, the server's SQL, patch-W.MPQ, or the old one removed
+-- when it can't be). The map's files written (m.forms: what else), or nil
+-- and why
 function wt.save(m)
     local tl = require("editor.wowtiles")
     local changed = m.tiles_changed or {}          -- tiles added or taken off (W10d, editor/wowtiles.lua)
@@ -1016,12 +1019,18 @@ function wt.save(m)
     end
     for _, d in ipairs(done) do if d.t then clean(d.t) end end
     tl.saved(m)
-    -- the map's own areas (W10g, editor/wowareas.lua): its registration,
-    -- then the folder's tables in every form
+    -- the map's own areas (W10g, editor/wowareas.lua): its registration;
+    -- then, after anything written, the folder's tables and patch-W.MPQ
+    -- made again, so it never carries what the folder no longer holds (W10h)
+    local ar = require("editor.wowareas")
     if m.areas_dirty then
-        local forms, fwhy = require("editor.wowareas").save(m)
-        if not forms then return nil, fwhy end
+        local ok, awhy = ar.save(m)
+        if not ok then return nil, awhy end
         written[#written + 1] = "registration.lua"
+    end
+    if #written > 0 then
+        local forms, fwhy = ar.forms(m)
+        if not forms then return nil, fwhy end
     end
     return written
 end
@@ -1286,8 +1295,12 @@ function wt.attach(E)
         local all = {}
         for _, m in pairs(self.wow_opened or {}) do
             local written, why = wt.save(m)
-            if not written then return nil, why end
+            if not written then self:say(why) return nil, why end
             for _, f in ipairs(written) do all[#all + 1] = m.directory .. "/" .. f end
+            -- what the folder's tables and patch-W.MPQ couldn't do (W10h)
+            if #written > 0 and m.forms then
+                for _, w in ipairs(m.forms.warnings or {}) do self:say(w) end
+            end
         end
         table.sort(all)
         if self.dirty then self.dirty.wow = false end

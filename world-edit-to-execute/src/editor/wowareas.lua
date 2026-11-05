@@ -18,7 +18,8 @@ the stock tables, the merged ones), and patch-W.MPQ.
     local row = ar.create(m, { name = "Hut Hollow", parent = zone, flags = { "town" } })
     ar.change(m, row.ID, { name = "...", flags = 0 })
     ar.delete(m, row.ID)                         -- refused while a chunk or an area uses it
-    ar.save(m)                                   -- registration.lua and the folder's tables
+    ar.save(m)                                   -- registration.lua, when its rows changed
+    ar.forms(m)                                  -- the folder's tables and patch-W.MPQ again (W10h)
 
 The ids and bits are W02c's scheme (wowbuild.registration): a slot's area
 block is 10 ids, the zone's and nine more (ids.area + 1 .. ids.area_last),
@@ -38,6 +39,9 @@ ar.FLAGS = {
     rest_horde = 0x400000, rest_alliance = 0x800000, no_fly = 0x20000000,
 }
 ar.NAME_LIMIT = 120
+-- the most areas a map has, its zone with them (W10h): its area block (10)
+-- and its second block (90)
+ar.MAX = registration.SCHEME.area.width + registration.SCHEME.area_more.width
 
 -- {{{ helpers
 local function read(path)
@@ -152,20 +156,35 @@ function ar.create(m, o)
     end
     local flags, fwhy = flags_of(o.flags)
     if not flags then return nil, fwhy end
-    local id
-    for k = 1, registration.SUBAREAS do
-        if not row_of(reg, ids.area + k) then id = ids.area + k break end
+    -- the id: the zone's block first (its next nine), then the slot's
+    -- second block (W10h: 90 more)
+    local id, k
+    for j = 1, registration.SUBAREAS do
+        if not row_of(reg, ids.area + j) then id, k = ids.area + j, j break end
     end
     if not id then
-        return nil, string.format("%s has %d areas besides its zone, all its ids (%d-%d)", m.directory,
-            registration.SUBAREAS, ids.area + 1, ids.area + registration.SUBAREAS)
+        local more = registration.ids(ids.slot or reg.slot or 0)
+        for n = more.area_more, more.area_more_last do
+            if not row_of(reg, n) then id = n break end
+        end
     end
+    if not id then
+        return nil, string.format("%s has %d areas besides its zone, all its ids", m.directory, ar.MAX - 1)
+    end
+    -- the bit: the slot's own for its first nine, else (or when that one is
+    -- taken) the lowest free bit of the block: the bits of the slots a
+    -- folder fills last (slots are taken lowest first)
     local used = used_bits(m, reg)
-    local bit = registration.subarea_bit(ids.slot or reg.slot or 0, id - ids.area)
-    if used[bit] then
+    local bit = k and registration.subarea_bit(ids.slot or reg.slot or 0, k)
+    if not bit or used[bit] then
         bit = nil
-        for b = registration.SUBAREA_BIT_TOP, 0, -1 do if not used[b] then bit = b break end end
-        if not bit then return nil, "no free explored-zones bit (AreaBit) under 4096" end
+        for b = registration.SUBAREA_BIT_FLOOR, registration.SUBAREA_BIT_TOP do
+            if not used[b] then bit = b break end
+        end
+        if not bit then
+            return nil, string.format("every explored-zones bit of the areas' block (%d-%d) is taken in this folder",
+                registration.SUBAREA_BIT_FLOOR, registration.SUBAREA_BIT_TOP)
+        end
     end
     local row = registration.area_row(ids, { id = id, bit = bit, name = name, parent = parent, flags = flags })
     local list = reg.rows.AreaTable
@@ -241,11 +260,10 @@ function ar.restore(m, s)
 end
 -- }}}
 
--- {{{ ar.save: the registration written again, then the folder's tables
--- Returns { files = { ... }, warnings = { ... } } (nothing when nothing
--- changed), or nil and why
+-- {{{ ar.save: the registration written again (when its rows changed)
+-- true, or nil and why
 function ar.save(m)
-    if not m.areas_dirty or not m.registration then return { files = {}, warnings = {} } end
+    if not m.areas_dirty or not m.registration then return true end
     local serialize = require("wowbuild").serialize
     local text = ar.HEADER .. serialize(m.registration) .. "\n"
     local path = m.folder .. "/" .. registration.FILE
@@ -256,13 +274,59 @@ function ar.save(m)
     f:close()
     local ok, err = os.rename(tmp, path)
     if not ok then return nil, err end
-    local files = {}
-    local done, forms = pcall(require("wowbuild.output").write, m.root,
-        { stock_dbc = m.opts and m.opts.stock_dbc, patch = m.opts and m.opts.patch, files = files })
-    if not done then return nil, "the folder's tables: " .. tostring(forms) end
     m.areas_dirty = false
-    m.forms = forms
-    return { files = files, warnings = forms.warnings }
+    return true
+end
+-- }}}
+
+-- {{{ ar.forms: the folder's tables and patch-W.MPQ made again (W10h)
+-- After any save that wrote a file of a map W02c registered (its ground,
+-- water, objects, WDT, WDL or rows), every form of the folder's tables is
+-- made again as the converter makes it (wowbuild.output.write): the
+-- overlay's tables, the server's SQL and merged tables, and patch-W.MPQ,
+-- which carries every registered map's ground. patch-W.MPQ is never left
+-- holding what the folder no longer holds: when it can't be made again
+-- (no StormLib, opts.patch false, or a failure) the old one is removed,
+-- and a warning says so. The folder's server-stamp and install-plan.lua
+-- (W02f), when it has them, are written again after it, the stamp last,
+-- as the converter writes them.
+-- m.forms: { files, warnings }; returns it, or nil and why
+function ar.forms(m)
+    if not ar.load(m) then
+        m.forms = { files = {}, warnings = {}, skipped = true }   -- not a registered map: no patch carries it
+        return m.forms
+    end
+    local output = require("wowbuild.output")
+    local server_stamp = require("wowbuild.server_stamp")
+    local install_plan = require("wowbuild.install_plan")
+    local root = m.root
+    local had_stamp = read(root .. "/" .. server_stamp.FILE) ~= nil
+    local had_plan = read(root .. "/" .. install_plan.FILE) ~= nil
+    server_stamp.remove(root)                   -- never one naming files that are changing
+    local files, warnings = {}, {}
+    local patch = m.opts and m.opts.patch
+    local done, forms = pcall(output.write, root, { stock_dbc = m.opts and m.opts.stock_dbc, patch = patch, files = files })
+    if not done then
+        local gone = os.remove(root .. "/" .. output.PATCH)
+        install_plan.remove(root)
+        m.forms = nil
+        return nil, "the folder's tables and " .. output.PATCH .. " couldn't be made again (" .. tostring(forms) .. ")"
+            .. (gone and "; the old " .. output.PATCH .. " was removed, so nothing reads stale ground" or "")
+    end
+    for _, w in ipairs(forms.warnings) do warnings[#warnings + 1] = w end
+    if patch == false and os.remove(root .. "/" .. output.PATCH) then
+        warnings[#warnings + 1] = output.PATCH .. " not made (patch = false): the old one removed"
+    end
+    if had_plan then
+        local ok, err = pcall(install_plan.write, root, require("wowbuild").serialize)
+        if not ok then
+            install_plan.remove(root)
+            warnings[#warnings + 1] = install_plan.FILE .. " couldn't be written again, so it was removed: " .. tostring(err)
+        end
+    end
+    if had_stamp then server_stamp.write(root) end
+    m.forms = { files = files, warnings = warnings, patch = forms.patch }
+    return m.forms
 end
 -- }}}
 

@@ -251,10 +251,9 @@ do
     test("an unused area taken away", ar.delete(m, long.ID) ~= nil and #ar.list(m) == 3)
 
     local m9 = wowmap.open((copy_map()), "WC3_made", { stock_dbc = false })
-    local made = 0
-    for k = 1, 9 do if ar.create(m9, { name = "Area " .. k }) then made = made + 1 end end
-    nope, nwhy = ar.create(m9, { name = "Area 10" })
-    test("nine areas besides the zone, then refused", made == 9 and nope == nil and (nwhy or ""):find("9001-9009", 1, true), nwhy)
+    local made, rows = 0, {}
+    for k = 1, 9 do rows[k] = ar.create(m9, { name = "Area " .. k }) if rows[k] then made = made + 1 end end
+    test("nine areas: the zone's block, the slot's own bits", made == 9 and rows[9].ID == Z + 9 and rows[9].AreaBit == 3987)
 end
 -- }}}
 
@@ -323,17 +322,18 @@ do
     write(S .. "/AreaTable.dbc", dbc.write("AreaTable", {
         { ID = 1, ContinentID = 0, ParentAreaID = 0, AreaBit = 3995, AreaName = "Dun Morogh" },
         { ID = 12, ContinentID = 0, ParentAreaID = 0, AreaBit = 3994, AreaName = "Elwynn Forest" },
+        { ID = 40, ContinentID = 0, ParentAreaID = 0, AreaBit = 3096, AreaName = "Westfall" },
     }))
     local r3 = copy_map()
     local m3 = wowmap.open(r3, "WC3_made", { stock_dbc = S })
     local a = ar.create(m3, { name = "Glade" })
     local b = ar.create(m3, { name = "Shore" })
-    test("a stock row's bits taken: the next free under 3995", a and a.AreaBit == 3993 and b and b.AreaBit == 3992,
+    test("a stock row's bits taken: the lowest free of the block (W10h)", a and a.AreaBit == 3097 and b and b.AreaBit == 3098,
         a and (a.AreaBit .. " " .. (b and b.AreaBit or "-")))
     local written, why = wt.save(m3)
     test("saved", written ~= nil, why)
     local merged = read_table(r3 .. "/server/dbc/AreaTable.dbc")
-    test("the server's AreaTable.dbc: the stock rows and the map's", merged and ids_of(merged) == "1,12,9000,9001,9002",
+    test("the server's AreaTable.dbc: the stock rows and the map's", merged and ids_of(merged) == "1,12,40,9000,9001,9002",
         merged and ids_of(merged))
     local overlay = read_table(r3 .. "/DBFilesClient/AreaTable.dbc")
     test("the overlay: the map's rows only", overlay and ids_of(overlay) == "9000,9001,9002")

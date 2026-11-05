@@ -177,3 +177,12 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
   registration and the folder's tables in every form (the overlay, the
   server's SQL, the merged stock tables, patch-W.MPQ), with undo. Its
   open questions are answered there as dated decisions.
+- *2026-11-05:* `W10h-patch-w-never-behind-and-more-areas.md`: the
+  rest of step 8's save, and more of step 4's areas. Every save that
+  writes a file of a registered map makes the folder's tables and
+  `patch-W.MPQ` again (or removes the patch when it can't be made), then
+  its install plan and server-stamp, so no reader finds a patch older
+  than the folder. A map can now have 99 areas besides its zone, with
+  ids from a second block and explored bits from a pool, collision-free
+  across the folder. A project's WoW build carries the tables and patch.
+  Its open questions are answered there as dated decisions.
