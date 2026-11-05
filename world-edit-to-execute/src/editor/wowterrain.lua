@@ -17,6 +17,11 @@ in yards; each reads the tiles it needs:
   wt.paint(m, x, y, { radius, texture, strength, falloff })
                                                      a texture (its path) over the blend maps
   wt.holes(m, x, y, { radius, on })                  cut (on, the default) or fill holes
+  wt.area(m, x, y, { radius, area })                 the chunks whose middles are within radius
+                                                     (else the chunk at x, y) in area number
+                                                     `area` (W10f; MCNK header byte 52)
+  wt.area_at(m, x, y), wt.areas(m)                   the area number there; every area of the
+                                                     map with its chunks and tiles
 
 falloff is "linear" (full at the middle, none at the edge; the default,
 flatten's "flat") or "flat". Each returns what it changed: { points,
@@ -34,8 +39,8 @@ The writer patches the tile's own bytes rather than writing the tile
 afresh: what an edit didn't touch stays as it was, byte for byte (a
 tile written without an edit is the file that was read).
 
-  - heights (MCVT), the changed normals (MCNR) and holes (MCNK header,
-    byte 60) in place;
+  - heights (MCVT), the changed normals (MCNR), holes (MCNK header,
+    byte 60) and the area number (byte 52; W10f) in place;
   - a painted chunk's layers (MCLY) and blend maps (MCAL) written again,
     uncompressed, 8 bits a point when the map's WDT says so, else 4;
     its header's layer count, MCAL size and low-quality map with them,
@@ -442,6 +447,95 @@ function wt.holes(m, x, y, o)
 end
 -- }}}
 
+-- {{{ area: which area (AreaTable's number) a chunk is in (W10f)
+-- The client names the zone and subzone a player stands in by the area
+-- number of the chunk under them; the server's map extractor
+-- takes it from the same header. A chunk is in one area, so
+-- the tool sets whole chunks: those whose middles are within radius of
+-- x, y, or with no radius the chunk x, y is in. Numbers are kept to 16
+-- bits (0-65535), as the server's extracted map files keep them.
+wt.AREA_MAX = 65535
+local function chunk_middle(t, c)
+    local R, C = chunk_origin(t, c)
+    return ORIGIN - (R + 8) * CELL / 2, ORIGIN - (C + 8) * CELL / 2
+end
+wt.chunk_middle = chunk_middle
+
+local function chunk_of(m, x, y)
+    local gr, gc = (ORIGIN - x) / CHUNK, (ORIGIN - y) / CHUNK
+    local tx, ty = math.floor(gc / 16), math.floor(gr / 16)
+    local t = m.by_key[tx .. "_" .. ty] and m:tile(tx, ty)
+    if not t then return nil end
+    return t.chunks[(math.floor(gr) % 16) * 16 + math.floor(gc) % 16 + 1], t
+end
+
+function wt.area_at(m, x, y)
+    local c, t = chunk_of(m, x, y)
+    if not c then return nil, string.format("%.1f, %.1f is on no tile of %s", x, y, m.directory) end
+    return c.area or 0, c, t
+end
+
+function wt.area(m, x, y, o)
+    o = o or {}
+    local a = o.area
+    if type(a) ~= "number" or a ~= math.floor(a) or a < 0 or a > wt.AREA_MAX then
+        return nil, "area: a whole number from 0 to " .. wt.AREA_MAX .. " (AreaTable's id)"
+    end
+    local r = o.radius or 0
+    local list = {}
+    if r <= 0 then
+        local c, t = chunk_of(m, x, y)
+        if not c then return nil, string.format("%.1f, %.1f is on no tile of %s", x, y, m.directory) end
+        c.tile = t
+        list[1] = c
+    else
+        local tiles, why = load_area(m, x, y, r)
+        if not tiles then return nil, why end
+        for _, t in ipairs(tiles) do
+            for _, c in ipairs(t.chunks) do
+                local cx, cy = chunk_middle(t, c)
+                if (cx - x) ^ 2 + (cy - y) ^ 2 <= r * r then list[#list + 1] = c end
+            end
+        end
+    end
+    local n, tiles = 0, {}
+    for _, c in ipairs(list) do
+        if (c.area or 0) ~= a then
+            c.area = a
+            mark(c, "area")
+            n = n + 1
+            tiles[c.tile.tx .. "_" .. c.tile.ty] = true
+        end
+    end
+    local out = {}
+    for k in pairs(tiles) do out[#out + 1] = k end
+    table.sort(out)
+    return { points = 0, chunks = n, tiles = out, full = {} }
+end
+
+-- every area of the map: { { area, chunks, tiles = { "tx_ty" } } } by number
+-- (every tile read)
+function wt.areas(m)
+    local by = {}
+    for _, e in ipairs(m.tiles) do
+        local t, why = m:tile(e.tx, e.ty)
+        if not t then return nil, why end
+        for _, c in ipairs(t.chunks) do
+            local a = c.area or 0
+            local g = by[a]
+            if not g then g = { area = a, chunks = 0, tiles = {}, seen = {} } by[a] = g end
+            g.chunks = g.chunks + 1
+            local key = t.tx .. "_" .. t.ty
+            if not g.seen[key] then g.seen[key] = true g.tiles[#g.tiles + 1] = key end
+        end
+    end
+    local out = {}
+    for _, g in pairs(by) do g.seen = nil out[#out + 1] = g end
+    table.sort(out, function(p, q) return p.area < q.area end)
+    return out
+end
+-- }}}
+
 -- {{{ paint: a texture over a chunk's blend maps
 -- Each layer above the first is a 64 x 64 map of how much it covers
 -- what is under it (0-255). Painting layer L by w (0-1) at a point:
@@ -626,6 +720,7 @@ local function patch_chunk(B, c, big_alpha)
     if d.holes then
         B = put(B, 8 + 60, string.char(c.holes % 256, math.floor(c.holes / 256) % 256))
     end
+    if d.area then B = put(B, 8 + 52, le32(c.area or 0)) end
     if not d.layers then return B end
 
     -- the layers and blend maps again, and what comes after them moved along
@@ -951,7 +1046,7 @@ function wt.snapshot(c)
     end
     local textures = {}
     for i, p in ipairs(c.tile.textures) do textures[i] = p end
-    return { heights = h, holes = c.holes, layers = layers, normals = normals, dirty = dirty,
+    return { heights = h, holes = c.holes, area = c.area, layers = layers, normals = normals, dirty = dirty,
              textures = textures, saves = c.tile.saves or 0,
              water = require("editor.wowwater").copy(c.tile, c.iy * 16 + c.ix + 1) }
 end
@@ -960,6 +1055,7 @@ end
 function wt.restore(m, c, s)
     for i = 1, 145 do c.heights[i] = s.heights[i] end
     c.holes = s.holes
+    c.area = s.area
     c.layers = {}
     for l, L in ipairs(s.layers) do c.layers[l] = { texture = L.texture, texture_index = L.texture_index, alpha = L.alpha } end
     local t = c.tile
@@ -981,7 +1077,7 @@ function wt.restore(m, c, s)
             end
         end
     else
-        c.dirty = { heights = true, holes = true, layers = #c.layers > 1 or nil, water = true }
+        c.dirty = { heights = true, holes = true, area = true, layers = #c.layers > 1 or nil, water = true }
         c.normals = nil
         local R, C = chunk_origin(t, c)
         local keys = {}
@@ -1021,9 +1117,9 @@ wt.chunks_near = chunks_near
 -- covers brush.wow_paint (0-1, else 0.5) a touch. water and dry (W10c,
 -- editor/wowwater.lua): brush.wow_level, the surface (else 2 yards over
 -- the ground where the stroke began), brush.wow_liquid, its kind (else 1,
--- water).
+-- water). area (W10f): brush.wow_area, the area number the chunks take.
 local TOOLS = { raise = true, lower = true, smooth = true, flatten = true, paint = true, hole = true, unhole = true,
-                water = true, dry = true }
+                water = true, dry = true, area = true }
 wt.TOOLS = TOOLS
 
 function wt.attach(E)
@@ -1082,6 +1178,8 @@ function wt.attach(E)
                 tex = c and c.tile.textures[(b.texture or 0) + 1]
             end
             got, why = wt.paint(m, x, y, { radius = r, texture = tex, strength = b.wow_paint or 0.5 })
+        elseif s.tool == "area" then
+            got, why = wt.area(m, x, y, { radius = r, area = b.wow_area })
         elseif s.tool == "water" or s.tool == "dry" then
             local ww = require("editor.wowwater")
             if s.tool == "water" and not s.level then s.level = b.wow_level or ((wt.ground(m, x, y) or 0) + ww.LEVEL_ABOVE) end
@@ -1109,7 +1207,8 @@ function wt.attach(E)
             me.dirty.wow = true
         end
         local names = { raise = "Raise", lower = "Lower", smooth = "Smooth", flatten = "Flatten", paint = "Paint",
-                        hole = "Cut holes", unhole = "Fill holes", water = "Water", dry = "Dry" }
+                        hole = "Cut holes", unhole = "Fill holes", water = "Water", dry = "Dry",
+                        area = "Set area" }
         local cmd = { name = names[s.tool] .. " (WoW map " .. s.m.directory .. ")",
                       redo = function() put_back(after) end, undo = function() put_back(s.before) end }
         self.history:record(cmd)

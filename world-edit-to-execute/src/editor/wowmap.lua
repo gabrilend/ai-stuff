@@ -46,6 +46,8 @@ the file's order (a row of 9 corners, then 8 centres, ...).
     M.tile_source                        -- "wdt", or "files" when the reader can't read WDTs
     local t, why = M:tile(31, 32)        -- the tile, read (and kept); nil and why
     t.chunks[1].heights[1], t.doodads[1].model, t.liquids[1].kind
+    t.chunks[1].area                     -- its area number (W10f: read from its header)
+    wowmap.area_names(root)              -- { [id] = { name, map, parent } } from root's AreaTable.dbc
 ]]
 
 local ffi = require("ffi")
@@ -215,6 +217,67 @@ local function tile_data(c_tile)
     end
     return t
 end
+
+-- each chunk's area number (MCNK header byte 52; W10f). The W client's
+-- reader doesn't keep it (its AdtChunk has no area), so it is read from
+-- the header here, as the tile writer reads the header's offsets:
+-- { [iy * 16 + ix + 1] = area }
+local function u32(s, at)
+    local a, b, c, d = s:byte(at + 1, at + 4)
+    return a + b * 256 + c * 65536 + d * 16777216
+end
+function wowmap.chunk_areas(bytes)
+    local out, at = {}, 0
+    while at + 8 <= #bytes do
+        local size = u32(bytes, at + 4)
+        if bytes:sub(at + 1, at + 4) == "KNCM" and size >= 128 and at + 8 + 128 <= #bytes then
+            local ix, iy = u32(bytes, at + 12), u32(bytes, at + 16)
+            if ix < 16 and iy < 16 then out[iy * 16 + ix + 1] = u32(bytes, at + 8 + 52) end
+        end
+        at = at + 8 + size
+    end
+    return out
+end
+-- }}}
+
+-- {{{ wowmap.area_names: the areas a loose folder's AreaTable.dbc names (W10f)
+-- root/DBFilesClient/AreaTable.dbc (a W02 build's, or one put in a map
+-- project's wow/) read through the W client's table reader (016-dbc):
+-- { [id] = { name, map, parent } }, or nil and why. Columns as 3.3.5a's
+-- (wowbuild's W02c layout, unchecked there): 1 id, 2 map, 3 parent, 12
+-- the name (its first language's text).
+wowmap.AREA_TABLE = "DBFilesClient/AreaTable.dbc"
+function wowmap.area_names(root, lib)
+    if not lib then
+        local why
+        lib, why = wowmap.reader()
+        if not lib then return nil, why end
+    end
+    local bytes = read(root .. "/" .. wowmap.AREA_TABLE)
+    if not bytes then return nil, "no " .. wowmap.AREA_TABLE .. " in " .. root end
+    local buf = ffi.new("unsigned char[?]", math.max(#bytes, 1))
+    ffi.copy(buf, bytes, #bytes)
+    local d, w = ffi.new("Dbc"), ffi.new("WWhy")
+    if lib.dbc_open(d, buf, #bytes, w) ~= 0 then return nil, wowmap.AREA_TABLE .. ": " .. ffi.string(w.text) end
+    if d.fields < 12 or d.row_len < 48 then
+        return nil, string.format("%s has %d fields a row; the name is field 12", wowmap.AREA_TABLE, d.fields)
+    end
+    -- the reader trusts the header's sizes; a short or odd file is refused
+    -- here rather than read past its end
+    local text_at = 20 + d.rows * d.row_len
+    if text_at + d.text_len > #bytes or d.text_len < 1 or bytes:byte(text_at + d.text_len) ~= 0 then
+        return nil, string.format("%s: its header's sizes don't fit its %d bytes", wowmap.AREA_TABLE, #bytes)
+    end
+    local out = {}
+    for r = 0, d.rows - 1 do
+        if lib.dbc_u32(d, r, 12) >= d.text_len then
+            return nil, string.format("%s: row %d's name is past the table's text", wowmap.AREA_TABLE, r + 1)
+        end
+        out[lib.dbc_u32(d, r, 1)] = { name = ffi.string(lib.dbc_text(d, r, 12)), map = lib.dbc_u32(d, r, 2),
+                                      parent = lib.dbc_u32(d, r, 3) }
+    end
+    return out
+end
 -- }}}
 
 -- {{{ wowmap.open
@@ -312,6 +375,8 @@ function M:tile(tx, ty)
     end
     local t = tile_data(c_tile)
     lib.adt_free(c_tile)
+    local areas = wowmap.chunk_areas(bytes)
+    for k, c in ipairs(t.chunks) do c.area = areas[k] or 0 end
     t.tx, t.ty, t.file = tx, ty, entry.file
     self.read_tiles[key] = t
     return t

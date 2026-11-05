@@ -217,3 +217,8 @@
 - decision 12's checks on the owner's machine;
 - the window's brush cursor and the yards conversion (next);
 - W10 step 3 (the object placer).
+
+*2026-11-05, later:* decision 4's "Area is 0" is superseded by W10f
+decision 4 (`W10f-areas-and-doodad-sets-on-wow-tiles.md`): a new tile
+takes `opts.area`, else the area most of its neighbours' facing chunks
+are in, else 0.
