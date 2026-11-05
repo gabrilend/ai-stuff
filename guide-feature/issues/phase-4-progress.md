@@ -66,3 +66,41 @@ Counts of done and open issues:
   - Run in the rehearsal with the real turn in all three voices against a
     stand-in model. The run against kuvalu's servers is for the owner's
     machine.
+- **406, the phase 4 demo** (2026-11-05): `issues/completed/demos/phase-4-demo`
+  (also `./run-phase-demo 4`) runs the rehearsal for a minute with the real
+  turn in all three voices, against two stand-in llama.cpp servers on
+  127.0.0.1 that differ in speed and in how often they run past the edge.
+  - Each version is drawn as it is made, with phase 2's marks. Under it:
+    which endpoint the turn asked, at which try it fit and what was sent
+    back, and words and sentences changed against the recommendation.
+  - Halfway through, `scripts/use-endpoint fg-sora-2 stand-in-b` switches
+    one voice, and its next turns ask the other model.
+  - Then every turn in a table, seconds, tries and tokens per turn for each
+    voice and endpoint (where the switch shows), each voice's last receipt
+    and the runners' counts.
+  - Every number is read from the turns' own logs and receipts, and the
+    test checks the output against them.
+
+## Phase 4 is done here, apart from kuvalu's servers
+
+402–406 and 401b are done. A voice's turn reads the canvas, asks the
+endpoint the canvas names until its reply fits, and writes the canvas
+back, with every try counted. Endpoints are chosen while running with
+`scripts/use-endpoint`, and a switch reaches a voice with the next version.
+
+The roadmap's last goal for phase 4, "three real turns per version on
+kuvalu's llama.cpp server", is met only against stand-in servers here.
+The stand-ins answer llama-server's routes, but their model is not a
+language model.
+
+Left for the owner's machine:
+- **401a, this project's own llama.cpp servers on kuvalu**: the build, the
+  models and the ports. Nothing was installed here.
+- **The turn, the rehearsal and the demo against those servers**, and
+  404's run that shows a real model being corrected.
+- **A real outside provider**, with its key file outside the repository.
+- **The demo's timers**: a minute suits short `input/rehearsal` timers;
+  with the default 30-second timers, `--minutes 5` shows more.
+- **Whether a turn still asking should give way to a newer canvas**: it
+  keeps going now (the owner's word); `newer-canvas = "give-way"` in
+  `input/turn` changes it.

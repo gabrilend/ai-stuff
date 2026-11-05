@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+#
+# phase-4-demo - the turn: what phase 4 built, running.
+#
+# Runs the rehearsal (scripts/rehearse, src/043-rehearsal.lua) with the real
+# turn (issue 405, scripts/turn) in all three voices: each voice's model is
+# asked for its edit of the canvas until the edit fits. The models are two
+# stand-in llama.cpp servers (src/047-stand-in-llama.lua) on 127.0.0.1, which
+# answer llama-server's routes and edit like a voice, one word a turn, now
+# and then past the edge so the fit check sends it back. Every voice starts
+# on the first; halfway through, scripts/use-endpoint (issue 402) switches
+# fg-sora-2 to the second. It shows:
+#   - the canvas changing, with marks, as the blitter makes each version,
+#     and for each version the voice's turn: its endpoint, its fit tries and
+#     why, and the words it changed against the recommendation;
+#   - every turn in a table, read from the turns' own logs;
+#   - per voice and endpoint: turns, seconds and tokens, so the switch shows
+#     in the numbers;
+#   - the turns' and the runners' receipts.
+#
+# It runs in a throwaway copy of the project (src/, libs/ and scripts/
+# linked in, its own input/ and RAM tiers), so nothing already running on
+# the project is touched, and the copy is removed at the end. Nothing leaves
+# this machine: the models and the mail are on 127.0.0.1 only. No model is
+# installed; the run against kuvalu's own llama.cpp servers (issue 401a) is
+# for the owner's machine.
+#
+# Usage:
+#   issues/completed/demos/phase-4-demo [<dir>] [--minutes M] [--plain] [--keep]
+#     <dir>        the project (run-phase-demo passes it)
+#     --minutes M  how long the rehearsal runs (default 1)
+#     --plain      show marks as letters under each row instead of colours
+#                  (the default when the output is not a terminal)
+#     --keep       leave the throwaway copy, to read its logs and receipts
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+PLAIN=""
+KEEP=""
+MINUTES="--minutes 1"
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --plain) PLAIN="--plain" ;;
+        --keep) KEEP="yes" ;;
+        --minutes) MINUTES="--minutes $2"; shift ;;
+        *) DIR="$1" ;;
+    esac
+    shift
+done
+if [ ! -f "${DIR}/src/055-turn.lua" ]; then
+    echo "phase-4-demo: ${DIR} is not the guide-feature project" >&2
+    exit 1
+fi
+
+BASE="$(mktemp -d)"
+ROOT="${BASE}/guide-feature"
+mkdir -p "${ROOT}/input" "${ROOT}/output" "${BASE}/exec" "${BASE}/shm"
+for LINK in src libs scripts; do
+    ln -s "${DIR}/${LINK}" "${ROOT}/${LINK}"
+done
+for NAME in blitter turn-runner turn turn-instructions stand-in-turn rehearsal to-voices; do
+    cp "${DIR}/input/${NAME}" "${ROOT}/input/${NAME}"
+done
+# the real turn (405), whatever the project's own setting says
+sed -i 's|^turn *=.*|turn = "scripts/turn"|' "${ROOT}/input/turn-runner"
+# the project's checkout, for the commit the voices are sent: this one
+sed -i "s|^project-checkout *=.*|project-checkout = \"${DIR}\"|" "${ROOT}/input/to-voices"
+export EXEC_TIER_ROOT="${BASE}/exec"
+export ARTIFACT_TIER_ROOT="${BASE}/shm"
+
+# Whatever happens, the turn runners (and their turns) are stopped by their
+# process groups, and the copy is removed. The stand-in models leave by
+# themselves once the demo's process is gone (--parent).
+clean_up() {
+    for PIDFILE in "${BASE}"/shm/guide-feature/rehearsal/shm/guide-feature/turn/*/lock/pid; do
+        [ -f "${PIDFILE}" ] && kill -- "-$(cut -d' ' -f1 "${PIDFILE}")" 2>/dev/null
+    done
+    if [ -n "${KEEP}" ]; then
+        echo "kept the throwaway project at ${ROOT}"
+    else
+        rm -rf "${BASE}"
+    fi
+}
+trap clean_up EXIT
+trap 'exit 130' INT TERM
+
+luajit "${DIR}/issues/completed/demos/phase-4-demo.lua" \
+    --dir "${DIR}" --root "${ROOT}" ${MINUTES} ${PLAIN}
