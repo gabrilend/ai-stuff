@@ -950,8 +950,10 @@ end
 
 -- every edited tile written over its file (the file as it stands is what
 -- is patched), and the map's WDL with the far view of the tiles whose
--- ground or holes changed (editor/wowwdl.lua); the files written, or nil
--- and why (nothing written then)
+-- ground or holes changed (editor/wowwdl.lua); with the map's own areas
+-- changed (W10g, editor/wowareas.lua), its registration.lua and the
+-- folder's tables (wowbuild.output: the overlay's DBFilesClient, the
+-- server's SQL, patch-W.MPQ). The map's files written, or nil and why
 function wt.save(m)
     local tl = require("editor.wowtiles")
     local changed = m.tiles_changed or {}          -- tiles added or taken off (W10d, editor/wowtiles.lua)
@@ -1014,6 +1016,13 @@ function wt.save(m)
     end
     for _, d in ipairs(done) do if d.t then clean(d.t) end end
     tl.saved(m)
+    -- the map's own areas (W10g, editor/wowareas.lua): its registration,
+    -- then the folder's tables in every form
+    if m.areas_dirty then
+        local forms, fwhy = require("editor.wowareas").save(m)
+        if not forms then return nil, fwhy end
+        written[#written + 1] = "registration.lua"
+    end
     return written
 end
 -- }}}
