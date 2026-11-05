@@ -28,15 +28,31 @@ checked in this order, and the first failure moves it to
 
 Then the settings are read again, and the merge mode's function finds the
 changes (104) and blits them (106). The file is deleted after its blit. If a
-cell changed, that is the next version: marked (201, `src/020-marks.lua`),
-kept in the history and handed to each publisher, so every publisher gets
-the version with its marks. The log gets a `marks:` line of counts for it. A jump in a voice's turns counts the turns rmail skipped.
+cell changed, that is the next version. It is marked (201,
+`src/020-marks.lua`) and written as viewers read it (203) to
+`tmp/shared-memory/canvas/history/NNNNNN` and `canvas/current`, each under a
+`.` name and renamed. Then it is handed to each publisher, so every
+publisher gets the version with its marks. The log gets a `marks:` line of
+counts for it.
+
+## The history, and restarts
+
+Only the current version is held in memory. `b.history[n]` reads version n
+back from its file, and that is where each voice's base is found. At start,
+the canvas folder is emptied of the previous run. Numbering carries on from
+the previous run's last version, read from `current` and from
+`output/blitter-version` (on disk, written with each version), so no number
+is ever used twice. A base from before the restart is refused as not in the
+history. The `project:` header's commit comes from git in the root
+(`opts.commit` in tests). Outside a git checkout it is written as `0000000`,
+and logged. A jump in a voice's turns counts the turns rmail skipped.
 
 ## Settings, `input/blitter`
 
 `canvas-size` (fixed at start; resizing is 205), `merge-mode` and
-`collision-rule` and `mark-lifetime` (read again on every arrival; a mark
-is dropped once it is more than `mark-lifetime` versions old). A file that no longer reads while running keeps the last good
+`collision-rule`, `mark-lifetime`, `project` and `voices` (read again on
+every arrival; a mark is dropped once it is more than `mark-lifetime`
+versions old; `project` and `voices` are the viewers' headers). A file that no longer reads while running keeps the last good
 settings, and the error is logged and counted. A bad file at start stops it
 before it begins.
 
@@ -64,7 +80,7 @@ blit's counts summed: `words-written`, `removals-applied`, `conflicts`,
 
 | Name | Type | Meaning |
 |---|---|---|
-| `new(opts)` | function | a blitter: settings read, run started, folders made, version 1 published. `opts.root`, `clock`, `publishers`, `wait` |
+| `new(opts)` | function | a blitter: settings read, run started, folders made, the canvas folder emptied, the first version published. `opts.root`, `clock`, `publishers`, `wait`, `commit` |
 | `b:step()` | method | takes every arrival waiting; true when the stop file was there |
 | `b:take(name)` | method | one arrival; `"blitted"`, `"unchanged"` or the refusal's reason |
 | `b:finish()` | method | the goodbye receipt |

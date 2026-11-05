@@ -81,7 +81,8 @@ ffi.C.setenv("ARTIFACT_TIER_ROOT", BASE .. "/shm", 1)
 
 local function settings_file(mode, rule)
     write(ROOT .. "/input/blitter", "canvas-size = 20x3\nmerge-mode = \"" .. mode
-        .. "\"\ncollision-rule = \"" .. rule .. "\"\nmark-lifetime = 12\n")
+        .. "\"\ncollision-rule = \"" .. rule .. "\"\nmark-lifetime = 12\n"
+        .. "project = \"guide-feature\"\nvoices = \"fg-sora-1 fg-sora-2 fg-sora-3\"\n")
 end
 settings_file("newest", "blank-whole")
 local ARRIVALS = ROOT .. "/tmp/shared-memory/arrivals"
@@ -263,7 +264,8 @@ check("it starts and says hello in its log", wait_until(function()
     local _, starts = string.gsub(text, " started", "")
     return starts == 2
 end, 10))
-arrive("fg-sora-1-5000-a", voice_text("fg-sora-1", 1, 1, { "hello.", "", "" }))
+-- The first run ended at version 8, so this run numbers on from 9 (203).
+arrive("fg-sora-1-5000-a", voice_text("fg-sora-1", 1, 9, { "hello.", "", "" }))
 check("it takes an arrival within a couple of seconds", wait_until(function()
     return slurp(ARRIVALS .. "/fg-sora-1-5000-a") == nil
 end, 5))

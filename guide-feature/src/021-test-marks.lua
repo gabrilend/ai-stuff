@@ -249,7 +249,8 @@ end
 ffi.C.setenv("EXEC_TIER_ROOT", BASE .. "/exec", 1)
 ffi.C.setenv("ARTIFACT_TIER_ROOT", BASE .. "/shm", 1)
 write(ROOT .. "/input/blitter", "canvas-size = 20x3\nmerge-mode = \"newest\"\n"
-    .. "collision-rule = \"blank-whole\"\nmark-lifetime = 1\n")
+    .. "collision-rule = \"blank-whole\"\nmark-lifetime = 1\n"
+    .. "project = \"guide-feature\"\nvoices = \"fg-sora-1 fg-sora-2 fg-sora-3\"\n")
 local ARRIVALS = ROOT .. "/tmp/shared-memory/arrivals"
 local function voice_text(voice, turn, base, rows)
     local made = canvas.blank(20, 3, "from-voice")

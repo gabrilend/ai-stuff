@@ -28,3 +28,11 @@ moves the phase toward its goals.)
   colour order. `assets/test-canvases/` holds canvases with the answers
   every viewer, in any language, must give. The two readers of the demo
   (206) and the Lua viewers (801, 802) read through it.
+- **203, canvas files in RAM, with history** (2026-11-05): each version is
+  written for viewers to `tmp/shared-memory/canvas/history/NNNNNN`, never
+  rewritten, and to `canvas/current`, each by rename. The blitter now keeps
+  only the current version in memory and reads its bases from the history.
+  At start the folder is emptied, and version numbers carry on, even across
+  a reboot, so an old base is refused, never mistaken. The HTTP server (204)
+  and the file reader of the demo (206) have their files to serve and
+  watch.
