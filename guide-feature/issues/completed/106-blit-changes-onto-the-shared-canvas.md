@@ -62,3 +62,44 @@ this report. The blit itself does not mark.
 ## Blocks
 
 107, 201, 303.
+
+## Decisions (2026-11-05; each the owner's to overturn)
+
+1. **Removals are checked against the canvas as the blit found it**, before
+   any write, and only an exact whole word counts: the same text, starting at
+   the same row and column.
+2. **Each write sees the canvas just before it**, so a word written earlier
+   in the same blit is a word like any other. Writes go in reading order.
+3. **A word touching the written word with no space between is cut too**,
+   with no letters lost. Otherwise the two would read as one glued word, a
+   fragment by another name. `blank-whole` blanks it; `keep-fragments` leaves
+   them run together, as a terminal would. The voice's own canvas had a space
+   there, since that is where its word ended.
+4. **The rule's contract:** `function(grid, cut, write, report)` → outcome,
+   called after the write is in place, with `cut.cells` the columns the write
+   took. `refuse-cut`, when it is picked, needs the write undone, so the
+   contract may grow then.
+5. **The report's counts use the receipt's names** (`words-written`,
+   `cut-blanked`, ...), so the blitter (107) can add them to its goodbye as
+   they are.
+6. **The blit returns a new canvas** and leaves the current one as it was. It
+   carries the headers and marks over, and doesn't mark. `changed` is false
+   when no cell differs, so no version is made (step 5).
+7. **A written word off the canvas is refused.** The fit check (105) has
+   already held the voice's canvas to the size.
+8. **`blank-whole` is the default**, and an unknown rule's name is refused
+   with the names of those built.
+9. **The test reads the kitten example from `docs/datapath-blit.md` itself**
+   (corrected in 104), so the document and the blit can't drift apart.
+
+## Implementation notes (2026-11-05)
+
+- `src/014-blit.lua`: `apply`, `RULES` (`blank-whole`, `keep-fragments`),
+  `DEFAULT_RULE`.
+- `src/015-test-blit.lua`: 30 pass. Mutation checks (removal unchecked, the
+  write's own cells blanked, the touch before the write ignored, cut words
+  taken as covered) are each caught.
+- A `.info.md` beside each source file. `.file-index-counter` is at 015.
+
+**Checked here:** with LuaJIT 2.1 on Linux. This needs nothing of the owner's
+machines.

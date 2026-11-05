@@ -40,3 +40,9 @@ moves the phase toward its goals.)
   from 104 become the soft-budget note, and the blitter's size check on
   arrival is here too. The blit (106) is the last piece before the blitter
   loop (107).
+- **106, the blit** (2026-11-05): `src/014-blit.lua` writes a voice's
+  changes onto the shared canvas. Removals apply only where the word is
+  still there, and conflicts are counted. Writes go in reading order, and
+  cut words go to the collision rule (`blank-whole`, `keep-fragments`). A
+  report lists every cell written and blanked. With 101-106, everything the
+  blitter loop (107) needs is built.
