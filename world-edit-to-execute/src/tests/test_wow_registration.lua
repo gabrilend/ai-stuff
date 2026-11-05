@@ -453,7 +453,7 @@ do
             if bytes then why = compare_table(name, bytes, r.rows[name]) end
             if why then bad[#bad + 1] = name .. ": " .. why end
         end
-        test("DBFilesClient/ holds the seven tables with this map's rows only, every column as written (W client's reader)",
+        test("DBFilesClient/ holds every table (W02c's seven, W02i's four light tables) with this map's rows only, every column as written (W client's reader)",
             #bad == 0, table.concat(bad, "; "))
         -- the client side the way Test Map would use it: the map's id from
         -- map.lua, its folder from the overlay's Map.dbc, the ground there

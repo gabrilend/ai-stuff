@@ -17,8 +17,11 @@ built so far, stages 2 and 3:
 
   registration the map's ids (wowbuild.registration: a slot a map, every id
                a block of it), its rows in Map, AreaTable, LoadingScreens,
-               CreatureDisplayInfo, CreatureModelData, FactionTemplate and
-               Faction (wowbuild.dbc writes the tables), its loading screen
+               CreatureDisplayInfo, CreatureModelData, FactionTemplate,
+               Faction, and its default light in Light, LightParams,
+               LightIntBand and LightFloatBand with its war3map.w3i's fog
+               and water tint (wowbuild.light, W02i; wowbuild.dbc writes the
+               tables), its loading screen
                picture (wowbuild.loadscreen), and every form they are read
                in (wowbuild.output): the overlay's tables, map.lua and the
                creature list for the W client, the server's copies, and
@@ -467,7 +470,7 @@ function wowbuild.convert(map_path, build_dir, opts)
 
     -- registration: this map's rows (kept in its folder), then every form
     -- of the folder's tables (wowbuild.output)
-    local rows = registration.rows(map.info, C, ids, { directory = name, strings = map.strings,
+    local rows, light_said = registration.rows(map.info, C, ids, { directory = name, strings = map.strings,
         picture = "World\\Maps\\" .. name .. "\\" .. picture_file })
     local start = start_of(map.info, C)
     local L = job.layout
@@ -562,7 +565,7 @@ function wowbuild.convert(map_path, build_dir, opts)
         registration = {
             slot = slot, ids = ids, map_name = rows.Map[1].MapName, loading_screen = picture_from,
             maps_in_build = forms.maps, tables = forms.tables, stock = forms.stock, patch = forms.patch,
-            warnings = warnings, notes = forms.notes, start = start,
+            warnings = warnings, notes = forms.notes, start = start, light = light_said,
         },
         triggers = trig,
         server_stamp = { file = server_stamp.FILE, files = stamp_files },

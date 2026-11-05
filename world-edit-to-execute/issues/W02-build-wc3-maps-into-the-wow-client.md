@@ -246,3 +246,11 @@ not into new issues.
   server's folders, checked against a stand-in for W02h's empty world
   database. Nothing installs it yet, and every place and table in it is
   from memory (W02f's unchecked list).
+- *2026-11-05:* `W02i-a-converted-maps-own-light.md`: each converted map
+  gets its own default light in Light, LightParams, LightIntBand and
+  LightFloatBand (W02c's scheme extended), with its war3map.w3i's fog
+  and water tint where the file turns them on, by the W client's own
+  rule. Before, both clients fell back to Light's row 1, or the W client
+  to its fixed grey day. Checked through the W client's light read
+  through its tables (custom-client #26): its headless run now reports
+  the map's own light (`light` 20000, was -1).
