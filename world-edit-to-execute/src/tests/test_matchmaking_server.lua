@@ -8,8 +8,12 @@
 -- and that a closed lobby leaves nothing behind.
 --
 -- Run with: luajit src/tests/test_matchmaking_server.lua [DIR]
+-- (DIR defaults to the project this file is in.)
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+-- The project: the argument, or the folder this test sits in (run-tests.sh
+-- runs each test by its full path, from the project), or the owner's.
+local DIR = arg[1] or arg[0]:match("^(.+)/src/tests/[^/]+%.lua$") or (arg[0]:match("^src/tests/") and ".")
+    or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local protocol = require("matchmaking.protocol")
@@ -107,6 +111,23 @@ test("an unknown setting is refused", refused(function() server.new({ max_lobies
 test("a setting of the wrong kind is refused", refused(function() server.new({ max_lobbies = "3" }) end, "max_lobbies should be a number"))
 test("it listens on loopback unless told", server.DEFAULTS.bind == "127.0.0.1:8080")
 test("a lobby times out after an hour by default", server.DEFAULTS.lobby_timeout_seconds == 3600)
+-- }}}
+
+-- {{{ the codec (question Q-1)
+print("the codec")
+do
+    local used = { encode = 0, read_frame = 0 }
+    local codec = {
+        encode = function(n, m) used.encode = used.encode + 1 return protocol.encode(n, m) end,
+        read_frame = function(b) used.read_frame = used.read_frame + 1 return protocol.read_frame(b) end,
+    }
+    local srv = server.new({ codec = codec, clock = function() return now end })
+    local c = srv:accept("10.0.0.1", 1)
+    srv:receive(c, protocol.encode("PING", { nonce = 5 }))
+    local _, m = protocol.decode(srv:output(c))
+    test("messages go through the codec it is given", used.read_frame >= 1 and used.encode == 1 and m.nonce == 5)
+    test("protocol.lua is the codec by default", server.new({ clock = function() return now end }).codec == protocol)
+end
 -- }}}
 
 -- {{{ registering
@@ -503,5 +524,6 @@ do
 end
 -- }}}
 
-print(string.format("\nmatchmaking server: %d of %d passed", pass_count, test_count))
+print(string.format("\nTests: %d passed, %d failed", pass_count, test_count - pass_count))
+print(string.format("matchmaking server: %d of %d passed", pass_count, test_count))
 os.exit(pass_count == test_count and 0 or 1)

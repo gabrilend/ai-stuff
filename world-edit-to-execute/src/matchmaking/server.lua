@@ -64,15 +64,22 @@ server.DEFAULTS = {
 
 -- {{{ server.new
 -- A server with `config` over the defaults; `config.clock` (seconds,
--- default LuaSocket's gettime or os.time) and `config.log` (a function
--- taking one line; default none) may be given.
+-- default LuaSocket's gettime or os.time), `config.log` (a function
+-- taking one line; default none) and `config.codec` may be given.
+--
+-- The codec turns messages into bytes and back: `encode(name, message)`
+-- and `read_frame(buffer) -> name, message, rest` (and optionally
+-- MAX_LIST), protocol.lua by default. Question Q-1 (CRITICAL-PATH.md)
+-- asks whether matchmaking should speak 803's message layer instead;
+-- answering it yes means a codec with these two calls over that layer,
+-- with the same message names and fields, and nothing here changes.
 function server.new(config)
     config = config or {}
     local self = setmetatable({}, server)
     self.config = {}
     for k, v in pairs(server.DEFAULTS) do self.config[k] = v end
     for k, v in pairs(config) do
-        if k ~= "clock" and k ~= "log" then
+        if k ~= "clock" and k ~= "log" and k ~= "codec" then
             if server.DEFAULTS[k] == nil then error("matchmaking server: " .. tostring(k) .. " is not a setting", 0) end
             if type(v) ~= type(server.DEFAULTS[k]) then
                 error("matchmaking server: " .. k .. " should be a " .. type(server.DEFAULTS[k]), 0)
@@ -86,6 +93,7 @@ function server.new(config)
         self.clock = ok and socket.gettime or os.time
     end
     self.log = config.log or function() end
+    self.codec = config.codec or protocol
     self.conns, self.lobbies, self.sockets = {}, {}, {}
     self.next_conn, self.next_game, self.next_player = 1, 1, 1
     self.started_at = self.clock()
@@ -98,7 +106,7 @@ end
 
 -- {{{ sending
 local function send(self, conn, name, message)
-    local bytes = protocol.encode(name, message)
+    local bytes = self.codec.encode(name, message)
     conn.out[#conn.out + 1] = bytes
     conn.out_bytes = conn.out_bytes + #bytes
     self.count.messages_out = self.count.messages_out + 1
@@ -236,7 +244,7 @@ function handlers.LIST_GAMES(self, conn, m)
     end
     table.sort(ids)
     local games = {}
-    for i = 1, math.min(#ids, protocol.MAX_LIST) do
+    for i = 1, math.min(#ids, self.codec.MAX_LIST or protocol.MAX_LIST) do
         local l = self.lobbies[ids[i]]
         games[i] = { game_id = l.game_id, map_name = l.map_name, map_hash = l.map_hash,
             asset_packs = l.asset_packs, game_mode = l.game_mode, region = l.region,
@@ -377,7 +385,7 @@ function server:receive(id, bytes)
     conn.inbuf = conn.inbuf .. bytes
     self.count.bytes_in = self.count.bytes_in + #bytes
     while true do
-        local ok, name, message, rest = pcall(protocol.read_frame, conn.inbuf)
+        local ok, name, message, rest = pcall(self.codec.read_frame, conn.inbuf)
         if not ok then drop(self, conn, name) return false end
         if not name then break end
         conn.inbuf = rest
