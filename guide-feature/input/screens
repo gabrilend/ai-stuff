@@ -1,0 +1,9 @@
+# How the canvas fits the screens being watched (src/028-screens.lua,
+# issue 205). Read again on every change of context.
+
+# "round": one canvas per watched screen, one after another, largest first;
+# the context waits until every screen is refreshed. "asynchronous": one
+# canvas per watched screen, all at once, each on its own endpoint (more
+# endpoints, no waiting). "smallest": one canvas at the smallest watched
+# size, drawn centred and enlarged on the bigger screens.
+screen-mode = "round"

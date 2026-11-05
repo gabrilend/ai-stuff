@@ -43,3 +43,11 @@ moves the phase toward its goals.)
   from outside the four machines. The demo's second reader (206) holds
   `?after=` requests on it. The encryption and the router's port wait for
   803 and the owner's machine.
+- **205, one canvas for each screen** (2026-11-05): `src/028-screens.lua`
+  plans a canvas per watched screen at its own size, largest first, in
+  three modes (`round`, `asynchronous`, `smallest`, from `input/screens`),
+  holds a context change until the round ends, and says what each screen
+  shows meanwhile. `src/027-exact-shape.lua` builds each turn's
+  lorem-ipsum example of the exact shape and cuts a reply too large;
+  `viewer.layout` centres a smaller canvas. Running the turns and a
+  blitter per canvas wait for 404, 405 and the display programs.

@@ -86,3 +86,18 @@ limit:
 
 Width is counted in UTF-8 code points. Whether to count terminal columns
 instead (some characters take two) is an open question.
+
+## The exact shape, and a reply cut to it
+
+Every turn is shown an example canvas of lorem-ipsum words built to its
+exact size, with the line "this is the exact shape you'll need to fill":
+every row exactly the width, a letter in its last column, ending on a
+word's end. The example is fresh for each turn (seeded by the turn), so a
+model learns the shape and not the words.
+
+A reply too large is cut at the edge, even in the middle of a word, and
+rows past the height are dropped. The cut rows go back to the model with
+"this is all that'd fit, please rephrase the sentences prior to the broken
+lines", naming the rows cut and the rows dropped. A cut reply is never
+published; the turn keeps asking until a reply fits (404). Built in
+`src/027-exact-shape.lua` (issue 205).

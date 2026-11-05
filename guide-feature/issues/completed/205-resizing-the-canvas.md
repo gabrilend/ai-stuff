@@ -105,3 +105,79 @@ turns in `round` mode, nine at once in `asynchronous` mode, and three in
 ## Blocks
 
 206.
+
+## Decisions (2026-11-05; each the owner's to overturn)
+
+1. **`smallest` makes one canvas as narrow as the narrowest watched screen
+   and as short as the shortest**, not the size of the screen with the
+   fewest cells, so it fits in every watched screen. With a wide strip and
+   a square, it is narrower and shorter than either.
+2. **Largest first means most cells first**, then the wider screen, then
+   the name, so the order never depends on the order the screens were sent
+   in.
+3. **Only the newest waiting context is kept.** A context change mid-round
+   waits; a second one replaces it, and the first is counted as skipped
+   (`contexts-skipped`), since painting a world that has already moved on
+   twice helps no one. In `asynchronous` mode every context is one batch,
+   so the same rule applies to a batch under way.
+4. **The mode and the watched screens are taken when a round starts.** A
+   change to either mid-round takes effect at the next round; `input/screens`
+   is read again at every round, not only at start.
+5. **A canvas cached at another size is not shown.** In `round` and
+   `asynchronous` a screen shows only a canvas of exactly its size, so one
+   cached smaller or larger shows the loading animation. In `smallest` it
+   shows the one canvas when it fits, centred when smaller in either
+   direction.
+6. **The letter size in `viewer.layout` is a whole number**, floored, so
+   letters stay crisp; below the viewer's smallest readable size the
+   viewer shows the too-small error, never a squeezed canvas. Each viewer's
+   letter cell and its maximum and minimum are its own settings (801-803,
+   901-902).
+7. **The exact-shape example is seeded by the turn**, so the same turn gets
+   the same example and the next a fresh one. Rows close on a word exactly
+   as long as what is left, so every row ends on a word's end and the last
+   column is a letter. Widths are counted in code points, as in the fit
+   check (open question 4 stands).
+8. **The cut is built here, for 404 to use.** The message names the rows
+   cut at the edge and how many rows past the last were dropped, after the
+   owner's line.
+9. **`round` is the mode in `input/screens`**, as the issue gives it as the
+   default; nothing has a default in code, so the setting is required.
+
+## Implementation notes (2026-11-05)
+
+- `src/027-exact-shape.lua`: the example and the cut.
+- `src/028-screens.lua`: the screen list, the canvases and turns of each
+  mode, the keeper of rounds, and what each screen shows.
+- `src/022-viewer.lua`: `viewer.layout`, the size and place of a smaller
+  canvas in a viewer's window.
+- `input/screens`: `screen-mode = "round"`.
+- `src/029-test-screens.lua`: 49 pass. The three modes run the same
+  scripted series (four contexts, a phone that stops watching): `round` is
+  8 batches and 24 turns, painting c1, c3 and c4 (c2 skipped);
+  `asynchronous` is 33 turns, painting all four; `smallest` is 12 turns at
+  the watch's 12x4.
+- Mutation checks, 28, were each caught but one that changes nothing (a
+  space counted past the row's end, when the loop ends anyway): rows never
+  closed early, no room left for a space, the seed ignored, the cut off by
+  one, rows not dropped, the message without the rows, the plural, smallest
+  first, no width tie-break, unwatched screens kept, duplicate names, the
+  height not the shortest, `round` as one batch, slots all the same, skips
+  not counted, the oldest waiting context kept, never holding, a held
+  context lost, the mode never re-read, a stale or too-big canvas shown,
+  centred only by width, and the layout's maximum, minimum, centring and
+  letter height.
+- `docs/datapath-viewers.md`, `docs/fit-check.md` and
+  `docs/roads-not-taken.md` describe what was built. `.file-index-counter`
+  is at 029.
+
+**Behind seams, not built yet:**
+- running the turns (405), and asking until a reply fits (404);
+- a blitter, history and marks for each screen's canvas (one canvas folder
+  per screen under `tmp/shared-memory/`);
+- the screen list sent by the display programs (801-803, 901-902), and the
+  loading animation each draws;
+- an endpoint for each asynchronous slot (402).
+
+**Needs the owner's machine:** the three modes tried with real screens
+being watched, and `asynchronous` mode on the remote endpoints.
