@@ -15,8 +15,9 @@
 # in order. Each frame fans out to the three surfaces. The buttons are
 # read and turned into down, up and held events (502), the sticks into
 # changes of direction (503), the touch panels into down, move and up
-# (504). The settings of 507 will stand between the events and any
-# consumer.
+# (504). The settings appliers (507) stand between the events and any
+# consumer: each button down or up, and each change of a stick, is given
+# its meaning there as handedness and the drawer swap now stand.
 
 boxes = ../boxes/
 
@@ -65,12 +66,14 @@ comparator button_down (boxes/095-input.c:button_down)
   in 1 = 262143
   in 2 = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
   out 2 - say_down.0
+  out 2 - roles_down.0
 
 comparator button_up (boxes/095-input.c:button_up)
   in 0 - buttons.0
   in 1 = 262143
   in 2 = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
   out 2 - say_up.0
+  out 2 - roles_up.0
 
 comparator button_held (boxes/095-input.c:button_held)
   in 0 - buttons.0
@@ -120,9 +123,41 @@ comparator stick_direction_changed (boxes/095-input.c:stick_direction_changed)
   in 0 - sticks.0
   in 1 = { 0, 0, 0, 0, 0 }
   out 2 - say_sticks.0
+  out 2 - roles_sticks.0
 
 station say_sticks (boxes/095-input.c:say_sticks)
   in 0 - stick_direction_changed.2
+
+# The settings (507): handedness and the drawer swap applied to the
+# events, the raw event kept whole beside its roles. Port 1 of each is
+# the settings, { left-handed, drawer swap }: right-handed and standard
+# as written here, turned while the program runs by input_settings_set
+# (src/system/135-input-settings.h) when /settings/ changes. The roles
+# are said on the developer line until phase 6's apps listen to them;
+# held events have no applier yet, as nothing listens to them either.
+station roles_down (boxes/134-input-roles.c:button_roles)
+  in 0 - button_down.2
+  in 1 = { 0, 0 }
+  out 0 - say_roles_down.0
+
+station roles_up (boxes/134-input-roles.c:button_roles)
+  in 0 - button_up.2
+  in 1 = { 0, 0 }
+  out 0 - say_roles_up.0
+
+station roles_sticks (boxes/134-input-roles.c:stick_roles)
+  in 0 - stick_direction_changed.2
+  in 1 = { 0, 0 }
+  out 0 - say_roles_sticks.0
+
+station say_roles_down (boxes/134-input-roles.c:say_roles)
+  in 0 - roles_down.0
+
+station say_roles_up (boxes/134-input-roles.c:say_roles)
+  in 0 - roles_up.0
+
+station say_roles_sticks (boxes/134-input-roles.c:say_stick_roles)
+  in 0 - roles_sticks.0
 
 # The touch panels (504): their history round a loop, and down, move and
 # up hung off it, each one event a frame for both screens at once. Where a

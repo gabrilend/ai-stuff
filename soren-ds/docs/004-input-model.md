@@ -166,3 +166,15 @@ the D-pad and L triggers select tools while the stylus on the
 touch screens applies paint; in left-handed mode the ABXY and R
 triggers select tools while the stylus still applies paint on
 either screen.
+
+Every input event names physical buttons; the meaning is a second
+tag beside them, never in their place. In `input-poll` each button
+down and up, and each stick change, passes an applier
+(`src/boxes/134-input-roles.c`) that adds which of its buttons
+navigate, which act, which modify each side, and which drawer its
+center buttons open, under the handedness and drawer-swap settings
+as they stand. An app that cares which button it was listens to the
+raw events; one that cares what the button is for listens to the
+applier's. The settings reach the appliers through
+`input_settings_set` (`src/system/135-input-settings.h`), each event
+seeing them wholly before or wholly after a change.

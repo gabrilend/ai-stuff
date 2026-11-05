@@ -108,7 +108,7 @@ int main(void)
     CHECK(program >= 0 && poll.timer >= 0, "input-poll loads, brings up and is armed (%s)", report.text);
     CHECK(program_argument_count(program) == 1 && program_result_count(program) == 0,
           "it has one argument door, the tick, and no results");
-    CHECK(program_station_count(program) == 25, "its twenty-five stations are placed (%d)",
+    CHECK(program_station_count(program) == 31, "its thirty-one stations are placed (%d)",
           program_station_count(program));
     uint64_t first_ns = engine.timers[poll.timer].due_ns;
     CHECK(first_ns >= before + INPUT_FRAME_NS && first_ns <= platform_now_ns() + INPUT_FRAME_NS,
