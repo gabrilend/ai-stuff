@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+#
+# phase-1-demo - three voices on one canvas: what phase 1 built, running.
+#
+# Plays a scripted series of voice canvases (src/018-phase-1-series.lua) into
+# the real blitter and draws every version it makes, with the cells each
+# changed highlighted and the blitter's own numbers beside it: words written,
+# words blanked whole, removals, conflicts. One oversized canvas is refused,
+# shown with the fit check's report as a model reads it. It ends with the
+# blitter's goodbye receipt, checked against its log.
+#
+# It runs in a throwaway copy of the project (src/, libs/ and scripts/ linked
+# in, its own input/blitter and RAM tiers), so a blitter already running on
+# the project is never touched, and the copy is removed at the end.
+#
+# Usage:
+#   issues/completed/demos/phase-1-demo [<dir>] [--plain] [--keep]
+#     <dir>     the project (run-phase-demo passes it)
+#     --plain   mark changed cells with ^ instead of highlighting them
+#               (the default when the output is not a terminal)
+#     --keep    leave the throwaway copy, to read its log and receipt
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+PLAIN=""
+KEEP=""
+for ARG in "$@"; do
+    case "${ARG}" in
+        --plain) PLAIN="--plain" ;;
+        --keep) KEEP="yes" ;;
+        *) DIR="${ARG}" ;;
+    esac
+done
+if [ ! -f "${DIR}/src/016-blitter.lua" ]; then
+    echo "phase-1-demo: ${DIR} is not the guide-feature project" >&2
+    exit 1
+fi
+
+BASE="$(mktemp -d)"
+ROOT="${BASE}/guide-feature"
+mkdir -p "${ROOT}/input" "${ROOT}/output" "${BASE}/exec" "${BASE}/shm"
+for LINK in src libs scripts; do
+    ln -s "${DIR}/${LINK}" "${ROOT}/${LINK}"
+done
+export EXEC_TIER_ROOT="${BASE}/exec"
+export ARTIFACT_TIER_ROOT="${BASE}/shm"
+
+# Whatever happens, the blitter started for the demo is stopped (TERM, which
+# run-blitter turns into its clean stop) and the copy is removed.
+clean_up() {
+    if [ -f "${BASE}/blitter.pid" ]; then
+        PID="$(cat "${BASE}/blitter.pid")"
+        if kill -0 "${PID}" 2>/dev/null; then
+            kill -TERM "${PID}" 2>/dev/null
+            for _ in $(seq 30); do
+                kill -0 "${PID}" 2>/dev/null || break
+                sleep 0.1
+            done
+        fi
+    fi
+    if [ -n "${KEEP}" ]; then
+        echo "kept the throwaway project at ${ROOT}"
+    else
+        rm -rf "${BASE}"
+    fi
+}
+trap clean_up EXIT
+trap 'exit 130' INT TERM
+
+luajit "${DIR}/issues/completed/demos/phase-1-demo.lua" \
+    --dir "${DIR}" --root "${ROOT}" --base "${BASE}" ${PLAIN}
