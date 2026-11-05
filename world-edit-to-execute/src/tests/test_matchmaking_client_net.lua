@@ -3,7 +3,7 @@
 -- In plain terms: runs itself in a network of its own (`unshare -rn`, see
 -- netns.lua), starts the matchmaking daemon there, and has a host and a
 -- player, each a client library polled as a game would poll it, go
--- through a lobby. Then the server is killed: the clients hear it, their
+-- through a lobby. Then the server is stopped (SIGTERM): the clients hear it, their
 -- lobbies close, and once a server is back on the same port they
 -- reconnect by themselves and can open a lobby again.
 --
@@ -132,7 +132,8 @@ host:on("reconnect", function() back[#back + 1] = "host" end)
 player:on("reconnect", function() back[#back + 1] = "player" end)
 kill(pid, pipe)
 test("both hear the server go", until_({ host, player }, function() return #drops == 2 end), table.concat(drops, "; "))
-test("and both lobbies close, disconnected", #closes == 2 and closes[1] == "disconnected" and closes[2] == "disconnected"
+-- SIGTERM stops the daemon cleanly (801g): it tells each lobby's members first
+test("and both lobbies close, told by the server", #closes == 2 and closes[1] == "the lobby closed" and closes[2] == "the lobby closed"
     and host.lobby == nil and player.lobby == nil)
 local tries_from = #host_log
 until_({ host, player }, function() return false end, 0.5)

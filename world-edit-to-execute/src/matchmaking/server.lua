@@ -554,7 +554,8 @@ function server:lobby_list()
         local host = self.conns[l.host]
         list[#list + 1] = { game_id = gid, map_name = l.map_name, map_hash = l.map_hash, game_mode = l.game_mode,
             region = l.region, state = l.state, max_players = l.max_players, host_ip = host.ip,
-            host_port = l.host_port, players = players_of(self, l) }
+            host_port = l.host_port, players = players_of(self, l), created = l.created,
+            asset_packs = l.asset_packs, start_at = l.start_at }
     end
     table.sort(list, function(a, b) return a.game_id < b.game_id end)
     return list
