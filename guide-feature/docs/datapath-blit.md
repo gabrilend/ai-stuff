@@ -155,6 +155,34 @@ keeps the newest canvas from each voice. On each arrival:
 Distilling takes as long as a turn, so arrivals that come in meanwhile wait.
 Only each voice's newest canvas is kept, so a queue cannot build up.
 
+#### As built (issue 601)
+
+- The blitter keeps every voice's newest accepted canvas in both modes
+  (`b.newest`), with the words it changed against its own base. In distill
+  mode an arrival passes the same checks, is kept, and is *held* (its file
+  removed, `arrivals-held` counted). After the arrivals waiting are taken,
+  one distill runs for everything held (`b:distill_held()`); a second
+  arrival from a voice already held replaces the first (`held-replaced`).
+- The prompt is `input/distill-instructions`, built by
+  `src/067-distill.lua`: the current canvas in its ruler first, then a
+  `[voice]` part for each voice's newest canvas, in `input/blitter`'s voice
+  order, listing the words it erased (or wrote over) and wrote, then its
+  canvas in its ruler. Every voice's newest is shown, not only the ones
+  just held.
+- The recommended counts the distiller is told are in `input/distill`
+  (36 words, 3 sentences: three voices' worth of a turn's). Advice only.
+- It is asked through 404's loop with no look calls, on the endpoint
+  `use.distiller` names, read again every distill. The distilled rows are
+  compared with the current canvas (104) and blitted (106) under the name
+  `kuvalu`; the version's `mode:` header says `distill`.
+- A distill that fails (the endpoint unreachable, a model error, the words
+  unreadable) makes no version: it is logged, `distills-failed` is counted,
+  and the arrivals stay held for the next step. A distill that changes
+  nothing is `unchanged-distills`.
+- Held arrivals are distilled even if the mode is switched back before the
+  distill runs: the mode read on their arrival decides.
+- Cuts made by a distill are kuvalu's, so no voice is told of them.
+
 ## Settings
 
 Mark lifetime in versions, orphan lifetime in versions, merge mode,

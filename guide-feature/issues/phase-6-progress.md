@@ -10,5 +10,10 @@ Counts of done and open issues:
 `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/guide-feature -m`
 
 ## Completed Issues
-(None yet. Each completed issue adds a line here saying what it built
-and how it moves the phase toward its goals.)
+- **601 distill mode** (2026-11-05): the blitter's second mode. It keeps
+  every voice's newest canvas, holds arrivals in distill mode, and has the
+  distiller (`use.distiller`, words in `input/distill-instructions`) make
+  one canvas from them all through the turn's ask-until-it-fits loop,
+  blitted on the current canvas under the name kuvalu. The mode switches
+  while running; a rehearsal switched newest, distill, newest made valid
+  versions in both modes (`src/068-test-distill.lua`).

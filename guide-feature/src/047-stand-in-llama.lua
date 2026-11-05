@@ -31,6 +31,10 @@
 --     of the words (on a blank canvas, the word starts a row); row and word move on with every chat request. Every
 --     wide_every-th request (when given) its row runs past the edge instead,
 --     so the turn has a reply that does not fit and asks again.
+--   { "distill": true, "wide_every": 2 }  a distiller (issue 601): the
+--     first canvas in the first user turn that holds one, with the changed
+--     words listed there applied (M.distill); every wide_every-th request
+--     runs past the edge, as above.
 -- Every request is appended to a JSON-lines file, so a test can read what the
 -- caller sent (the whole conversation, every time).
 --
@@ -185,6 +189,65 @@ function M.rewrite(messages, n, word_text, wide)
 end
 -- }}}
 
+-- {{{ function M.distill()
+-- A distiller's canvas, as the `distill` reply makes it (issue 601): the
+-- first canvas the model was shown (the current one, in 067's prompt), with
+-- every changed-word line in that message applied to it in order: an
+-- `erased "WORD" at row R, column C` blanks the word where it still stands
+-- there, and a `wrote "WORD" at row R, column C` writes it where those cells
+-- are blank. A change the canvas has already taken in, or that lands on
+-- another word, is passed over, so a voice's older change never undoes a
+-- newer one and the voice listed first keeps a contested place. With `wide`,
+-- the first row runs past the edge. Pure, so the tests can call it.
+function M.distill(messages, wide)
+    local content
+    for _, message in ipairs(messages) do
+        if message.role == "user" and prompt.unruler(message.content) then
+            content = message.content
+            break
+        end
+    end
+    if not content then return "stand-in: there is no canvas in the conversation" end
+    local shown = prompt.unruler(content)
+    local width = utf8.length(shown[1])
+    local grid = {}
+    for index, row in ipairs(shown) do
+        grid[index] = utf8.split(utf8.pad(row, width))
+    end
+    local function stands(row, column, cells)
+        for offset, cell in ipairs(cells) do
+            if grid[row][column + offset - 1] ~= cell then return false end
+        end
+        return true
+    end
+    local function blank(row, column, length)
+        for at = column, column + length - 1 do
+            local cell = grid[row][at]
+            if cell ~= nil and cell ~= " " then return false end
+        end
+        return true
+    end
+    for line in string.gmatch(content, "[^\n]+") do
+        local what, word, row, column = string.match(line,
+            '^%s*(%a+) "(.*)" at row (%d+), column (%d+)%s*$')
+        row, column = tonumber(row), tonumber(column)
+        if (what == "erased" or what == "wrote") and grid[row] and column >= 1 then
+            local cells = utf8.split(word)
+            if what == "erased" and stands(row, column, cells) then
+                for at = column, column + #cells - 1 do grid[row][at] = " " end
+            elseif what == "wrote" and column + #cells - 1 <= width
+                and blank(row, column, #cells) then
+                for offset, cell in ipairs(cells) do grid[row][column + offset - 1] = cell end
+            end
+        end
+    end
+    local rows = {}
+    for index = 1, #grid do rows[index] = (table.concat(grid[index]):gsub("%s+$", "")) end
+    if wide then rows[1] = utf8.pad(rows[1], width) .. " past the edge" end
+    return table.concat(rows, "\n") .. "\n"
+end
+-- }}}
+
 -- {{{ function M:next_reply()
 function M:next_reply(messages)
     self.taken = self.taken + 1
@@ -198,6 +261,9 @@ function M:next_reply(messages)
         local wide = reply.wide_every and self.taken % reply.wide_every == 0
         reply = { content = M.rewrite(messages, self.taken, reply.rewrite, wide),
                   delay = reply.delay }
+    elseif reply.distill then
+        local wide = reply.wide_every and self.taken % reply.wide_every == 0
+        reply = { content = M.distill(messages, wide), delay = reply.delay }
     end
     return reply
 end

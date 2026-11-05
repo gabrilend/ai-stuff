@@ -127,7 +127,9 @@ function M.workspace(root, values, ws)
         write(w.root .. "/input/" .. name, text)
     end
     -- the real turn's settings and words (405), when the project has them
-    for _, name in ipairs({ "turn", "turn-instructions", "look" }) do
+    -- and distill mode's (601), when it has them
+    for _, name in ipairs({ "turn", "turn-instructions", "look", "distill",
+                            "distill-instructions" }) do
         local text = slurp(root .. "/input/" .. name)
         if text then write(w.root .. "/input/" .. name, text) end
     end
@@ -230,7 +232,10 @@ end
 -- {{{ function M.run()
 -- The rehearsal. opts: root, minutes (over the setting), keep (leave the
 -- workspace), on_version (called with each version, the voice that made it,
--- the blitter and that turn's timing row, for a demo to draw). Returns a summary: turns (the timing
+-- the blitter and that turn's timing row, for a demo to draw; a distill's
+-- voice is kuvalu and its report's `distill` names the turns it took in),
+-- on_arrival (called with each arrival's name and text, and the blitter,
+-- before the blitter takes it: the phase 6 demo records them). Returns a summary: turns (the timing
 -- rows), events, versions, counts, and the workspace's paths.
 function M.run(opts)
     opts = opts or {}
@@ -272,15 +277,29 @@ function M.run(opts)
     -- the blitter, with the canvas mailed to the voices and a publisher
     -- that times every version
     local mail_publisher = assert(to_voices.publisher({ root = w.root, voices = M.VOICES }))
+    -- a distill's version (601) is kuvalu's: every voice turn it took in is
+    -- marked "distilled" with it, and every turn those replaced while held
+    -- "replaced"
     local function timing_publisher(b, record, report, voice)
         local version, at = record.headers.canvas, runner.now()
         published[version] = at
-        versions[#versions + 1] = { version = version, voice = voice, at = at,
-            turn = voice and b.last_turn[voice] }
-        event(at, voice or "kuvalu", "published", version, voice and b.last_turn[voice])
+        local distill = report and report.distill
+        local turn = voice and not distill and b.last_turn[voice] or nil
+        versions[#versions + 1] = { version = version, voice = voice, at = at, turn = turn,
+            distill = distill }
+        event(at, voice or "kuvalu", "published", version, turn)
         local r
-        if voice then
-            r = row(voice, b.last_turn[voice])
+        if distill then
+            for _, entry in ipairs(distill.held) do
+                local held = row(entry.voice, entry.turn)
+                held.blitted, held.version, held.outcome = at, version, "distilled"
+            end
+            for _, entry in ipairs(distill.replaced) do
+                local gone = row(entry.voice, entry.turn)
+                gone.blitted, gone.outcome = at, "replaced"
+            end
+        elseif voice then
+            r = row(voice, turn)
             r.blitted, r.version = at, version
         end
         if opts.on_version then opts.on_version(record, voice, b, r) end
@@ -340,13 +359,20 @@ function M.run(opts)
                     r.base = r.base or tonumber(string.match(text, "\nbase: (%d+)\n"))
                     r.published = r.published or (r.base and published[r.base])
                 end
+                if opts.on_arrival then opts.on_arrival(name, text, b) end
                 local outcome = b:take(name)
                 if r then
                     r.arrived, r.outcome = at, outcome
-                    if outcome ~= "blitted" then r.blitted = runner.now() end
+                    -- a held arrival is blitted when its distill is
+                    if outcome ~= "blitted" and outcome ~= "held" then r.blitted = runner.now() end
                     event(at, voice, "arrived", tonumber(string.match(text, "\nbase: (%d+)\n")),
                         turn, outcome)
                 end
+            end
+            -- distill mode (601): one distill for every arrival just held
+            local distilled = b:distill_held()
+            if distilled and distilled ~= "blitted" then
+                event(runner.now(), "kuvalu", "distill-" .. distilled)
             end
             for _, e in ipairs(voice_events(w, seen)) do
                 event(e.at, e.voice, e.what, e.version, e.turn)

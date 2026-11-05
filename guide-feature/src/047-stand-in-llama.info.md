@@ -34,6 +34,16 @@ with every chat request, and a blank canvas gets the word at the start of a
 row. Every Nth request its row runs past the edge, so a turn sees a reply
 that does not fit. `rewrite(messages, n, words, wide)` is the same, pure.
 
+A reply `{ "distill": true, "wide_every": N }` (issue 601) plays the
+distiller: it takes the first canvas in the first user turn that holds one
+(the current canvas, in 067's prompt) and applies every changed-word line
+in that turn in order: `erased "W" at row R, column C` blanks the word
+where it still stands, `wrote "W" at row R, column C` writes it where those
+cells are blank. A change the canvas already took in, or one landing on
+another word, is passed over, so a voice's older change never undoes a
+newer one and the voice listed first keeps a contested place. Every Nth
+request runs past the edge. `distill(messages, wide)` is the same, pure.
+
 `--key-file` (issue 402) makes it ask for the key in that file, as
 llama-server's `--api-key-file` does: every route but `GET /v1/models` and
 `/health` needs `Authorization: Bearer KEY`, and gets 401 "Invalid API

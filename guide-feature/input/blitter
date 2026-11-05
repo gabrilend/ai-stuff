@@ -6,8 +6,10 @@
 canvas-size    = 60x20
 
 # How arriving voice canvases become the shared canvas: "newest" blits each
-# voice's changes as they arrive. ("distill" is issue 601, not built yet.)
-# Read again on every arrival.
+# voice's changes as they arrive; "distill" has kuvalu's distiller combine
+# every voice's newest canvas into one and blits that (issue 601; its words
+# in input/distill-instructions, its counts in input/distill, its endpoint
+# use.distiller in the endpoints file). Read again on every arrival.
 merge-mode     = "newest"
 
 # What happens to a word a write cuts into: "blank-whole" blanks what is

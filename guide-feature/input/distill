@@ -1,0 +1,11 @@
+# Distill mode's settings (issue 601, src/067-distill.lua), read at every
+# distill. The mode itself is chosen in input/blitter (merge-mode); the
+# distiller's endpoint is use.distiller in the endpoints file; its words are
+# in input/distill-instructions. Numbers bare.
+
+# The recommended change counts the distiller is told, and measured against
+# for the advisory line in the blitter's log (docs/fit-check.md). Advice
+# only: a distilled canvas over them is accepted. Three voices' worth of a
+# turn's recommendation (input/turn: 12 words, 1 sentence).
+recommended-words     = 36
+recommended-sentences = 3

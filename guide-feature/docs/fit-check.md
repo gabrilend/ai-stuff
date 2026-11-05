@@ -90,7 +90,8 @@ limit:
   the voice's business, but a canvas of the wrong size cannot be compared with
   its base at all, so it is refused and logged.
 - **In distill mode**, on the distiller's reply, the same as in a voice's
-  turn.
+  turn, against the current canvas, with `input/distill`'s recommended
+  counts (601).
 
 Width is counted in UTF-8 code points. Whether to count terminal columns
 instead (some characters take two) is an open question.
