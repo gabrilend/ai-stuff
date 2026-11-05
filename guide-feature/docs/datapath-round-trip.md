@@ -54,7 +54,10 @@ The current design of one round. The issues that change it update this file.
 5. **The edited canvas** is written into the voice's `outbox/canvas` with
    `base: N` and carried to kuvalu.
 6. **The arrival hook on kuvalu** writes the body into
-   `tmp/shared-memory/arrivals/`, prints nothing, and exits.
+   `tmp/shared-memory/arrivals/`, prints nothing, and exits. Only a
+   message whose subject is `canvas` is taken; anything else is logged and
+   left alone. Built in `src/033-arrival-hook.lua`, run as
+   `scripts/arrival-hook` (issue 302).
 7. **The blitter** takes arrivals in order. It checks each one
    (`docs/canvas-format.md`, `docs/fit-check.md` for the size), looks up the
    voice's base version in the history, and blits or distills

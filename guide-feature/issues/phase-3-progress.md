@@ -21,3 +21,9 @@ moves the phase toward its goals.)
   files only, and both hooks point at the arrival or turn hook through a
   wrapper in the mailbox. A mailbox already there is adopted, never
   overwritten. Starting the daemon on kuvalu is the owner's.
+- **302, the arrival hook** (2026-11-05): `scripts/arrival-hook`
+  (`src/033-arrival-hook.lua`) takes a voice's canvas from the guide
+  mailbox, on its first arrival and every edit after, and writes it into
+  the blitter's arrivals folder, printing nothing and exiting at once.
+  Anything that is not a canvas is logged and left alone. The real
+  blitter makes new versions from what it writes.
