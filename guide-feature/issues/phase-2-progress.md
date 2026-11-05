@@ -21,3 +21,10 @@ moves the phase toward its goals.)
   lifetime. The blitter marks each version before publishing it, and logs
   and counts the marks. The viewer-side reader (202) and the canvas files
   (203) now have marks to carry.
+- **202, the viewer-side reader** (2026-11-05): `src/022-viewer.lua` reads
+  a canvas for viewers into a grid of cells, each with its character and
+  its mark and the mark's age. It also gives the cells changed since the
+  version drawn before, the error for a screen too small, and the voices'
+  colour order. `assets/test-canvases/` holds canvases with the answers
+  every viewer, in any language, must give. The two readers of the demo
+  (206) and the Lua viewers (801, 802) read through it.

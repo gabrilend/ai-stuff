@@ -30,6 +30,18 @@ on top:
 - the cells that changed since the previous version the viewer saw, so a
   viewer can draw the new words "writing over what was in that slot".
 
+Built in `src/022-viewer.lua` (issue 202). It also gives the error a
+screen too small should show, and each voice's colour order (its place in
+the `voices:` header). A mark may also be of kind `orphan`, and `kuvalu`'s
+marks have no place in that header. "Changed" means the character changed.
+A change of mark alone is not listed, because a viewer draws every mark
+afresh. With no previous version, or one of another size, every cell that
+is not a space is new.
+
+Every viewer, in any language, is checked against the same test canvases
+and their expected answers, in `assets/test-canvases/` (its README gives
+the format).
+
 ## How each viewer shows a change
 
 | Viewer | Screen | A mark becomes | Notes |
