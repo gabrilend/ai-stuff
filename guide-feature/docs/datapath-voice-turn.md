@@ -29,7 +29,12 @@ output to the outbox with the correct formatting and such."
 
 1. **Read the canvas** with the canvas reader (`docs/canvas-format.md`).
 2. **Project clone.** The `project:` header names the project and commit
-   being worked on. If this voice's clone is behind, it is fetched first.
+   being worked on. The clone keeper (issue 501, `src/058-project-clone.lua`)
+   brings this voice's clone of it to that commit: cloned at the voice's
+   first turn on the project, in RAM if it fits, fetched when it is behind.
+   The log says where the clone is and why. A clone that cannot be had is
+   logged and counted, and the turn goes on with the canvas alone
+   (`docs/datapath-looking-into-the-project.md`).
 3. **Endpoint.** The voice's own line in the canvas's `endpoints:`
    section (`docs/canvas-format.md`), which kuvalu writes from its
    `endpoints` file for every version it sends (`docs/endpoints.md`), so a
@@ -133,7 +138,7 @@ the canvas; the real turn (issue 405) replaces it in that setting.
 
 Built in issue 405: `src/055-turn.lua`, run as `scripts/turn`, which
 `input/turn-runner` now names. It is the seven steps above, in order:
-the canvas read; the project clone, a logged no-op until issue 501; the
+the canvas read; the project clone (issue 501 since); the
 voice's own endpoint line from the canvas, its key read on this machine;
 the opening conversation with last turn's advisory note; ask until it fits;
 the voice's canvas, read back before it is written to `--out`. A failure

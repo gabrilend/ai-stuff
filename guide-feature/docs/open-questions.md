@@ -12,7 +12,10 @@ Most valuable first.
 1. **Which C library and which tools do the mini-computers have?** glibc or
    musl, and whether `curl` and `git` are present. The llama.cpp client uses
    `curl`; the project clone uses `git`. The owner has given permission to
-   look; the survey (`issues/701`) answers it once it is run.
+   look; the survey (`issues/701`) answers it once it is run. Since issue
+   501 (2026-11-05) the clone needs `git` 2.25 or later on each voice, for
+   sparse checkout and the blob filter, and SSH from each voice to kuvalu
+   by key.
 2. **Where should the embedding index builder's guide live, given that
    projects should not depend on each other?** If it lives in delta-version,
    each project copies the builder into itself (`docs/vendored-code.md`).
