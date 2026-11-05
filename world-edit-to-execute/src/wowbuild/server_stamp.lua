@@ -29,8 +29,8 @@ holds, for every map converted into it:
   patch-W.MPQ                          what the extractors read for the
                                        server's maps, vmaps and mmaps (W02c, W02d)
 
-Not the W client's files (map.lua, DBFilesClient/, the loose ground
-files, world/, the map's imports), and not the reports (conversion-report.lua,
+Not the W client's files (map.lua, the map's war3map.w3e, .w3i and
+.wpm beside it, DBFilesClient/, the loose ground files, world/, the map's imports), and not the reports (conversion-report.lua,
 placements.lua, World/Maps/<dir>/registration.lua,
 server/triggers/<dir>/natives-report.lua), and not what the server never
 reads (install-plan.lua, which the install reads; the shim's licence).

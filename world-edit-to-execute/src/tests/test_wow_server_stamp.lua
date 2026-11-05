@@ -83,6 +83,11 @@ do
     write(b .. "/World/Maps/WC3_A/WC3_A_31_31.adt", "REVM")
     write(b .. "/World/Maps/WC3_A/registration.lua", "return { written = 'now' }")
     write(b .. "/world/creatures-900.tsv", "# guid")
+    -- the map's own files beside map.lua, the W client's (2026-11-05: the
+    -- pathing map joined the ground and info files, #252)
+    write(b .. "/war3map.w3e", "W3E!")
+    write(b .. "/war3map.w3i", "W3I!")
+    write(b .. "/war3map.wpm", "MP3W")
     local files = server_stamp.files(b)
     local want = { "patch-W.MPQ", "server/dbc.sql", "server/dbc/AreaTable.dbc", "server/dbc/Map.dbc",
                    "server/triggers/WC3_A/map-data.lua", "server/triggers/WC3_A/war3map.lua",
@@ -104,7 +109,8 @@ do
     write(b .. "/server/triggers/WC3_A/natives-report.lua", "return { seconds = 3 }")
     write(b .. "/World/Maps/WC3_A/registration.lua", "return { written = 'later' }")
     write(b .. "/map.lua", "return { format = 1, start = { x = 1 } }")
-    test("reports and the W client's files written anew: the same stamp", server_stamp.text(b) == text)
+    write(b .. "/war3map.wpm", "MP3W another map's pathing")
+    test("reports and the W client's files written anew (its pathing map too): the same stamp", server_stamp.text(b) == text)
     write(b .. "/server/world.sql", "-- creatures, one more\n")
     test("a file the server reads changed: another stamp", server_stamp.text(b) ~= text)
     write(b .. "/server/world.sql", "-- creatures\n")

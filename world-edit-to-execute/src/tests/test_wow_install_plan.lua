@@ -135,6 +135,7 @@ local function made_build(b)
     write(b .. "/server/triggers/WC3_A/natives-report.lua", "return { seconds = 1 }")
     write(b .. "/patch-W.MPQ", "MPQ\26 bytes")
     write(b .. "/map.lua", "return {}")
+    write(b .. "/war3map.wpm", "MP3W pathing")     -- the W client's (#252), not the server's
     return install_plan.copy_shim(b, DIR)
 end
 -- }}}
@@ -208,6 +209,8 @@ do
     test("a map's script and data go to the loader's folder, not ALE's scripts", s and d and s.place == "ale_maps"
         and s.to == "WC3_A/war3map.lua" and d.to == "WC3_A/map-data.lua")
     test("the reports aren't installed", by["server/triggers/WC3_A/natives-report.lua"] == nil and by["map.lua"] == nil)
+    test("nor the W client's pathing map, which isn't kept either (not the server's)", by["war3map.wpm"] == nil
+        and not text:find("war3map.wpm", 1, true))
     test("patch-W.MPQ is kept, with why", plan.kept[1] and plan.kept[1].file == "patch-W.MPQ" and plan.kept[1].why:find("W02d", 1, true))
     test("what waits: W02d's map files for the map, step 3's loader", has(plan.waiting, "W02d") and has(plan.waiting, "WC3_A")
         and has(plan.waiting, "step 3"))
