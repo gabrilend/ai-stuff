@@ -465,3 +465,13 @@ slot - (k - 1), so slots 0-99 cover 3096-3995 (`registration.subarea_bit`).
 The zone's row is now built by `registration.area_row`, with the same
 fields as before. A map converted into a folder keeps its zone's bit clear
 of every other map's rows' bits, not only their zones'.
+
+*2026-11-05 (W10h):* a second area block, `SCHEME.area_more`
+(10000 + 90 x slot, so slots 0-99 cover 10000-18999), holds a map's
+areas past its ninth (`W10h-patch-w-never-behind-and-more-areas.md`
+decision 5). `registration.in_scheme("area", id)` now also covers it,
+through `registration.ALSO`, so a stock row in either block is replaced
+in a merge. Areas past the ninth take explored bits from the areas'
+block as a pool, lowest free first, from `registration.SUBAREA_BIT_FLOOR`
+(3096) up. `output.write` is also called by the editor's save now, after
+any file written, so `patch-W.MPQ` follows the folder.

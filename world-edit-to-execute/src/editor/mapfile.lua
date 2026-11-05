@@ -503,6 +503,14 @@ end
 -- a file put in by hand). Kept under wow/ so a WC3 export, which writes
 -- the rest of the folder afresh, leaves it as it is.
 mapfile.WOW_LAYER = "layer.lua"
+-- the folder's tables in their forms, which the editor's save writes
+-- beside the maps for those W02c registered (W10g, W10h:
+-- editor/wowareas.lua, through wowbuild.output): part of the layer, and
+-- of its WoW build
+function mapfile.wow_form(p)
+    return p:match("^DBFilesClient/[^/]+%.dbc$") ~= nil or p == "server/dbc.sql"
+        or p:match("^server/dbc/[^/]+%.dbc$") ~= nil or p == "patch-W.MPQ"
+end
 
 local function wow_layer(dir)
     local text = read(dir .. "/wow/" .. mapfile.WOW_LAYER)
@@ -601,7 +609,7 @@ function mapfile.validate_wow(dir, opts)
     end
     -- files of the layer not at a client path
     for _, p in ipairs(walk(dir .. "/wow")) do
-        if not p:match("^World/") and p ~= "README.txt" and p ~= mapfile.WOW_LAYER then
+        if not p:match("^World/") and p ~= "README.txt" and p ~= mapfile.WOW_LAYER and not mapfile.wow_form(p) then
             say("warn", "wow/" .. p .. ": not under wow/World/, left out of a WoW build")
         end
     end
@@ -633,6 +641,13 @@ function mapfile.build_wow(dir, out, opts)
         local d = read(dir .. "/wow/World/" .. p)
         write(out .. "/World/" .. p, d)
         n = n + 1
+    end
+    -- the tables and patch-W.MPQ the editor made for its maps (W10h)
+    for _, p in ipairs(walk(dir .. "/wow")) do
+        if mapfile.wow_form(p) then
+            write(out .. "/" .. p, read(dir .. "/wow/" .. p))
+            n = n + 1
+        end
     end
     maps = #wow_maps_in(dir)
     return true, { files = n, maps = maps, problems = problems }

@@ -26,6 +26,8 @@ is base + slot x width:
   area_bit         AreaTable.AreaBit (the explored-zones bit; under 4096)  4095 - slot
   subarea_bit      AreaTable.AreaBit of the map's other areas (W10g)  3995 - 9 x slot - (k - 1),
                    its area k = 1-9 (ids area + k)                      3096-3995
+  area_more        AreaTable.dbc: a map's areas past its first nine   10000       90      10000-18999
+                   (W10h); their bits the lowest free of 3096-3995 in the folder
   light            Light.dbc (the map's default light, W02i)  20000       1       20000-20099
   light_params     LightParams.dbc (W02i)                20000       4       20000-20399
   light_int_band   LightIntBand.dbc: a set's 18 bands    359983      72      359983-367182
@@ -63,6 +65,8 @@ registration.SLOTS = 100
 registration.SCHEME = {
     map = { base = 900, width = 1 },
     area = { base = 9000, width = 10 },
+    -- a map's areas past its first nine (W10h, editor/wowareas.lua): AreaTable ids too
+    area_more = { base = 10000, width = 90 },
     loading_screen = { base = 900, width = 1 },
     display = { base = 50000, width = 1000 },
     faction = { base = 3000, width = 100 },
@@ -87,6 +91,12 @@ registration.SUBAREA_BIT_TOP = registration.AREA_BIT_TOP - registration.SLOTS
 function registration.subarea_bit(slot, k)
     return registration.SUBAREA_BIT_TOP - slot * registration.SUBAREAS - (k - 1)
 end
+-- the bits any map's areas past its own nine take, the lowest free first
+-- (W10h): the whole block, so a map with many areas borrows the bits of
+-- the slots a folder fills last (slots are taken lowest first)
+registration.SUBAREA_BIT_FLOOR = registration.SUBAREA_BIT_TOP - registration.SLOTS * registration.SUBAREAS + 1
+-- the kinds a table's ID column takes besides TABLE_KIND's (W10h)
+registration.ALSO = { area = { "area_more" } }
 registration.FILE = "registration.lua"   -- in World/Maps/<dir>/, beside the ground
 
 -- which id kind each table's ID column takes (for the stock rows a merge drops)
@@ -113,7 +123,11 @@ end
 -- every id of every slot: is `id` of kind `kind` inside the scheme's blocks?
 function registration.in_scheme(kind, id)
     local s = registration.SCHEME[kind]
-    return id >= s.base and id < s.base + s.width * registration.SLOTS
+    if id >= s.base and id < s.base + s.width * registration.SLOTS then return true end
+    for _, other in ipairs(registration.ALSO[kind] or {}) do
+        if registration.in_scheme(other, id) then return true end
+    end
+    return false
 end
 
 -- the slot a map id belongs to, or nil

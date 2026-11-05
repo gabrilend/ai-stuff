@@ -160,3 +160,19 @@
 - more than nine areas a map (decision 2);
 - an area's own music, ambience and light (its columns are 0 now);
 - the window's area list and brush.
+
+*(2026-11-05, later)* **Decisions 2, 3 and 10 are superseded** by
+`W10h-patch-w-never-behind-and-more-areas.md`:
+- **Decision 2 (nine areas a map):** by W10h decision 5. A map's first
+  nine areas keep the zone's block and the slot's own bits; the next 90
+  take ids 10000 + 90 x slot onwards (`area_more`), so a map holds up to
+  99 besides its zone (`ar.MAX` 100).
+- **Decision 3 (a taken bit falls back to the highest free, down to 0):**
+  by W10h decision 6. A pooled bit is now the lowest free of the areas'
+  block, 3096-3995, and never leaves it.
+- **Decision 10 (the patch made again only when the rows change):** by
+  W10h decisions 1-3. Any save that writes a file of a registered map
+  makes the folder's forms again, then the plan and stamp; `ar.save` now
+  writes only `registration.lua`, and `ar.forms` makes the forms.
+- Also found: a map project's WoW build left these tables out (W10h
+  decision 4); it carries them now.
