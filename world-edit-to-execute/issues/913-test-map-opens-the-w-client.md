@@ -387,6 +387,37 @@ numbers keep #241's shortest exact form (which `map.lua` now gets too).
   already takes it, not its `src/` (this branch's 2026-11-05 note above
   said `src/`; the two tests now read it the same way).
 
+## Decisions (2026-11-05, the server's stamp and the W client's own start; each the owner's to overturn)
+
+- **The server is reused by the converter's `server-stamp` (W02f step 1),
+  and the list of reports left out is retired.** The converter names the
+  files the server reads with their checksums, so the editor compares the
+  stamp it last started the server with to the new build's. `test_map.STAMP_LEAVES_OUT`
+  is gone with the whole-build checksum. **No fallback:** a build with no
+  readable stamp counts as new, so the server is started again and the
+  status line says why. The editor removes the old stamp before
+  converting, as it does an old receipt before launching. W02f's
+  decisions give the reasons and the format.
+- **The W client's own start runs in the tests.** When `$W_CLIENT_SRC`
+  names the W client's folder, `test_test_map` builds the client's start
+  from its sources and uses it as the W client of a Test Map run on W02's
+  real conversion of Daow 4.4. The start covers the options (067), the
+  receipt (068), `map.lua` (073) and the world's start (087: the tables,
+  the map's folder, the ground under the start). It is built from every
+  window-free part the client's `scripts/build` lists, less any that
+  includes the drawing library's headers (only `032-sight` today).
+  `src/tests/fixtures/test-map/w-client-start.c` calls those parts in
+  043-main.c's order and stops where the window would open, writing a
+  `closed` receipt with 0 frames. A stand-in `scripts/run` does what the
+  real one does in a test map: its folder first, `--maps`, `--client` and
+  `--assets` added, and the baseline set made once from `$WETE`'s tables
+  with the client's own `086-make-baseline`.
+- **It needs `$W_CLIENT_SRC` set; nothing is looked for at a default
+  path.** That is how `test_wow_registration` already compiles from the
+  client. Without it, or with no C compiler or no StormLib, the section
+  says why and is skipped. (The receipt writer's section still falls back
+  to the owner's checkout, as it did.)
+
 ## Related Documents
 
 - `docs/wow-client-bridge.md` ("2026-11-04: the editor keeps its own
@@ -576,3 +607,45 @@ have started the server again (two more reports carry a time). Now
   `test_wow_triggers` 138, `test_wow_config` 43, and `test_wow_terrain`
   177 (161 on the W02 tip, 177 on the Test Map branch: the camera
   section joins); `test_editor` 83, `test_editor_integration` 44.
+
+*(2026-11-05, the server's stamp and the W client's own start)*
+
+How it was before: the editor decided whether to reuse the server from a
+checksum of the whole build, leaving out a list of the converter's
+reports that hold a time, and each new report had to be added to that
+list. The tests stood a shell script in for the W client, so whether the
+real client takes the build's `map.lua` and finds ground under the
+editor's `--camera` was only checked by the client's own tests, on
+builds made by hand. Now (decisions above):
+
+- `src/editor/test_map.lua`: `T:stamp` reads `server-stamp` through
+  `wowbuild.server_stamp.read`; with none, the build counts as new and
+  this is said. The old stamp is removed before converting.
+  `STAMP_LEAVES_OUT` is gone.
+- `src/tests/fixtures/test-map/fake-convert.sh` writes `server/world.sql`
+  and the stamp with the converter's own code, and has a `nostamp` mode.
+- `src/tests/fixtures/test-map/w-client-start.c`: the W client's start, up
+  to its window, from its own parts.
+- **Tests** (`src/tests/test_test_map.lua`): 177 -> 187 with the W client's
+  sources and library (`W_CLIENT_SRC`, `W_CLIENT_BUILD`), 172 -> 174
+  without (two sections skipped):
+  - With no stamp, the server starts again on each F5 and the status line
+    says why. An earlier build's stamp is removed and never reused.
+  - The window-free parts are read from the client's `scripts/build` and
+    the start is built from them.
+  - Test Map on Daow 4.4 with W02's converter and the client's own start:
+    - the receipt reads `closed` with 0 frames;
+    - `map.lua` is accepted, with the map and folder it names;
+    - there is ground under the `--camera` the editor sent;
+    - the tables come from the build and from the baseline set made from
+      `$WETE`'s tables, with no install.
+  - Seven view points in, on the edges of and far off the map all have
+    ground under them (the editor moves the off-map points inside).
+  - A camera with no ground under it comes back as the client's error
+    receipt.
+  - The converter's side is W02f's `test_wow_server_stamp` (23).
+
+**Acceptance criteria:** unchanged. Criterion 1 (a real AzerothCore and
+the W client's window on the owner's machine) and criterion 3 (the real
+editor window) are still open. Criteria 2 and 4 now also hold with the
+client's own start code.
