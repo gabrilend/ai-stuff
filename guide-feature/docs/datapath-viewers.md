@@ -71,6 +71,18 @@ window library (SDL2 or LÖVE) it draws headless: `--screenshot` saves the
 frame as a PNG and a text grid, which `scripts/lua-window` files into
 `development-history/`.
 
+The HTML page is built (issue 803, `src/077-html-page.html`, served by the
+canvas server at `GET /`). It is one file with its own JavaScript:
+
+- It signs in with the key after `#` in its address, or asks for a viewer's
+  name and password, and unlocks each version (`docs/network.md`).
+- It reads the canvas straight from `docs/canvas-protocol.md`, and agrees
+  with the Lua reader on every shared test canvas and 46 more.
+- It draws each voice's colour behind its cells, with the Lua window's
+  colours and strengths, and fades each changed letter in.
+- `#NAME:KEY:VERSION` draws one version before the page finishes loading,
+  for a screenshot.
+
 ## One canvas for each screen
 
 Each watched screen gets a canvas made at its own size, so no canvas is

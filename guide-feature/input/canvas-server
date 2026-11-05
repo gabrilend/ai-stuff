@@ -26,3 +26,26 @@ check-seconds     = 0.2
 # The four machines: requests from these are not logged. Every request
 # from anywhere else is, with its address, request line and answer.
 local-addresses   = "127.0.0.1 192.168.1.100 192.168.1.11 192.168.1.12 192.168.1.13"
+
+# Who may have the canvas as plain text, without a session (GET /canvas with
+# no session=): "local", the four machines above; "everyone"; or "nobody".
+# Everyone else watches through the HTML page, whose canvas goes locked
+# (docs/network.md).
+send-plain        = "local"
+
+# The viewers: each one's own key, made by scripts/add-viewer. Outside the
+# project, like every key file; ~/ is the home folder. Readable by its owner
+# only. With no file, no one can sign in from outside.
+viewers-file      = "~/.config/guide-feature/viewers"
+
+# A page's session ends after this many seconds without a request (it then
+# starts a new one by itself), and at most this many are open at once (the
+# one used longest ago is dropped).
+session-seconds   = 3600
+max-sessions      = 64
+
+# How many PBKDF2-HMAC-SHA256 rounds scripts/add-viewer gives a new password
+# viewer (600000 is OWASP's 2023 advice). A browser takes a few seconds; a
+# guess at the password costs an attacker the same. Each viewer keeps the
+# rounds it was made with, so changing this changes only new viewers.
+password-rounds   = 600000

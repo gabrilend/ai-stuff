@@ -85,6 +85,13 @@ for NOTE in "${DIR}"/libs/*.upstream; do
     wanted "${NAME}" || continue
 
     SOURCE="$(field "${NOTE}" source)"
+    # a copy from a package registry (noble-ciphers, noble-hashes) has no
+    # local git upstream; its note says how it is refreshed by hand
+    case "${SOURCE}" in
+        https://*)
+            echo "${NAME}: copied from a package registry ($(field "${NOTE}" version)); refreshed by hand, as its note says"
+            continue ;;
+    esac
     OLD="$(field "${NOTE}" commit)"
     CHANGES="$(field "${NOTE}" changes)"
     if [ -z "${SOURCE}" ] || [ -z "${OLD}" ]; then

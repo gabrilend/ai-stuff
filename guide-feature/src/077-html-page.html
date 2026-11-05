@@ -1,0 +1,341 @@
+<!doctype html>
+<!--
+  077-html-page.html - the HTML page: the canvas in a browser (issue 803).
+
+  The canvas server sends this at GET /, with noble-ciphers and noble-hashes
+  put in where the NOBLE line is (src/076-html-page.lua). It holds
+  GET /canvas?after=N open, unlocks each version (AES-256-GCM), reads it
+  straight from docs/canvas-protocol.md, and draws it: each voice's colour
+  behind its cells, fading with age, and each changed letter fading in.
+
+  The key comes from the address, after the # (#NAME:KEY), which a browser
+  never sends to a server. Without one, the page asks for the viewer's name
+  and password and makes the key from the password itself, slowly; the
+  password never leaves the page. Either key only unlocks this session's
+  own key, which the server makes fresh (docs/network.md).
+
+  #NAME:KEY:VERSION draws that one version and stops, before the page has
+  finished loading, so a screenshot taken at load shows it (phase 8 demo).
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>guide-feature canvas</title>
+<style>
+  /* the Lua window's colours (input/lua-window), so the viewers agree */
+  :root { --background: #101418; --ink: #e8e8e8; --muted: #8a96a3; --problem: #e0a050; }
+  html, body { margin: 0; height: 100%; background: var(--background); color: var(--ink); }
+  body { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; }
+  #grid { position: absolute; white-space: pre; line-height: 1.2; }
+  #grid span { transition: background-color 0.6s; }
+  #grid span.new { animation: arrive 0.5s ease-out; }
+  @keyframes arrive { from { color: transparent; } }
+  #status { position: fixed; left: 0; right: 0; bottom: 0; margin: 0; padding: 4px 8px;
+            font-size: 12px; color: var(--muted); }
+  #status.problem { color: var(--problem); }
+  form { position: absolute; inset: 0; margin: auto; width: 16em; height: 11em;
+         display: grid; gap: 0.5em; font-size: 16px; }
+  form[hidden] { display: none; }
+  input, button { font: inherit; padding: 0.3em; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<form id="sign-in" hidden>
+  <label>Viewer<br><input name="viewer" autocomplete="username" required></label>
+  <label>Password<br><input name="password" type="password" autocomplete="current-password" required></label>
+  <button>Watch</button>
+</form>
+<p id="status">starting</p>
+<script>
+"use strict";
+/*NOBLE*/
+
+const GF = (() => {
+  // {{{ the colours: as the Lua window draws them (input/lua-window)
+  const VOICES = ["#e05050", "#40b060", "#4a78e0"], KUVALU = "#b050c8";
+  const WORD = [0.85, 0.7, 0.55, 0.4, 0.25], SENTENCE = [0.35, 0.25, 0.15];
+  // }}}
+
+  // {{{ parse(bytes): the canvas, read as docs/canvas-protocol.md says
+  // A view (version, width, height, voices, headers, cells[row][column] =
+  // { ch, mark }), or an Error naming the line (error.line), never a guess.
+  const SET = ["canvas", "size", "mode", "project", "written", "voices"];
+  const WHOLE = /^(0|[1-9][0-9]*)$/, NAME = /^[A-Za-z0-9._-]+$/;
+  const READ = {
+    canvas: (v) => WHOLE.test(v) ? Number(v) : null,
+    size: (v) => {
+      const m = /^([0-9]+)x([0-9]+)$/.exec(v);
+      if (!m || !WHOLE.test(m[1]) || !WHOLE.test(m[2]) || +m[1] < 1 || +m[2] < 1) return null;
+      return { width: +m[1], height: +m[2] };
+    },
+    mode: (v) => v === "newest" || v === "distill" ? v : null,
+    project: (v) => {
+      const m = /^([^ \t\n\v\f\r]+) ([0-9A-Fa-f]+)$/.exec(v);
+      return m && NAME.test(m[1]) ? { name: m[1], commit: m[2] } : null;
+    },
+    written: (v) => /^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$/.test(v) ? v : null,
+    voices: (v) => {
+      const list = v.split(" ");
+      return list.every((x) => NAME.test(x)) && new Set(list).size === list.length ? list : null;
+    },
+  };
+  const refuse = (line, why) => Object.assign(new Error("line " + line + ": " + why), { line });
+
+  function lines(bytes) {
+    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }), out = [];
+    let start = 0;
+    for (let at = 0; at <= bytes.length; at++) {
+      if (at < bytes.length && bytes[at] !== 10) continue;
+      if (at === bytes.length && start === at) break;    // a final newline ends the last line
+      try { out.push(decoder.decode(bytes.subarray(start, at))); }
+      catch (e) { out.push({ bad: true }); }
+      start = at + 1;
+    }
+    return out;
+  }
+
+  function parse(bytes) {
+    const all = lines(bytes);
+    let n = 0;
+    const line = () => {
+      if (all[n] && all[n].bad) throw refuse(n + 1, "this line is not valid UTF-8");
+      return all[n];
+    };
+    const headers = {};
+    for (let expected = 0; ; n++) {
+      const text = line();
+      if (text === undefined) throw refuse(n + 1, "the canvas ends inside its headers");
+      if (text === "") {
+        if (expected < SET.length) throw refuse(n + 1, "the headers end without '" + SET[expected] + "'");
+        n++;
+        break;
+      }
+      const m = /^([A-Za-z0-9-]+): (.*)$/s.exec(text);
+      if (!m) throw refuse(n + 1, "expected a header line `name: value`");
+      if (!SET.includes(m[1])) throw refuse(n + 1, "'" + m[1] + "' is not a viewer's header");
+      if (m[1] in headers) throw refuse(n + 1, "'" + m[1] + "' is here a second time");
+      if (m[1] !== SET[expected]) throw refuse(n + 1, "expected '" + SET[expected] + "' here");
+      const value = READ[m[1]](m[2]);
+      if (value === null) throw refuse(n + 1, "'" + m[1] + "' cannot be " + m[2]);
+      headers[m[1]] = value;
+      expected++;
+    }
+    const { width, height } = headers.size, version = headers.canvas;
+    const cells = [];
+    for (let row = 1; row <= height; row++, n++) {
+      const text = line();
+      if (text === undefined) throw refuse(n + 1, "the canvas ends after " + (row - 1) + " of its " + height + " rows");
+      if (/[\x00-\x1f\x7f]/.test(text)) throw refuse(n + 1, "row " + row + " holds a control character");
+      const chars = [...text];
+      if (chars.length > width) throw refuse(n + 1, "row " + row + " is " + chars.length + " characters, over the width of " + width);
+      while (chars.length < width) chars.push(" ");
+      cells.push(chars.map((ch) => ({ ch, mark: null })));
+    }
+    if (line() !== "marks:") throw refuse(n + 1, "expected `marks:` after the " + height + " rows");
+    const marks = [];
+    for (n++; line() !== undefined; n++) {
+      const text = line();
+      if (text === "cuts:" || text === "endpoints:") throw refuse(n + 1, "only a canvas sent to the voices has `" + text + "`");
+      const m = /^mark: ([^ \t\n\v\f\r]+) ([^ \t\n\v\f\r]+) ([^ \t\n\v\f\r]+) ([^ \t\n\v\f\r]+) ([^ \t\n\v\f\r]+) ([^ \t\n\v\f\r]+)$/.exec(text);
+      if (!m) throw refuse(n + 1, "a mark is `mark: ROW COLUMN LENGTH VOICE VERSION KIND`");
+      const [row, column, length, markVersion] = [1, 2, 3, 5].map((i) => READ.canvas(m[i]));
+      const fits = row !== null && row >= 1 && row <= height && column !== null && column >= 1
+        && column <= width && length !== null && length >= 1 && column + length - 1 <= width
+        && NAME.test(m[4]) && markVersion !== null && ["word", "sentence", "orphan"].includes(m[6]);
+      if (!fits) throw refuse(n + 1, "this mark cannot be on the canvas");
+      marks.push({ row, column, length, voice: m[4], version: markVersion, kind: m[6], line: n + 1 });
+    }
+    for (const mark of marks) {
+      if (mark.version > version) throw refuse(mark.line, "this mark is from version " + mark.version + ", newer than the canvas's " + version);
+      for (let c = mark.column; c < mark.column + mark.length; c++) {
+        cells[mark.row - 1][c - 1].mark = { voice: mark.voice, version: mark.version, kind: mark.kind, age: version - mark.version };
+      }
+    }
+    return { version, width, height, voices: headers.voices, headers, cells };
+  }
+  // }}}
+
+  // {{{ changed(view, previous): the cells whose character changed, as 022's
+  function changed(view, previous) {
+    const list = [], same = previous && previous.width === view.width && previous.height === view.height;
+    view.cells.forEach((line, r) => line.forEach((cell, c) => {
+      if (same && previous.cells[r][c].ch !== cell.ch) list.push({ row: r + 1, column: c + 1, was: previous.cells[r][c].ch, now: cell.ch });
+      else if (!same && cell.ch !== " ") list.push({ row: r + 1, column: c + 1, now: cell.ch });
+    }));
+    return list;
+  }
+  // }}}
+
+  // {{{ paint(view, previous): each cell's letter, colour behind it, and whether it is new
+  function behind(view, mark) {
+    if (!mark) return "";
+    const place = view.voices.indexOf(mark.voice);
+    const colour = mark.voice === "kuvalu" ? KUVALU : place >= 0 ? VOICES[place % VOICES.length] : null;
+    if (!colour) return "";
+    const steps = mark.kind === "word" ? WORD : SENTENCE;
+    const strength = steps[Math.min(mark.age, steps.length - 1)];
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(colour.slice(i, i + 2), 16));
+    return "rgba(" + r + ", " + g + ", " + b + ", " + strength + ")";
+  }
+  function paint(view, previous) {
+    const fresh = new Set(changed(view, previous).map((c) => c.row + " " + c.column));
+    return view.cells.map((line, r) => line.map((cell, c) => ({
+      ch: cell.ch, background: behind(view, cell.mark), new: fresh.has((r + 1) + " " + (c + 1)) })));
+  }
+  // }}}
+
+  // {{{ layout(view, width, height, letter): as 022's viewer.layout
+  function layout(view, width, height, letter) {
+    const fits = Math.min(width / (view.width * letter.across), height / (view.height * letter.down));
+    const size = Math.floor(Math.min(fits, letter.max));
+    if (size < letter.min) return { problem: "the canvas is " + view.width + "x" + view.height + "; this window holds it only at letter size " + fits.toFixed(1) + ", below the smallest of " + letter.min };
+    const w = view.width * letter.across * size, h = view.height * letter.down * size;
+    return { size, width: w, height: h, left: Math.floor((width - w) / 2), top: Math.floor((height - h) / 2) };
+  }
+  // }}}
+
+  // {{{ the locks: AES-256-GCM (noble-ciphers) and PBKDF2-HMAC-SHA256 (noble-hashes)
+  const aes = nobleRequire("ciphers/aes.js"), utils = nobleRequire("ciphers/utils.js");
+  const pbkdf2 = nobleRequire("hashes/pbkdf2.js"), sha2 = nobleRequire("hashes/sha2.js");
+  // What the server sealed: hex of nonce (12 bytes), ciphertext, tag (16).
+  function unlock(key, hex, aad) {
+    const sealed = utils.hexToBytes(hex.trim());
+    try {
+      return aes.gcm(key, sealed.subarray(0, 12), new TextEncoder().encode(aad)).decrypt(sealed.subarray(12));
+    } catch (e) {
+      throw new Error("it would not unlock: the key or password is wrong, or it changed on the way");
+    }
+  }
+  const passwordKey = (password, saltHex, rounds) =>
+    pbkdf2.pbkdf2Async(sha2.sha256, password, utils.hexToBytes(saltHex), { c: rounds, dkLen: 32 });
+  // }}}
+
+  // {{{ follow(start, get, show, report): a session, then every version as it comes
+  // start: { viewer, key } or { viewer, password }, and `version` for one
+  // version only. get(url) answers { status, text }. show(view, previous)
+  // draws. report(text, problem) says how it is going.
+  const fields = (text) => Object.fromEntries(text.split("\n").map((l) => /^([a-z-]+): (.*)$/.exec(l)).filter(Boolean).map((m) => [m[1], m[2]]));
+  const wait = (ms) => new Promise((done) => setTimeout(done, ms));
+
+  async function begin(start, get, report) {
+    const answer = await get("/session?viewer=" + encodeURIComponent(start.viewer));
+    if (answer.status !== 200) throw new Error(answer.status === 404 ? "this server has no viewer called " + start.viewer : "the server answered " + answer.status);
+    const f = fields(answer.text);
+    if (!start.key) {
+      if (f.kind !== "password") throw new Error(start.viewer + " signs in with a key in the address, not a password");
+      report("making your key from the password (slow on purpose, so a guessed password costs time)");
+      start.key = await passwordKey(start.password, f.salt, Number(f.rounds));
+      start.password = null;
+    }
+    return { id: f.session, key: unlock(start.key, f.key, "guide-feature session " + f.session) };
+  }
+
+  async function follow(start, get, show, report) {
+    let session = await begin(start, get, report), previous = null, after = null;
+    report("signed in as " + start.viewer);
+    for (;;) {
+      const url = start.version !== undefined ? "/canvas/" + start.version
+        : after === null ? "/canvas" : "/canvas?after=" + after;
+      let answer;
+      try { answer = await get(url + (url.includes("?") ? "&" : "?") + "session=" + session.id); }
+      catch (e) { report("the server cannot be reached; trying again", true); await wait(3000); continue; }
+      if (answer.status === 204) continue;
+      if (answer.status === 403) { session = await begin(start, get, report); continue; }
+      if (answer.status !== 200) {
+        report(answer.status === 404 ? "no canvas yet" : "the server answered " + answer.status, true);
+        if (start.version !== undefined) return previous;
+        await wait(2000);
+        continue;
+      }
+      try {
+        const view = parse(unlock(session.key, answer.text, "guide-feature canvas " + session.id));
+        // said before it is drawn, so a window too small says that instead
+        report("version " + view.version + ", " + view.headers.written + ", watched as " + start.viewer);
+        show(view, previous);
+        previous = view;
+        after = view.version;
+      } catch (e) {
+        report("a version could not be shown: " + e.message, true);
+        if (start.version === undefined) await wait(3000);
+      }
+      if (start.version !== undefined) return previous;
+    }
+  }
+  // }}}
+
+  // {{{ start(): the page in a browser
+  function start() {
+    const grid = document.getElementById("grid"), status = document.getElementById("status");
+    const form = document.getElementById("sign-in");
+    const report = (text, problem) => { status.textContent = text; status.className = problem ? "problem" : ""; };
+    let shown = null, spans = [];
+    const probe = document.createElement("span");
+    probe.textContent = "M";
+    grid.appendChild(probe);
+    probe.style.fontSize = "100px";
+    const across = probe.getBoundingClientRect().width / 100 || 0.6;
+    grid.removeChild(probe);
+
+    function place() {
+      if (!shown) return;
+      const box = layout(shown, innerWidth, innerHeight - 24, { across, down: 1.2, max: 32, min: 6 });
+      grid.hidden = Boolean(box.problem);
+      if (box.problem) return report(box.problem, true);
+      Object.assign(grid.style, { fontSize: box.size + "px", left: box.left + "px", top: box.top + "px" });
+    }
+    function show(view, previous) {
+      const cells = paint(view, previous);
+      if (!shown || shown.width !== view.width || shown.height !== view.height) {
+        grid.textContent = "";
+        spans = cells.map((line) => {
+          const row = line.map(() => grid.appendChild(document.createElement("span")));
+          grid.appendChild(document.createTextNode("\n"));
+          return row;
+        });
+      }
+      cells.forEach((line, r) => line.forEach((cell, c) => {
+        const span = spans[r][c];
+        span.textContent = cell.ch;
+        span.style.backgroundColor = cell.background;
+        span.classList.remove("new");
+      }));
+      void grid.offsetWidth;    // so a letter changed again starts its fade again
+      cells.forEach((line, r) => line.forEach((cell, c) => { if (cell.new) spans[r][c].classList.add("new"); }));
+      shown = view;
+      place();
+    }
+    addEventListener("resize", place);
+
+    const getAsync = async (url) => { const r = await fetch(url, { cache: "no-store" }); return { status: r.status, text: await r.text() }; };
+    const getSync = (url) => { const x = new XMLHttpRequest(); x.open("GET", url, false); x.send(); return { status: x.status, text: x.responseText }; };
+    const fail = (e) => report(e.message, true);
+    const m = /^#([A-Za-z0-9._-]+):([0-9a-fA-F]{64})(?::([0-9]+))?$/.exec(location.hash);
+    if (m) {
+      const version = m[3] === undefined ? undefined : Number(m[3]);
+      // one version: fetched before the page finishes loading, for a screenshot
+      follow({ viewer: m[1], key: utils.hexToBytes(m[2]), version }, version === undefined ? getAsync : getSync, show, report).catch(fail);
+      return;
+    }
+    if (location.hash) report("the address after # is not NAME:KEY (64 hex digits); sign in instead", true);
+    else report("sign in to watch the canvas");
+    form.hidden = false;
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      form.hidden = true;
+      const start = { viewer: form.viewer.value, password: form.password.value };
+      form.password.value = "";
+      follow(start, getAsync, show, report).catch((e) => { fail(e); form.hidden = false; });
+    });
+  }
+  // }}}
+
+  return { parse, changed, paint, layout, unlock, passwordKey, follow, start };
+})();
+
+if (typeof document !== "undefined") GF.start();
+</script>
+</body>
+</html>

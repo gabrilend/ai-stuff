@@ -58,7 +58,8 @@ The canvas server on kuvalu (port set in `input/canvas-server`):
 | `GET /canvas` | the newest version, `text/plain; charset=utf-8` |
 | `GET /canvas?after=N` | waits up to 60 seconds for a version above N, then answers with it, or `204 No Content` if none came, and the viewer asks again |
 | `GET /canvas/N` | version N from history, or `404` |
-| `GET /` | the HTML viewer page (`issues/803-the-html-page.md`) |
+| `GET /` | the HTML viewer page (`issues/completed/803-the-html-page.md`) |
+| `GET /session?viewer=NAME` | a session for that viewer (below), or `404` |
 
 Anything else is `404`. A method other than `GET` on these routes is `405`.
 A request larger than `max-request-bytes` is `413`. One that takes longer
@@ -66,9 +67,39 @@ than `request-seconds` to arrive is `408`. A connection beyond
 `max-connections` is `503`. Every answer closes its connection (no
 keep-alive), so a viewer opens a new one for each request. All of these are
 set in `input/canvas-server`. Built in `src/025-canvas-server.lua`
-(issue 204). Until the HTML page (803) brings the encrypted canvas
-(`docs/network.md`), the canvas is sent as plain text, and `GET /` is a
-`404` saying so.
+(issue 204).
+
+### Locked, in a session
+
+Outside the four machines the canvas is sent locked (`docs/network.md`,
+issue 803). A request for it with no session there is `403`. `send-plain`
+in `input/canvas-server` says who may have it plain: the four machines
+(`local`), `everyone`, or `nobody`.
+
+1. `GET /session?viewer=NAME` answers lines of `name: value`:
+
+        session: 3f9a...   (32 hex digits)
+        viewer: NAME
+        kind: key          (or password)
+        salt: -            (32 hex digits for a password viewer)
+        rounds: -          (PBKDF2 rounds, for a password viewer)
+        key: 9c1e...       (hex)
+
+   `key` is the session's own key (32 bytes), sealed with the viewer's key.
+   A viewer's key is in their address after `#` (`#NAME:KEY`, 64 hex
+   digits), or made from their password with PBKDF2-HMAC-SHA256 (`salt`,
+   `rounds`, 32 bytes).
+2. Every canvas route then takes `session=ID` too: `/canvas?session=ID`,
+   `/canvas?after=N&session=ID`, `/canvas/N?session=ID`. The answer is the
+   same canvas text, sealed with the session's key, written as hex and a
+   newline. A session unused for `session-seconds` ends; a request in it is
+   then `403`, and the viewer starts a new one.
+
+Sealed means AES-256-GCM: a fresh 12-byte nonce, the ciphertext, the
+16-byte tag, in that order. The additional data, never sent, binds each
+seal to its session: the text `guide-feature session ID` for the key and
+`guide-feature canvas ID` for a canvas. A seal that does not open is
+refused, never shown.
 
 From outside the home network, this server is the only thing that can be
 reached: the router forwards one port to it, the "narrow cause-way"

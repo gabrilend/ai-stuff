@@ -65,10 +65,8 @@ built to have as little in it as possible (`issues/204`):
   address and route.
 
 Built in `src/025-canvas-server.lua` (issue 204), with its limits in
-`input/canvas-server`. The forwarded port on the router, and the encryption
-described next, need the owner's machine and the HTML page (803). Until
-then the server sends the canvas as plain text, through a seam (`seal`)
-where the encryption goes.
+`input/canvas-server`. The encryption described next is built too (issue
+803). The forwarded port on the router needs the owner's machine.
 
 The owner's answer on keys and encryption: "we can use r-mail's encryption
 maybe? The display program (on your phone, computer, whatever) will have a
@@ -104,3 +102,20 @@ The page decrypts with noble-ciphers, a copy of AES-256-GCM in plain
 JavaScript (`docs/vendored-code.md`), because a browser switches on its
 built-in decryption (Web Crypto) only for HTTPS pages or pages from the same
 machine, and this page is neither.
+
+How it is built (issue 803):
+
+- `scripts/add-viewer NAME` makes a viewer with a key at random, and prints
+  the address to bookmark. `scripts/add-viewer NAME --password` makes one
+  who signs in with a password. Only the key made from the password is kept.
+- The keys live in the viewers file named in `input/canvas-server`, outside
+  the project and readable by its owner only. The server reads it again at
+  each sign-in.
+- The key from a password is PBKDF2-HMAC-SHA256, 600,000 rounds by default
+  (`password-rounds`). The server keeps each viewer's salt and sends it with
+  the session, so the browser can make the same key.
+- The server locks with its own AES-256-GCM in plain Lua
+  (`src/074-crypto.lua`). The page unlocks with noble-ciphers and makes a
+  password's key with noble-hashes (`libs/noble-*`).
+- Outside the four machines the canvas is never sent plain (`send-plain`).
+  The protocol is in `docs/canvas-protocol.md`, "Locked, in a session".

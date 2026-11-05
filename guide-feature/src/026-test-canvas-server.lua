@@ -87,7 +87,10 @@ write(ROOT .. "/input/blitter", series.SETTINGS)
 local function server_settings(locals)
     write(ROOT .. "/input/canvas-server", "listen-address = \"127.0.0.1\"\nport = 0\n"
         .. "max-connections = 4\nmax-request-bytes = 512\nrequest-seconds = 1\n"
-        .. "wait-seconds = 2\ncheck-seconds = 0.05\nlocal-addresses = \"" .. locals .. "\"\n")
+        .. "wait-seconds = 2\ncheck-seconds = 0.05\nlocal-addresses = \"" .. locals .. "\"\n"
+        -- plain text to everyone, as before the HTML page (803); 078 tests the rest
+        .. "send-plain = \"everyone\"\nviewers-file = \"" .. BASE .. "/viewers\"\n"
+        .. "session-seconds = 60\nmax-sessions = 4\npassword-rounds = 1000\n")
 end
 local ARRIVALS = ROOT .. "/tmp/shared-memory/arrivals"
 local CANVAS = ROOT .. "/tmp/shared-memory/canvas"
@@ -149,9 +152,9 @@ io.write("\n=== starting ===\n")
 -- {{{
 check("it starts, on 127.0.0.1 and a free port, and says so in its log",
     started and tonumber(PORT) > 0, slurp(BASE .. "/server.out"))
-check("its log says how it notices versions, and that the canvas is plain text for now",
+check("its log says how it notices versions, and who gets plain text",
     string.find(slurp(LOG), "(no inotify binding in this project)", 1, true) ~= nil
-    and string.find(slurp(LOG), "the encrypted canvas comes with the HTML page (803)", 1, true) ~= nil)
+    and string.find(slurp(LOG), "plain text goes to everyone", 1, true) ~= nil)
 -- }}}
 
 io.write("\n=== the routes ===\n")
@@ -172,9 +175,10 @@ check("GET /canvas/02: a number with a leading zero is not a version, 404",
 status, body = curl("/canvas?after=1")
 check("GET /canvas?after=1: a newer version is there, so it answers at once",
     status == 200 and body == slurp(CANVAS .. "/current"))
-status, body = curl("/")
-check("GET /: 404 until the HTML page (803) exists, saying so",
-    status == 404 and string.find(body, "803", 1, true) ~= nil)
+status, body, head = curl("/")
+check("GET /: the HTML page (803), as text/html",
+    status == 200 and string.find(body, "^<!doctype html>") ~= nil
+    and string.find(head, "Content-Type: text/html; charset=utf-8", 1, true) ~= nil)
 check("GET /nothing: 404", curl("/nothing") == 404)
 check("GET /canvas?after=x, ?after=, ?after=01, ?other=1 and /canvas/: each 404",
     curl("/canvas?after=x") == 404 and curl("/canvas?after=") == 404
