@@ -14,7 +14,9 @@ layer under it.
   ("127.0.0.1"), `port` (8080), `timeout` (5000 ms, also how long a call
   waits for an answer), `name` ("player", joined and hosted under),
   `ping_interval` (30 s), `reconnect` (true), `reconnect_min` (1 s) and
-  `reconnect_max` (30 s); also `clock` and `log` (a function taking a line).
+  `reconnect_max` (30 s); also `clock`, `log` (a function taking a line) and `codec`
+  (`encode`, `read_frame`; `protocol.lua` by default, the seam for question
+  Q-1, as in the server).
   An unknown option, or one of the wrong kind, is refused.
 - **`conn:poll(wait)`**: once a frame; waits up to `wait` seconds (default
   0), reads, handles, writes what the socket will take (keeping the rest),

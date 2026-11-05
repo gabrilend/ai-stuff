@@ -8,8 +8,12 @@
 -- reconnect by themselves and can open a lobby again.
 --
 -- Run with: luajit src/tests/test_matchmaking_client_net.lua [DIR]
+-- (DIR defaults to the project this file is in.)
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+-- The project: the argument, or the folder this test sits in (run-tests.sh
+-- runs each test by its full path, from the project), or the owner's.
+local DIR = arg[1] or arg[0]:match("^(.+)/src/tests/[^/]+%.lua$") or (arg[0]:match("^src/tests/") and ".")
+    or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/tests/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 require("netns").enter(arg[0], { DIR })
@@ -205,5 +209,6 @@ test("and never reconnects", host.state == "closed" and player.state == "closed"
 if pid2 then kill(pid2, pipe2) end
 -- }}}
 
-print(string.format("\nmatchmaking client over the network: %d of %d passed", pass_count, test_count))
+print(string.format("\nTests: %d passed, %d failed", pass_count, test_count - pass_count))
+print(string.format("matchmaking client over the network: %d of %d passed", pass_count, test_count))
 os.exit(pass_count == test_count and 0 or 1)

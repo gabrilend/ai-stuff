@@ -203,3 +203,14 @@ with 801a and 801b.
   the unsent tail dropped, the reconnect event lost). One path that
   could not be reached on loopback (a connection made at once) was
   folded into the other.
+
+## Decisions, second round (2026-11-05)
+
+11. **The message codec is an option** (`codec`, `protocol.lua` by
+    default), as in the server, so question Q-1 can be answered by a codec
+    over 803's message layer without touching the library.
+12. **The tests find their project** from their own path when given none
+    and end with a `Tests: N passed, M failed` line, so
+    `src/cli/run-tests.sh` runs and counts them.
+
+The library's tests are 69 checks now (two for the codec).

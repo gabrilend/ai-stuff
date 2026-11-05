@@ -77,15 +77,17 @@ Conn.on, Conn.off, Lobby.on, Lobby.off = on, off, on, off
 
 -- {{{ client.new
 -- A connection's core, with no socket: `options` over client.DEFAULTS,
--- plus `clock` (seconds), `log` (a function taking a line) and `pump`
--- (a function(wait) that moves bytes, used when a call waits).
+-- plus `clock` (seconds), `log` (a function taking a line), `pump`
+-- (a function(wait) that moves bytes, used when a call waits) and
+-- `codec` (`encode`, `read_frame`; protocol.lua by default, the seam for
+-- question Q-1, as in server.lua).
 function client.new(options)
     options = options or {}
     local self = setmetatable({ handlers = {} }, Conn)
     self.options = {}
     for k, v in pairs(client.DEFAULTS) do self.options[k] = v end
     for k, v in pairs(options) do
-        if k ~= "clock" and k ~= "log" and k ~= "pump" then
+        if k ~= "clock" and k ~= "log" and k ~= "pump" and k ~= "codec" then
             if client.DEFAULTS[k] == nil then error("matchmaking client: " .. tostring(k) .. " is not an option", 0) end
             if type(v) ~= type(client.DEFAULTS[k]) then
                 error("matchmaking client: " .. k .. " should be a " .. type(client.DEFAULTS[k]), 0)
@@ -100,6 +102,7 @@ function client.new(options)
     end
     self.log = options.log or function() end
     self.pump = options.pump
+    self.codec = options.codec or protocol
     self.state = "connected"
     self.inbuf, self.out = "", {}
     self.lists = {}                       -- callbacks waiting for GAME_LIST, in order
@@ -113,7 +116,7 @@ end
 -- {{{ sending and losing
 local function send(self, name, message)
     if self.state ~= "connected" then error("matchmaking client: not connected (" .. self.state .. ")", 0) end
-    self.out[#self.out + 1] = protocol.encode(name, message)
+    self.out[#self.out + 1] = self.codec.encode(name, message)
 end
 
 local function close_lobby(self, why)
@@ -242,7 +245,7 @@ function Conn:feed(bytes)
     if self.state ~= "connected" then return end
     self.inbuf = self.inbuf .. bytes
     while self.state == "connected" do
-        local ok, name, m, rest = pcall(protocol.read_frame, self.inbuf)
+        local ok, name, m, rest = pcall(self.codec.read_frame, self.inbuf)
         if not ok then return self:lost("the server sent what is not a message: " .. name) end
         if not name then break end
         self.inbuf = rest

@@ -9,8 +9,12 @@
 -- the lobby and says why.
 --
 -- Run with: luajit src/tests/test_matchmaking_client.lua [DIR]
+-- (DIR defaults to the project this file is in.)
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+-- The project: the argument, or the folder this test sits in (run-tests.sh
+-- runs each test by its full path, from the project), or the owner's.
+local DIR = arg[1] or arg[0]:match("^(.+)/src/tests/[^/]+%.lua$") or (arg[0]:match("^src/tests/") and ".")
+    or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local protocol = require("matchmaking.protocol")
@@ -100,6 +104,18 @@ test("an unknown option is refused", refused(function() client.new({ hots = "x" 
 test("an option of the wrong kind is refused", refused(function() client.new({ port = "80" }) end, "port should be a number"))
 test("waiting needs a pump or a socket", refused(function() client.new():list_games() end, "nothing to wait with"))
 test("polling needs a socket", refused(function() client.new():poll() end, "poll without a socket"))
+-- }}}
+
+-- {{{ the codec (question Q-1)
+print("the codec")
+do
+    local used = 0
+    local codec = { encode = function(n, m) used = used + 1 return protocol.encode(n, m) end, read_frame = protocol.read_frame }
+    local c = client.new({ codec = codec, clock = clock })
+    c:ping()
+    test("messages go through the codec it is given", used == 1 and protocol.decode(c:output()) == "PING")
+    test("protocol.lua is the codec by default", client.new({ clock = clock }).codec == protocol)
+end
 -- }}}
 
 -- {{{ hosting and listing
@@ -308,5 +324,6 @@ local nl, nerr = mute:create_lobby(game)
 test("an unanswered lobby gives nil and why", nl == nil and nerr == "no answer in 500 ms" and mute.lobby == nil)
 -- }}}
 
-print(string.format("\nmatchmaking client: %d of %d passed", pass_count, test_count))
+print(string.format("\nTests: %d passed, %d failed", pass_count, test_count - pass_count))
+print(string.format("matchmaking client: %d of %d passed", pass_count, test_count))
 os.exit(pass_count == test_count and 0 or 1)
