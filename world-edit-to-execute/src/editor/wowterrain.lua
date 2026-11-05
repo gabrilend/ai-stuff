@@ -47,7 +47,11 @@ tile written without an edit is the file that was read).
     local wt = require("editor.wowterrain")
     wt.raise(m, x, y, { radius = 12, amount = 3 })
     local bytes, why = wt.tile_bytes(original, m:tile(tx, ty), { big_alpha = m.big_alpha })
-    local written, why = wt.save(m)          -- every edited tile, written over its file
+    local written, why = wt.save(m)          -- every edited tile, written over its file, and the
+                                             -- map's WDL where ground or holes changed (W10c)
+
+Water is editor/wowwater.lua's (W10c: its tools, and the MH2O block
+tile_bytes writes again); the far view, editor/wowwdl.lua's.
 
     wt.attach(E)     -- the editor's strokes on a WoW map (E:wow_edit), editor/init.lua does this
 ]]
@@ -92,6 +96,47 @@ local function walk(s)
     return out, at
 end
 wt.walk = walk
+
+-- s with regions replaced: each { start, stop, data, seq } (from 0, stop
+-- not included; data a string, or a function(new_at) giving len bytes;
+-- seq orders regions inserted at one place). Returns the bytes and
+-- moved(p): where byte p is now (nil when p is inside a replaced region),
+-- or nil and why when regions overlap.
+local function splice(s, regions)
+    table.sort(regions, function(a, b)
+        if a.start ~= b.start then return a.start < b.start end
+        if a.stop ~= b.stop then return a.stop < b.stop end
+        return (a.seq or 0) < (b.seq or 0)
+    end)
+    for i = 2, #regions do
+        if regions[i].start < regions[i - 1].stop then return nil, "two of the parts to replace overlap" end
+    end
+    local shift = 0
+    for _, g in ipairs(regions) do
+        g.len = g.len or #g.data
+        g.new_at = g.start + shift
+        shift = shift + g.len - (g.stop - g.start)
+    end
+    local parts, from = {}, 0
+    for _, g in ipairs(regions) do
+        parts[#parts + 1] = s:sub(from + 1, g.start)
+        local d = type(g.data) == "function" and g.data(g.new_at) or g.data
+        assert(#d == g.len, "a part came out another length than it said")
+        parts[#parts + 1] = d
+        from = g.stop
+    end
+    parts[#parts + 1] = s:sub(from + 1)
+    local function moved(p)
+        local q = p
+        for _, g in ipairs(regions) do
+            if p > g.start and p < g.stop then return nil end
+            if g.stop <= p then q = q + g.len - (g.stop - g.start) end
+        end
+        return q
+    end
+    return table.concat(parts), moved
+end
+wt.splice = splice
 -- }}}
 
 -- {{{ points: where each of a chunk's 145 is, on the half-cell grid
@@ -174,6 +219,8 @@ local function set_height(m, key, h)
         local c, i = e[n], e[n + 1]
         c.heights[i] = h - c.z
         mark(c, "heights")
+        c.dirty.points = c.dirty.points or {}
+        c.dirty.points[i] = true
     end
 end
 
@@ -623,26 +670,9 @@ local function patch_chunk(B, c, big_alpha)
     else
         regions = { { start = mcly, stop = mcly_end, data = new_mcly }, { start = mcly_end, stop = mcly_end, data = new_mcal } }
     end
-    table.sort(regions, function(a, b) if a.start ~= b.start then return a.start < b.start end return a.stop < b.stop end)
-    local first = regions[1].start
-    local function moved(p)
-        local q = p
-        for _, g in ipairs(regions) do
-            if p > g.start and p < g.stop then return nil end
-            if g.stop <= p then q = q + #g.data - (g.stop - g.start) end
-        end
-        return q
-    end
-    -- the bytes, pieced
-    local parts, from = {}, 0
-    for _, g in ipairs(regions) do
-        parts[#parts + 1] = B:sub(from + 1, g.start)
-        g.new_at = #table.concat(parts)
-        parts[#parts + 1] = g.data
-        from = g.stop
-    end
-    parts[#parts + 1] = B:sub(from + 1)
-    local out = table.concat(parts)
+    local first = math.min(regions[1].start, regions[2].start)
+    local out, moved = splice(B, regions)
+    if not out then return nil, where .. ": " .. moved end
     -- the header: its offsets moved along, then what the layers changed
     for _, f in ipairs(OFFSET_FIELDS) do
         local v = u32(B, 8 + f)
@@ -671,17 +701,21 @@ end
 -- {{{ wt.tile_bytes: the tile's file again, its edits in it
 -- original: the tile's file as it was read; tile: its data (wowmap's,
 -- edited); opts.big_alpha: the map's blend maps are 8 bits a point (its
--- WDT says). A tile with no edit gives the original back.
+-- WDT says). A tile with no edit gives the original back. Water is
+-- editor/wowwater.lua's (MH2O: written again when a chunk's water was
+-- edited or the ground under it moved; made, before the first MCNK, for
+-- a tile that had none).
 function wt.tile_bytes(original, tile, opts)
     opts = opts or {}
+    local ww = require("editor.wowwater")
     local blocks, tail = walk(original)
     if not blocks then return nil, tail end
-    local pieces, any_moved = {}, false
-    local mhdr, mcin
-    for n, b in ipairs(blocks) do
+    local list, any_moved = {}, false          -- { old = the block or nil (made here), bytes }
+    local mhdr, mcin, mh2o
+    for _, b in ipairs(blocks) do
         local bytes = original:sub(b.at + 1, b.at + b.len)
-        if b.tag == "MHDR" then mhdr = n end
-        if b.tag == "MCIN" then mcin = n end
+        if b.tag == "MHDR" then mhdr = #list + 1 end
+        if b.tag == "MCIN" then mcin = #list + 1 end
         if b.tag == "MTEX" then
             local names, data = 0, bytes:sub(9)
             for _ in data:gmatch("([^%z]*)%z") do names = names + 1 end
@@ -693,7 +727,20 @@ function wt.tile_bytes(original, tile, opts)
                 end
                 bytes = adt.block("MTEX", data .. table.concat(more))
             end
+        elseif b.tag == "MH2O" then
+            mh2o = true
+            local why
+            bytes, why = ww.mh2o_bytes(bytes, tile)
+            if not bytes then return nil, why end
         elseif b.tag == "MCNK" and #bytes >= 8 + 128 then
+            if not mh2o and ww.needs_block(tile) then
+                -- water in a tile that had none: MH2O made, before the chunks
+                mh2o = true
+                local made, why = ww.mh2o_bytes(nil, tile)
+                if not made then return nil, why end
+                list[#list + 1] = { bytes = made, new = "MH2O" }
+                any_moved = true
+            end
             local ix, iy = u32(bytes, 12), u32(bytes, 16)
             local c = ix < 16 and iy < 16 and tile.chunks[iy * 16 + ix + 1]
             if c and (c.dirty or c.normals) then
@@ -702,52 +749,61 @@ function wt.tile_bytes(original, tile, opts)
                 if not bytes then return nil, why end
             end
         end
-        pieces[n] = bytes
+        list[#list + 1] = { old = b, bytes = bytes }
         if #bytes ~= b.len then any_moved = true end
     end
     local rest = original:sub(tail + 1)
     if any_moved then
         -- where each block starts now
-        local new_at, by_old, at = {}, {}, 0
-        for n, b in ipairs(blocks) do
-            new_at[n] = at
-            by_old[b.at] = n
-            at = at + #pieces[n]
+        local by_old, at, made_mh2o = {}, 0, nil
+        for _, e in ipairs(list) do
+            e.new_at = at
+            if e.old then by_old[e.old.at] = e end
+            if e.new == "MH2O" then made_mh2o = e end
+            at = at + #e.bytes
         end
         if mhdr then
-            local base_old, base_new = blocks[mhdr].at + 8, new_at[mhdr] + 8
-            local data = pieces[mhdr]
+            local E = list[mhdr]
+            local base_old, base_new = E.old.at + 8, E.new_at + 8
+            local data = E.bytes
             for f = 1, 11 do                    -- MCIN MTEX MMDX MMID MWMO MWID MDDF MODF MFBO MH2O MTXF
                 local v = u32(data, 8 + f * 4)
                 if v ~= 0 then
-                    local n = by_old[base_old + v]
-                    if not n then
+                    local e = by_old[base_old + v]
+                    if not e then
                         return nil, string.format("MHDR's field %d points at byte %d, where no block starts; "
                             .. "the tile's blocks can't be moved", f, base_old + v)
                     end
-                    data = put(data, 8 + f * 4, le32(new_at[n] - base_new))
+                    data = put(data, 8 + f * 4, le32(e.new_at - base_new))
+                elseif f == 10 and made_mh2o then
+                    data = put(data, 8 + f * 4, le32(made_mh2o.new_at - base_new))
                 end
             end
-            pieces[mhdr] = data
+            E.bytes = data
+        elseif made_mh2o then
+            return nil, "the tile has no MHDR to say where its new water is"
         end
         if mcin then
-            local data = pieces[mcin]
+            local E = list[mcin]
+            local data = E.bytes
             for k = 0, math.min(255, math.floor((#data - 8) / 16) - 1) do
-                local e = 8 + k * 16
-                local off = u32(data, e)
+                local o = 8 + k * 16
+                local off = u32(data, o)
                 if off ~= 0 then
-                    local n = by_old[off]
-                    if not n then
+                    local e = by_old[off]
+                    if not e then
                         return nil, string.format("MCIN's entry %d points at byte %d, where no block starts", k, off)
                     end
-                    data = put(data, e, le32(new_at[n]))
-                    data = put(data, e + 4, le32(u32(data, e + 4) + #pieces[n] - blocks[n].len))
+                    data = put(data, o, le32(e.new_at))
+                    data = put(data, o + 4, le32(u32(data, o + 4) + #e.bytes - e.old.len))
                 end
             end
-            pieces[mcin] = data
+            E.bytes = data
         end
     end
-    return table.concat(pieces) .. rest
+    local out = {}
+    for i, e in ipairs(list) do out[i] = e.bytes end
+    return table.concat(out) .. rest
 end
 -- }}}
 
@@ -776,16 +832,29 @@ function wt.edited(m)
 end
 
 -- every edited tile written over its file (the file as it stands is what
--- is patched); the files written, or nil and why (nothing written then)
+-- is patched), and the map's WDL with the far view of the tiles whose
+-- ground or holes changed (editor/wowwdl.lua); the files written, or nil
+-- and why (nothing written then)
 function wt.save(m)
-    local done = {}
+    local done, far = {}, {}
     for _, t in ipairs(wt.edited(m)) do
         local path = m.folder .. "/" .. t.file
         local original = read(path)
         if not original then return nil, "can't read " .. path end
         local bytes, why = wt.tile_bytes(original, t, { big_alpha = m.big_alpha })
         if not bytes then return nil, t.file .. ": " .. why end
-        done[#done + 1] = { t = t, path = path, bytes = bytes }
+        done[#done + 1] = { t = t, path = path, bytes = bytes, file = t.file }
+        for _, c in ipairs(t.chunks) do
+            if c.dirty and (c.dirty.heights or c.dirty.holes) then far[#far + 1] = t break end
+        end
+    end
+    if m.wdl and #far > 0 then
+        local path = m.folder .. "/" .. m.wdl
+        local original = read(path)
+        if not original then return nil, "can't read " .. path end
+        local bytes, why = require("editor.wowwdl").patch(original, far)
+        if not bytes then return nil, m.wdl .. ": " .. why end
+        if bytes ~= original then done[#done + 1] = { path = path, bytes = bytes, file = m.wdl } end
     end
     local written = {}
     for _, d in ipairs(done) do
@@ -796,9 +865,9 @@ function wt.save(m)
         f:close()
         local ok, err = os.rename(tmp, d.path)
         if not ok then return nil, err end
-        clean(d.t)
-        written[#written + 1] = d.t.file
+        written[#written + 1] = d.file
     end
+    for _, d in ipairs(done) do if d.t then clean(d.t) end end
     return written
 end
 -- }}}
@@ -818,11 +887,22 @@ function wt.snapshot(c)
         for i, n in pairs(c.normals) do normals[i] = n end
     end
     local dirty
-    if c.dirty then dirty = {} for k, v in pairs(c.dirty) do dirty[k] = v end end
+    if c.dirty then
+        dirty = {}
+        for k, v in pairs(c.dirty) do
+            if type(v) == "table" then
+                local cp = {}
+                for i, x in pairs(v) do cp[i] = x end
+                v = cp
+            end
+            dirty[k] = v
+        end
+    end
     local textures = {}
     for i, p in ipairs(c.tile.textures) do textures[i] = p end
     return { heights = h, holes = c.holes, layers = layers, normals = normals, dirty = dirty,
-             textures = textures, saves = c.tile.saves or 0 }
+             textures = textures, saves = c.tile.saves or 0,
+             water = require("editor.wowwater").copy(c.tile, c.iy * 16 + c.ix + 1) }
 end
 
 -- the chunk as the snapshot has it; m: its map
@@ -834,11 +914,23 @@ function wt.restore(m, c, s)
     local t = c.tile
     t.textures = {}
     for i, p in ipairs(s.textures) do t.textures[i] = p end
+    require("editor.wowwater").put(t, c.iy * 16 + c.ix + 1, s.water or {})
     if (t.saves or 0) == s.saves then
         c.normals = s.normals
-        c.dirty = s.dirty
+        c.dirty = nil
+        if s.dirty then
+            c.dirty = {}
+            for k, v in pairs(s.dirty) do
+                if type(v) == "table" then
+                    local cp = {}
+                    for i, x in pairs(v) do cp[i] = x end
+                    v = cp
+                end
+                c.dirty[k] = v
+            end
+        end
     else
-        c.dirty = { heights = true, holes = true, layers = #c.layers > 1 or nil }
+        c.dirty = { heights = true, holes = true, layers = #c.layers > 1 or nil, water = true }
         c.normals = nil
         local R, C = chunk_origin(t, c)
         local keys = {}
@@ -875,8 +967,12 @@ wt.chunks_near = chunks_near
 -- brush.strength in WC3 units (W02's 1/30.72 yard each) unless
 -- brush.wow_amount (yards); brush.wow_texture, the texture painted (a
 -- path), else the tile's own texture number brush.texture + 1; paint
--- covers brush.wow_paint (0-1, else 0.5) a touch.
-local TOOLS = { raise = true, lower = true, smooth = true, flatten = true, paint = true, hole = true, unhole = true }
+-- covers brush.wow_paint (0-1, else 0.5) a touch. water and dry (W10c,
+-- editor/wowwater.lua): brush.wow_level, the surface (else 2 yards over
+-- the ground where the stroke began), brush.wow_liquid, its kind (else 1,
+-- water).
+local TOOLS = { raise = true, lower = true, smooth = true, flatten = true, paint = true, hole = true, unhole = true,
+                water = true, dry = true }
 wt.TOOLS = TOOLS
 
 function wt.attach(E)
@@ -900,6 +996,10 @@ function wt.attach(E)
         end
         self.wow_stroke_now = { tool = tool, before = {}, list = {}, m = m }
         if x and tool == "flatten" then self.wow_stroke_now.flat = wt.ground(m, x, y) end
+        if x and tool == "water" then
+            local g = wt.ground(m, x, y)
+            self.wow_stroke_now.level = self.brush.wow_level or (g and g + require("editor.wowwater").LEVEL_ABOVE)
+        end
         return true
     end
 
@@ -931,6 +1031,10 @@ function wt.attach(E)
                 tex = c and c.tile.textures[(b.texture or 0) + 1]
             end
             got, why = wt.paint(m, x, y, { radius = r, texture = tex, strength = b.wow_paint or 0.5 })
+        elseif s.tool == "water" or s.tool == "dry" then
+            local ww = require("editor.wowwater")
+            if s.tool == "water" and not s.level then s.level = b.wow_level or ((wt.ground(m, x, y) or 0) + ww.LEVEL_ABOVE) end
+            got, why = ww[s.tool](m, x, y, { radius = r, level = s.level, kind = b.wow_liquid })
         else
             got, why = wt.holes(m, x, y, { radius = r, on = s.tool == "hole" })
         end
@@ -954,7 +1058,7 @@ function wt.attach(E)
             me.dirty.wow = true
         end
         local names = { raise = "Raise", lower = "Lower", smooth = "Smooth", flatten = "Flatten", paint = "Paint",
-                        hole = "Cut holes", unhole = "Fill holes" }
+                        hole = "Cut holes", unhole = "Fill holes", water = "Water", dry = "Dry" }
         local cmd = { name = names[s.tool] .. " (WoW map " .. s.m.directory .. ")",
                       redo = function() put_back(after) end, undo = function() put_back(s.before) end }
         self.history:record(cmd)
@@ -974,6 +1078,11 @@ function wt.attach(E)
         return all
     end
 end
+-- }}}
+
+-- {{{ for editor/wowwater.lua and editor/wowwdl.lua
+wt.internal = { load_area = load_area, mark = mark, chunk_origin = chunk_origin, weight = weight,
+                u32 = u32, u16 = u16, tag_at = tag_at, put = put, le32 = le32 }
 -- }}}
 
 return wt

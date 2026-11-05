@@ -300,7 +300,8 @@ do
 
     -- written over the files, read back
     local written, why = wt.save(m)
-    test("the two edited tiles written", written and #written == 2, why or (written and #written))
+    test("the two edited tiles written, and the far view (WDL, issue W10c)", written and #written == 3
+        and written[3] == "WC3_made.wdl", why or (written and table.concat(written, ", ")))
     local now = read(folder .. "/" .. t.file)
     local spans = {}
     for _, s in ipairs(chunk_spans(before)) do spans[#spans + 1] = s.mcvt spans[#spans + 1] = s.mcnr end
@@ -599,7 +600,8 @@ do
     test("a WC3-only tool on a WoW map: refused, said", not e:stroke_begin("cliff_up", x, y)
         and e.messages[#e.messages]:find("Not on a WoW map", 1, true))
     local written, swhy = e:wow_save()
-    test("saved: the edited tile over its file in the project", written and written[1] == "WC3_made/" .. t.file, swhy)
+    test("saved: the edited tile over its file in the project (and its far view, W10c)", written
+        and #written == 2 and written[1] == "WC3_made/WC3_made.wdl" and written[2] == "WC3_made/" .. t.file, swhy)
     local t2 = assert(wowmap.open(P .. "/wow", "WC3_made"):tile(t.tx, t.ty))
     test("... read back: raised, painted, holed", math.abs(t2.chunks[6 * 16 + 7].heights[73] - c.heights[73]) < 1e-3
         and t2.chunks[6 * 16 + 7].holes == c.holes and t2.textures[#t2.textures] == "Tileset\\Test\\Stroke.blp")
