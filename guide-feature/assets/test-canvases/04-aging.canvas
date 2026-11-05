@@ -1,0 +1,17 @@
+canvas: 9
+size: 16x3
+mode: newest
+project: guide-feature 9f2c1e0
+written: 2026-11-05T10:00:00Z
+voices: fg-sora-1 fg-sora-2 fg-sora-3
+
+go.
+now we wait.
+café olé
+marks:
+mark: 1 1 3 fg-sora-3 9 word
+mark: 2 1 3 fg-sora-1 7 word
+mark: 2 5 2 fg-sora-1 7 sentence
+mark: 2 8 5 fg-sora-2 3 sentence
+mark: 3 4 1 fg-sora-2 8 orphan
+mark: 3 6 3 kuvalu 9 word

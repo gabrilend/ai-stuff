@@ -67,3 +67,9 @@ above.
   always the truth.
 - A screen smaller than the canvas shows an error naming both sizes. It
   does not squeeze or crop the canvas.
+- A mark from a version newer than the canvas is an error, like any other
+  malformed line.
+
+A viewer checks itself against `assets/test-canvases/`: canvases with the
+grid, mark ages and changed cells each one must give, and canvases each one
+must refuse.

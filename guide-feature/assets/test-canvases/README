@@ -1,0 +1,32 @@
+Test canvases for every viewer (issue 202).
+
+Each NN-name.canvas is a canvas as viewers receive it (docs/canvas-protocol.md),
+and NN-name.expected is what the viewer-side reader (src/022-viewer.lua)
+gives for it. Each viewer (the Lua window, the terminal view, the HTML page,
+the Android and watch apps) is checked against the same pairs, so they all
+agree on what a canvas says.
+
+An .expected file, one item a line, after a # comment line:
+
+    version N                    the canvas's version
+    size WxH                     its size in characters
+    voices NAME NAME ...         the voices header, in colour order
+    cell ROW COLUMN CODEPOINT    every cell, in reading order: its character
+                                 as a decimal Unicode code point (32 is a space)
+         ... VOICE VERSION KIND AGE
+                                 and, when it has one, its mark and the mark's
+                                 age (the canvas version minus the mark's)
+    previous NAME|none           the version the viewer drew before
+    changed ROW COLUMN WAS NOW   each cell whose character differs from it,
+                                 code points; WAS is - when there is no
+                                 previous version (then every cell that is
+                                 not a space is listed)
+    refused LINE                 instead of all the above: the canvas must be
+                                 refused, naming this line number
+
+02 and 03 are the kitten and dog example of docs/datapath-blit.md, made by
+the real change finder, blit and marks; 04 has marks of several ages, an
+orphan, a mark by kuvalu and two-byte characters; 05 and 06 must be
+refused. The .expected files were written from the reader's answers and
+checked by hand, cell by cell; src/023-test-viewer.lua holds the reader to
+them.
