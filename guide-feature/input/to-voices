@@ -15,10 +15,9 @@ mailbox          = "~/guide-mail"
 # (docs/datapath-blit.md, "Collision rules").
 tell-the-voice   = "on"
 
-# The model server every voice is told to use, a name and an address
-# (docs/endpoints.md). A placeholder until the project's ports are chosen
-# (401a) and kuvalu picks it from the endpoints file (402).
-endpoint         = "voice-small http://192.168.1.100:20166"
+# Which model server each voice uses is not set here: every version names
+# each voice's endpoint, read then from the project-root endpoints file
+# (docs/endpoints.md, issue 402).
 
 # The project the voices work on: its git checkout on kuvalu, read at every
 # version for the commit their clones should be at.

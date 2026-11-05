@@ -423,11 +423,14 @@ M.ENDPOINT_FIELDS = {
 -- endpoint that is there, of the kind its role needs: the embedder an
 -- embedding endpoint, every other role (the voices, the distiller) a chat one.
 -- Whether an endpoint answers is not checked here; that is the client's (401b).
+-- opts: root, and file (another name for the file, relative to the root).
 function M.read_endpoints(opts)
     opts = opts or {}
     local root = opts.root or DIR
     M.ensure_tiers(root)
-    local source = "endpoints"
+    -- opts.file reads another file of the same form, relative to the root:
+    -- scripts/use-endpoint checks its new file under a temporary name (402)
+    local source = opts.file or "endpoints"
     local text = read_file(root .. "/" .. source, source,
         "there is no endpoints file in the project root (docs/endpoints.md)")
     local values, lines = M.check(M.parse(text, source), M.ENDPOINT_FIELDS, source)

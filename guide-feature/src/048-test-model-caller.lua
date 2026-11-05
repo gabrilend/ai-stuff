@@ -344,9 +344,9 @@ refused("a role with no use. line", GOOD, "distiller",
 refused("an endpoint with no timeout",
     (GOOD:gsub("stand%-in%-chat%.timeout  = 2\n", "")), "fg-sora-1",
     "endpoints:", "has no stand-in-chat.timeout")
-refused("an endpoint that needs a key, before 402",
+refused("an endpoint whose key file is missing (402)",
     GOOD .. 'stand-in-chat.key-file = "/nowhere/key"\n', "fg-sora-1",
-    "endpoint 'stand-in-chat' (" .. chat.url .. "):", "issue 402")
+    "endpoint 'stand-in-chat' (" .. chat.url .. "):", "its key file /nowhere/key is missing")
 refused("a voice pointed at an embedding endpoint",
     (GOOD:gsub('use.fg%-sora%-2 = "other%-chat"', 'use.fg-sora-2 = "stand-in-embed"')), "fg-sora-1",
     "endpoints:12:", "needs a chat endpoint")

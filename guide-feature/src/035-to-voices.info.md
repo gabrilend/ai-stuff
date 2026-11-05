@@ -6,9 +6,13 @@ living rmail message with a `to:` line for each voice in `input/blitter`,
 by a dot name (rmail skips those) and a rename. The body is the version in
 the to-voices form (`docs/canvas-format.md`): `canvas`, `size`, `mode`,
 `project` (the commit read from the project's checkout at every version),
-`endpoint`, `written`; the rows; the marks; and, with tell-the-voice on, a
-`cuts:` section with each voice's cut words from its latest turn that
-landed.
+`written`; the rows; the marks; with tell-the-voice on, a `cuts:` section
+with each voice's cut words from its latest turn that landed; and an
+`endpoints:` section, each voice's endpoint line from a fresh read of the
+project-root `endpoints` file at every version (issue 402). A voice whose
+endpoint cannot be given a line gets none, and the log says why. A file
+that cannot be read sends the version with an empty section, logged and
+counted as `versions-without-endpoints`.
 
 `input/to-voices`, read when the blitter starts:
 
@@ -17,13 +21,13 @@ landed.
 | `send` | `on` / `off` | mail every version, or nothing |
 | `mailbox` | text | the guide mailbox's folder (`~` is home) |
 | `tell-the-voice` | `on` / `off` | the `cuts:` section |
-| `endpoint` | text | `name address`, the model server every voice is told (a placeholder until 402) |
 | `project-checkout` | text | the project's git checkout, for its commit |
 
 | Function | Meaning |
 |---|---|
-| `publisher(opts)` | the publisher, or nil and why (send off). Refuses a missing mailbox, a voice with no contact, a bad endpoint or a folder that is not a checkout. `opts.root`, `opts.voices` |
-| `body(record, values, commit, cuts)` | a version's to-voices text |
+| `publisher(opts)` | the publisher, or nil and why (send off). Refuses a missing mailbox, a voice with no contact, an `endpoints` file that cannot be read, or a folder that is not a checkout. `opts.root`, `opts.voices` |
+| `body(record, commit, cuts, endpoints)` | a version's to-voices text |
+| `endpoint_lines(root, voices)` | each voice's endpoint line now, and the reasons for any voice left out |
 | `message(voices, body)` | the outbox file's text |
 | `commit_of(checkout)` | seven hex digits, or nil |
 

@@ -19,6 +19,8 @@ handle all of them.
     <zero or more mark lines>
     cuts:                          (kuvalu → voices only)
     <zero or more cut lines>
+    endpoints:                     (kuvalu → voices only)
+    <one endpoint line per voice>
 
 The number of rows is known from the `size` header, so an empty row (a row
 of spaces, or an empty line) is never confused with the end of the rows.
@@ -82,13 +84,28 @@ at, ROW and COLUMN where the cut word stood, and TEXT the whole word as it
 was. Every voice receives the same body, and each voice's turn reads only
 its own lines, so one living message still serves all three.
 
+### Endpoints
+
+Only in the canvas kuvalu sends to the voices. One line per voice, naming
+the model server that voice uses for its next turn, as kuvalu's `endpoints`
+file says at the moment the version is written (`docs/endpoints.md`):
+
+    endpoint: VOICE NAME TIMEOUT ADDRESS [KEY-FILE]
+
+VOICE is the voice, NAME the endpoint's name in `endpoints`, TIMEOUT its
+time limit for one request in seconds, ADDRESS its `http://` or `https://`
+address, and KEY-FILE, only for an endpoint that needs a key, the path of
+the file on the voice that holds the key. The key itself never travels in a
+canvas. Every voice receives the same body and reads only its own line, as
+with the cuts. A voice with no line has no endpoint, and its turn fails
+saying so (issue 402).
+
 ## Headers, kuvalu → voices (`the-canvas`)
 
     canvas: 18
     size: 60x20
     mode: newest
     project: guide-feature 9f2c1e0
-    endpoint: voice-small http://192.168.1.100:<port>
     written: 2026-10-21T22:10:05Z
 
 | Field | Type | Meaning |
@@ -97,7 +114,6 @@ its own lines, so one living message still serves all three.
 | `size` | `WxH` | the canvas size in characters |
 | `mode` | `newest` or `distill` | the merge mode in use (voices may be told how their edits are used) |
 | `project` | name and commit | the project being worked on, and the commit each voice's clone should be at (`docs/datapath-looking-into-the-project.md`) |
-| `endpoint` | name and address | the model server this voice uses for its next turn, chosen on kuvalu (`docs/endpoints.md`) |
 | `written` | UTC time `YYYY-MM-DDThh:mm:ssZ` | when kuvalu wrote this version |
 
 ## Headers, voice → kuvalu (`canvas`)

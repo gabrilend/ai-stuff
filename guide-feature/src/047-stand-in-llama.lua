@@ -27,9 +27,17 @@
 -- Every request is appended to a JSON-lines file, so a test can read what the
 -- caller sent (the whole conversation, every time).
 --
+-- With --key-file, it asks for the key in that file as llama-server does with
+-- --api-key-file (read from a file, so the key is on no command line): every
+-- route but GET /v1/models and /health needs the header
+-- "Authorization: Bearer KEY", and a request without it, or with another key,
+-- gets 401 and llama-server's "Invalid API Key" body. The request log then
+-- says whether each request was `authorized`; it never records the key.
+--
 -- usage:
 --   luajit 047-stand-in-llama.lua --kind chat|embedding --port-file FILE
 --          [--replies FILE] [--requests FILE] [--dimensions N] [--parent PID]
+--          [--key-file FILE]
 --   --parent: leave once that process is gone (a test that died)
 
 -- {{{ local DIR
@@ -110,7 +118,8 @@ end
 function M.new(opts)
     assert(opts.kind == "chat" or opts.kind == "embedding", "--kind chat or embedding")
     local server = { kind = opts.kind, replies = opts.replies or {}, taken = 0,
-                     requests = opts.requests, dimensions = opts.dimensions or 8 }
+                     requests = opts.requests, dimensions = opts.dimensions or 8,
+                     key = opts.key }
     return setmetatable(server, { __index = M })
 end
 -- }}}
@@ -130,8 +139,12 @@ end
 
 -- {{{ function M:answer()
 -- What one request gets: a status and a table to send as JSON. Pure, so the
--- tests can call it without a socket.
-function M:answer(method, path, body_text)
+-- tests can call it without a socket. `authorization` is the request's
+-- Authorization header, or nil.
+local PUBLIC = { ["/v1/models"] = true, ["/health"] = true }
+function M:answer(method, path, body_text, authorization)
+    local authorized = nil
+    if self.key then authorized = authorization == "Bearer " .. self.key end
     local body = nil
     if method == "POST" then
         body = json.decode(body_text or "")
@@ -142,9 +155,14 @@ function M:answer(method, path, body_text)
     if self.requests then
         local handle = io.open(self.requests, "ab")
         if handle then
-            handle:write(json.encode({ method = method, path = path, body = body }), "\n")
+            handle:write(json.encode({ method = method, path = path, body = body,
+                                       authorized = authorized }), "\n")
             handle:close()
         end
+    end
+
+    if authorized == false and not PUBLIC[path] then
+        return error_body(401, "Invalid API Key", "authentication_error")
     end
 
     if method == "GET" and path == "/v1/models" then
@@ -195,21 +213,24 @@ end
 -- }}}
 
 -- {{{ local function read_request()
--- One HTTP request from a connected socket: method, path and body.
+-- One HTTP request from a connected socket: method, path, body and its
+-- Authorization header.
 local function read_request(client)
     client:settimeout(10)
     local line = client:receive("*l")
     if not line then return nil end
     local method, path = string.match(line, "^(%u+)%s+(%S+)")
-    local length = 0
+    local length, authorization = 0, nil
     while true do
         local header = client:receive("*l")
         if not header or header == "" then break end
         local value = string.match(string.lower(header), "^content%-length:%s*(%d+)")
         if value then length = tonumber(value) end
+        local given = string.match(header, "^[Aa]uthorization:%s*(.-)%s*$")
+        if given then authorization = given end
     end
     local body = length > 0 and client:receive(length) or ""
-    return method, path, body
+    return method, path, body, authorization
 end
 -- }}}
 
@@ -235,9 +256,9 @@ function M:serve(port_file, parent)
         end
         local client = listener:accept()
         if client then
-            local method, path, body = read_request(client)
+            local method, path, body, authorization = read_request(client)
             if method then
-                local status, reply = self:answer(method, path, body)
+                local status, reply = self:answer(method, path, body, authorization)
                 local text = json.encode(reply)
                 client:send(string.format("HTTP/1.1 %d %s\r\nContent-Type: application/json\r\n"
                     .. "Content-Length: %d\r\nConnection: close\r\n\r\n%s",
@@ -260,6 +281,11 @@ if arg and arg[0] and string.match(arg[0], "047%-stand%-in%-llama%.lua$") then
         elseif name == "--requests" then opts.requests = value
         elseif name == "--dimensions" then opts.dimensions = tonumber(value)
         elseif name == "--parent" then opts.parent = tonumber(value)
+        elseif name == "--key-file" then
+            local handle = assert(io.open(value, "rb"))
+            opts.key = assert(string.match(handle:read("*a"), "^%s*(%S+)%s*$"),
+                "--key-file holds no key")
+            handle:close()
         elseif name == "--replies" then
             local handle = assert(io.open(value, "rb"))
             opts.replies = assert(json.decode(handle:read("*a")), "--replies is not JSON")
@@ -272,7 +298,8 @@ if arg and arg[0] and string.match(arg[0], "047%-stand%-in%-llama%.lua$") then
     end
     if not port_file then
         io.stderr:write("usage: 047-stand-in-llama.lua --kind chat|embedding --port-file FILE"
-            .. " [--replies FILE] [--requests FILE] [--dimensions N] [--parent PID]\n")
+            .. " [--replies FILE] [--requests FILE] [--dimensions N] [--parent PID]"
+            .. " [--key-file FILE]\n")
         os.exit(2)
     end
     M.new(opts):serve(port_file, opts.parent)

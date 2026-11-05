@@ -87,6 +87,7 @@ write(PROJECT .. "/input/turn-runner", slurp(DIR .. "/input/turn-runner"))
 -- a turn longer than the carrier's timers, so canvases wait and are replaced
 write(PROJECT .. "/input/stand-in-turn", 'words = "lantern harbor kitten orchard"\nseconds = 1.5\n')
 write(PROJECT .. "/input/to-voices", slurp(DIR .. "/input/to-voices"))
+write(PROJECT .. "/endpoints", slurp(DIR .. "/endpoints"))
 local function rehearsal_settings(minutes)
     write(PROJECT .. "/input/rehearsal", "minutes = " .. minutes .. '\ncarrier = "stand-in"\n'
         .. 'first-port = 41223\npace = 1\njitter = 0.5\nrmail = "luajit /nowhere/rmail.lua"\n')

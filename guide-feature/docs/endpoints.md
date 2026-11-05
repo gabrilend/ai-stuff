@@ -50,9 +50,27 @@ comment, text in "quotes", bare whole numbers.
 
 The file is read again at the start of every turn and every distill, so
 editing a `use.` line switches that role on its next turn, with nothing
-restarted. `scripts/use-endpoint ROLE NAME` makes that edit and checks the
-endpoint answers before writing it. Each turn records which endpoint it used,
-in the log and the goodbye receipt.
+restarted. Each turn records which endpoint it used, in the log and the
+goodbye receipt.
+
+Two scripts, run on kuvalu (issue 402, `src/053-endpoint-tools.lua`):
+
+- `scripts/use-endpoint ROLE NAME` makes that edit safely. It checks first:
+  the endpoint is in the file, it is the kind the role needs, it has a
+  timeout, its key file (if it has one) can be read, and it answers now and
+  takes the key. Only then does it rewrite the one `use.ROLE` line, keeping
+  its comment (or add one when the role has none), into `endpoints.part`,
+  read that back and check it whole, and rename it over `endpoints`. A turn
+  starting meanwhile reads the old file or the new one, never half of one.
+  It prints the change:
+
+      $ scripts/use-endpoint fg-sora-2 far-away
+      use.fg-sora-2: kuvalu-chat -> far-away
+
+  When any check fails it says why, writes nothing, and exits 1.
+- `scripts/list-endpoints` prints every endpoint: its name, kind, whether
+  it answers now, its address and the roles that use it, with any problem
+  (no timeout, a key file that cannot be read) on the line under it.
 
 A file that does not parse, a `use.` line naming an endpoint that does not
 exist, or an endpoint that does not answer is an error for that turn. There
@@ -75,7 +93,7 @@ role uses now, and `chat`, `count_tokens`, `embed` and `reachable` call it.
 It refuses, before sending anything:
 - a role with no `use.` line;
 - an endpoint with no `timeout`;
-- an endpoint with a `key-file`, until issue 402 sends keys;
+- a key file that cannot be used (below);
 - chat on an embedding endpoint, or an embedding on a chat one.
 
 A failed call is an error naming the endpoint and its address:
@@ -86,6 +104,28 @@ The tests run against a stand-in llama.cpp server on 127.0.0.1
 (`src/047-stand-in-llama.lua`), which answers the same four routes in the
 same shapes, since this project installs no llama.cpp or models outside
 the owner's machines.
+
+## Keys for outside providers
+
+An endpoint with a `NAME.key-file` needs a key, as llama-server started
+with `--api-key` does and as most outside providers do (issue 402). The
+model caller reads the key from that file at the start of each turn
+(`load_key` in `src/046-model-caller.lua`) and sends it with every request
+as `Authorization: Bearer KEY`. It refuses, naming the endpoint and the
+file but never the key:
+- a key file inside the project (keys live outside the repository);
+- a key file that is missing or cannot be read;
+- a key file that does not hold one key on one line.
+
+`~` in the path is the home folder of whoever runs the turn. Keep the file
+readable only by that user (`chmod 600`).
+
+The key never goes on a command line, where any other program on the
+machine could read it: the client writes the header to a temporary file
+only its owner can read, hands that to curl as `-H @file`, and removes it
+when the request is done. It is never written to a log, a receipt or a
+canvas. The tests check each of these against a stand-in server that asks
+for a key (`src/054-test-endpoint-tools.lua`).
 
 ## The servers
 
@@ -113,7 +153,19 @@ already listens on before anything starts there, and adds each server's
 ## Where the file lives
 
 Only kuvalu keeps `endpoints`. kuvalu tells each voice which endpoint to
-use in the canvas it sends: an `endpoint` header with the endpoint's name
-and address (`docs/canvas-format.md`). Switching every voice is then one
-edit, in one place. A voice keeps no list of its own and uses the header
-it was last sent.
+use in the canvas it sends: an `endpoints:` section with one line for each
+voice, giving that voice's endpoint's name, timeout, address and, for an
+endpoint that needs a key, the path of its key file
+(`docs/canvas-format.md`). kuvalu reads `endpoints` again for every version
+it sends, so `scripts/use-endpoint` on kuvalu reaches a voice with the next
+version. A voice keeps no list of its own: its turn uses the line in the
+canvas it is answering (`from_canvas` in `src/046-model-caller.lua`).
+
+The key itself never travels in a canvas, only the path of its file. Each
+voice that uses an outside provider needs that key file at that path on
+its own machine (issue 703). A voice the canvas names no endpoint for, or
+whose key file is missing, fails that turn, saying which.
+
+(Until issue 402 this was a single `endpoint` header, the same for every
+voice. It could not say that one voice uses another endpoint, which the
+file's `use.` lines allow, so 402 replaced it with a line per voice.)

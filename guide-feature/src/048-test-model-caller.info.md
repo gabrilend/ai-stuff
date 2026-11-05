@@ -14,7 +14,7 @@ Tests for issue 401b, against two stand-in llama.cpp servers (047) on
 - the file read on every call: a `use.` line edited between two calls
   switches the role;
 - refused: a `use.` line naming an endpoint that does not exist, no `use.`
-  line, no timeout, a key file, a voice on an embedding endpoint, no file;
+  line, no timeout, a missing key file (402), a voice on an embedding endpoint, no file;
 - a stopped server: not reachable, its calls errors naming it, and no
   fallback to the other chat endpoint;
 - the client's command line; this project's own `endpoints` file;

@@ -16,7 +16,8 @@
 -- Every call takes an endpoint record:
 --   { name = "kuvalu-chat", url = "http://host:port", timeout = 300 }
 -- name is only used in messages; url is the server; timeout is the whole
--- request's limit in seconds.
+-- request's limit in seconds; key, when there is one, is sent as a bearer
+-- token in a header read from a temporary file, never on the command line.
 --
 -- This file is meant to be `require`d (or dofile'd) as a library. It also runs
 -- standalone as a small CLI (--ping / --tokens / --prompt / --embed) for
@@ -84,6 +85,23 @@ end
 M.sanitize_utf8 = sanitize_utf8
 -- }}}
 
+-- {{{ local function key_header(endpoint)
+-- For an endpoint with a key (an outside provider, issue 402): a temporary
+-- file holding the Authorization header, handed to curl as -H @file, so the
+-- key is never on a command line where other processes could read it.
+-- os.tmpname makes the file readable by its owner only. Returns the curl
+-- argument and the file to remove, or "" and nil.
+local function key_header(endpoint)
+   if not endpoint.key then return "", nil end
+   local file = os.tmpname()
+   local f = io.open(file, "w")
+   if not f then return "", nil end
+   f:write("Authorization: Bearer ", endpoint.key, "\n")
+   f:close()
+   return " -H @" .. file, file
+end
+-- }}}
+
 -- {{{ local function http_post_json(endpoint, path, body)
 -- POST a Lua table as JSON to <endpoint><path> and return the decoded reply.
 -- The body is written to a unique temp file and handed to curl with -d @file:
@@ -107,12 +125,15 @@ local function http_post_json(endpoint, path, body)
    -- -sS: quiet but still print transport errors. -w captures the HTTP status
    -- on its own trailing line so we can tell "server said no" from "curl could
    -- not connect" without a second request.
+   local key_arg, key_file = key_header(endpoint)
    local curl_cmd = string.format(
       "curl -sS --max-time %d -w '\\n%%{http_code}' -X POST '%s%s' "
-         .. "-H 'Content-Type: application/json' -d @%s > %s 2>%s.err",
-      endpoint.timeout, endpoint_base(endpoint), path, input_file, output_file, output_file)
+         .. "-H 'Content-Type: application/json'%s -d @%s > %s 2>%s.err",
+      endpoint.timeout, endpoint_base(endpoint), path, key_arg, input_file, output_file,
+      output_file)
 
    os.execute(curl_cmd)
+   if key_file then os.remove(key_file) end
 
    local rf = io.open(output_file, "r")
    local reply = rf and rf:read("*all") or ""
@@ -168,12 +189,14 @@ end
 -- Lightweight reachability probe: return the numeric HTTP status of a GET, or
 -- "000" if the connection never completed. Used by M.is_reachable().
 local function http_get_code(endpoint, path)
+   local key_arg, key_file = key_header(endpoint)
    local cmd = string.format(
-      "curl -s -o /dev/null -w '%%{http_code}' --max-time %d '%s%s'",
-      endpoint.timeout, endpoint_base(endpoint), path)
+      "curl -s -o /dev/null -w '%%{http_code}' --max-time %d%s '%s%s'",
+      endpoint.timeout, key_arg, endpoint_base(endpoint), path)
    local h = io.popen(cmd)
    local code = h and h:read("*all") or "000"
    if h then h:close() end
+   if key_file then os.remove(key_file) end
    return ((code or "000"):gsub("%s+", ""))
 end
 -- }}}

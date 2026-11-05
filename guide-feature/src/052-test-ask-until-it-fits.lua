@@ -81,7 +81,7 @@ local function sleep(seconds) ffi.C.poll(nil, 0, math.floor(seconds * 1000)) end
 -- {{{ the base canvas and a scripted model
 local BASE_TEXT = table.concat({
     "canvas: 4", "size: 20x4", "mode: newest", "project: guide-feature 9f2c1e0",
-    "endpoint: stand-in-chat http://127.0.0.1:1", "written: 2026-11-05T10:00:00Z", "",
+    "written: 2026-11-05T10:00:00Z", "",
     "the cat sat on the", "mat. it is very", "sleepy today.", "", "marks:",
 }, "\n") .. "\n"
 local BASE = canvas.read(BASE_TEXT, "to-voices", "base")

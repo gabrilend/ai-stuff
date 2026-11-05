@@ -1,0 +1,13 @@
+#!/bin/sh
+#
+# use-endpoint ROLE NAME - point a role (a voice's name, distiller or
+# embedder) at another endpoint in the project-root endpoints file (issue
+# 402). It checks the endpoint first: the right kind, a timeout, its key
+# file if it has one, and that it answers now and takes the key. Then it
+# rewrites the one use.ROLE line and prints the old and new choice. The
+# role's next turn uses it, with nothing restarted. Run it on kuvalu.
+#
+# The project is the one this script sits in.
+
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec luajit "${DIR}/src/053-endpoint-tools.lua" --dir "${DIR}" use "$@"

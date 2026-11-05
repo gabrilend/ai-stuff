@@ -57,6 +57,7 @@ done
 for NAME in blitter turn-runner stand-in-turn rehearsal to-voices; do
     cp "${DIR}/input/${NAME}" "${ROOT}/input/${NAME}"
 done
+cp "${DIR}/endpoints" "${ROOT}/endpoints"
 # the project's checkout, for the commit the voices are sent: this one
 sed -i "s|^project-checkout *=.*|project-checkout = \"${DIR}\"|" "${ROOT}/input/to-voices"
 export EXEC_TIER_ROOT="${BASE}/exec"
