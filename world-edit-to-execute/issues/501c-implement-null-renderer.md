@@ -31,9 +31,9 @@ check a frame's contents without a display.
 
 ## Acceptance Criteria
 
-- [ ] Runs with no display and no raylib window
-- [ ] Reports counts per item kind and a checksum of the frame
-- [ ] A test scene gives the same checksum on every run
+- [x] Runs with no display and no raylib window
+- [x] Reports counts per item kind and a checksum of the frame
+- [x] A test scene gives the same checksum on every run
 
 ---
 
@@ -161,3 +161,51 @@ print("Frames:", stats.frame_count)      -- e.g., 1
 - issues/501a-define-renderer-interface.md (interface to implement)
 - issues/501b-create-renderer-registry.md (registers with this)
 - src/tests/ (will use null renderer)
+
+---
+
+## Decisions (2026-11-05)
+
+Made without the owner, each one theirs to overturn.
+
+1. **Steps 1 and 3 are built; step 2 waits on the page.** There is no
+   `page.h` yet (issue 501), so the headless renderer reads the slot
+   array (`slots.h`); its report is meant to carry over to the page
+   unchanged. The issue stays open for step 2.
+2. **A library, not a mode of the raylib renderer:** `src/render/null_render.c`
+   (with `null_render.h`) needs neither raylib nor Lua. Changing
+   `main.c` to add a mode would need raylib to build and check, so it is
+   left for when the owner can run the window.
+3. **Item kinds are the bridge's mesh ids** (0 circle, 1 cube,
+   2 triangle, 3 cylinder); any other id is a placeholder (no model).
+   "Drawn" means what the draw thread draws: a slot in use, with data,
+   visible. "Outside" is off the map's ground rectangle (x and y), its
+   edges inside, when the caller gives one.
+4. **The checksum is FNV-1a (64-bit) over the drawn items in slot order**:
+   the entity id and every field drawn from, written byte by byte in a
+   fixed order (floats as their bits), so it does not depend on the
+   compiler's struct padding or the machine. Slot order is the order the
+   game created things in, so the same scene written the same way gives
+   the same number.
+5. **Lua reaches it through LuaJIT's FFI** (`src/render/null.lua`): a
+   small shared library of `slots.c` and `null_render.c`, and the
+   bridge's entity calls rebuilt over it with `bridge.c`'s defaults and
+   limits, so `src/render.lua` and scenes written for the window run
+   headless. The bridge itself can't be linked without raylib
+   (`input.h` includes it), hence the copy; it goes when the page
+   replaces the slots.
+
+## What happened
+
+- `src/render/null_render.h`, `null_render.c`, `null.lua`, with info
+  pages.
+- `src/tests/test_null_render.lua` (22 checks): one fifteen-item scene
+  built from C, from Lua through the bridge's calls and through
+  `src/render.lua`, all with no window; every way gives the scene's
+  counts and the checksum the test works out independently from the
+  scene's values, the same on every run.
+- Mutation check: 25 mutants of `null_render.c` and `null.lua`. 24 are
+  caught, one of them (an item outside by y alone) only after an item was
+  added for it. The other writes a mesh id one past the kinds into
+  `by_kind[4]`, which is the `placeholders` field in memory, so it gives
+  the same counts: equivalent by layout, though undefined in C.
