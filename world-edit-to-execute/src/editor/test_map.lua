@@ -49,6 +49,18 @@ these through unchanged; it runs from the client's folder (the one above
 scripts/). A failure inside scripts/run before the client starts (a failed
 build, no data) leaves no receipt, so it reads as a crash.
 
+Since 2026-11-05, held to the W client as built (its 1109 step 1m,
+custom-client PR #19): a run the client would refuse is stopped before
+anything is saved or started (test_map.check_launch): no password (the
+client needs W_CLIENT_PASSWORD in every test-map run), an account, realm
+or path it wouldn't take. scripts/run named alone in the settings is
+given its client's folder as its first word (it otherwise runs the
+owner's default folder, wherever the script is), and the W client is
+given WETE, this project's folder, unless WETE is already set: scripts/run
+makes the baseline set from this project's tables found by it. The
+build's stamp leaves the converter's report out, so an unchanged map
+reuses the server.
+
 The editor stops the W client only when the editor itself closes (a
 killed client writes no receipt, and nobody is left to read one then);
 otherwise the client is always left to close itself.
@@ -87,6 +99,12 @@ local function absolute(p)
 end
 
 local function dirname(p) return p:match("^(.*)/[^/]*$") or "." end
+
+-- the W client's folder when `prog` is its scripts/run, else nil
+function test_map.client_folder(prog)
+    if type(prog) ~= "string" or not prog:find("/scripts/run$") then return nil end
+    return dirname(dirname(prog))
+end
 -- }}}
 
 -- {{{ test_map.new
@@ -155,6 +173,11 @@ function T:start()
     self:log("---- Test Map " .. self.runs .. " (settings: " .. tostring(s.path)
         .. (s.found and "" or ", not found") .. ")")
 
+    -- what the W client would refuse, before anything is saved or started
+    local okl, bad = test_map.check_launch(tm, tm.server.host, tm.server.login_port, self.build_dir,
+        self.log_dir .. "/receipt.lua")
+    if not okl then self:fail(bad) return nil, bad end
+
     -- 1. save
     self.stage = "saving"
     local map, why
@@ -186,6 +209,63 @@ function T:start()
     self.job = { pid = pid, status = status, at = self.proc.now(), limit = tm.convert_seconds or 600 }
     self.stage = "converting"
     self:say("Test Map: converting into " .. self.build_dir)
+    return true
+end
+-- }}}
+
+-- {{{ test_map.check_launch: what the W client would refuse, found first
+-- The W client checks every option before its window opens and refuses a
+-- test-map run on any of these (its 067-test-map.c and 068-goodbye.c, W
+-- client issue 1109): no password, or one of 256 bytes or more; an account
+-- outside 1 to 63 bytes or holding a space or control byte; a realm that
+-- isn't host:port with a port from 1 to 65535; a folder path of 600 bytes
+-- or more, a receipt path of 580 or more. A value starting with "--" reads
+-- there as a missing value. Each is found here, before the map is saved or
+-- a server started, so F5 says what to fix instead of starting AzerothCore
+-- for a client that will only write an error receipt.
+-- tm: the settings' test_map; host, port: the login server; build_dir and
+-- receipt_path: the folder and receipt the client will be given.
+-- true, or nil and why
+test_map.PASSWORD_MAX = 255     -- 067: char password[256]
+test_map.ACCOUNT_MAX = 63       -- 067: char account[64]
+test_map.HOST_MAX = 255         -- 067: char host[256]
+test_map.FOLDER_MAX = 599       -- 067: char folder[600]
+test_map.RECEIPT_MAX = 579      -- 068: a path of PATH_ROOM - 20 (580) bytes or more is refused
+
+local function plain(v) return not v:find("[%z\1-\32\127]") end
+
+function test_map.check_launch(tm, host, port, build_dir, receipt_path)
+    local pw = tm.password
+    if type(pw) ~= "string" or pw == "" then
+        return nil, "the W client needs the test account's password, and none is set: put it in"
+            .. " $W_CLIENT_PASSWORD (or test_map.password in the editor's settings)"
+    end
+    if #pw > test_map.PASSWORD_MAX then
+        return nil, string.format("the test account's password is longer than the W client takes (%d bytes)",
+            test_map.PASSWORD_MAX)
+    end
+    local acc = tm.account
+    if acc ~= nil and (type(acc) ~= "string" or #acc < 1 or #acc > test_map.ACCOUNT_MAX or not plain(acc)
+            or acc:sub(1, 2) == "--") then
+        return nil, string.format("the test account's name %q isn't one the W client takes: 1 to %d characters,"
+            .. " no spaces, not starting with --", tostring(acc), test_map.ACCOUNT_MAX)
+    end
+    if type(host) ~= "string" or #host < 1 or #host > test_map.HOST_MAX or not plain(host)
+            or host:find(":", 1, true) or host:sub(1, 2) == "--" then
+        return nil, string.format("test_map.server.host %q isn't a host the W client's --realm takes"
+            .. " (a name or IPv4 address; no IPv6)", tostring(host))
+    end
+    if type(port) ~= "number" or port ~= math.floor(port) or port < 1 or port > 65535 then
+        return nil, string.format("test_map.server.login_port %s isn't a port from 1 to 65535", tostring(port))
+    end
+    if #build_dir > test_map.FOLDER_MAX then
+        return nil, string.format("the build folder's path is longer than the W client takes (%d bytes): %s",
+            test_map.FOLDER_MAX, build_dir)
+    end
+    if #receipt_path > test_map.RECEIPT_MAX then
+        return nil, string.format("the receipt's path is longer than the W client takes (%d bytes): %s",
+            test_map.RECEIPT_MAX, receipt_path)
+    end
     return true
 end
 -- }}}
@@ -234,7 +314,8 @@ end
 
 -- {{{ the build's stamp: what decides whether the server starts again
 -- the converter's own <build>/server-stamp when it writes one (the parts
--- the server reads), else a checksum of every file in the build
+-- the server reads), else a checksum of every file in the build but its
+-- conversion-report.lua
 function T:stamp()
     local f = io.open(self.build_dir .. "/server-stamp", "r")
     if f then
@@ -243,7 +324,11 @@ function T:stamp()
         return "stamp:" .. s
     end
     local q = self.proc.quote
-    local p = io.popen("cd " .. q(self.build_dir) .. " && find . -type f -print0 | sort -z | xargs -0 -r cksum | cksum")
+    -- the converter's report is left out: the server never reads it, and it
+    -- holds when it was written and how long that took, so counting it
+    -- would start the server again on every F5 of an unchanged map
+    local p = io.popen("cd " .. q(self.build_dir) .. " && find . -type f ! -path " .. q("./" .. test_map.REPORT)
+        .. " -print0 | sort -z | xargs -0 -r cksum | cksum")
     local out = p and p:read("*a") or ""
     if p then p:close() end
     return "sum:" .. out:gsub("%s+$", "")
@@ -325,6 +410,11 @@ function T:launch(tm)
     local argv = {}
     for i, a in ipairs(tm.w_client) do argv[i] = a end
     local function add(...) for _, a in ipairs({ ... }) do argv[#argv + 1] = a end end
+    -- scripts/run takes the client's folder as its first word and otherwise
+    -- runs the owner's default one (/mnt/kaun/custom-client), wherever the
+    -- script itself is: named alone, it is given the folder above scripts/
+    local client_dir = test_map.client_folder(tm.w_client[1])
+    if #tm.w_client == 1 and client_dir then add(client_dir) end
     add("--test-map", self.build_dir, "--receipt", self.receipt_path)
     -- the view's point, turned into the W client's world (the top of this file)
     local cx, cy
@@ -340,6 +430,11 @@ function T:launch(tm)
     if tm.account then add("--account", tm.account) end
     local env = {}
     if tm.password then env.W_CLIENT_PASSWORD = tm.password end
+    -- scripts/run makes the baseline set from this project's tables
+    -- (src/wowbuild) and finds the project by $WETE, defaulting to the
+    -- owner's checkout: the editor names itself, unless WETE is already set
+    local wete = os.getenv("WETE")
+    if wete == nil or wete == "" then env.WETE = absolute(self.root) end
     local status = self.log_dir .. "/w-client.status"
     os.remove(status)
     -- scripts/run runs from the client's folder (the one above scripts/)
@@ -347,6 +442,7 @@ function T:launch(tm)
     local dir = tm.w_client_dir
         or (prog:find("/scripts/[^/]+$") and dirname(dirname(prog)))
         or (prog:find("/") and dirname(prog)) or self.root
+    self:log("w client: WETE=" .. tostring(env.WETE or wete) .. " (where scripts/run finds this project)")
     -- the command line is logged: it holds no password
     self:log("w client: " .. table.concat(argv, " ") .. (tm.password and "  (password in its environment)" or ""))
     local pid, why = p.spawn(argv, { dir = dir, log = self.log_dir .. "/w-client.log", status = status, env = env })

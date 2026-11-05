@@ -88,6 +88,17 @@ closes, and restarts it when the next Test Map needs a new build.
       *(Checked with a fake W client: every reason shown, a crash, a
       malformed and a too-new receipt refused.)*
 
+*2026-11-05, against the W client as built (custom-client PR #19, its
+1109 step 1m):* criterion 2 now holds with W02's own converter too (a
+second F5 on unchanged Daow 4.4 reuses the server; before, the
+converter's report changed the build's checksum every time). Criterion 4
+is also checked against the W client's own receipt writer (its
+`068-goodbye.c`, compiled in the test when its sources are found).
+Criterion 1 still needs a real run: an AzerothCore and the W client on
+the owner's machine, and W02c's `map.lua` (draft PR #243), which the W
+client reads to know which map it is and which this branch's converter
+(W02a only) doesn't write yet. Criterion 3 still needs the real window.
+
 ## Open Questions
 
 1. ~~**The old in-editor play.**~~ Answered 2026-11-04: they are one
@@ -157,6 +168,10 @@ it from the client's folder (the one above `scripts/`) unless
   it.
 - An empty `W_CLIENT_PASSWORD` counts as missing and gives an `error`
   receipt; the editor sends none rather than an empty one.
+  *2026-11-05:* the W client as built needs a password in every
+  test-map run (its decision 6), so a run with none would only start the
+  server for an error receipt; the editor now stops before saving and
+  says to set `W_CLIENT_PASSWORD` (decisions of 2026-11-05, below).
 - **A failure inside `scripts/run` before the client starts** (a failed
   build, no data) leaves no receipt, so it reads as a crash; the crash
   message names `w-client.log`, where `scripts/run`'s own output is.
@@ -269,6 +284,61 @@ and the log say why, and the W client starts at the map's own start.
   `server.pids` while the editor's server runs (for cleaning up after an
   editor that was killed before it could stop it).
 
+## Decisions (2026-11-05, held to the W client as built; each the owner's to overturn)
+
+Checked against the W client's own code, custom-client branch
+`claude/resolver-prefetch-character` (draft PR #19 there, at 00ed34d):
+`src/067-test-map.c` (the options), `src/068-goodbye.c` (the receipt),
+`src/043-main.c` (exit statuses), `scripts/run`, and its issue 1109's
+contract and decisions 1 to 101. What already matched and is unchanged:
+the five option names (their order is free on the client's side), `--camera` as
+`x,y` in yards (its `read_camera` takes the editor's two decimals,
+negative too), `--realm host:port`, the receipt's fields, layout and
+format number, `map` coming back as the folder given, the escapes in its
+strings, the exit statuses, and `scripts/run` passing the options
+through. Four things didn't:
+
+- **No password: stopped before anything starts.** The W client refuses
+  every test-map run without `W_CLIENT_PASSWORD` (an error receipt, exit
+  2), so the editor no longer launches without one. `test_map.check_launch`
+  runs before the map is saved and stops the run, saying where to put the
+  password, rather than converting, starting AzerothCore and then showing
+  the client's error. With it go the client's other refusals the editor
+  can see coming: an account outside 1 to 63 characters or holding a
+  space or control byte (or starting with `--`, which the client reads as
+  a missing value), a realm host that is empty, holds a space or a colon
+  (the client takes the host up to the last colon; no IPv6), a port
+  outside 1 to 65535, a build folder path of 600 bytes or more, a receipt
+  path of 580 or more. The client still checks them all; this only says
+  so sooner.
+- **The build's stamp leaves out `conversion-report.lua`.** W02's
+  converter writes when the report was written and how long it took, so
+  the checksum of the whole build changed on every F5 and the server was
+  started again each time ("Every F5 a new server" above). The server
+  never reads the report; leaving it out is enough here (two conversions
+  of Daow 4.4 by this branch's converter differ in that file alone).
+  A converter `server-stamp` (W02f) still wins when there is one.
+- **`scripts/run` named alone gets its client's folder.** `scripts/run`
+  takes the client's folder as its first word and otherwise runs a fixed
+  default folder (the owner's), wherever the script itself is; running it
+  from the folder, as the editor did, doesn't change that. So when
+  `test_map.w_client` is the one word `<folder>/scripts/run`, the editor
+  passes `<folder>` first. With more words, the words are the user's and
+  nothing is added.
+- **`WETE` for `scripts/run`.** `scripts/run` makes the baseline set from
+  this project's converter tables (`src/wowbuild/ground_textures.lua`,
+  `models.lua`), found through `$WETE`, which defaults to the owner's
+  checkout. The editor is that project, so it gives the W client `WETE`
+  as its own folder, unless `WETE` is already set (then the user's stands).
+  It is logged.
+
+Not changed, though the W client has it: the client still leaves no
+receipt when it is stopped (its open question 5), so the editor still
+never stops it during a run. The fake W client in the tests now refuses
+what the real one does (no password, a bad account or realm) with the
+real one's sentence, an error receipt and exit 2, and writes receipts in
+the real one's layout.
+
 ## Related Documents
 
 - `docs/wow-client-bridge.md` ("2026-11-04: the editor keeps its own
@@ -378,3 +448,49 @@ far from the map (DAoW 4.4's middle, WC3 (0, 0), was sent as world
   time it was written, so without a `server-stamp` from the converter the
   build's checksum changes on every run and the server is started again
   each time. W02f's server stamp is the fix.
+
+*(2026-11-05, held to the W client as built)*
+
+How it was before: the editor launched the W client with no password
+when none was set, and the client, which needs one in every test-map run,
+stopped with an error receipt after the map was converted and the server
+started; every F5 started the server again, because the converter's
+report (its time) changed the build's checksum; a `scripts/run` named
+alone ran its own default folder, not the one it sits in; and
+`scripts/run` looked for this project's tables at the owner's default
+path. Now (decisions of 2026-11-05, above):
+
+- `src/editor/test_map.lua`: `test_map.check_launch` (run in `T:start`
+  before saving), `test_map.client_folder`, the stamp without
+  `conversion-report.lua`, `WETE` in the W client's environment, and its
+  header.
+- `editor-settings.example.lua`: the password is needed; what a lone
+  `scripts/run` is given; `WETE`.
+- `src/tests/fixtures/test-map/fake-w-client.sh`: refuses as the real one
+  does, writes the real one's layout, records its first word and `WETE`.
+  `fake-convert.sh`: a `stamped` mode whose report differs each time.
+- **Tests:** `src/tests/test_test_map.lua`, 125 -> 159 passed without
+  the W client's sources (one section skipped), 164 with them
+  (`W_CLIENT_SRC`, else `/mnt/kaun/custom-client/src`): every refusal
+  `check_launch` makes and its edges (255/256-byte passwords, 63/64-character
+  accounts, 599/600 and 579/580-byte paths); a run with no password or a
+  bad account stopped with nothing saved, converted or started; the
+  client's own refusal still shown as an error, not a crash; an error's
+  `why` read back byte for byte; a converter whose report changes each
+  time, and W02's own converter on Daow 4.4, reusing the server on a
+  second F5 (both fail without the stamp change: 157 of 159); `WETE`; a
+  lone `scripts/run` given its folder; and the W client's own
+  `068-goodbye.c` built and run, its closed, error and lost-connection
+  receipts read by `receipt.read`, a map path with quotes, a backslash, a
+  new line, a control byte and UTF-8 coming back byte for byte.
+  `test_editor` (83), `test_editor_integration` (44) and
+  `test_wow_terrain` (83 passed, 17 skipped) pass unchanged.
+
+**Still open:**
+- A real run (criterion 1): AzerothCore and the W client on the owner's
+  machine, with W02c's `map.lua` in the build (draft PR #243); this branch
+  stacks on #241, which has W02a's converter only.
+- When #241's branch and the W02 chain (#242 onward) meet, their
+  `src/wowbuild/init.lua` reports both need keeping: #241's
+  `placement.client` and W02c's `placement` fields and `map.lua`.
+- The W client's open question 5 (a receipt when it is stopped).
