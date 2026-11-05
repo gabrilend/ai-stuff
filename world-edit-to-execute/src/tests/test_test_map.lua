@@ -567,6 +567,13 @@ do
         local tx, ty = coords.client_adt(tonumber(cx) or 0, tonumber(cy) or 0)
         local adt_file = string.format("%s/build/World/Maps/WC3_Daow4_4/WC3_Daow4_4_%d_%d.adt", base2, tx, ty)
         test("the ADT the W client opens there is one the converter wrote", read(adt_file) ~= nil, adt_file)
+        -- (2026-11-05) W02c's map.lua: its rule is the report's placement
+        local mf = test_map.read_map_file(base2 .. "/build")
+        local cp, cnote = test_map.camera_placement(base2 .. "/build")
+        local pc = test_map.read_placement(base2 .. "/build")
+        test("W02's converter writes map.lua, and its wc3_to_wow is placement.client's rule exactly",
+            mf and pc and mf.wc3_to_wow.scale == pc.scale and mf.wc3_to_wow.x0 == pc.x0 and mf.wc3_to_wow.y0 == pc.y0
+            and cp and cnote == nil, cnote)
         -- (2026-11-05) F5 again on the unchanged map: W02's report is written
         -- anew (when, and how long it took), and the server is still reused
         local starts = count_lines(base2 .. "/starts")
@@ -576,6 +583,69 @@ do
             starts .. " then " .. count_lines(base2 .. "/starts"))
         T2:close()
     end
+end
+-- }}}
+
+-- {{{ map.lua: the map the W client opens, and the camera's rule (2026-11-05)
+test_section("map.lua: the map the W client opens, and the camera's rule")
+do
+    local map = TMP .. "/mapfile.w3x"
+    write(map, "m")
+    local function build_of(mode)
+        local b = TMP .. "/mapfiles/" .. mode
+        os.execute("mkdir -p " .. proc.quote(b))
+        shell(proc.quote(FIX .. "/fake-convert.sh") .. " " .. mode .. " " .. proc.quote(map) .. " " .. proc.quote(b) .. " 2>&1")
+        return b
+    end
+    local m, why, kind = test_map.read_map_file(build_of("ok"))
+    test("map.lua read as data: its format and wc3_to_wow", m and m.format == 1 and m.wc3_to_wow.x0 == 1000
+        and m.map.id == 900, why)
+    m, why, kind = test_map.read_map_file(build_of("nomap"))
+    test("no map.lua: missing, said", m == nil and kind == "missing" and why:find("wrote no map.lua", 1, true) ~= nil, why)
+    m, why, kind = test_map.read_map_file(build_of("badmap"))
+    test("map.lua of format 2: refused", m == nil and kind == "refused" and why:find("format is 2", 1, true) ~= nil, why)
+    local b = build_of("ok")
+    write(b .. "/map.lua", "return { format = 1, wc3_to_wow = { scale = 0, x0 = 1, y0 = 2 } }")
+    m, why = test_map.read_map_file(b)
+    test("map.lua with a scale of 0: refused", m == nil and why:find("wc3_to_wow", 1, true) ~= nil, why)
+    write(b .. "/map.lua", "while true do end")
+    m, why = test_map.read_map_file(b)
+    test("map.lua that runs forever: refused as data", m == nil and why:find("runs too long", 1, true) ~= nil, why)
+
+    local p, note = test_map.camera_placement(build_of("ok"))
+    test("map.lua's rule and the report's placement agree: the placement, no note", p and p.x0 == 1000
+        and p.wc3_max[1] == 5000 and note == nil, note)
+    p, note = test_map.camera_placement(build_of("disagree"))
+    test("they disagree: map.lua's rule (the W client's own) wins, with the report's bounds, and it is said",
+        p and p.x0 == 1100 and p.y0 == 2000 and p.wc3_max[1] == 5000 and (note or ""):find("disagree", 1, true) ~= nil, note)
+    p, note = test_map.camera_placement(build_of("noreport"))
+    test("map.lua but no report: no camera (the bounds aren't known)", p == nil
+        and (note or ""):find("bounds", 1, true) ~= nil, note)
+    p, note = test_map.camera_placement(build_of("nomap"))
+    test("a report but no map.lua: the report's placement, said", p and p.x0 == 1000
+        and (note or ""):find("wrote no map.lua", 1, true) ~= nil, note)
+
+    -- whole runs
+    local s, base = fake_settings("mapfile1", { convert = "nomap" })
+    local T = new_run(s)
+    T:start(); T:wait(30)
+    test("a build without map.lua: stopped before the server, naming map.lua and W02c", T.last.outcome == "failed"
+        and T.last.message:find("map.lua", 1, true) ~= nil and T.last.message:find("W02c", 1, true) ~= nil
+        and read(base .. "/starts") == nil and read(base .. "/log/fake-w-client.args") == nil, T.last.message)
+    s.test_map.convert[2] = "badmap"
+    T:start(); T:wait(30)
+    test("a map.lua the W client wouldn't read: stopped the same way", T.last.outcome == "failed"
+        and T.last.message:find("format is 2", 1, true) ~= nil and read(base .. "/starts") == nil, T.last.message)
+    s.test_map.convert[2] = "disagree"
+    local before = #said
+    T:start(); T:wait(30)
+    server_pids(T)
+    local a = lines(base .. "/log/fake-w-client.args")
+    local told = false
+    for i = before + 1, #said do told = told or said[i]:find("disagree", 1, true) ~= nil end
+    test("a disagreeing build: the camera by map.lua's rule (x0 1100), the disagreement said",
+        T.last.outcome == "closed" and a[6] == "1081.52,1959.82" and told, table.concat(a, " "))
+    T:close()
 end
 -- }}}
 
@@ -697,10 +767,11 @@ do
 end
 
 -- the W client's own receipt writer (its src/068-goodbye.c), compiled here
--- when its sources are found ($W_CLIENT_SRC, else the owner's checkout):
--- what it writes is what receipt.read takes, byte for byte
+-- when its sources are found ($W_CLIENT_SRC, the W client's folder as
+-- test_wow_registration takes it, else the owner's checkout): what it
+-- writes is what receipt.read takes, byte for byte
 do
-    local src = os.getenv("W_CLIENT_SRC") or "/mnt/kaun/custom-client/src"
+    local src = (os.getenv("W_CLIENT_SRC") or "/mnt/kaun/custom-client") .. "/src"
     local have = read(src .. "/068-goodbye.c") and read(src .. "/013-errors.c")
     local cc = shell("command -v cc 2>/dev/null"):gsub("%s+$", "")
     if not have or cc == "" then

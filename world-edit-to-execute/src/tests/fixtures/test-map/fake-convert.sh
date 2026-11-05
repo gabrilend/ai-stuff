@@ -17,6 +17,12 @@
 #   stamped   as ok, the report also holding when it was written and how
 #             long that took, as W02's real report does (so it differs on
 #             every conversion of the same map)
+#   nomap     as ok, without map.lua
+#   badmap    as ok, map.lua's format 2
+#   disagree  as ok, map.lua's wc3_to_wow putting WC3's (0, 0) at (1100, 2000)
+#
+# Every mode but nomap and fail writes map.lua as W02c does (format 1, the
+# map, its start, wc3_to_wow), its rule the same as the report's placement.
 mode="$1" map="$2" build="$3"
 [[ -f "${map}" ]] || { echo "no map ${map}" >&2; exit 1; }
 case "${mode}" in
@@ -45,5 +51,20 @@ return { format = ${format}, map = "fake", ${written} placement = { client = {
 EOF
 elif [[ "${placement}" == none ]]; then
     echo 'return { format = 1, map = "fake" }' > "${report}"
+fi
+mapx0=1000 mapformat=1
+case "${mode}" in
+    disagree) mapx0=1100 ;;
+    badmap)   mapformat=2 ;;
+esac
+rm -f "${build}/map.lua"
+if [[ "${mode}" != nomap ]]; then
+    cat > "${build}/map.lua" <<EOF
+-- W02c: the map the W client's Test Map opens (the fake converter)
+return { format = ${mapformat}, map = { id = 900, directory = "WC3_fake", name = "fake" },
+    start = { x = ${mapx0}, y = 2000, z = 0 },
+    wc3_to_wow = { scale = 1 / 30.72, x0 = ${mapx0}, y0 = 2000 },
+    creatures = "world/creatures-900.tsv" }
+EOF
 fi
 echo "converted ${map}"
