@@ -57,9 +57,8 @@ or path it wouldn't take. scripts/run named alone in the settings is
 given its client's folder as its first word (it otherwise runs the
 owner's default folder, wherever the script is), and the W client is
 given WETE, this project's folder, unless WETE is already set: scripts/run
-makes the baseline set from this project's tables found by it. The
-build's stamp leaves the converter's report out, so an unchanged map
-reuses the server.
+makes the baseline set from this project's tables found by it. An
+unchanged map reuses the server (by the converter's server-stamp, below).
 
 Since the W02 chain was merged in (2026-11-05): the build must hold
 W02c's map.lua (test_map.read_map_file), which the W client opens the map
@@ -67,8 +66,8 @@ by; a build without a good one stops before the server starts. The camera
 goes by map.lua's wc3_to_wow, the W client's own rule, checked against the
 report's placement.client (whose bounds it borrows); if they ever disagree,
 map.lua's rule wins and the disagreement is said (test_map.camera_placement).
-The stamp leaves out every report that holds a time
-(test_map.STAMP_LEAVES_OUT).
+The server is reused when the converter's server-stamp (W02f step 1) is
+the same as the running server's; a build without one counts as new.
 
 The editor stops the W client only when the editor itself closes (a
 killed client writes no receipt, and nobody is left to read one then);
@@ -87,6 +86,7 @@ local settings_mod = require("editor.settings")
 local receipt = require("editor.receipt")
 local server_keeper = require("editor.server_keeper")
 local coords = require("wowbuild.coords")
+local server_stamp = require("wowbuild.server_stamp")
 
 local test_map = {}
 
@@ -98,14 +98,6 @@ test_map.MAP_FILE = "map.lua"                -- W02c's, in the build folder (wow
 test_map.MAP_FORMAT = 1                      -- the one format the W client reads (its 073-converted-map.c)
 test_map.AGREE_SCALE = 1e-12                 -- map.lua's rule and the report's placement agree within this share of the scale
 test_map.AGREE_YARDS = 0.001                 -- and this many yards of x0 and y0
--- the build's files left out of its stamp: reports for people and the
--- converter's own record, which the server never reads and which hold
--- when they were written or how long that took (-path patterns from ./)
-test_map.STAMP_LEAVES_OUT = {
-    "./conversion-report.lua",                -- W02's report
-    "./World/Maps/*/registration.lua",        -- W02c's record of the map's slot and rows (the rows reach the server through server/)
-    "./server/triggers/*/natives-report.lua", -- W02e's coverage report (the shim reads war3map.lua and map-data.lua)
-}
 
 local T = {}
 T.__index = T
@@ -224,6 +216,7 @@ function T:start()
     argv[#argv + 1] = self.build_dir
     local status = self.log_dir .. "/convert.status"
     os.remove(status)
+    os.remove(self.build_dir .. "/" .. server_stamp.FILE)   -- an old stamp never counts (the converter's own is written last)
     local pid, err = self.proc.spawn(argv, { dir = self.root, log = self.log_dir .. "/convert.log", status = status })
     if not pid then self:fail(err) return nil, err end
     self:log("convert: " .. table.concat(argv, " "))
@@ -391,27 +384,17 @@ end
 -- }}}
 
 -- {{{ the build's stamp: what decides whether the server starts again
--- the converter's own <build>/server-stamp when it writes one (the parts
--- the server reads), else a checksum of every file in the build but those
--- test_map.STAMP_LEAVES_OUT names
+-- The converter's <build>/server-stamp (W02f step 1, wowbuild.server_stamp):
+-- each file the server reads with its CRC-32 and size, and nothing else.
+-- A build with none (a converter that writes none, or a stamp that can't
+-- be read) can't say what the server would read, so it counts as new and
+-- the server is started again, said; nothing is guessed from the other
+-- files.
 function T:stamp()
-    local f = io.open(self.build_dir .. "/server-stamp", "r")
-    if f then
-        local s = f:read("*a")
-        f:close()
-        return "stamp:" .. s
-    end
-    local q = self.proc.quote
-    -- the converter's report is left out: the server never reads it, and it
-    -- holds when it was written and how long that took, so counting it
-    -- would start the server again on every F5 of an unchanged map
-    local leave = {}
-    for _, pat in ipairs(test_map.STAMP_LEAVES_OUT) do leave[#leave + 1] = "! -path " .. q(pat) end
-    local p = io.popen("cd " .. q(self.build_dir) .. " && find . -type f " .. table.concat(leave, " ")
-        .. " -print0 | sort -z | xargs -0 -r cksum | cksum")
-    local out = p and p:read("*a") or ""
-    if p then p:close() end
-    return "sum:" .. out:gsub("%s+$", "")
+    local text, why = server_stamp.read(self.build_dir)
+    if text then return "stamp:" .. text end
+    self:say("Test Map: the build has no server stamp (" .. why .. "); the server is started again for it")
+    return string.format("none:%d:%.6f", self.runs, self.proc.now())
 end
 -- }}}
 

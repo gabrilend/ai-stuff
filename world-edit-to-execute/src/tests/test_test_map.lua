@@ -731,8 +731,9 @@ do
         T2.last.outcome == "error" and T2.last.message:find("password from W_CLIENT_PASSWORD, and it is not set", 1, true) ~= nil,
         T2.last.message)
 
-    -- the build's stamp leaves out the converter's report, which holds when
-    -- it was written: an unchanged map reuses the server
+    -- the converter's server-stamp names only what the server reads, so a
+    -- report that holds when it was written doesn't count: an unchanged map
+    -- reuses the server (W02f step 1)
     s2.test_map.convert[2] = "stamped"
     T2:start(); T2:wait(30)
     local before = count_lines(base2 .. "/starts")
@@ -743,6 +744,33 @@ do
     test("a report written anew each time doesn't start the server again", T2.last.outcome == "closed"
         and count_lines(base2 .. "/starts") == before and proc.alive(pids[1]),
         before .. " then " .. count_lines(base2 .. "/starts"))
+
+    -- (2026-11-05, W02f step 1) a build with no server stamp counts as new:
+    -- the server is started again each time, and it is said
+    s2.test_map.convert[2] = "nostamp"
+    local n0, said0 = count_lines(base2 .. "/starts"), #said
+    T2:start(); T2:wait(30)
+    local n1 = count_lines(base2 .. "/starts")
+    T2:start(); T2:wait(30)
+    local n2 = count_lines(base2 .. "/starts")
+    local told = false
+    for i = said0 + 1, #said do told = told or said[i]:find("no server stamp", 1, true) ~= nil end
+    test("no server stamp: the server started again on each F5, and said", T2.last.outcome == "closed"
+        and n1 == n0 + 2 and n2 == n1 + 2 and told, n0 .. ", " .. n1 .. ", " .. n2)
+    -- a stamp left from an earlier conversion never counts: the editor
+    -- removes it before converting, so a converter that writes none can't
+    -- reuse a server on another build's stamp
+    s2.test_map.convert[2] = "ok"
+    T2:start(); T2:wait(30)
+    local stamp_before = read(base2 .. "/build/server-stamp")
+    s2.test_map.convert[2] = "nostamp"
+    local n3 = count_lines(base2 .. "/starts")
+    T2:start(); T2:wait(30)
+    test("an earlier build's stamp removed before converting: no reuse on it", stamp_before ~= nil
+        and read(base2 .. "/build/server-stamp") == nil and count_lines(base2 .. "/starts") == n3 + 2)
+    s2.test_map.convert[2] = "ok"
+    T2:start(); T2:wait(30)
+    pids = server_pids(T2)
 
     -- WETE: scripts/run finds this project by it
     local args = read(base2 .. "/log/fake-w-client.args") or ""
@@ -819,6 +847,135 @@ int main(int argc, char **argv)
         r, why = receipt.read(goodbye(map, "lost", "", 3), map)
         test("its lost-connection receipt read", r and r.reason == "lost-connection" and r.frames == 3, why)
         test("what it writes is what describe() shows", r and receipt.describe(r):find("lost its connection", 1, true) ~= nil)
+    end
+end
+-- }}}
+
+-- {{{ The W client's own start on the converted map (2026-11-05)
+-- The W client's start, up to its window (custom-client's 087-world-start
+-- and the parts before it in its 043-main.c), built from its sources in
+-- $W_CLIENT_SRC (the W client's folder) with every window-free part its
+-- scripts/build names, and run as the W client of a Test Map run on W02's
+-- real conversion: map.lua accepted, the map's row found in the build, and
+-- ground under --camera, for the view's points in and off the map.
+-- Skipped when $W_CLIENT_SRC isn't set, there is no C compiler, or no
+-- StormLib for the map.
+test_section("The W client's own start on the converted map")
+do
+    local wsrc = os.getenv("W_CLIENT_SRC")
+    local real = DIR .. "/assets/Daow4.4.w3x"
+    local cc = shell("command -v cc 2>/dev/null"):gsub("%s+$", "")
+    local mpq_ok = pcall(function() require("mpq").open(real):close() end)
+    local build_script = wsrc and read(wsrc .. "/scripts/build")
+    if not wsrc or wsrc == "" then
+        print("  [SKIP] the W client's own start: no $W_CLIENT_SRC")
+    elseif not build_script or not read(wsrc .. "/src/087-world-start.c") then
+        print("  [SKIP] the W client's own start: no scripts/build or src/087-world-start.c in " .. wsrc)
+    elseif cc == "" then
+        print("  [SKIP] the W client's own start: no C compiler")
+    elseif not mpq_ok then
+        print("  [SKIP] the W client's own start: no StormLib for the map")
+    else
+        -- the window-free parts, as its scripts/build lists them (READERS
+        -- inside CORE), less any that needs the drawing library's headers
+        local function array(name)
+            local body = build_script:match("\n" .. name .. "=%((.-)%)")
+            local t = {}
+            for w in (body or ""):gmatch("%S+") do t[#t + 1] = w end
+            return t
+        end
+        local readers, parts = array("READERS"), {}
+        for _, w in ipairs(array("CORE")) do
+            if w == '"${READERS[@]}"' then for _, r in ipairs(readers) do parts[#parts + 1] = r end
+            else parts[#parts + 1] = w end
+        end
+        local sources, left_out = {}, {}
+        for _, part in ipairs(parts) do
+            local both = (read(wsrc .. "/src/" .. part .. ".c") or "") .. (read(wsrc .. "/src/" .. part .. ".h") or "")
+            if both:find('#include "raylib.h"', 1, true) or both:find('#include "raymath.h"', 1, true)
+                or both:find('#include "rlgl.h"', 1, true) then
+                left_out[#left_out + 1] = part
+            else
+                sources[#sources + 1] = proc.quote(wsrc .. "/src/" .. part .. ".c")
+            end
+        end
+        test("its window-free parts read from its scripts/build", #parts > 30 and #sources > 30,
+            #parts .. " parts, left out (they include the drawing library): " .. table.concat(left_out, " "))
+        local flags = "-std=c11 -D_FILE_OFFSET_BITS=64 -D_POSIX_C_SOURCE=200809L -O1 -Wall -Wextra -Werror -I" .. proc.quote(wsrc .. "/src")
+        local start_bin, baseline_bin = TMP .. "/w-client-start", TMP .. "/make-baseline"
+        local built = shell(cc .. " " .. flags .. " " .. table.concat(sources, " ") .. " " .. proc.quote(FIX .. "/w-client-start.c")
+            .. " -lz -lm -lpthread -o " .. proc.quote(start_bin) .. " 2>&1 && echo built")
+        test("the W client's start built from its own sources", built:find("built", 1, true) ~= nil, built:sub(1, 400))
+        if read(wsrc .. "/src/086-make-baseline.c") then
+            shell(cc .. " " .. flags .. " " .. table.concat(sources, " ") .. " " .. proc.quote(wsrc .. "/src/086-make-baseline.c")
+                .. " -lz -lm -lpthread -o " .. proc.quote(baseline_bin) .. " 2>&1")
+        end
+        -- a client folder whose scripts/run does as the W client's does in a
+        -- test map: its folder first; --maps, --client and --assets added;
+        -- the baseline set made once from $WETE's tables; the rest passed on
+        local client = TMP .. "/w-client-real"
+        os.execute("mkdir -p " .. proc.quote(client .. "/scripts"))
+        write(client .. "/scripts/run", table.concat({
+            "#!/bin/bash",
+            "# the W client's scripts/run in a test map, its client its own start (w-client-start.c)",
+            "DIR=\"$1\"; shift",
+            "TABLES=\"${WETE:-/nowhere}/src/wowbuild\"",
+            "if [[ ! -d \"${DIR}/assets/baseline\" && -x " .. proc.quote(baseline_bin) .. " && -f \"${TABLES}/ground_textures.lua\" && -f \"${TABLES}/models.lua\" ]]; then",
+            "    " .. proc.quote(baseline_bin) .. " \"${DIR}/assets/baseline\" \"${TABLES}/ground_textures.lua\" \"${TABLES}/models.lua\" > /dev/null",
+            "fi",
+            "exec " .. proc.quote(start_bin) .. " --maps \"${DIR}/assets/server-data/maps\" --client \"${DIR}/no-install\" --assets \"${DIR}/assets\" \"$@\"",
+        }, "\n") .. "\n")
+        os.execute("chmod +x " .. proc.quote(client .. "/scripts/run") .. "; mkdir -p " .. proc.quote(client .. "/assets"))
+
+        local s3, base3 = fake_settings("w-client-own")
+        s3.test_map.convert = { "luajit", DIR .. "/src/cli/wow-convert.lua" }
+        s3.test_map.w_client = { client .. "/scripts/run" }
+        local T3 = new_run(s3, { save = function() return real end, camera = function() return 1000, -2000 end })
+        T3:start(); T3:wait(120)
+        server_pids(T3)
+        local log = read(base3 .. "/log/w-client.log") or ""
+        local a = lines(base3 .. "/log/fake-w-client.args")
+        local mf = test_map.read_map_file(base3 .. "/build")
+        local sent = nil
+        local logged_args = read(base3 .. "/log/test-map.log") or ""
+        sent = logged_args:match("%-%-camera (%-?[%d.]+,%-?[%d.]+)")
+        test("Test Map on Daow 4.4 through the W client's own start: its receipt read, closed, no frames drawn",
+            T3.last.outcome == "closed" and T3.last.receipt and T3.last.receipt.frames == 0, T3.last.message .. "\n" .. log)
+        test("the W client accepted map.lua: the map and its folder it names", mf ~= nil
+            and log:find(string.format("test map: map %d, World\\Maps\\%s", mf.map.id, mf.map.directory), 1, true) ~= nil, log)
+        local sx, sy, gz = log:match("start: %((%-?[%d.]+), (%-?[%d.]+)%) on map %d+, World\\Maps\\[%w_]+, ground z (%-?[%d.]+)")
+        test("ground under --camera, where the editor sent it", sent ~= nil and sx ~= nil
+            and string.format("%.2f,%.2f", tonumber(sx), tonumber(sy)) == sent and tonumber(gz) ~= nil, (sent or "no --camera") .. " / " .. log)
+        test("its tables from the build and the baseline set (made from $WETE's tables), with no install",
+            log:find("no WoW install", 1, true) ~= nil and log:find("row from overlay", 1, true) ~= nil
+            and log:find("assets: the baseline set", 1, true) ~= nil, log)
+        -- more of the view's points, the same build: in the map, on its
+        -- edges and off it (the editor moves those inside); each has ground
+        local env = "W_CLIENT_PASSWORD=" .. proc.quote(PASSWORD) .. " "
+        local wc3min, wc3max = test_map.read_placement(base3 .. "/build").wc3_min, test_map.read_placement(base3 .. "/build").wc3_max
+        local points = { { 0, 0 }, { wc3min[1], wc3min[2] }, { wc3max[1], wc3max[2] }, { wc3min[1], wc3max[2] },
+                         { wc3max[1], wc3min[2] }, { wc3min[1] - 5000, wc3max[2] + 5000 }, { 1e6, -1e6 } }
+        local all, bad = true, ""
+        for i, pt in ipairs(points) do
+            local x, y = T3:client_camera(pt[1], pt[2])
+            local rec = base3 .. "/log/point-" .. i .. ".lua"
+            local out = shell(env .. proc.quote(client .. "/scripts/run") .. " " .. proc.quote(client) .. " --test-map "
+                .. proc.quote(base3 .. "/build") .. " --receipt " .. proc.quote(rec) .. " --camera "
+                .. string.format("%.2f,%.2f", x or 0, y or 0) .. " 2>&1; echo \"exit $?\"")
+            local r = receipt.read(rec, base3 .. "/build")
+            local good = x and out:find("exit 0", 1, true) and out:find("ground z", 1, true) and r and r.reason == "closed"
+            if not good then all, bad = false, bad .. string.format("(%g, %g): %s\n", pt[1], pt[2], out:sub(-300)) end
+        end
+        test("ground under the camera for the view's points in, on the edges of, and off the map (" .. #points .. ")", all, bad)
+        -- a point the editor would never send: the W client's own refusal
+        -- comes back as its error receipt
+        local rec = base3 .. "/log/off.lua"
+        shell(env .. proc.quote(client .. "/scripts/run") .. " " .. proc.quote(client) .. " --test-map "
+            .. proc.quote(base3 .. "/build") .. " --receipt " .. proc.quote(rec) .. " --camera 99999,99999 2>&1")
+        local r = receipt.read(rec, base3 .. "/build")
+        test("a camera with no ground under it: the W client's error receipt, saying so", r and r.reason == "error"
+            and r.why:find("no ground at the start", 1, true) ~= nil, r and r.why)
+        T3:close()
     end
 end
 -- }}}

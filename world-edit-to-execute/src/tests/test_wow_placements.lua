@@ -761,6 +761,8 @@ else
                         or rel == wowbuild.GROUND_FILE or rel == wowbuild.INFO_FILE or rel == "server/dbc.sql" or rel == "patch-W.MPQ"
                         -- and W02e's: the script transpiled, the shim's data, the coverage report
                         or rel:match("^server/triggers/[%w_]+/[%w%-]+%.lua$")
+                        -- and W02f's (2026-11-05): the server's stamp
+                        or rel == "server-stamp"
                     if not (made or rel:match("^World/Maps/") or rel == wowbuild.SQL or rel == wowbuild.PLACEMENTS or rel == wowbuild.REPORT
                             or rel:lower():match("%.mdx$") or rel:lower():match("%.blp$") or rel:lower():match("%.tga$")) then
                         other[#other + 1] = rel
