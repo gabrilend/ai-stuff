@@ -714,12 +714,22 @@ function wt.tile_bytes(original, tile, opts)
     local ww = require("editor.wowwater")
     local blocks, tail = walk(original)
     if not blocks then return nil, tail end
+    -- placements (W10e, editor/wowplace.lua): the blocks and chunk references to write
+    local plan
+    if tile.places_dirty then
+        if not opts.map then return nil, "the tile's placements were edited; writing them needs its map (opts.map)" end
+        local why
+        plan, why = require("editor.wowplace").plan(opts.map, original, tile)
+        if not plan then return nil, why end
+        tile.places_pending = plan.pending
+    end
     local list, any_moved = {}, false          -- { old = the block or nil (made here), bytes }
     local mhdr, mcin, mh2o
     for _, b in ipairs(blocks) do
         local bytes = original:sub(b.at + 1, b.at + b.len)
         if b.tag == "MHDR" then mhdr = #list + 1 end
         if b.tag == "MCIN" then mcin = #list + 1 end
+        if plan and plan.blocks[b.tag] then bytes = plan.blocks[b.tag] end
         if b.tag == "MTEX" then
             local names, data = 0, bytes:sub(9)
             for _ in data:gmatch("([^%z]*)%z") do names = names + 1 end
@@ -751,6 +761,12 @@ function wt.tile_bytes(original, tile, opts)
                 local why
                 bytes, why = patch_chunk(bytes, c, opts.big_alpha)
                 if not bytes then return nil, why end
+            end
+            local refs = plan and ix < 16 and iy < 16 and plan.refs[iy * 16 + ix + 1]
+            if refs then
+                local why
+                bytes, why = require("editor.wowplace").patch_refs(bytes, refs)
+                if not bytes then return nil, string.format("chunk (%d, %d): %s", ix, iy, why) end
             end
         end
         list[#list + 1] = { old = b, bytes = bytes }
@@ -824,6 +840,8 @@ local function clean(t)
     t.dirty = nil
     t.saves = (t.saves or 0) + 1
     for _, c in ipairs(t.chunks) do c.dirty, c.normals = nil, nil end
+    if t.places_dirty then require("editor.wowplace").saved(t, t.places_pending) end
+    t.places_pending = nil
 end
 
 function wt.edited(m)
@@ -850,7 +868,7 @@ function wt.save(m)
         else original = read(path) end
         if not original then return nil, why or ("can't read " .. path) end
         local bytes
-        bytes, why = wt.tile_bytes(original, t, { big_alpha = m.big_alpha })
+        bytes, why = wt.tile_bytes(original, t, { big_alpha = m.big_alpha, map = m })
         if not bytes then return nil, t.file .. ": " .. why end
         done[#done + 1] = { t = t, path = path, bytes = bytes, file = t.file }
         local whole = changed[t.tx .. "_" .. t.ty]
@@ -970,7 +988,7 @@ function wt.restore(m, c, s)
         for i = 1, 145 do if PR[i] % 2 == 0 then keys[(R + PR[i]) * KEY + C + PC[i]] = true end end
         renormal(m, keys)
     end
-    t.dirty = nil
+    t.dirty = t.places_dirty or nil                 -- (its placements, W10e, are their own undo's)
     for _, o in ipairs(t.chunks) do
         if o.dirty or o.normals then t.dirty = true break end
     end
