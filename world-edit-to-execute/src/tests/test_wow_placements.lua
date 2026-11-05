@@ -759,6 +759,8 @@ else
                     -- W02c's registration files are made, not copied
                     local made = rel:match("^DBFilesClient/") or rel:match("^world/creatures%-%d+%.tsv$") or rel == wowbuild.MAP_FILE
                         or rel == "server/dbc.sql" or rel == "patch-W.MPQ"
+                        -- and W02e's: the script transpiled, the shim's data, the coverage report
+                        or rel:match("^server/triggers/[%w_]+/[%w%-]+%.lua$")
                     if not (made or rel:match("^World/Maps/") or rel == wowbuild.SQL or rel == wowbuild.PLACEMENTS or rel == wowbuild.REPORT
                             or rel:lower():match("%.mdx$") or rel:lower():match("%.blp$") or rel:lower():match("%.tga$")) then
                         other[#other + 1] = rel

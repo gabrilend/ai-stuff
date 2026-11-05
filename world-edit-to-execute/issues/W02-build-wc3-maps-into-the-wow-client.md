@@ -104,7 +104,27 @@ not into new issues.
   stock files; the stock client, the SQL on AzerothCore and the
   extractors on the owner's machine; the W client's side (the changes
   listed in W02c's notes, for custom-client).
-- W02d-W02h: not yet written.
+- `W02e-triggers-on-the-server.md` (2026-11-04): written by hand the
+  same way, split into seven steps (coverage and skeleton; the server's
+  loader and the real ALE; templates and units' state; orders; groups,
+  forces and players' events; the mechanics; the whole of every map).
+  **Step 1 built** the same day as background work, on W02c's branch:
+  - the shim in its own AGPL v3 folder, `server-side/ale/wc3shim/`
+    (requires nothing outside it), with 133 natives in 8 groups: numbers
+    and strings, triggers, timers, waits, players' gold and lumber, units
+    made at a point as creatures, locations and rects, regions entered
+    and left;
+  - a fake ALE (`fake_ale.lua`) the shim runs on here, and the shim
+    checked line by line against the project's own runtime
+    (`src/jass/vm.lua`) on the same scripts;
+  - the converter's side (`src/wowbuild/triggers.lua`): each map's script
+    transpiled, the data the shim reads, and `natives-report.lua`, every
+    native the script calls against what the shim has, in
+    `server/triggers/<dir>/`.
+
+  Left: every ALE call checked against mod-ale on the owner's machine
+  (all are from memory), the server's loader, and steps 2-7.
+- W02d, W02f-W02h: not yet written.
 
 ## Progress
 
@@ -135,6 +155,17 @@ not into new issues.
     900-999, a slot per map in a build folder).
   - Lines 2-5 still wait for the owner's machine, W02d (the server's
     ground) and the W client's side (W02c's notes).
+
+- *2026-11-04 (W02e, step 1):* line 6's natives part is in the build
+  folder: `server/triggers/<dir>/natives-report.lua` lists every native
+  the script calls and which the shim lacks, and `conversion-report.lua`
+  counts them. Every map in `assets/` is counted: 745 distinct names over
+  19 maps, of which the shim has 101; per map it has 40-85 names, 54-67%
+  of the call sites. Line 5 (a timer and a region-enter trigger on the
+  server) passes on a fake ALE against the project's runtime; on the
+  owner's AzerothCore it waits for W02e's step 2. Line 7 holds: the
+  transpiled script and its data are made from the map, in the build
+  folder; the shim ships under its own licence.
 
 ## Acceptance Criteria
 

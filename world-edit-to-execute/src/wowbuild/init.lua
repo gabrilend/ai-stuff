@@ -24,9 +24,15 @@ built so far, stages 2 and 3:
                creature list for the W client, the server's copies, and
                patch-W.MPQ for the stock client and the extractors (W02c)
 
+  triggers     the map's script transpiled for the server's shim, the
+               data the shim needs (map id, transform, templates, factions,
+               spawns), and the coverage report: every native the script
+               calls against what the shim (server-side/ale/wc3shim/, AGPL
+               v3) implements (wowbuild.triggers) (W02e, step 1)
+
 Still to come, each adding to convert() below: the server's extracted data
-(W02d), triggers on the server (W02e), the rest of the empty world
-database (W02h).
+(W02d), the rest of W02e (the server's loader, the remaining natives), the
+rest of the empty world database (W02h).
 
 The build folder is a loose overlay as the W client reads one (its issue
 105a): files at the paths the client's archives use, so
@@ -55,6 +61,10 @@ The build folder is a loose overlay as the W client reads one (its issue
   <build>/placements.lua                          every doodad, unit and start location,
                                                   what became of it; the display ids and
                                                   factions W02c writes into client tables (data)
+  <build>/server/triggers/<dir>/war3map.lua       the script, transpiled for the shim (W02e)
+  <build>/server/triggers/<dir>/map-data.lua      what the shim reads of the build (data, W02e)
+  <build>/server/triggers/<dir>/natives-report.lua  the natives the script calls, which the shim
+                                                  has, which it lacks (data, W02e)
   <build>/conversion-report.lua                   what was done, counted (data)
 
 <dir> is the map's directory name, "WC3_" and the map file's name with
@@ -85,6 +95,7 @@ local creatures = require("wowbuild.creatures")
 local registration = require("wowbuild.registration")
 local loadscreen = require("wowbuild.loadscreen")
 local output = require("wowbuild.output")
+local triggers = require("wowbuild.triggers")
 local wcoords = require("wowbuild.coords")
 
 local wowbuild = {}
@@ -95,9 +106,12 @@ wowbuild.SQL = "server/world.sql"
 wowbuild.MAP_FILE = output.MAP_FILE
 wowbuild.STAGES_NOT_BUILT = {
     "W02d server data for new maps",
-    "W02e triggers on the server",
+    "W02e's server loader and most natives (step 1 built: the coverage report, the transpiled script, the shim's first natives)",
     "W02h empty world database",
 }
+-- this project's folder (the shim's list of natives is read from it)
+wowbuild.DIR = (debug.getinfo(1, "S").source:match("^@(.-)src/wowbuild/init%.lua$")) or "./"
+if wowbuild.DIR == "" then wowbuild.DIR = "./" end
 
 -- {{{ helpers
 local function quote(s) return "'" .. tostring(s):gsub("'", "'\\''") .. "'" end
@@ -196,6 +210,7 @@ function wowbuild.read_map(map_path)
             return objectdata.parse(b, objectdata.FILE_CONFIG[file:match("(w3.)$")])
         end)
     end
+    map.script, map.script_name = triggers.read_script(archive)
     map.has_file = function(path) if archive:has(path) then return path end end
     map.read_file = function(path) return archive:extract(path) end
     map.close = function() archive:close() end
@@ -439,6 +454,19 @@ function wowbuild.convert(map_path, build_dir, opts)
     write_file(build_dir .. "/" .. wowbuild.MAP_FILE, map_text)
     files[#files + 1] = { path = wowbuild.MAP_FILE, bytes = #map_text }
 
+    -- the script for the server's shim: transpiled, its map data, and the
+    -- natives it calls against what the shim has (W02e)
+    -- natives it calls against what the shim has (W02e). A script the
+    -- converter can't read stops only this part: the rest of the build stands
+    local tok, trig, trig_files = pcall(triggers.build, map.script, build_dir, {
+        C = C, ids = ids, transform = mapfile.wc3_to_wow, directory = name, script_name = map.script_name,
+        dir = opts.dir or wowbuild.DIR, serialize = serialize, write = write_file })
+    if not tok then
+        warnings[#warnings + 1] = "the script couldn't be readied for the server: " .. tostring(trig)
+        trig, trig_files = { script = true, error = tostring(trig) }, {}
+    end
+    for _, f in ipairs(trig_files) do files[#files + 1] = f end
+
     local report = {
         format = 1,
         map = tostring(map_path),
@@ -461,6 +489,7 @@ function wowbuild.convert(map_path, build_dir, opts)
             maps_in_build = forms.maps, tables = forms.tables, stock = forms.stock, patch = forms.patch,
             warnings = warnings, notes = forms.notes, start = start,
         },
+        triggers = trig,
         not_built = wowbuild.STAGES_NOT_BUILT,
     }
     report.warnings = report.terrain.warnings + pc.unmapped_ids + #report.units.unmapped_ids + #warnings
@@ -526,6 +555,19 @@ function wowbuild.summary(report)
             g.patch and (output.PATCH .. " (" .. #g.patch.files .. " files" .. (g.patch.tables and ", merged tables" or ", no tables") .. ")") or "no patch")
         for _, w in ipairs(g.warnings) do lines[#lines + 1] = "    warning: " .. w end
         for _, w in ipairs(g.notes or {}) do lines[#lines + 1] = "    note: " .. w end
+    end
+    local tr = report.triggers
+    if tr and tr.error then
+        lines[#lines + 1] = "  triggers: not readied for the server: " .. tr.error
+    elseif tr and tr.script then
+        lines[#lines + 1] = string.format("  triggers: the script calls %d natives (%d calls); the server's shim has %d of them (%.1f%%), %.1f%% of the calls; %d it lacks (listed in %s)%s",
+            tr.names, tr.calls, tr.covered_names, tr.covered_percent_names, tr.covered_percent_calls, tr.uncovered, tr.report,
+            tr.transpiled and "" or ("; not transpiled: " .. tostring(tr.transpile_error)))
+        if tr.unit_types_without_template > 0 then
+            lines[#lines + 1] = string.format("    %d unit types the script makes have no creature template (the shim can't spawn them)", tr.unit_types_without_template)
+        end
+    elseif tr then
+        lines[#lines + 1] = "  triggers: the map has no script"
     end
     lines[#lines + 1] = "  not built yet: " .. table.concat(report.not_built, "; ")
     return table.concat(lines, "\n")

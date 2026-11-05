@@ -3,7 +3,10 @@
 **Feature:** W02 (build WC3 maps into the WoW client)
 **Status:** Stages 2-4 and 6 (terrain W02a, placements W02b, registration
 and packing W02c) built 2026-11-04 in `src/wowbuild/`, run by
-`src/cli/wow-convert.lua`; the other stages designed, not built.
+`src/cli/wow-convert.lua`; stage 5's first step (W02e: the coverage
+report, the transpiled script, the shim's skeleton and first natives in
+`server-side/ale/wc3shim/`) built the same day; the other stages
+designed, not built.
 Update this file when any W02 sub-issue changes the flow.
 
 ---
@@ -47,7 +50,7 @@ Update this file when any W02 sub-issue changes the flow.
 | 2 | Terrain | terrain grid: tilepoints (W+1)×(H+1), each with height (float, WC3 units), ground texture index (uint 0-15), cliff level (uint), water flag + level (float) | one WDT (which ADT tiles exist, 64×64 flag grid), one WDL (far-off heights) + up to 16 ADTs, each 256 chunks of 145 height floats, ≤4 texture layers with 64×64 alpha maps (uint8), liquid blocks (MH2O); `conversion-report.lua` with fold and unmapped counts | W02a (built) |
 | 3 | Placements | doodad table (type id 4-char string, x/y/z float, facing radians, scale xyz); unit table (type id, owner player uint, position, facing) | doodads: M2/WMO placement records inside the ADT (`MDDF`/`MODF` blocks: file index, unique id uint32, position 3×float, rotation 3×float degrees, scale uint16 where 1024 = 1.0). Units: SQL rows for creature templates and spawns (`server/world.sql`); every doodad, unit and start location in `placements.lua` | W02b (built) |
 | 4 | Registration | map name (w3i, strings), start locations, W02b's displays and factions, the build folder's other maps, optionally the player's stock `.dbc` folder | rows in `Map.dbc` (map id uint32 900-999, directory string = folder under `World\Maps\`), `AreaTable.dbc` (one zone; every ADT chunk's area id), `LoadingScreens.dbc` (a BLP2 made from the map), `CreatureDisplayInfo.dbc`/`CreatureModelData.dbc`, `FactionTemplate.dbc`/`Faction.dbc`; written as the overlay's `DBFilesClient/`, `server/dbc.sql`, merged `server/dbc/`; `map.lua` (id, start, WC3 → WoW transform) and `world/creatures-<id>.tsv` for the W client | W02c (built) |
-| 5 | Scripts | JASS AST → Lua (phase 3 transpiler) | a Lua file per map for the server's ALE engine plus a shim that implements JASS natives (`CreateUnit`, `TriggerRegisterTimerEvent`, …) with ALE calls | W02e |
+| 5 | Scripts | `war3map.j` (text); W02b's templates, factions and spawns; map.lua's transform | `server/triggers/<dir>/war3map.lua` (the script transpiled, "env" scope), `map-data.lua` (what the shim reads, data), `natives-report.lua` (every native called, with call sites, against what the shim has, data); on the server, the shim (`server-side/ale/wc3shim/`, AGPL v3) runs it with ALE's calls | W02e (step 1 built: report, script, shim skeleton with 133 natives; the server's loader not yet) |
 | 6 | Pack | files from 2-4 | `patch-W.MPQ` (an MPQ archive, version 2 with a listfile, the client loads after its own patches, so its files win): every map's ground files and loading screen, and the merged tables when stock tables are given | W02c (built) |
 | 7 | Server data | client `Data/` + the patch | `maps/*.map` (height + liquid grid the server uses for ground height), `vmaps/` (collision for line of sight), `mmaps/` (navigation mesh for creature pathing), `dbc/` | W02d |
 | 8 | Launch/load | a chosen `.w3x`, launcher config (paths) | running server + client, character on the new map | W02f |
@@ -141,6 +144,31 @@ What each reader gets:
 
 Decisions, what is unchecked (every column layout is from memory), and the
 changes the W client needs: `issues/W02c-map-registration-and-output-forms.md`.
+
+## Stage 5 as built (W02e, step 1)
+
+```
+ war3map.j ──▶ jass/lexer + parser ──▶ wowbuild/triggers ──┬──▶ server/triggers/<dir>/natives-report.lua
+ (in the .w3x)                          scan: every call,   │    (every native called, the shim's group,
+                                        each rawcode made   │     the runtime's answer, what the shim lacks)
+ server-side/ale/wc3shim/covered.lua ──▶ (read as data) ────┤
+ jass/vm.lua (the reference runtime) ──▶ its native types,  ├──▶ server/triggers/<dir>/war3map.lua
+                                        constants, answers  │    (transpiled, env scope)
+ W02b's creatures, map.lua's transform ────────────────────┴──▶ server/triggers/<dir>/map-data.lua
+
+ on the server (step 2 loads it):
+ ALE (mod-ale) ◀── server-side/ale/wc3shim (AGPL v3): natives on ALE's calls ◀── war3map.lua + map-data.lua
+                   timers, waits = one-shot CreateLuaEvent; units = creatures
+                   (PerformIngameSpawn, or W02b's spawn adopted in main());
+                   regions = a 100 ms check of the creatures' positions;
+                   players' gold and lumber = the shim's own, per WC3 player
+```
+
+The shim is checked against the project's own runtime (`src/jass/vm.lua`)
+on the same scripts, on a fake ALE (`fake_ale.lua`), line by line. Every
+ALE call it makes is listed in `shim.ALE_USED`, all from memory and
+unchecked until the owner's machine. Decisions, coverage per map and what
+is open: `issues/W02e-triggers-on-the-server.md`.
 
 ## Correction to earlier research
 
