@@ -25,8 +25,8 @@ the runtime's order system, as WC3 does.
 
 ## Acceptance Criteria
 
-- [ ] Clicking and dragging move the view
-- [ ] Right-click sends selected units there
+- [x] Clicking and dragging move the view
+- [x] Right-click sends selected units there
 
 ---
 
@@ -215,3 +215,18 @@ Ensure minimap interactions only trigger when click is within minimap bounds. Ma
 - issues/507d-camera-viewport.md (camera integration)
 - issues/505e-input-commands.md (order system)
 - issues/506c-input-handling.md (UI input)
+
+---
+
+## Decisions (2026-11-06)
+
+1. **Already built in the interface (518b), now tested** on the fitted
+   minimap: a click and a drag move the camera to that point of the map,
+   a drag into the dark margin holds it to the map's edge, a right-click
+   orders the player's selected units there (move, or the worker and
+   target rules the interface already has), and other players' units
+   are not ordered. The camera then keeps to the map's camera bounds
+   once the window uses 501d's camera.
+2. **Based on 501d's branch, not 505c's**: nothing here uses the keys or
+   edges; 505c (#315) and this can be merged in either order after #314.
+   Not on #307 either: nothing here draws through the render slots.

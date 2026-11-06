@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# run-tests - check the house style, then check that the rules hold.
+#
+# First the linter reads every source file for the house style (reading
+# order, folds, headers, LuaJIT syntax, tabs, line length, dispatch tables).
+# Then every numbered test in tests/ runs under plain LuaJIT with no window,
+# each one a stated rule of the game checked against what the code does.
+# Exits non-zero if either finds anything.
+#
+# Usage:
+#   ./run-tests            this project
+#   ./run-tests <dir>      the project at <dir>
+#   ./run-tests --help
+
+DIR="/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if [ "${1:-}" = "--help" ]; then
+    sed -n '3,14p' "$0"
+    exit 0
+fi
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+fi
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}"
+
+"${DIR}/scripts/lint" "${DIR}"
+LINT=$?
+luajit "${DIR}/tests/000-run-all.lua" "${DIR}"
+TESTS=$?
+[ "${LINT}" -eq 0 ] && [ "${TESTS}" -eq 0 ]
