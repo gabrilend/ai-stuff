@@ -111,7 +111,9 @@ links and persistent app state.
 ## The chord vocabulary
 
 A *chord* is two or more buttons pressed together within the same
-polling frame. Chords remain a first-class event in the kernel
+polling frame — or, for thumbs that rarely land inside one 16.7 ms
+frame, within a few frames of each other: each chord names its own
+window, and a window of 0 is the same frame only. Chords remain a first-class event in the kernel
 because the radial menu chord drives text entry. They are no
 longer used for navigation between apps.
 

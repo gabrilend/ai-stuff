@@ -17,7 +17,8 @@
  *              │          ├──→ read_touch   ──→ touch_events
  *              └──────────┘  (the previous frame, going round)
  *
- * The buttons are real (issue 502). The sticks and the touch panels are
+ * The buttons are real (issue 502), and chord_of (505) hangs off their
+ * history where a map wants a chord. The sticks and the touch panels are
  * still stubs (issue 501): each answers an empty state stamped with its
  * frame, and its event box only tallies the frame it was handed. Issues
  * 503 and 504 replace them.
@@ -72,6 +73,30 @@ struct button_event {
 
 /* {{{ button_event__compare */
 int button_event__compare(struct button_event a, struct button_event b)
+{
+    return a.buttons < b.buttons ? -1 : (a.buttons > b.buttons ? 1 : 0);
+}
+/* }}} */
+
+/* Which two buttons make a chord, by name, and how many frames apart
+ * they may go down and still count as struck together (505). */
+struct chord {
+    char    first[16];                    /* a button's name: "dpad-up" */
+    char    second[16];                   /* "abxy-a" */
+    int64_t window;                       /* frames; 0 is the same frame only */
+};
+
+/* A chord struck: once, on the frame its second button went down.
+ * Ordered by `buttons`, like a button event, so a comparator against an
+ * all-zero one lets only chords out. */
+struct chord_event {
+    int64_t  frame;
+    uint32_t buttons;                     /* the two buttons */
+    uint32_t apart;                       /* frames between their downs */
+};
+
+/* {{{ chord_event__compare */
+int chord_event__compare(struct chord_event a, struct chord_event b)
 {
     return a.buttons < b.buttons ? -1 : (a.buttons > b.buttons ? 1 : 0);
 }
@@ -217,6 +242,70 @@ struct button_event button_held(struct button_state s, uint32_t listen)
     e.frame = s.frame;
     e.buttons = s.fresh ? (s.pressed & listen) : 0;
     return e;
+}
+/* }}} */
+
+/* {{{ chord_of */
+/* Two buttons struck together (issue 505), named in a fixed value:
+ * `{ "dpad-up", "abxy-a", 3 }`. "Together" is within `window` frames of
+ * each other, in either order, with both still held when the second goes
+ * down — 0 is the same frame and nothing else. The event comes once, on
+ * the frame the second button goes down, and carries the frame, the two
+ * buttons, and how many frames apart they went down.
+ *
+ * It reads the button history, not the down events: the history already
+ * holds the frame each button went down, so no window of past frames has
+ * to be carried round a loop of its own, and two cores running it for
+ * neighbouring frames share nothing. A name that is not a button refuses
+ * the station on its first run (the refusal's detail is 1 for the first
+ * name, 2 for the second, 3 for the same button twice, 4 for a negative
+ * window), which takes it out of service where the person can see why. */
+struct chord_event chord_of(struct button_state s, struct chord c)
+{
+    struct chord_event e;
+    bytes_zero(&e, sizeof e);
+    e.frame = s.frame;
+    c.first[sizeof c.first - 1] = 0;
+    c.second[sizeof c.second - 1] = 0;
+    int first = -1, second = -1;
+    for (int b = 0; b < BUTTON_COUNT; b++) {
+        if (text_equal(c.first, button_name(b)))  first = b;
+        if (text_equal(c.second, button_name(b))) second = b;
+    }
+    if (first < 0)        engine_refuse(1);
+    else if (second < 0)  engine_refuse(2);
+    else if (first == second) engine_refuse(3);
+    else if (c.window < 0) engine_refuse(4);
+    if (first < 0 || second < 0 || first == second || c.window < 0 || !s.fresh) {
+        return e;
+    }
+    uint32_t both = BUTTON_BIT(first) | BUTTON_BIT(second);
+    if ((s.pressed & both) != both || !(s.went_down & both)) {
+        return e;
+    }
+    int64_t apart = s.down_since[first] - s.down_since[second];
+    if (apart < 0) apart = -apart;
+    if (apart > c.window) {
+        return e;
+    }
+    e.buttons = both;
+    e.apart = (uint32_t)apart;
+    return e;
+}
+/* }}} */
+
+/* {{{ say_chord */
+/* A chord on the developer line: the station's name, the frame, the two
+ * buttons by name and how many frames apart they went down. */
+void say_chord(struct chord_event e)
+{
+    const char *names[2] = { "?", "?" };
+    int n = 0;
+    for (int b = 0; b < BUTTON_COUNT && n < 2; b++) {
+        if (e.buttons & BUTTON_BIT(b)) names[n++] = button_name(b);
+    }
+    say_line("%s: frame %lld: %s + %s (%u apart)", engine_station_name(engine_current_station()),
+             (long long)e.frame, names[0], names[1], (unsigned)e.apart);
 }
 /* }}} */
 
