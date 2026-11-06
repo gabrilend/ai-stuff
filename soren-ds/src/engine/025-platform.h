@@ -145,8 +145,9 @@ int      platform_card_write(uint64_t block, uint32_t count, const void *buffer)
 /* Compile one C text and load the result, answering an opaque handle
  * and, through `entry`, the address of the function named `entry_name`
  * in it — or NULL with the compiler's own words in `why`. The twin runs
- * the laptop's C compiler and loads the result; the device has no
- * compiler yet (issue 409's open question) and says so. */
+ * the laptop's C compiler and loads the result; the device's is to be
+ * TinyCC (issue 409), not built in yet, and it says so. Whatever compiler
+ * a platform uses lives behind this one call. */
 void *platform_compile(const char *c_text, size_t length, const char *entry_name,
                        void **entry, char *why, size_t why_size);
 /* Unload code a platform_compile loaded. Nothing may be running in it. */

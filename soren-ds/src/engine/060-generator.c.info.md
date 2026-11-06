@@ -48,6 +48,12 @@ void gen_describe(const struct gen_source *sources, const struct gen_description
 void gen_emit(const struct gen_source *sources, int n_sources, const struct gen_description *d, struct gen_memory *m, struct gen_text *o)
 ```
 
+### gen_emit_unit
+
+```c
+void gen_emit_unit(const struct gen_source *sources, int n_sources, const struct gen_description *d, struct gen_memory *m, struct gen_text *o)
+```
+
 ### gen_emit_header
 
 ```c

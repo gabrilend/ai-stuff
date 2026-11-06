@@ -51,6 +51,12 @@ void gen_emit(const struct gen_source *sources, int n_sources, const struct gen_
 
 The C: includes, adapters, box records, field tables, the catalogue.
 
+### gen_emit_unit
+
+```c
+void gen_emit_unit(const struct gen_source *sources, int n_sources, const struct gen_description *d, struct gen_memory *memory, struct gen_text *out)
+```
+
 ### gen_emit_header
 
 ```c

@@ -64,6 +64,17 @@ struct embedded_map {
     const char *text;
 };
 
+/* What one unit compiled on the device hands the loader (issue 409): the
+ * generator writes a function answering this as the unit's only public
+ * name (GEN_UNIT_ENTRY, 060-generator.h). The rows' addresses are already
+ * "file:function", with the file the source was saved to. */
+struct catalogue_unit {
+    const struct catalogue_row  *rows;
+    int                          n_rows;
+    const struct catalogue_type *types;
+    int                          n_types;
+};
+
 /* Written by the generator. */
 extern const struct catalogue_row  catalogue_rows[];
 extern const int                   catalogue_row_count;
@@ -72,19 +83,35 @@ extern const int                   catalogue_type_count;
 extern const struct embedded_map   embedded_maps[];
 extern const int                   embedded_map_count;
 
-/* A box by its full address, or NULL. */
+/* A box by its full address, or NULL. When a file has been compiled more
+ * than once (somebody saving a box again), the newest row with the address
+ * answers; the older ones keep their rows and stay placed wherever they
+ * already are (411 moves the arrows; 410 reclaims what nothing places). */
 const struct box *catalogue_box(const char *address);
 
-/* Add a box compiled after startup (phase 4). Refuses an address already
- * present. Answers 0 or a negative engine error. */
+/* Add a box compiled after startup, as unit -1 (a box made by hand).
+ * Refuses an address the image's own rows hold. Answers 0 or a negative
+ * engine error. */
 int catalogue_add(const char *address, const struct box *box);
+
+/* Add every row of a unit compiled on the device, all appearing at once,
+ * and a copy of each of its types the catalogue does not already know by
+ * name (a name the catalogue knows keeps its first row: types are compared
+ * by width, never by layout, issue 303). `unit` is the compile pipeline's
+ * number for it (086-compile.h). Refuses — adding nothing — a row whose
+ * address the image's own rows hold. Answers 0 or a negative engine error. */
+int catalogue_add_unit(const struct catalogue_unit *u, int unit);
 
 /* Every row, built-in first, for listings and "did you mean". */
 int         catalogue_count(void);
 const char *catalogue_address(int index);
 const struct box *catalogue_box_at(int index);
+/* The compile pipeline's unit a row came from: -1 for the image's own rows
+ * and for boxes added by hand. */
+int         catalogue_unit_at(int index);
 
-/* A value type or integer type by the name a box's parameter uses. */
+/* A value type or integer type by the name a box's parameter uses: the
+ * image's own first, then those units compiled on the device brought. */
 const struct catalogue_type *catalogue_type_named(const char *name);
 
 /* An embedded map by path, or NULL. */

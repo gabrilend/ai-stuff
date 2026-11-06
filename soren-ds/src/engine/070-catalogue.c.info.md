@@ -5,10 +5,21 @@
 looking boxes and types up, and adding boxes late.
 
 General description: the generated rows are searched first, then the
-rows added at run time. Added rows live in shelves of 64 that are
-allocated once and never move; the count of added rows only grows and
-is published after the row is written, so a reader never sees a half-
-written row. Adding takes a spin lock; looking up takes none.
+rows added at run time. Added rows and added types live in tables that
+grow by shelves and never move (086-shelves.h); the count of added rows
+only grows and is published after the rows it reveals are written, so a
+reader never sees a half-written row and looking up takes no lock.
+
+A file compiled again adds rows with the same addresses as before. They
+do not replace the older rows — a station may be placed on an older one
+right now, and its ports were sized to that box — so looking an address
+up searches the added rows newest first.
+
+A type a unit brings is copied into the catalogue's own memory, name and
+fields and all, so the row outlives the unit's code when 410 frees it.
+The copy leaves the ordering out: nothing reads a type row's ordering
+(a comparator uses the box record's, 037-build.c), and an ordering is
+code that 410 may free.
 
 ## What it offers
 
@@ -30,10 +41,22 @@ const char *catalogue_address(int index)
 const struct box *catalogue_box_at(int index)
 ```
 
+### catalogue_unit_at
+
+```c
+int catalogue_unit_at(int index)
+```
+
 ### catalogue_box
 
 ```c
 const struct box *catalogue_box(const char *address)
+```
+
+### catalogue_type_named
+
+```c
+const struct catalogue_type *catalogue_type_named(const char *name)
 ```
 
 ### catalogue_add
@@ -42,10 +65,10 @@ const struct box *catalogue_box(const char *address)
 int catalogue_add(const char *address, const struct box *box)
 ```
 
-### catalogue_type_named
+### catalogue_add_unit
 
 ```c
-const struct catalogue_type *catalogue_type_named(const char *name)
+int catalogue_add_unit(const struct catalogue_unit *u, int unit)
 ```
 
 ### catalogue_embedded_map

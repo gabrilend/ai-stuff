@@ -80,11 +80,22 @@ described and never rebuilt.
 
 ## Completed issues
 
-None yet.
+- **409** a box's C source handed to the running engine becomes boxes a
+  station can place, addressed by the file it was saved to. The same
+  generator writes the unit (source written in under `#line` marks), the
+  platform's compiler builds and loads it, and its rows join the
+  catalogue all at once; failures leave nothing and come back in the
+  generator's or compiler's own words. Compiling a file again makes a
+  newer unit beside the old. The twin compiles with the laptop's gcc;
+  **the device will use TinyCC behind the same call (a revisable choice), not
+  vendored until device bring-up**.
+  `src/engine/087-compile.c` on `086-shelves.c`; test `twin/tests/088`
+  (34 checks: late boxes byte-identical to the image's, the width
+  refusal, the same-width scramble, written back out and read in).
 
 ## Open issues
 
-All of 401 through 412.
+401 through 408, and 410 through 412.
 
 ## Phase demo
 

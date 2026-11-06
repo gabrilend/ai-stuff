@@ -1,0 +1,56 @@
+/*
+ * 086-shelves.h — a table that grows without moving anything (issue 409).
+ *
+ * General description: the shape every growing table in the engine uses —
+ * the station table (207), a port's cells (208), the allocator's stripes
+ * (203) — written once so the catalogue's tables need not be a fourth and
+ * fifth hand-rolled copy. Items live on shelves of a fixed count; a shelf
+ * is made when the first item on it is, and is never moved or freed, so
+ * an item's address is good for as long as the table exists. The count of
+ * items only grows and is published after the items it reveals are
+ * written, so a reader that loads the count with acquire never sees a
+ * half-written item and takes no lock.
+ *
+ * Writers take the table's lock, which they may hold across several items
+ * so a batch appears all at once (a unit's rows, 409). The station table
+ * keeps its own copy of this shape inside the engine's record, where the
+ * index-to-shelf step is a shift on the hottest path there is; see
+ * 033-stations.c.
+ */
+#ifndef SOREN_SHELVES_H
+#define SOREN_SHELVES_H
+
+#include <stdint.h>
+#include <stddef.h>
+#include "027-primitives.h"
+
+#define SHELVES_MAX 64
+
+struct shelves {
+    spin_lock_t lock;               /* writers only */
+    int32_t     count;              /* published with release */
+    uint32_t    item_bytes;
+    uint32_t    per_shelf;
+    void       *shelf[SHELVES_MAX];
+};
+
+#define SHELVES_INIT(item_type, per) { SPIN_LOCK_INIT, 0, (uint32_t)sizeof(item_type), (per), { 0 } }
+
+/* How many items are there to read. */
+int32_t shelves_count(struct shelves *s);
+
+/* Item `i`, which must be below a count this reader has loaded. */
+void   *shelves_at(struct shelves *s, int32_t i);
+
+/* The most items the table can ever hold. */
+int32_t shelves_capacity(const struct shelves *s);
+
+/* Writers, holding s->lock: the place for item `i` (at or past the
+ * published count), making its shelf if need be. Zeroed when the shelf is
+ * new. NULL when the table is full or there is no memory. */
+void   *shelves_place(struct shelves *s, int owner, int32_t i);
+
+/* Writers, holding s->lock: reveal every item below `count`. */
+void    shelves_publish(struct shelves *s, int32_t count);
+
+#endif

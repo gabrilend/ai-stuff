@@ -56,5 +56,9 @@ Two texts, one after the other, cut to fit.
 struct text number_text(int64_t v)
 ```
 
-A number written out in decimal.
+A number written out in decimal. The bytes after the end are zero, not
+whatever was on the stack: a value is the same bytes every time it is
+made, which is what lets a box compiled later be checked against this
+one byte for byte (issue 409), and what a parked port's checksum (213)
+assumes.
 

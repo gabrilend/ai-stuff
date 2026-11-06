@@ -476,7 +476,11 @@ int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
 /* The laptop's compiler: write the C to the RAM tier, compile it into a
  * loadable object against the engine's headers, and load it. The object
  * finds the engine's own functions in this program (which is linked so
- * that its symbols are visible to what it loads). */
+ * that its symbols are visible to what it loads). Everything the object
+ * defines is hidden but the one entry it is asked for: a box compiled
+ * here may share a function's name with one in the image (a file
+ * compiled twice always does), and a hidden name can neither be taken
+ * over by the image's nor take over another unit's. */
 void *platform_compile(const char *c_text, size_t length, const char *entry_name,
                        void **entry, char *why, size_t why_size)
 {
@@ -502,7 +506,7 @@ void *platform_compile(const char *c_text, size_t length, const char *entry_name
     }
     fclose(f);
     snprintf(command, sizeof command,
-             "gcc -std=gnu11 -O2 -g -shared -fPIC -Wall -I'%s/src/engine' -I'%s/src/system' '%s' -o '%s' 2> '%s'",
+             "gcc -std=gnu11 -O2 -g -shared -fPIC -fvisibility=hidden -Wall -I'%s/src/engine' -I'%s/src/system' '%s' -o '%s' 2> '%s'",
              dir, dir, c_path, so_path, err_path);
     int status = system(command);
     if (status != 0) {

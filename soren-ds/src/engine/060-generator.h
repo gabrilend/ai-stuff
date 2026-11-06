@@ -42,7 +42,8 @@ struct gen_text {
 
 struct gen_source {
     const char *path;          /* as the address will name it: "src/boxes/062-arithmetic.c" */
-    const char *include_path;  /* how the emitted C should #include it (often an absolute path) */
+    const char *include_path;  /* how the emitted C should #include it (often an absolute path); */
+                               /* NULL: write `text` into the C itself, as a unit always does */
     const char *text;
     size_t      length;
 };
@@ -114,6 +115,17 @@ void gen_describe(const struct gen_source *sources, const struct gen_description
 /* The C: includes, adapters, box records, field tables, the catalogue. */
 void gen_emit(const struct gen_source *sources, int n_sources, const struct gen_description *d,
               struct gen_memory *memory, struct gen_text *out);
+
+/* The same C for box source that arrived on a running device (issue 409):
+ * the sources' text is written in (under #line marks naming each source's
+ * path, so the compiler's words name the file a person saved), every table
+ * is private, and the one public name is GEN_UNIT_ENTRY, a function
+ * answering a `struct catalogue_unit` (070-catalogue.h) — the unit's rows
+ * and types, for the loader to add. */
+#define GEN_UNIT_ENTRY "soren_unit"
+#define GEN_UNIT_NAME "generated unit"
+void gen_emit_unit(const struct gen_source *sources, int n_sources, const struct gen_description *d,
+                   struct gen_memory *memory, struct gen_text *out);
 
 /* A header naming every box record, for C code that places boxes directly. */
 void gen_emit_header(const struct gen_source *sources, const struct gen_description *d,

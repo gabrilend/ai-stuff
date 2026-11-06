@@ -349,15 +349,19 @@ int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
 /* }}} */
 
 /* {{{ platform_compile */
-/* The device has no C compiler yet. Which one to embed is issue 409's
- * open question; until it is answered this refuses, in so many words,
- * rather than pretending. */
+/* The device's compiler is to be TinyCC (issue 409, a revisable
+ * decision): libtcc compiles a C text straight into memory, which is this
+ * call's whole job — tcc_new, tcc_set_output_type(TCC_OUTPUT_MEMORY),
+ * tcc_compile_string, tcc_relocate, tcc_get_symbol for `entry_name`, and
+ * the compiler's error callback writing `why`. It is not vendored until
+ * device bring-up; until then this refuses, in so many words, rather than
+ * pretending. Another compiler would replace this one function. */
 void *platform_compile(const char *c_text, size_t length, const char *entry_name,
                        void **entry, char *why, size_t why_size)
 {
     (void)c_text; (void)length; (void)entry_name;
     *entry = (void *)0;
-    text_format(why, why_size, "this device has no C compiler yet (issue 409's open question)");
+    text_format(why, why_size, "this device's C compiler (TinyCC) is not built in yet (issue 409)");
     return (void *)0;
 }
 /* }}} */
