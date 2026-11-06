@@ -416,6 +416,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_base_turret').run_all()
     " 2>/dev/null && print_success "Base turret tests passed" || print_error "Base turret tests failed"
+    
+    # Test Shield destruction mechanics (issue 039)
+    print_info "Testing Shield destruction mechanics..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_shield_destruction').run_all()
+    " 2>/dev/null && print_success "Shield destruction mechanics tests passed" || print_error "Shield destruction mechanics tests failed"
 }
 # }}}
 

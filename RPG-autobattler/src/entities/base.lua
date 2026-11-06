@@ -13,6 +13,7 @@ local Colors = require("src.constants.colors")
 local Unit = require("src.entities.unit")
 local debug = require("src.utils.debug")
 local DefenseShield = require("src.entities.defense_shield")
+local ShieldMechanics = require("src.systems.shield_destruction_mechanics")
 
 local PositionComponent = require("src.components.position")
 local HealthComponent = require("src.components.health")
@@ -141,6 +142,8 @@ function Base.create_base(entity_manager, team_id, position, base_type, options)
         base_type = base_type,
         shields = DefenseShield.create_shields(position.x, position.y, shield_hp, shield_count, facing),
         events = {},
+        clock = 0,             -- seconds this base has existed, for shield timing
+        sealed_until = nil,    -- shields cannot fall before this clock time
         damage_reduction = type_data.damage_reduction,
         regen_rate = type_data.regen_rate,
         damage_section = Base.DAMAGE_SECTIONS[1].name,
@@ -249,16 +252,37 @@ end
 
 -- {{{ Base.damage_shield
 -- Damages one shield of a base directly (a unit attacking that shield).
--- Records a "shield_destroyed" event in the base's queue when it falls.
--- Returns the health removed.
-function Base.damage_shield(entity_manager, entity, shield, amount, attacker_team)
+-- The shield destruction mechanics (issue 039) raise the damage while the
+-- shield is vulnerable and hold it at 1 health while the base is sealed.
+-- Records "shield_vulnerable" and "shield_destroyed" events in the base's
+-- queue. attacker_id (the attacking entity's id) is optional; it lets
+-- concentrated fire be told apart from one unit hitting often. Returns the
+-- health removed.
+function Base.damage_shield(entity_manager, entity, shield, amount, attacker_team, attacker_id)
     local base = entity_manager:get_component(entity, "base")
-    if not base or base.destroyed then
+    if not base or base.destroyed or not shield or not shield.active then
         return 0
     end
 
-    local dealt, destroyed = DefenseShield.damage_shield(shield, amount, attacker_team)
+    local now = base.clock
+    local adjusted = ShieldMechanics.adjust_damage(base, shield, amount, now)
+    local dealt, destroyed = DefenseShield.damage_shield(shield, adjusted, attacker_team)
+
+    if not destroyed then
+        local reason = ShieldMechanics.record_hit(base, shield, attacker_id, dealt, now)
+        if reason then
+            table.insert(base.events, {
+                type = "shield_vulnerable",
+                team = Unit.get_team_id(entity_manager, entity),
+                shield_index = shield.index,
+                reason = reason,
+                duration = ShieldMechanics.VULNERABLE_DURATION
+            })
+        end
+    end
+
     if destroyed then
+        ShieldMechanics.on_shield_destroyed(base, now)
         local remaining = DefenseShield.count_active(base.shields)
         table.insert(base.events, {
             type = "shield_destroyed",
@@ -278,7 +302,7 @@ end
 -- The entry point for anything that attacks a base. While a shield stands,
 -- the front shield takes the whole hit and the core is untouched; once all
 -- shields are down, hits reach the core.
-function Base.apply_damage(entity_manager, entity, amount, attacker_team)
+function Base.apply_damage(entity_manager, entity, amount, attacker_team, attacker_id)
     local base = entity_manager:get_component(entity, "base")
     if not base or base.destroyed or amount <= 0 then
         return 0
@@ -286,7 +310,7 @@ function Base.apply_damage(entity_manager, entity, amount, attacker_team)
 
     local front = DefenseShield.get_front_shield(base.shields)
     if front then
-        return Base.damage_shield(entity_manager, entity, front, amount, attacker_team)
+        return Base.damage_shield(entity_manager, entity, front, amount, attacker_team, attacker_id)
     end
     return Base.damage_core(entity_manager, entity, amount, attacker_team)
 end
@@ -335,6 +359,8 @@ function Base.update(entity_manager, entity, dt)
         return
     end
 
+    base.clock = base.clock + dt
+    ShieldMechanics.update(base, dt)
     DefenseShield.update(base.shields, dt)
 
     -- Only the part of dt that falls after the delay counts as repair time,

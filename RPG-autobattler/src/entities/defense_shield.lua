@@ -99,10 +99,11 @@ end
 
 -- {{{ DefenseShield.update
 -- Repairs standing shields that have gone REGEN_DELAY seconds without damage.
--- Only time past the delay counts, as with the base core.
+-- Only time past the delay counts, as with the base core. A shield inside a
+-- vulnerability window (issue 039) does not repair.
 function DefenseShield.update(shields, dt)
     for _, shield in ipairs(shields or {}) do
-        if shield.active then
+        if shield.active and (shield.vulnerable_time or 0) <= 0 then
             local before = shield.time_since_damage
             shield.time_since_damage = before + dt
             local repair_time = shield.time_since_damage - math.max(before, DefenseShield.REGEN_DELAY)
@@ -126,6 +127,8 @@ function DefenseShield.get_status(shields)
             x = shield.x,
             y = shield.y,
             active = shield.active,
+            vulnerable = (shield.vulnerable_time or 0) > 0,
+            vulnerable_reason = shield.vulnerable_reason,
             fraction = shield.max_hp > 0 and shield.current_hp / shield.max_hp or 0
         })
     end

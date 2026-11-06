@@ -482,8 +482,37 @@ end
 - Check warning systems and visual feedback
 
 ### Acceptance Criteria
-- [ ] Shields become vulnerable under specific trigger conditions
-- [ ] Vulnerability windows have clear timing and effects
-- [ ] Visual warnings provide adequate notice of danger
-- [ ] Destruction mechanics create strategic depth
-- [ ] System prevents excessive shield destruction frequency
+- [x] Shields become vulnerable under specific trigger conditions
+- [x] Vulnerability windows have clear timing and effects
+- [ ] Visual warnings provide adequate notice of danger -- "shield_vulnerable" events and status flags exist; nothing is drawn yet
+- [ ] Destruction mechanics create strategic depth -- four triggers reward focused, coordinated attacks; needs judging in play
+- [x] System prevents excessive shield destruction frequency
+## What Happened
+
+Built as `src/systems/shield_destruction_mechanics.lua`, a module of rules
+that `src/entities/base.lua` calls from `Base.damage_shield` and
+`Base.update`. Each base now keeps its own clock (`base.clock`), so the
+timing works the same with or without LÖVE. Tested headlessly by
+`tests/test_shield_destruction.lua` (seven tests). Nothing was looked at on
+screen.
+
+### Decisions
+- **Four triggers, as the issue lists them.** `critical` (below 25%; fires
+  once per dip and re-arms when the shield repairs above 50%, so a worn
+  shield is not vulnerable forever), `concentrated` (three different
+  attackers within 2 s, told apart by the new optional `attacker_id`
+  argument), `overload` (a fifth of the shield's health within 2 s) and
+  `synchronized` (another shield of the same base hit within 2 s).
+- **A window lasts 5 seconds**, raises damage taken by 50% (the low end of
+  the issue's 50-100%) and stops repair. A new window cannot open while one
+  is open. "Reduced damage absorption" has no meaning here, since issue 037
+  made absorption total, so it was left out.
+- **Pacing is a 30-second seal**, taking the issue's 30-second destruction
+  cooldown: after a shield falls, the others still take damage but cannot
+  drop below 1 health until the seal lifts. This keeps resets (issue 040)
+  at least 30 seconds apart and the core stays protected meanwhile.
+- **No delayed or queued destruction.** A shield falls the moment it hits
+  zero; the warning before units are removed belongs to issue 040's
+  warning phase, so it is not duplicated here.
+- `tests/test_defense_shield.lua` now lets the seal pass between breaking
+  shields in its "fall in order" test; what it checks is unchanged.

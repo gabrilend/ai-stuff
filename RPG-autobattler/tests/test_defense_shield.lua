@@ -10,6 +10,7 @@ local EntityManager = require("src.systems.entity_manager")
 local Base = require("src.entities.base")
 local DefenseShield = require("src.entities.defense_shield")
 local BaseHealthSystem = require("src.systems.base_health_system")
+local ShieldMechanics = require("src.systems.shield_destruction_mechanics")
 
 -- {{{ local function assert_near
 local function assert_near(a, b, message, epsilon)
@@ -95,8 +96,12 @@ function TestSuite.test_shields_fall_one_at_a_time()
     assert(shields[2].active and shields[3].active, "Other shields still stand")
     assert(shields[1].destroyed_by == 1, "Shield remembers who broke it")
 
+    -- After each fall the others are sealed for a while (issue 039), so
+    -- let that pass before breaking the next one.
+    Base.update(entity_manager, base, ShieldMechanics.DESTRUCTION_COOLDOWN)
     Base.apply_damage(entity_manager, base, shields[2].max_hp, 1)
     assert(not shields[2].active and shields[3].active, "Shields fall in order")
+    Base.update(entity_manager, base, ShieldMechanics.DESTRUCTION_COOLDOWN)
     Base.apply_damage(entity_manager, base, shields[3].max_hp, 1)
     assert(DefenseShield.count_active(shields) == 0, "All shields down")
     assert_near(health.current_hp, health.max_hp, "Core still untouched")
