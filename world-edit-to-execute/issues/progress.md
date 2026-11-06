@@ -394,7 +394,7 @@ Phase 2 & 3 Complete
 | 501a | Define renderer interface | Retired (superseded/) | — |
 | 501b | Create renderer registry | Retired (superseded/) | — |
 | 501c | Implement null renderer | Re-cut 2026-09-26 | 501 |
-| 501d | Implement camera system | Re-cut 2026-09-26 | 508 |
+| 501d | Implement camera system | In progress (the math built; the window waits on raylib) | 508 |
 | 501e | Create render events | Retired (superseded/) | — |
 | **502** | Implement terrain rendering | Re-cut 2026-09-26 | 508, 105, 501 |
 | 502a | Core terrain renderer | Re-cut 2026-09-26; partly built | 105 |
