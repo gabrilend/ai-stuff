@@ -122,7 +122,7 @@ The parts:
 
 - `issues/1001-catalogue-of-freely-posted-maps-and-models.md` (the viewer)
 - `issues/609-shared-map-and-model-list.md` (files between people, over rmail)
-- `issues/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
+- `issues/completed/604-asset-deduplication-system.md`, `issues/605-local-storage-manager.md`
 - `issues/superseded/607-file-server-application.md` (retired)
 - `docs/licensing-and-boundaries.md` (content rights)
 - `issues/CRITICAL-PATH.md` (question Q-2, answered 2026-09-26)
