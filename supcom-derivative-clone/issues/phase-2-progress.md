@@ -15,7 +15,7 @@ one in a trough, and the ridge losing — because it was seen first.
 | 202 | The unit catalogue | built |
 | 203 | Three domains on one field | built |
 | 204 | Movement follows a pattern | built |
-| 205 | Nothing is out of range | not started |
+| 205 | Nothing is out of range | built |
 | 206 | Damage is buffered, then applied | not started |
 | 207 | Health comes back on a shared timer | not started |
 | 208 | Death leaves bones | not started |

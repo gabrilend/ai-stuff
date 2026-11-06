@@ -80,7 +80,8 @@ M.REACH = domains.REACH
 M.FIELDS = {
   {"index", "integer"}, {"name", "name"}, {"domain", "integer"}, {"reaches", "integer"},
   {"tier", "integer"}, {"health", "integer"}, {"damage", "integer"},
-  {"falloff_full", "double"}, {"falloff_floor", "double"}, {"shell_speed", "double"},
+  {"falloff_full", "double"}, {"falloff_floor", "double"}, {"falloff_end", "double"},
+  {"shell_speed", "double"},
   {"reload_seconds", "double", "reload_ticks"}, {"heal_period", "double", "heal_ticks"},
   {"speed", "double"}, {"climb", "double"}, {"eye", "double"}, {"profile", "double"}, {"altitude", "double"},
   {"claim_radius", "integer"}, {"shield", "integer"},
@@ -169,6 +170,10 @@ local function check_row(name, row, rate)
     end
     if row.reload_seconds <= 0 then
       refuse(name, "reload_seconds", "is zero, but the kind has a weapon")
+    end
+    if row.falloff_end < row.falloff_full then
+      refuse(name, "falloff_end", "is " .. row.falloff_end .. ", nearer than falloff_full "
+             .. row.falloff_full .. "; the decline cannot end before it begins")
     end
   elseif row.reaches ~= 0 then
     refuse(name, "reaches", "is " .. row.reaches .. ", but the kind has no damage")
@@ -282,14 +287,21 @@ end
 -- {{{ function M.counters()
 -- The periodic effects the catalogue asks for, as rows the world adds to its
 -- counter table at allocation: one heal counter per kind under `heal.<name>`,
--- and one recharge counter per kind with a shield under `recharge.<name>`. In
--- index order, so every world lays its counters out the same way.
+-- one reload counter per kind with a weapon under `reload.<name>`, and one
+-- recharge counter per kind with a shield under `recharge.<name>`. In index
+-- order, so every world lays its counters out the same way.
 function M.counters()
   local rows = {}
   local kinds = M.catalogue().kinds
   for index = 1, #kinds do
     local row = kinds[index]
     rows[#rows + 1] = {path = {"heal", row.name}, ticks = row.heal_ticks, extra = {}}
+  end
+  for index = 1, #kinds do
+    local row = kinds[index]
+    if row.damage > 0 then
+      rows[#rows + 1] = {path = {"reload", row.name}, ticks = row.reload_ticks, extra = {}}
+    end
   end
   for index = 1, #kinds do
     local row = kinds[index]

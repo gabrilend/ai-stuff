@@ -48,8 +48,9 @@ The file returns one table: `{[name] = row}`.
 | `damage` | integer | per shot at full strength; zero for no weapon (the truck) |
 | `falloff_full` | double | cells out to which damage is full |
 | `falloff_floor` | double | the fraction of damage it never falls below, zero to one |
+| `falloff_end` | double | cells out to which damage falls in a straight line to the floor; never nearer than `falloff_full` for a kind with a weapon |
 | `shell_speed` | double | cells per tick; decides when a shot lands |
-| `reload_seconds` | double | between shots; becomes `reload_ticks` |
+| `reload_seconds` | double | between shots; becomes `reload_ticks`, the period of `world.reload.<name>` |
 | `heal_period` | double | seconds between one point of health coming back; becomes `heal_ticks`, the period of `world.heal.<name>` |
 | `speed` | double | cells per tick on flat ground |
 | `climb` | double | how much a rise slows a land unit: a step up a rise of r per cell is `speed / (1 + climb * r)`; downhill is never faster; zero for kinds that do not walk the ground |

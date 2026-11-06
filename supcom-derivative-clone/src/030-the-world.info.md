@@ -96,6 +96,7 @@ list, and it is what the tick, the hash and the validator walk.
 | --- | --- | --- |
 | `world.claim` | `claim_seconds` | `increments_to_claim` from `claim_increments` |
 | `world.heal.<kind>`, one per catalogue kind | the kind's `heal_period` | none |
+| `world.reload.<kind>`, one per kind with a weapon | the kind's `reload_seconds` | none |
 | `world.recharge.<kind>`, one per kind with a shield | the kind's `shield_seconds` | none |
 
 Groups and fields other issues need -- patterns, shots, bones, factories and

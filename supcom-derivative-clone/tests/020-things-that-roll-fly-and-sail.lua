@@ -481,6 +481,123 @@ harness.suite("a unit fires at what it can see, at any distance", function()
 end)
 -- }}}
 
+-- {{{ nothing is out of range, closer
+-- {{{ local function level()
+-- A world on flat ground at height 10 everywhere, with an optional ridge of
+-- height 14 along the column x = ridge, from the top edge to y = 40: tall
+-- enough to hide a tank from a tank, low enough that a plane shows over it.
+local function level(ridge)
+  local world = fresh()
+  local field = world.field
+  for index = 1, #field.height do field.height[index] = 10 end
+  if ridge ~= nil then
+    for y = 0, 40 do field.height[y * field.size + ridge + 1] = 14 end
+  end
+  return world
+end
+-- }}}
+
+harness.suite("falloff is a straight line to a floor, and a shell takes whole ticks", function()
+  local targeting = harness.load("targeting", "205")
+  local units = harness.load("units", "201")
+  local tank = units.kind("tank")
+  harness.check("full out to falloff_full", targeting.falloff("tank", tank.falloff_full) == 1)
+  local middle = (tank.falloff_full + tank.falloff_end) / 2
+  harness.check("halfway down the line, halfway to the floor",
+                math.abs(targeting.falloff("tank", middle) - (1 + tank.falloff_floor) / 2) < 1e-12,
+                targeting.falloff("tank", middle))
+  harness.check("the floor from falloff_end on", targeting.falloff("tank", tank.falloff_end) == tank.falloff_floor
+                and targeting.falloff("tank", tank.falloff_end * 10) == tank.falloff_floor)
+  local ok, problem = pcall(targeting.falloff, "catapult", 3)
+  harness.check("a kind the catalogue lacks is refused by name",
+                not ok and tostring(problem):find("catapult", 1, true) ~= nil, problem)
+  harness.check("a shell's flight is the distance over its speed, rounded up",
+                targeting.flight_ticks("tank", 5 * tank.shell_speed + 0.1) == 6
+                and targeting.flight_ticks("tank", 5 * tank.shell_speed) == 5)
+  harness.check("and never less than one tick", targeting.flight_ticks("tank", 0) == 1)
+  harness.check("a kind with no weapon has no flight",
+                not pcall(targeting.flight_ticks, "command-truck", 3))
+end)
+
+harness.suite("a unit chooses only what it sees, and keeps what it chose", function()
+  local targeting = harness.load("targeting", "205")
+  local units = harness.load("units", "201")
+  local world = level(20)
+  local shooter = units.spawn(world, "tank", 1, 10, 10)
+  local hidden = units.spawn(world, "tank", 2, 25, 10)
+  targeting.aim_pass(world)
+  harness.check("an enemy behind a ridge is not chosen", world.unit.target[shooter] == 0)
+  local left = units.spawn(world, "tank", 2, 10, 50)
+  local right = units.spawn(world, "tank", 2, 10, 50)
+  targeting.aim_pass(world)
+  harness.check("of two at one distance, the lower row is chosen", world.unit.target[shooter] == left)
+  local closer = units.spawn(world, "tank", 2, 10, 45)
+  targeting.aim_pass(world)
+  harness.check("a closer enemy of the same class does not take the target away",
+                world.unit.target[shooter] == left)
+  world.unit.x[left] = 25
+  world.unit.y[left] = 20
+  targeting.aim_pass(world)
+  harness.check("a target that goes out of sight is dropped for the best in sight",
+                world.unit.target[shooter] == closer, world.unit.target[shooter])
+  local gun = units.spawn(world, "anti-air", 1, 15, 10)
+  local plane = units.spawn(world, "helicopter", 2, 25, 10)
+  targeting.aim_pass(world)
+  harness.check("a gun behind the ridge sees a plane flying over the far side",
+                world.unit.target[gun] == plane)
+  local seen = targeting.visible(world, shooter)
+  harness.check("visible lists every enemy in sight, whatever the weapon reaches",
+                #seen == 3 and seen[1] == right and seen[2] == closer and seen[3] == plane,
+                table.concat(seen, ","))
+  harness.check("the hidden tank is not among them", hidden ~= seen[1] and hidden ~= seen[2])
+end)
+
+harness.suite("only a reloaded weapon aims, and aiming writes only the target", function()
+  local targeting = harness.load("targeting", "205")
+  local units = harness.load("units", "201")
+  local snapshot = harness.load("snapshot", "109")
+  local the_tick = harness.load("the-tick", "105")
+  local world = level()
+  local shooter = units.spawn(world, "tank", 1, 10, 10)
+  local enemy = units.spawn(world, "tank", 2, 20, 10)
+  local truck = units.spawn(world, "command-truck", 2, 30, 30)
+  harness.check("every weapon has a reload counter, and the truck has none",
+                world.reload.tank ~= nil and world.reload.tank.period == units.kind("tank").reload_ticks
+                and world.reload["command-truck"] == nil)
+  world.unit.reload_at[shooter] = world.reload.tank.increment + 1
+  targeting.aim_pass(world)
+  harness.check("a weapon still reloading does not choose", world.unit.target[shooter] == 0)
+  world.unit.reload_at[shooter] = 0
+  local before = snapshot.hash(world)
+  local was = world.unit.target[enemy]
+  targeting.aim_pass(world)
+  harness.check("a reloaded one does", world.unit.target[shooter] == truck)
+  harness.check("the truck, with no weapon, chooses nothing", world.unit.target[truck] == 0)
+  world.unit.target[shooter] = 0
+  world.unit.target[enemy] = was
+  harness.check("nothing but the targets changed", snapshot.hash(world) == before)
+  local row = the_tick.SYSTEMS[7]
+  harness.check("the tick's seventh row is the aim pass, and it slices",
+                row.name == "sight-and-aim" and row.waiting_for == nil and row.sliceable)
+end)
+
+harness.suite("the viewer's sightline layer marks what a unit sees", function()
+  local targeting = harness.load("targeting", "205")
+  local units = harness.load("units", "201")
+  local viewer = harness.load("terminal-viewer", "111")
+  local snapshot = harness.load("snapshot", "109")
+  local world = level(20)
+  local shooter = units.spawn(world, "tank", 1, 10, 10)
+  units.spawn(world, "tank", 2, 25, 10)
+  units.spawn(world, "tank", 2, 10, 50)
+  local picture = viewer.draw(snapshot.copy(world), {seen = targeting.visible(world, shooter)})
+  local rows = {}
+  for line in picture:gmatch("[^\n]+") do rows[#rows + 1] = line end
+  harness.check("the enemy in sight is marked", rows[51]:sub(11, 11) == viewer.SEEN, rows[51])
+  harness.check("the one behind the ridge keeps its letter", rows[11]:sub(26, 26) == "T", rows[11])
+end)
+-- }}}
+
 -- {{{ buffered damage
 harness.suite("a shot lands at the tick its distance says, and not before", function()
   local units = harness.load("units", "201")

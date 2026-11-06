@@ -87,7 +87,7 @@ the test.
 | `unit-catalogue` | 202 | a table in `assets/`, one row per kind, every field an integer, a double, or a name: `health`, `damage`, `shell_speed`, `heal_period`, `eye`, `profile`, `shield`, and the rest the issue lists |
 | `domains` | 203 | `can_stand(field, domain, x, y)`, the domain a name or an integer; `altitude_at(field, kind, x, y)`; `is_shore(field, x, y)`; `ground_at(field, x, y)`; `validate(world)`; `LAND`, `AIR`, `SEA`, `REACH`, `STAND` |
 | `movement` | 204 | `move_pass(world)` and `move_pass_slice(world, first, last)`; `occupancy_pass(world)`; `step_length(field, kind, from_x, from_y, to_x, to_y)`; `held(world, id)` |
-| `targeting` | 205, 405, 502 | `aim_pass(world)`; `falloff(kind, distance)` returns a fraction |
+| `targeting` | 205, 405, 502 | `aim_pass(world)` and `aim_pass_slice(world, first, last)`; `falloff(kind, distance)` returns a fraction; `flight_ticks(kind, distance)`; `candidates(world, shooter)`; `visible(world, shooter)`; `sees(world, a, b)`; `ready(world, id)`; `distance(world, a, b)` |
 | `combat` | 206, 207 | `fire_pass(world)`; `land_pass(world)`; `die_pass(world)`; `hurt(world, id, amount)`; `health(world, id)` |
 | `bones` | 208 | `leave(world, unit)`; `leave_at(world, x, y, mass)`; `eat(world, unit, bone)` |
 | `thread-pool` | 209 | `slice(count, workers)` returns contiguous ranges; `run_sliced(system, world)`; `trace_writes(body, world)` returns every write the body made, as `{array, field, index}` |
@@ -133,7 +133,7 @@ builds the system that writes it:
 - `world.pattern.{count, points}`
 - `world.shot.{count, arrives}`
 - `world.bone.{count, x, y, mass}`
-- `world.heal.<kind>`, `world.recharge.enforcer`, `world.cloud_round`,
+- `world.heal.<kind>`, `world.reload.<kind>`, `world.recharge.enforcer`, `world.cloud_round`,
   `world.claim.{period, increments_to_claim}` — every one a counter from issue 106
 - `world.team.{mass, energy, thorns, energy_level}`
 - `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began, claim_seen, mark, occupant}`

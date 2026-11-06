@@ -42,7 +42,7 @@ the world; `run_slice` takes the world and a first and last unit id.
 | 4 | `emit` | no | waiting for 307 |
 | 5 | `move` | yes | `movement.move_pass` (204) |
 | 6 | `claim` | no | `territory.claim_pass` (112) |
-| 7 | `sight-and-aim` | yes | waiting for 205 |
+| 7 | `sight-and-aim` | yes | `targeting.aim_pass` (205) |
 | 8 | `fire` | yes | waiting for 206 |
 | 9 | `land` | no | waiting for 206 |
 | 10 | `die` | no | waiting for 208 |

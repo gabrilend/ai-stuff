@@ -20,11 +20,12 @@ from the snapshot's own arrays.
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `draw(snapshot, options)` | a snapshot (from `snapshot.copy`); optionally `{colour = true}` | one string, below |
+| `draw(snapshot, options)` | a snapshot (from `snapshot.copy`); optionally `colour = true`, and `seen`, a list of unit ids to draw as `SEEN` (the sightline layer: `targeting.visible(world, id)` gives the list) | one string, below |
 | `GRADES` | | the land's grading, `{from, mark}` rows |
 | `WATER` | | the water's mark, `~` |
 | `LETTERS` | | a letter per unit kind, by the kind's catalogue number |
 | `UNKNOWN` | | the mark for a unit of a kind with no letter, `?` |
+| `SEEN` | | the sightline layer's mark, `!`, for a unit listed in `options.seen` |
 | `COLOURS`, `RESET` | | each team's terminal colour code, and the reset |
 
 ## Data structures it owns
