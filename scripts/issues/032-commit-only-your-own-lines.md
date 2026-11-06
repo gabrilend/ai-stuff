@@ -233,3 +233,23 @@ fallback, and it is announced every time rather than taken silently.
 - `README-refusal-gates.md` -- the gates, the ledger and the commit route
 - `test-refusal-gates` -- the cases, kept in a file so they are read, not run
 - `refuse-unscoped-commit` -- the gate this replaces
+
+## Fixed afterwards: exit statuses under LuaJIT (2026-11-02)
+
+Found by the delta-version agent. The commit route read how its commands
+ended in Lua 5.2's shape, and LuaJIT answers in another: `os.execute` returns
+the bare wait status (0, or 256 for exit 1), and closing an `io.popen` pipe
+says `true` whatever the command did. So under LuaJIT -- the interpreter the
+route runs under -- `commit-own-changes` exited 1 after a commit that worked,
+took a refusing commit hook as passed, ran hooks that did not exist, and
+could report a commit git had refused to record.
+
+`libs/own-changes-patch.lua` now has `exit_status`, which reads both shapes,
+and `run` / `run_quiet` have the shell print the exit code after the command
+instead of asking the pipe. The locked re-run starts under the interpreter
+already running, so the route behaves the same under either.
+`tests/test-commit-exit-status.sh` covers a commit that works, one git
+refuses, and a refusing hook, under both luajit and lua5.4, and
+`test-refusal-gates` runs it. `tests/test-commit-own-changes.sh` passed its
+`--scripts-dir` after any `-- <paths>`, where it was read as two more paths;
+it now goes first.

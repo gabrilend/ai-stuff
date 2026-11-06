@@ -96,11 +96,13 @@ reset_ledgers() { rm -rf "${LEDGER_ROOT:?}/${S1}" "${LEDGER_ROOT:?}/${S2}"; }
 
 # {{{ coc()
 # Runs commit-own-changes as a session. Output goes to a file named after the
-# session, the exit status is returned.
+# session, the exit status is returned. --scripts-dir goes first: after a
+# "-- <paths>" limit it would be read as two more paths, and the tool would
+# load its libraries from the house checkout instead of the one under test.
 coc() {
     local session="$1"; shift
     CLAUDE_CODE_SESSION_ID="${session}" CLAUDE_SESSIONS_ROOT="${SESSIONS}" \
-        "${DIR}/commit-own-changes" "$@" --scripts-dir "${DIR}" > "${SCRATCH}/out-${session}" 2>&1
+        "${DIR}/commit-own-changes" --scripts-dir "${DIR}" "$@" > "${SCRATCH}/out-${session}" 2>&1
 }
 # }}}
 
