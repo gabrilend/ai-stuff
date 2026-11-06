@@ -120,7 +120,9 @@ gets the writing checks, where the laptop has those tools) and `081` (56
 checks, four threads at once among them) and `083` (37 checks, every box
 placed in a map and fed through its doors) and `092` (44 checks: appends
 on both cluster sizes, a full card, a card left mid-append, two threads on
-one file, a copy in 4096-byte slices), all on cards
+one file, a copy in 4096-byte slices) and `093` (22 checks: replacing,
+appending and making a file, each with the card pulled out after every
+block it writes, old or new and never torn), all on cards
 `twin/tests/080-card-image.h` lays out the way a laptop does, with phases
 2 and 3's still passing.
 

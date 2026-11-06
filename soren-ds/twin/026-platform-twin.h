@@ -28,6 +28,18 @@ void twin_platform_set_log(const char *path, int also_stdout);
  * (scripts/make-card-image makes one). */
 void twin_card_open(const char *path);
 
+/* Take the card out part-way through whatever is writing to it: once
+ * `blocks` more blocks have been written, the write that would go past
+ * that writes the blocks that fit and fails, and every read and write
+ * after it fails too, as if the card had left the slot or the power had
+ * gone. A negative count puts the card back. Opening a card puts it back
+ * as well. This is how a test interrupts a write at every point it can
+ * be interrupted (issue 413). */
+void twin_card_pull_after(int64_t blocks);
+/* Blocks written to the card since the twin started: what one operation
+ * costs is the difference across it. */
+uint64_t twin_card_blocks_written(void);
+
 /* Give the memory pool back. Only the twin ever does this. */
 void twin_platform_shutdown(void);
 

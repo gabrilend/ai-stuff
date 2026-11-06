@@ -96,6 +96,22 @@ last byte before it adds anything.
    and the alternative (copying the last cluster and relinking) moves file
    bytes a reader can see, which is worse.
 
+6. *(new) How is "whole or not at all" shown, rather than argued?* The
+   twin can take its card out part-way through a write:
+   `twin_card_pull_after(n)` lets `n` more blocks land (a write of several
+   blocks landing only partly) and then fails every read and write, as a
+   card leaving the slot would; `twin_card_blocks_written()` counts what an
+   operation costs. Test 093 runs each kind of write once to count its
+   blocks, then again with the card pulled after every one of those counts,
+   mounting afresh each time: replacing a file (53 blocks), appending across
+   clusters (42), appending inside the last cluster (3), and making a file
+   in two directories that are not there (62). Every time the file is old
+   or new and never torn, every interrupted write said it failed, and the
+   card takes the next append with a chain exactly its size. Moving the
+   size write ahead of the chain, or letting a table write's failure pass
+   unreported, each fails the test. The pull is the twin's alone; the
+   device's card cannot be told to fail.
+
 ## Related documents
 
 - `docs/011-filesystem.md` — the box abstraction section, and
