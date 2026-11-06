@@ -26,7 +26,11 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
 - 807b lists and trees — `list` (flat, bulleted) and `tree` (nested,
   indented, no bullets — a deliberate contrast), joined into 807a's file.
 
-801c-d, 807c-d, 805b-d, and 809b and 809d remain: the flair's colour math
-and the night-only palette rule; box diagrams and prose templates;
-line-and-dot charts, diagrams by level and the machine drawing itself; and
-safe concurrent appends and floors.
+- 807c box diagrams — boxes in ASCII lines, arrows beneath them one lane
+  each with `there` and `here` labels, measured in characters; checked
+  byte for byte against stored expected files.
+
+801c-d, 807d, 805b-d, and 809b and 809d remain: the flair's colour math
+and the night-only palette rule; prose templates; line-and-dot charts,
+diagrams by level and the machine drawing itself; and safe concurrent
+appends and floors.
