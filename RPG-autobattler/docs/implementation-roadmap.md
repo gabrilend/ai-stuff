@@ -56,7 +56,7 @@
 - [ ] Add ranged vs melee interaction mechanics
 
 ### 3.3 Base System
-- [ ] Create base entities with health pools
+- [x] Create base entities with health pools (Issue #036)
 - [ ] Implement defense shield system (3 shields)
 - [ ] Add automatic turret for base defense
 - [ ] Create shield destruction mechanics
