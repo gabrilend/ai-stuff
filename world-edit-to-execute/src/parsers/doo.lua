@@ -59,9 +59,14 @@ end
 
 -- {{{ parse_doodad_entry
 -- Parses a single doodad entry.
--- Version 7: 42 bytes per entry
--- Version 8: 50 bytes per entry (adds item_table_pointer and item_sets_count)
--- Returns the doodad table and the next read position.
+-- Version 7: 42 bytes per entry: type, variation, position, angle, scale,
+--   flags, life, creation number.
+-- Version 8: after life come the item drops (an item table pointer, -1 if
+--   none, and the item sets, each a count and an ID and chance per item),
+--   then the creation number last (issue 201e): 50 bytes when it drops
+--   nothing, more when it does.
+-- Returns the doodad table and the next read position, or nil and a message
+-- when the entry runs past the end of the data.
 local function parse_doodad_entry(data, pos, version)
     local doodad = {}
 
@@ -102,16 +107,37 @@ local function parse_doodad_entry(data, pos, version)
     life_raw, pos = read_byte(data, pos)
     doodad.life = life_raw
 
+    -- Version 8+: what it drops when destroyed
+    if version >= 8 then
+        -- Item table pointer (-1 if none, otherwise the map's item table)
+        doodad.item_table_pointer = read_int32(data, pos); pos = pos + 4
+        -- Item sets (one chosen at random on death)
+        local sets = read_int32(data, pos); pos = pos + 4
+        if sets < 0 or pos + sets * 4 + 3 > #data then
+            return nil, string.format("item set count %d doesn't fit the data (byte %d of %d)",
+                sets, pos - 5, #data)
+        end
+        doodad.item_sets = {}
+        for i = 1, sets do
+            local n = read_int32(data, pos); pos = pos + 4
+            if n < 0 or pos + n * 8 + 3 > #data then
+                return nil, string.format("item count %d doesn't fit the data (byte %d of %d)",
+                    n, pos - 5, #data)
+            end
+            local items = {}
+            for k = 1, n do
+                local item = {}
+                item.id, pos = read_id(data, pos)
+                item.chance = read_int32(data, pos); pos = pos + 4
+                items[k] = item
+            end
+            doodad.item_sets[i] = { items = items }
+        end
+        doodad.item_sets_count = sets
+    end
+
     -- Creation number (unique editor ID)
     doodad.creation_number = read_int32(data, pos); pos = pos + 4
-
-    -- Version 8+ has additional fields
-    if version >= 8 then
-        -- Item table pointer (-1 if none, otherwise index into item drop table)
-        doodad.item_table_pointer = read_int32(data, pos); pos = pos + 4
-        -- Number of item sets dropped
-        doodad.item_sets_count = read_int32(data, pos); pos = pos + 4
-    end
 
     return doodad, pos
 end
@@ -226,7 +252,8 @@ function doo.parse(data)
     -- Parse doodad entries
     result.doodads = {}
     for i = 1, doodad_count do
-        -- Check bounds before parsing
+        -- Check bounds before parsing (the smallest entry; one that drops
+        -- items checks its own lists)
         if pos + bytes_per_doodad - 1 > #data then
             return nil, string.format(
                 "Unexpected end of data at doodad %d/%d (pos %d, size %d, need %d bytes)",
@@ -234,6 +261,9 @@ function doo.parse(data)
         end
 
         local doodad, new_pos = parse_doodad_entry(data, pos, result.version)
+        if not doodad then
+            return nil, string.format("war3map.doo: doodad %d/%d: %s", i, doodad_count, new_pos)
+        end
         result.doodads[i] = doodad
         pos = new_pos
     end
@@ -265,10 +295,15 @@ function doo.write(result)
         b:f32(d.angle or 0)
         b:f32(d.scale.x):f32(d.scale.y):f32(d.scale.z)
         b:u8(d.flags or 2):u8(d.life or 100)
-        b:i32(d.creation_number or 0)
         if result.version >= 8 then
-            b:i32(d.item_table_pointer or -1):i32(d.item_sets_count or 0)
+            local sets = d.item_sets or {}
+            b:i32(d.item_table_pointer or -1):i32(#sets)
+            for _, set in ipairs(sets) do
+                b:i32(#set.items)
+                for _, it in ipairs(set.items) do b:str(it.id):i32(it.chance) end
+            end
         end
+        b:i32(d.creation_number or 0)
     end
     b:str(result.tail_raw or "")
     return b:done()
