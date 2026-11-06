@@ -55,11 +55,21 @@ own data, rather than leaning on machinery that no longer exists.
 
 ## Completed issues
 
-None yet.
+Built against a **stand-in for 902**: the modeller's memory is taken
+through `src/engine/127-app-memory.h`, naming its app, as 902's per-app
+region will be. Until 902 exists the memory comes from the engine's
+shared blocks, with a budget per app and no protection between apps.
+
+- **1001** the vertex grid: a 32-cube of cells, a hash table over a
+  dense array of vertices, safe from any core, its memory its app's.
+  `src/maps/vertex-grid.map` is the grid as a program a modeller's map
+  places as one station.
+
+`src/system/128-vertex-grid.c`. Test: `twin/tests/130` (48 checks).
 
 ## Open issues
 
-All of 1001 through 1011.
+1002 through 1011.
 
 ## Phase demo
 

@@ -498,6 +498,11 @@ static int new_program(struct core_ctx *c, const struct plan *p, int parent, con
 }
 /* }}} */
 
+/* Where a wire into a placed program's door, or out of one, really
+ * lands: defined below, beside the wiring that first needed them. */
+static struct destination destination_of(struct plan_station *b, int port);
+static struct destination source_of(struct plan_station *a, int exit);
+
 /* {{{ build_place */
 /* Sweep one: every station of every program in the tree. */
 static int build_place(struct core_ctx *c, struct plan *p, int parent, const char *prefix, const char *name)
@@ -531,14 +536,14 @@ static int build_place(struct core_ctx *c, struct plan *p, int parent, const cha
      * station line hands this program's door straight to the inner one. */
     for (int k = 0; k < PROGRAM_DOORS; k++) {
         if (p->arg_station[k] >= 0) {
-            struct plan_station *ps = &p->st[p->arg_station[k]];
-            r->args[k].station = ps->placed;
-            r->args[k].number = p->arg_port[k];
+            struct destination d = destination_of(&p->st[p->arg_station[k]], p->arg_port[k]);
+            r->args[k].station = d.station;
+            r->args[k].number = d.port;
         }
         if (p->res_station[k] >= 0) {
-            struct plan_station *ps = &p->st[p->res_station[k]];
-            r->results[k].station = ps->placed;
-            r->results[k].number = p->res_exit[k];
+            struct destination s = source_of(&p->st[p->res_station[k]], p->res_exit[k]);
+            r->results[k].station = s.station;
+            r->results[k].number = s.port;
         }
     }
     return id;
