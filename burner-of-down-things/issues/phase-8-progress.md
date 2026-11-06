@@ -26,7 +26,12 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
 - 807b lists and trees — `list` (flat, bulleted) and `tree` (nested,
   indented, no bullets — a deliberate contrast), joined into 807a's file.
 
-801c-d, 807c-d, 805b-d, and 809b and 809d remain: the flair's colour math
-and the night-only palette rule; box diagrams and prose templates;
-line-and-dot charts, diagrams by level and the machine drawing itself; and
-safe concurrent appends and floors.
+- 805b-d line and dot charts, diagrams by level, the machine drawn by
+  itself — one axis geometry for bars, lines and dots; the `diagram` word
+  laid out one column per blueprint level; and adapters from a blueprint,
+  a center and a ledger to those words. All geometry: painting waits on
+  804.
+
+801c-d, 807c-d, and 809b and 809d remain: the flair's colour math and the
+night-only palette rule; box diagrams and prose templates; and safe
+concurrent appends and floors.

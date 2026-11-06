@@ -4,11 +4,13 @@ The words `chart` and `diagram`: *lines drawn and arrows pointed there — here*
 
 ## Current Behavior
 
-The `.png` end draws single lines, surfaces and arrows. 805a is built
-(issues/completed/805a-bar-charts.md): the `chart` word's bar geometry,
-unpainted until 804 and unflaired until 801c. 805b (line and dot charts),
-805c (diagrams by level) and 805d (the machine drawn by itself) are not yet
-built.
+805a-d are built as geometry (issues/completed/805a-bar-charts.md,
+805b-line-and-dot-charts.md, 805c-diagrams-by-level.md,
+805d-the-machine-drawn-by-itself.md): the `chart` word's bars, lines and
+dots over one axis geometry (074); the `diagram` word laid out by levels
+with 043's graph (134); and adapters from a blueprint, a center and a
+ledger to those words (136). Nothing is painted yet: that waits on 804's
+`.png` end, and a bar's midline flair on 801c.
 
 ## Intended Behavior
 
@@ -18,9 +20,9 @@ built.
 
 ## Suggested Implementation Steps
 
-1. Charts. **Test:** bar heights in pixels are proportional to the data.
-2. Diagrams by level. **Test:** a diamond of four boxes lays out in three columns; every arrow starts on its `from` box and ends on its `to` box.
-3. The machine drawn by itself: the notes fixture's blueprint as a diagram.
+1. Charts. **Test:** bar heights in pixels are proportional to the data. Done as geometry (805a-b).
+2. Diagrams by level. **Test:** a diamond of four boxes lays out in three columns; every arrow starts on its `from` box and ends on its `to` box. Done as geometry (805c).
+3. The machine drawn by itself: the notes fixture's blueprint as a diagram. Done as geometry (805d); its `.png` waits on 804.
 
 ## Sub-issues
 
