@@ -53,14 +53,19 @@ One table every paintbrush reads, so the style lives in one place:
 | `flair` | on or off: the midline of a surface drawn in four quarters — one lighter, two split half and half, one darker | on |
 | `line_weight` | pixels | 2 |
 | `arrow` | `there-here` (a line drawn from the source, an arrowhead at the target, a small label at each end) | `there-here` |
+| `flair_shift` | how far the flair's lighter and darker quarters move from the line's colour: a fraction of the way to white, or to black | 0.15 |
 
 **The flair, exactly:** a surface's middle line — only that line, not the
 fill — is split into four quarters around its centre. Quarter one is
 drawn a little lighter than the line's colour, quarter four a little
 darker, and quarters two and three each half lighter, half darker. It
 reads as light falling across the middle of the shape. How much lighter
-and darker is a setting, recorded in `docs/balance-updates.md` when it
-changes.
+and darker is a setting (`flair_shift`), recorded in
+`docs/balance-updates.md` when it changes.
+
+**Night-only categories:** `day` is refused for a category marked
+night-only, naming this rule; which categories are mostly for night is the
+owner's own call (docs/010, question 15), and none is marked until then.
 
 ## Each end
 

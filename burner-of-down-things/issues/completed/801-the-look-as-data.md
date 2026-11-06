@@ -4,11 +4,16 @@ The owner's style in one table every paintbrush reads ([067](../docs/067-datapat
 
 ## Current Behavior
 
-801a and 801b are built (issues/completed/801a-the-look-table.md,
-801b-canvas-overrides.md): the look table, its defaults, and a canvas's
-own override on top of them, refusing an unknown field. 801c (the flair's
-quarter colours) and 801d (`day` refused on a night-only category) are not
-yet built.
+Built, in four pieces (issues/completed/801a-801d), all in
+`src/070-the-look.lua`: the look table and its defaults, checked against
+docs/067's own table (801a); a canvas's overrides by name, an unknown one
+refused (801b); the flair's four quarter colours from a base colour, how
+far lighter and darker being the look's own `flair_shift`, recorded in
+docs/balance-updates.md (801c); and `day` refused on a category marked
+night-only, naming the rule — no category marked until the owner names one
+(docs/010, question 15) (801d). All three of this issue's tests hold:
+`tests/071-checking-the-look.lua`, `099-checking-canvas-overrides.lua`,
+`121-checking-flair-quarters.lua`, `122-checking-night-only-day.lua`.
 
 ## Intended Behavior
 

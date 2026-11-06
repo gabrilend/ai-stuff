@@ -26,7 +26,15 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
 - 807b lists and trees — `list` (flat, bulleted) and `tree` (nested,
   indented, no bullets — a deliberate contrast), joined into 807a's file.
 
-801c-d, 807c-d, 805b-d, and 809b and 809d remain: the flair's colour math
-and the night-only palette rule; box diagrams and prose templates;
-line-and-dot charts, diagrams by level and the machine drawing itself; and
-safe concurrent appends and floors.
+- 801c the flair's quarter colours — `shift` and `flair_quarters` in
+  `src/070-the-look.lua`: one lighter, two and three split half and half,
+  four darker, by the look's own `flair_shift` (0.15, in
+  docs/balance-updates.md).
+- 801d `day` refused on a night-only category — the refusal names
+  docs/067's rule; the per-category marks are the owner's call (docs/010,
+  question 15), so none is marked yet. 801 (the look, as data) is whole
+  and closed.
+
+807c-d, 805b-d, and 809b and 809d remain: box diagrams and prose
+templates; line-and-dot charts, diagrams by level and the machine drawing
+itself; and safe concurrent appends and floors.

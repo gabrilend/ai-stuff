@@ -36,3 +36,11 @@ Ordering follows from these: a request's score is its own weight plus its
 touched issues' weights, so the most recently noticed request goes first
 unless an older one touches heavier issues. A first draft (docs/010,
 question 6).
+
+## 2026-11-02 — the flair's first shift
+
+Where: `src/070-the-look.lua`, `DEFAULTS.flair_shift`.
+
+| Setting | Value | Why |
+|---|---|---|
+| `flair_shift` | 0.15 | "A little lighter", "a little darker" (docs/067): far enough that the four quarters read as light across the midline on a black or gray ground, near enough that the line still reads as its own colour. A first draft until the owner sees it painted (804) |
