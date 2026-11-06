@@ -156,20 +156,33 @@ print("select_tier1_regions")
 -- A 100 x 100 page: 8% of it is 800 square points.
 local function region(w, h) return { x = 0, y = 0, width = w, height = h } end
 
-kit.check("regions at or above 8% of the page qualify, smaller ones do not", function()
+kit.check("a column bottom at 8% opens the gate; big margins join it, slivers do not", function()
     local spaces = {
-        bottom_space = { region(40, 20) },      -- 800: exactly 8%, qualifies
-        left_outer   = { region(5, 100) },      -- 500
-        right_outer  = { region(10, 100) },     -- 1000, qualifies
-        center       = { region(7.99, 100) },   -- 799
+        bottom_space = { region(40, 20) },      -- 800: exactly 8%, opens the gate
+        left_outer   = { region(5, 100) },      -- 500: sliver, not drawn
+        right_outer  = { region(10, 100) },     -- 1000: drawn once the gate is open
+        center       = { region(7.99, 100) },   -- 799: sliver, not drawn
         left_inner   = {}, right_inner = {}, gaps = {},
     }
-    local qualifying, outside, largest = select_tier1_regions(spaces, 100, 100)
-    kit.same(#outside, 4, "outside regions")
-    kit.same(#qualifying, 2, "qualifying regions")
+    local qualifying, measured, largest = select_tier1_regions(spaces, 100, 100)
+    kit.same(#measured, 1, "measured regions (column bottoms only)")
+    kit.same(#qualifying, 2, "regions drawn")
     kit.same(qualifying[1], spaces.bottom_space[1], "bottom strip first")
     kit.same(qualifying[2], spaces.right_outer[1], "then right margin")
-    kit.near(largest, 1000, "largest area")
+    kit.near(largest, 800, "largest measured area")
+end)
+kit.check("a margin alone, however big, does not open the gate (issue 033)", function()
+    local spaces = {
+        bottom_space = { region(50, 15) },      -- 750: under 8%
+        left_outer   = { region(30, 100) },     -- 3000
+        right_outer  = { region(30, 100) },     -- 3000
+        center       = { region(30, 100) },     -- 3000
+        left_inner   = {}, right_inner = {}, gaps = {},
+    }
+    local qualifying, measured, largest = select_tier1_regions(spaces, 100, 100)
+    kit.same(#qualifying, 0, "regions drawn")
+    kit.same(#measured, 1, "measured regions")
+    kit.near(largest, 750, "largest measured area is the bottom strip's")
 end)
 kit.check("inner gutters and gaps never count, however big", function()
     local spaces = {
@@ -177,22 +190,22 @@ kit.check("inner gutters and gaps never count, however big", function()
         left_inner = { region(100, 100) }, right_inner = { region(100, 100) },
         gaps = { region(100, 100) },
     }
-    local qualifying, outside, largest = select_tier1_regions(spaces, 100, 100)
+    local qualifying, measured, largest = select_tier1_regions(spaces, 100, 100)
     kit.same(#qualifying, 0, "qualifying")
-    kit.same(#outside, 0, "outside")
+    kit.same(#measured, 0, "measured")
     kit.same(largest, 0, "largest")
 end)
 kit.check("raising the threshold drops regions below it", function()
     local saved = TIER1_MIN_REGION_AREA_FRACTION
     TIER1_MIN_REGION_AREA_FRACTION = 0.5
     local spaces = {
-        bottom_space = { region(100, 40) }, left_outer = {}, center = {},
-        right_outer = { region(100, 60) },
+        bottom_space = { region(100, 60) }, left_outer = {}, center = {},
+        right_outer = { region(100, 40) },
     }
     local qualifying = select_tier1_regions(spaces, 100, 100)
     TIER1_MIN_REGION_AREA_FRACTION = saved
     kit.same(#qualifying, 1, "qualifying")
-    kit.same(qualifying[1], spaces.right_outer[1], "only the 60% region")
+    kit.same(qualifying[1], spaces.bottom_space[1], "only the 60% region")
 end)
 -- }}}
 
@@ -241,15 +254,41 @@ kit.check("every region lies within the page width", function()
         end
     end
 end)
-kit.check("a full page still has one qualifying region: the right margin (issue 033)", function()
+kit.check("a full page gets no Tier 1 art, though its right margin is 16% (issue 033)", function()
     -- The 15% page shift leaves the right margin 94.25 x 842, about 16% of
-    -- the page, so Tier 1 art is never skipped on a themed page.  Issue 033
-    -- asks whether that is wanted; change this check with its answer.
+    -- the page.  Before issue 033 that alone passed the gate on every
+    -- themed page; now only an empty column bottom can.
     local spaces = spaces_for(MAX_LINES_PER_PAGE - 1, MAX_LINES_PER_PAGE - 1)
     kit.same(#spaces.bottom_space, 0, "bottom regions")
+    kit.truthy(spaces.right_outer[1].width * spaces.right_outer[1].height
+        >= PAGE_W * PAGE_H * TIER1_MIN_REGION_AREA_FRACTION, "right margin is above the threshold")
     local qualifying = select_tier1_regions(spaces, PAGE_W, PAGE_H)
-    kit.same(#qualifying, 1, "qualifying regions")
-    kit.same(qualifying[1], spaces.right_outer[1], "the region")
+    kit.same(#qualifying, 0, "regions drawn")
+end)
+kit.check("a half-empty column opens the gate and the right margin joins it", function()
+    local half = math.floor(MAX_LINES_PER_PAGE / 2)
+    local spaces = spaces_for(MAX_LINES_PER_PAGE - 1, half)
+    kit.same(#spaces.bottom_space, 1, "bottom regions")
+    local qualifying = select_tier1_regions(spaces, PAGE_W, PAGE_H)
+    kit.same(#qualifying, 2, "regions drawn")
+    kit.same(qualifying[1], spaces.bottom_space[1], "the right column's bottom")
+    kit.same(qualifying[2], spaces.right_outer[1], "the right margin")
+end)
+kit.check("with one column full, the page opens exactly when the other's bottom reaches 8%", function()
+    -- Fill the right column a line at a time.  The page must pass exactly
+    -- on the fills whose empty bottom is at least 8% of the page, and both
+    -- outcomes must occur (on A4 the turn comes near 36 empty lines).
+    local min_area = PAGE_W * PAGE_H * TIER1_MIN_REGION_AREA_FRACTION
+    local opened, closed = 0, 0
+    for lines = 1, MAX_LINES_PER_PAGE - 1 do
+        local spaces = spaces_for(MAX_LINES_PER_PAGE - 1, lines)
+        local bottom = spaces.bottom_space[1]
+        local roomy = bottom ~= nil and bottom.width * bottom.height >= min_area
+        local open = #select_tier1_regions(spaces, PAGE_W, PAGE_H) > 0
+        kit.same(open, roomy, lines .. " lines in the right column: page passes")
+        if open then opened = opened + 1 else closed = closed + 1 end
+    end
+    kit.truthy(opened > 0 and closed > 0, "some fills pass and some do not")
 end)
 -- }}}
 
