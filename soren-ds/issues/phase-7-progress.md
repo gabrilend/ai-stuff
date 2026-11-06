@@ -48,7 +48,20 @@ builds.
 
 ## Completed issues
 
-None yet.
+Built against the **stand-in link**: `src/system/115-link.h` is a seam
+of four calls that everything in this phase sends and receives frames
+through. On the twin it is two queues per link that a test plays the
+far end of (`twin/117-link-twin.c`); on the device it says "no link"
+until the radio (701, 702) and the cable (706) are up. It is not a
+radio, a cable or a simulation of either.
+
+- **703** a link-local address per link, claimed as RFC 3927 says
+  (first guess from the hardware address, three probes, two
+  announcements, one defence), and ARP, IPv4 and UDP above it: listeners
+  by port, sending to everyone or to an address, asking first when its
+  owner is not known. Polled every 10 ms by `src/maps/net.map`.
+
+`src/system/118-net.c`. Test: `twin/tests/120` (37 checks).
 
 ## Open issues
 
