@@ -35,6 +35,20 @@ written down here goes stale the first time somebody adds one.
 | The camera cannot pull back past the whole map | …lets the map drift into empty space. |
 | The camera cannot push in past the badge-reading ceiling | …unbounds the zoom. |
 
+### The drawn body
+
+The weighted picture of [074](../src/074-the-drawn-body.info.md), asked without a window.
+These claim 709 through a `-- covers:` line of their own beside them rather than in the
+header.
+
+| Check | Fails the day somebody… |
+| --- | --- |
+| A walking body is trailed and never led, by no more than a few paces | …makes the drawn body extrapolate, or stiffens the spring into a blend. |
+| A stop is overrun, and the body settles inside a second | …damps the spring until the weight is gone, or loosens it into a wobble. |
+| The swing is the same at thirty and at a hundred and fifty frames a second | …steps the spring instead of solving it, after which the picture depends on the machine. |
+| The drawn body is never more than half a personal space from the real one | …removes the bound, after which a body can be drawn beyond a neighbour it never passed. |
+| A body born, put somewhere, fast-forwarded, or in a slot that was empty last frame is drawn where it is; one that walked a pace is chased | …lets a placed body fly across the screen, or snaps bodies that were only walking. |
+
 ### The simulation's own arithmetic
 
 | Check | Fails the day somebody… |

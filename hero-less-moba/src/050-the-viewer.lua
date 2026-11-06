@@ -160,6 +160,7 @@ function M.load(root)
   M.modules     = M.tick_module.load_cast(root)
   M.camera_module = loadfile(root .. "/src/046-the-camera.lua")()
   M.renderer    = loadfile(root .. "/src/047-the-renderer.lua")()
+  M.drawn_body  = loadfile(root .. "/src/074-the-drawn-body.lua")()
   M.panel       = loadfile(root .. "/src/048-the-panel.lua")()
   M.input       = loadfile(root .. "/src/049-input.lua")()
   M.way_in      = loadfile(root .. "/src/065-the-way-in.lua")()
@@ -201,6 +202,13 @@ function M.begin_match()
 
   M.tick_duration = 1 / parameters.unit.ticks_per_second
   M.accumulator = 0
+  M.frame_seconds = 0
+
+  -- Two answers to "where is this body drawn", both kept up every frame so that the
+  -- key that swaps them swaps a picture rather than restarting one. See 074.
+  M.honest = {x = {}, y = {}}
+  M.drawn = M.drawn_body.create(#M.world.soldier.alive,
+                                parameters.shape.personal_space)
 
   M.renderer.load(M.world, M.camera_module)
   M.panel.load(M.renderer)
@@ -322,6 +330,7 @@ function M.update(delta_time)
   if delta_time > 0.25 then
     delta_time = 0.25
   end
+  M.frame_seconds = delta_time
 
   M.input.update(M.state, M.context, delta_time)
   M.camera_module.update(M.camera, delta_time)
@@ -401,6 +410,16 @@ function M.draw()
     blend = 1
   end
 
+  -- Where every body is drawn. The weighted picture chases the honest one and is
+  -- bounded by it; it is on a key, off by default, until somebody has looked at it.
+  M.renderer.place_honestly(previous, newest, blend, M.honest)
+  M.drawn_body.update(M.drawn, previous, newest, M.honest.x, M.honest.y,
+                      M.frame_seconds, M.state.speed <= 1)
+  local where = M.honest
+  if M.state.weighted then
+    where = M.drawn
+  end
+
   local player_number = M.context.player_number(M.state)
 
   -- What kind the held stone is, looked up from the frame rather than remembered.
@@ -416,7 +435,7 @@ function M.draw()
     end
   end
 
-  M.renderer.draw(M.world, M.camera, previous, newest, blend,
+  M.renderer.draw(M.world, M.camera, newest, where,
                   held_kind, M.state.watching, M.state.held_hero)
   M.panel.draw(M.world, M.camera, newest, M.state.watching,
                held_kind, M.state.mouse_x, M.state.mouse_y,

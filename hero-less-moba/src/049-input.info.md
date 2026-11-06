@@ -27,7 +27,8 @@ if a frontline moved wrong, this file is innocent, because it cannot move a fron
 ## The input state
 
 `held_kind` (the upgrade riding the cursor, 0 for none), `watching` (which team's
-board), `panning`, `paused`, `speed`, `mouse_x`, `mouse_y`.
+board), `panning`, `paused`, `speed`, `weighted` (whether bodies are drawn with
+weight), `mouse_x`, `mouse_y`.
 
 ## The two gestures that matter
 
@@ -49,6 +50,7 @@ the screen.
 | `=`, `-` | Zoom about the centre of the viewport. |
 | `tab` | Switch which team's board is shown. Prototype only. |
 | `p` | Pause. |
+| `i` | Draw bodies with weight, or honestly. See [074](074-the-drawn-body.info.md). Honest is the default. |
 | `1`, `2`, `3` | Speed. |
 | `escape` | Quit. |
 

@@ -698,6 +698,149 @@ local function test_camera_floor()
 end
 -- }}}
 
+-- {{{ The drawn body
+-- covers: 709
+--
+-- The weighted picture (074) is a second position only the screen reads. These ask
+-- what it promises without a window: that it has weight, that the weight does not
+-- depend on the frame rate, that it never strays far from the truth, and that a body
+-- put somewhere rather than walked there is drawn there at once.
+
+-- {{{ local function a_frame()
+-- A snapshot with only the fields the drawn body reads, for one body slot.
+local function a_frame(alive, x, y)
+  return {alive = {alive}, x = {x}, y = {y},
+          live = {1}, live_count = (alive == 1) and 1 or 0}
+end
+-- }}}
+
+-- {{{ local function test_a_drawn_body_has_weight()
+-- A body walks east at hurry for a second and stops. The drawn one must trail it while
+-- it walks, never get ahead, run past the stop, and then settle on it -- the lean and
+-- the overshoot that make it read as heavy rather than as a blend.
+local function test_a_drawn_body_has_weight()
+  local drawn_body = loadfile(ROOT .. "/src/074-the-drawn-body.lua")()
+  local drawn = drawn_body.create(1, 18)
+  local speed = 1.2 * 1.35 * 30
+  local frame = 1 / 60
+
+  local ahead, lag = false, 0
+  for step = 1, 60 do
+    local real = speed * frame * step
+    drawn_body.follow(drawn, 1, real, 0, frame)
+    if drawn.x[1] > real + 1e-9 then ahead = true end
+    lag = real - drawn.x[1]
+  end
+  local stop = speed
+  check("a drawn body walking trails the real one and is never ahead of it",
+        not ahead and lag > 0.1,
+        string.format("%.3f paces behind after a second", lag))
+  check("and trails it by no more than a few paces",
+        lag < 3, string.format("%.3f paces", lag))
+
+  local furthest, settled_at = 0, 0
+  for step = 1, 120 do
+    drawn_body.follow(drawn, 1, stop, 0, frame)
+    if drawn.x[1] - stop > furthest then furthest = drawn.x[1] - stop end
+    if settled_at == 0 and math.abs(drawn.x[1] - stop) < 0.01
+       and math.abs(drawn.vx[1]) < 0.1 then
+      settled_at = step
+    end
+  end
+  check("when it stops, the drawn body runs past the stop",
+        furthest > 0.05, string.format("%.3f paces past", furthest))
+  check("and settles on it inside a second",
+        settled_at ~= 0 and settled_at <= 60,
+        string.format("settled after %d frames", settled_at))
+end
+-- }}}
+
+-- {{{ local function test_a_drawn_body_ignores_the_frame_rate()
+-- The same pull, drawn at thirty frames a second and at a hundred and forty-four, must
+-- be the same motion, or the picture would depend on the machine. Asked of a body
+-- pulled toward a fixed place inside the lag limit, partway through its swing: a moving
+-- target is sampled once a frame, and a slower machine sampling it less often is a
+-- difference in what was asked rather than in how the spring answers.
+local function test_a_drawn_body_ignores_the_frame_rate()
+  local drawn_body = loadfile(ROOT .. "/src/074-the-drawn-body.lua")()
+  local function pull(frames_per_second)
+    local drawn = drawn_body.create(1, 18)
+    for _ = 1, frames_per_second / 10 do
+      drawn_body.follow(drawn, 1, 6, 4.5, 1 / frames_per_second)
+    end
+    return drawn.x[1], drawn.y[1]
+  end
+  local slow_x, slow_y = pull(30)
+  local fast_x, fast_y = pull(150)
+  local apart = math.sqrt((slow_x - fast_x) ^ 2 + (slow_y - fast_y) ^ 2)
+  check("a drawn body swings the same at thirty and at 150 frames a second",
+        apart < 1e-6, string.format("%.8f paces apart, at %.4f against %.4f",
+                                    apart, slow_x, fast_x))
+end
+-- }}}
+
+-- {{{ local function test_a_drawn_body_stays_near_the_truth()
+-- However hard it is pulled, the drawn body is never further than half a personal
+-- space from the real one, so it can never be drawn beyond a neighbour it did not pass.
+local function test_a_drawn_body_stays_near_the_truth()
+  local drawn_body = loadfile(ROOT .. "/src/074-the-drawn-body.lua")()
+  local personal_space = 18
+  local drawn = drawn_body.create(1, personal_space)
+  local worst = 0
+  for step = 1, 240 do
+    -- A target that lurches back and forth faster than anything in the game walks.
+    local target = ((step % 20) < 10) and 15 or -15
+    drawn_body.follow(drawn, 1, target, 0, 1 / 60)
+    local off = math.abs(drawn.x[1] - target)
+    if off > worst then worst = off end
+  end
+  check("a drawn body is never further than half a personal space from the real one",
+        worst <= personal_space * 0.5 + 1e-9,
+        string.format("%.3f paces at worst", worst))
+end
+-- }}}
+
+-- {{{ local function test_a_placed_body_is_drawn_where_it_was_put()
+-- Bodies that did not walk -- born, put somewhere, or fast-forwarded -- snap rather
+-- than fly; and bodies that did walk do not.
+local function test_a_placed_body_is_drawn_where_it_was_put()
+  local drawn_body = loadfile(ROOT .. "/src/074-the-drawn-body.lua")()
+  local drawn = drawn_body.create(1, 18)
+  local function frame_pair(alive_before, x_before, x_after)
+    return a_frame(alive_before, x_before, 0), a_frame(1, x_after, 0)
+  end
+
+  local previous, newest = frame_pair(0, 0, 100)
+  drawn_body.update(drawn, previous, newest, {100}, {0}, 1 / 60, true)
+  check("a body just born is drawn where it was born",
+        drawn.x[1] == 100 and drawn.vx[1] == 0)
+
+  previous, newest = frame_pair(1, 100, 101)
+  drawn_body.update(drawn, previous, newest, {101}, {0}, 1 / 60, true)
+  check("a body that walked a pace is chased, not snapped",
+        drawn.x[1] > 100 and drawn.x[1] < 101,
+        string.format("drawn at %.3f", drawn.x[1]))
+
+  previous, newest = frame_pair(1, 101, 400)
+  drawn_body.update(drawn, previous, newest, {400}, {0}, 1 / 60, true)
+  check("a body that moved further in a tick than anything walks was put there",
+        drawn.x[1] == 400 and drawn.vx[1] == 0)
+
+  previous, newest = frame_pair(1, 400, 401)
+  drawn_body.update(drawn, previous, newest, {401}, {0}, 1 / 60, false)
+  check("above walking pace every body is drawn where it is",
+        drawn.x[1] == 401)
+
+  newest = a_frame(0, 401, 0)
+  drawn_body.update(drawn, a_frame(1, 401, 0), newest, {401}, {0}, 1 / 60, true)
+  previous, newest = a_frame(1, 401, 0), a_frame(1, 402, 0)
+  drawn_body.update(drawn, previous, newest, {50}, {0}, 1 / 60, true)
+  check("and a slot that was empty last frame starts again rather than chasing its last occupant",
+        drawn.x[1] == 50)
+end
+-- }}}
+-- }}}
+
 -- {{{ local function test_map_mirror()
 -- The map validator's own checks, run as a test so that a bad shape parameter is
 -- caught by the test suite and not only by whoever next starts a match.
@@ -1750,6 +1893,10 @@ test_a_push_is_measured_finely()
 test_camera_anchor()
 test_camera_home()
 test_camera_floor()
+test_a_drawn_body_has_weight()
+test_a_drawn_body_ignores_the_frame_rate()
+test_a_drawn_body_stays_near_the_truth()
+test_a_placed_body_is_drawn_where_it_was_put()
 test_wide_query()
 test_every_hero_is_buyable()
 test_a_hero_obeys_one_signpost()

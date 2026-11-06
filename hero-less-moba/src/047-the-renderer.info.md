@@ -12,7 +12,14 @@ screen.** Everything else here is subordinate to it.
 | Function | Arguments | Returns |
 | --- | --- | --- |
 | `load(world, camera_module)` | | — Builds the disc image, the sprite batches, the fonts. |
-| `draw(world, camera, previous, newest, blend)` | | — One frame, under the camera's transform. |
+| `draw(world, camera, newest, where, held_kind, watching, held_hero)` | | — One frame, under the camera's transform. Every live body is drawn at `where.x[id]`, `where.y[id]`. |
+| `interpolated_position(previous, newest, id, blend)` | | The honest position: a straight blend between the two newest frames, never ahead. |
+| `place_honestly(previous, newest, blend, where)` | | — Writes the honest position of every live body into `where`. |
+
+**The renderer does not decide where a body is drawn.** The viewer hands it either the
+honest positions or the weighted ones from [074](074-the-drawn-body.info.md), so the two
+pictures can be swapped with a key and compared without the renderer knowing which it
+has.
 | `COLOUR` | *(table)* | The palette, so the panel matches. |
 
 The camera **module** is handed in rather than reached for, so the renderer asks the

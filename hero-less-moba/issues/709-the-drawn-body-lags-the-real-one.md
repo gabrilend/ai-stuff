@@ -6,7 +6,7 @@
 | Blocked by | 701, 702, 215 |
 | Blocks | — |
 | Reads | [the viewing layer](../docs/017-the-viewing-layer.md) |
-| Open questions | R2, R3, R4 |
+| Open questions | R4; R2 provisionally, until looked at; R3 settled below |
 
 ## Current behavior
 
@@ -17,6 +17,21 @@ linear interpolation between two known positions, and nothing else.
 That is honest and it is why the picture is trustworthy, and it has one consequence: a
 body that changes direction changes direction instantly on screen, because the thing
 being drawn has no state of its own to carry.
+
+**Step 2 is built, behind a key, and nobody has seen it.** [074](../src/074-the-drawn-body.info.md)
+gives every body a drawn place and velocity, pulled toward the honest position by a
+spring that swings a little before it settles. The viewer keeps both pictures every
+frame and the renderer draws whichever it is handed; `i` swaps them, and the honest one
+is the default. The numbers on the spring were chosen by arithmetic, and this machine
+has no LÖVE, so how it actually looks is still R2's question. Step 3 is not started.
+
+What it promises, and what `tests/051-the-invariants` checks without a window:
+
+- a walking body is trailed and never led, a stop is overrun, and the body settles;
+- the swing is the same at thirty frames a second and at a hundred and fifty, because
+  each frame is solved exactly rather than stepped;
+- the drawn body is never further than half a personal space from the real one;
+- a body that was born, put somewhere, or fast-forwarded is drawn where it is.
 
 ## Intended behavior
 
@@ -97,9 +112,23 @@ in the line intact.*
 how fast the oscillation decays, together, decide whether this reads as weight or as
 wobble. Found by looking.
 
+*Provisionally: three swings a second, damped to half of what would stop it dead.* That
+trails a hurrying body by about two paces, runs past a stop by under one, and settles
+within two-thirds of a second. Chosen so the weight is visible at the closer zooms and
+invisible at the rest framing. Still to be looked at, which is why the weighted picture
+is off by default.
+
 **R3. What happens when a body is put somewhere it did not walk?** A spawn, a snap, a
 teleport. A drawn body chasing with inertia will visibly fly across the screen unless
 told not to, and "told not to" needs a rule.
+
+*Settled: it snaps, by three tests and one bound.* A body is drawn exactly where it is,
+with no velocity, when it was not alive or not followed in the previous frame; when it
+moved further than one personal space between two consecutive ticks, which nothing
+walking can do (the fastest gait covers under two paces a tick); or when the clock runs
+faster than walking pace. Behind those, whatever else goes wrong is caught by a bound:
+a drawn body is never more than half a personal space from the honest position, so it
+can never be drawn on the far side of a neighbour it did not pass.
 
 **R4. What does shared memory actually buy?** The snapshot pair is not an accident: it
 is what stops the screen showing half of one tick and half of the next. Reading live
