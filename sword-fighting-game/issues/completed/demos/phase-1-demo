@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#
+# phase-1-demo - the spine: a seed and a script decide a run completely.
+#
+# Fights eight headless battles at once (one per seed, in parallel), then
+# fights the same eight again, and lays the two sets of receipts side by side.
+# Every number matches, because nothing in a run comes from anywhere but its
+# seed: no clock, no global random generator. Then it shows one full receipt,
+# the note every run leaves as its last act.
+#
+# Usage: phase-1-demo [project-dir]
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/sword-fighting-game}"
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}"
+OUT="${DIR}/tmp/shared-memory/phase-1-demo"
+mkdir -p "${OUT}/first" "${OUT}/second"
+
+echo "phase 1 - the spine"
+echo ""
+echo "fighting 8 battles, twice, $(nproc) at a time..."
+for PASS in first second; do
+    for SEED in 1 2 3 4 5 6 7 8; do
+        luajit "${DIR}/src/020-headless.lua" "${DIR}" --mode battle --seed "${SEED}" \
+            --receipt "${OUT}/${PASS}/${SEED}" &
+    done
+    wait
+done
+
+printf "\n  %-5s %-8s %8s %8s %8s %8s   %s\n" seed result ticks swings hits parries "same twice?"
+for SEED in 1 2 3 4 5 6 7 8; do
+    A=$(grep -v -e "^#" -e "^ended" "${OUT}/first/${SEED}")
+    B=$(grep -v -e "^#" -e "^ended" "${OUT}/second/${SEED}")
+    SAME="yes"
+    [ "${A}" = "${B}" ] || SAME="NO - a run is not decided by its seed"
+    field() { grep "^$1:" "${OUT}/first/${SEED}" | sed 's/^[^:]*: *//'; }
+    printf "  %-5s %-8s %8s %8s %8s %8s   %s\n" "${SEED}" "$(field result | tr -d ' ')" \
+        "$(field ticks)" "$(field swings)" "$(field hits)" "$(field parries)" "${SAME}"
+done
+
+echo ""
+echo "one receipt in full (${OUT}/first/1):"
+sed 's/^/    /' "${OUT}/first/1"
+echo ""
+echo "the run options the receipt's runs understood:"
+luajit "${DIR}/src/020-headless.lua" "${DIR}" --help | sed 's/^/    /'

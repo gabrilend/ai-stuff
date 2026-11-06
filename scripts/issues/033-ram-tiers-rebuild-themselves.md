@@ -79,10 +79,19 @@ Both modes refuse, with an error rather than a guess, when:
   normal and correct (the whole project is already in RAM), so the refusal is
   "leave it alone and say nothing" rather than an error; see the branch
   comment in the library.
-- the `tmp` link, or the `shared-memory` link inside it, points anywhere other
-  than under `/tmp/` or `/dev/shm/`. The convention is that these tiers are
-  RAM; a link into a disk directory is either a mistake or a decision someone
-  should make on purpose, and rebuilding it silently would bless it.
+- the `tmp` link points anywhere other than under `/tmp/`, or the
+  `shared-memory` link inside it anywhere other than under `/dev/shm/` (each
+  room under its own root since 2026-10-23, issue 042: the library once
+  accepted either root for either room while the access hooks accepted only
+  the matching one, so warcraft-iii's door into `/dev/shm` got rooms no session
+  was let into). The convention is that these tiers are RAM; a link into a
+  disk directory is either a mistake or a decision someone should make on
+  purpose, and rebuilding it silently would bless it. A person can replace
+  such a link, when it leads to nothing, with `--convert` (issue 042).
+
+Every build or repair also gives the project's local Claude Code settings a
+path rule per room, so sessions may write into them from the shell (issue
+042).
 - something that is not a directory sits where a tier directory should be.
 
 ## Suggested Implementation Steps

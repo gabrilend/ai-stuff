@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# view-cad - opens a CAD file in a 3D window.
+#
+# In plain terms: hand it a model file (STL, OBJ, or glTF) and it shows the
+# model, lit, in a window you can turn with the mouse. With no file, the
+# window opens empty and takes a file dropped onto it. Before opening it
+# makes sure the project's RAM scratch folders exist (a reboot empties them),
+# because pictures and logs go there. After the window closes, every picture
+# the run took is filed in development-history/ (scripts/file-screenshot),
+# so no screenshot is ever thrown away.
+#
+# Usage:
+#   ./view-cad FILE [run options]
+#   ./view-cad <project-dir> FILE [run options]
+# Run options (for checking without a person; see src/010-the-viewer.lua):
+#   --key SECONDS NAME   --drag SECONDS DX DY   --pan SECONDS DX DY
+#   --wheel SECONDS NOTCHES   --screenshot SECONDS   --views NAME,NAME
+
+DIR="/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+# a first argument that is a folder is the project's location
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}" || exit 1
+
+ARGUMENTS=()
+# the file is made absolute, so it is found whatever folder LÖVE runs in
+if [ -n "${1:-}" ] && [ "${1:0:2}" != "--" ]; then
+    ARGUMENTS+=("$(realpath "$1")")
+    shift
+fi
+
+GOODBYE="${DIR}/output/goodbye"
+STARTED=$(date +%s)
+love "${DIR}/src" "${DIR}" "${ARGUMENTS[@]}" "$@" || exit 1
+
+# the receipt lists the pictures; a receipt older than this run belongs to
+# an earlier one, and its pictures were filed then
+if [ -f "${GOODBYE}" ] && [ "$(stat -c %Y "${GOODBYE}")" -ge "${STARTED}" ]; then
+    mapfile -t SAVED < <(awk '/^picture / { print $NF }' "${GOODBYE}")
+    if [ "${#SAVED[@]}" -gt 0 ]; then
+        "${DIR}/scripts/file-screenshot" "${DIR}" "${SAVED[@]}" -- "${ARGUMENTS[@]}" "$@" || exit 1
+    fi
+fi

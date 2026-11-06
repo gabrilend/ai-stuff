@@ -159,7 +159,7 @@ end
 - **Integration**: Links integrate smoothly into chronological index
 
 ## Dependencies
-- **Issue 008b**: Mass page generation system (provides 13,680+ target pages)
+- **Issue 008b**: Mass page generation system (provides the ~13.7k target pages)
 - **Issue 007**: Removal of complex systems (eliminates conflicting navigation)
 - **Chronological index generation**: Integration point for simple links
 

@@ -2,23 +2,32 @@
 #
 # build-pages-before-push
 #
-# Rebuilds the conversation web pages of every project in a repository whose
-# pages have fallen behind, just before that repository is pushed. It is what
-# a repository's git "pre-push" hook runs (install-pages-hook puts it there).
+# Brings the conversation web pages of every project in a repository up to
+# date, just before that repository is pushed. It is what a repository's git
+# "pre-push" hook runs (install-pages-hook puts it there).
 #
 # In general terms: each project keeps its saved conversations in an
 # llm-transcripts/ folder and readable pages of them in llm-transcripts/HTML/.
 # The pages are rebuildable output and are not committed; this keeps them
-# current on the machine at the natural moment a piece of work is shipped. A
-# project's pages are rebuilt when a transcript, or the project's latest
-# commit, is newer than its front page; the rest are left as they are, so a
-# push in a repository of forty projects rebuilds the handful that moved.
+# current on the machine at the natural moment a piece of work is shipped.
+# Every project is handed to the page builder, several at once (one per
+# processor core), and the builder itself draws again only the pages whose
+# transcript, or whose display code, changed since they were last drawn; the
+# rest are left as they are. So a push in a repository of forty projects
+# spends its time on the handful of pages that moved.
 #
-# A project whose pages cannot be built stops the push, with the reason: the
-# pages would otherwise go quietly stale. `git push --no-verify` skips every
+# A folder git has never committed is skipped and named: none of it is in
+# the push, and its pages have no history to tell. A project whose pages
+# cannot be built stops the push, with the builder's own words: the pages
+# would otherwise go quietly stale. `git push --no-verify` skips every
 # pre-push check, this one included.
 #
-# Usage: build-pages-before-push [repository] [--dir <scripts-dir>]
+# Usage: build-pages-before-push [repository] [--dir <scripts-dir>] [--jobs <n>]
+#
+#   repository   the repository (default: the one the current folder is in)
+#   --dir        where the ai-stuff scripts live (default below)
+#   --jobs       how many projects are built at once (default: the number
+#                of processor cores)
 
 set -euo pipefail
 
@@ -27,9 +36,11 @@ DIR="/home/ritz/programming/ai-stuff/scripts"
 # -- {{{ parse_arguments
 function parse_arguments() {
    REPO=""
+   JOBS=$(nproc)
    while [ $# -gt 0 ]; do
       case "$1" in
-         --dir) DIR="${2:?--dir needs a folder}"; shift ;;
+         --dir)  DIR="${2:?--dir needs a folder}"; shift ;;
+         --jobs) JOBS="${2:?--jobs needs a number}"; shift ;;
          -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
          *) REPO="$1" ;;
       esac
@@ -53,43 +64,87 @@ function projects_in() {
 }
 # }}}
 
-# -- {{{ is_stale
-# Whether a project's pages are behind: no front page yet, the font missing
-# from beside them (pages built before the builder shipped it), a transcript
-# newer than the front page, or a commit to the project made after it.
-function is_stale() {
-   local project="$1"
-   local index="$project/llm-transcripts/HTML/index.html"
-   [ -f "$index" ] || return 0
-   [ -f "$project/llm-transcripts/HTML/fonts/HackNerdFont-Regular.ttf" ] || return 0
-   [ -f "$project/llm-transcripts/HTML/fonts/HackNerdFont-Bold.ttf" ] || return 0
-   if find "$project/llm-transcripts" -maxdepth 1 -name '*.md' -newer "$index" | grep -q .; then
-      return 0
+# -- {{{ build_one
+# Builds one project's pages into its own log in the run's RAM folder, and
+# leaves beside it a status file holding the builder's exit status. Run on
+# its own process by xargs, so it reads only its arguments and the exported
+# DIR; no two runs touch the same files.
+function build_one() {
+   local project="$1" logs="$2"
+   local name
+   name=$(printf '%s' "$project" | md5sum | cut -c1-12)
+   printf '%s\n' "$project" > "$logs/$name.project"
+   # Two paths: the builder succeeds (status 0) or fails (its status), and
+   # either way its words are kept in the log for the summary.
+   if "$DIR/transcript-site/build-transcript-pages" "$project" --dir "$DIR" > "$logs/$name.log" 2>&1; then
+      echo 0 > "$logs/$name.status"
+   else
+      echo $? > "$logs/$name.status"
    fi
-   local last_commit
-   last_commit=$(git -C "$project" log -1 --format=%ct -- . || echo 0)
-   [ "${last_commit:-0}" -gt "$(stat -c %Y "$index")" ]
 }
 # }}}
+export -f build_one
+export DIR
 
 # -- {{{ main
 function main() {
    parse_arguments "$@"
-   local project built=0 failed=0 current=0
+
+   # The run's logs live in RAM and go when it ends; a failure's words are
+   # printed before then.
+   # LOGS is the script's, not the function's: the trap runs after main has
+   # returned, when a local name is gone.
+   LOGS=$(mktemp -d /dev/shm/build-pages-before-push.XXXXXX)
+   trap 'rm -rf "$LOGS"' EXIT
+   local logs="$LOGS"
+
+   local project skipped=0
+   local -a to_build=()
    while IFS= read -r project; do
-      if is_stale "$project"; then
-         echo "transcript pages: rebuilding $project"
-         if "$DIR/transcript-site/build-transcript-pages" "$project" --dir "$DIR" > /dev/null; then
-            built=$((built + 1))
-         else
-            echo "transcript pages: FAILED for $project (run build-transcript-pages there to see why)" >&2
-            failed=$((failed + 1))
-         fi
+      # Two paths: git has a commit touching the folder (built), or it has
+      # none (skipped, and said so).
+      if [ -n "$(git -C "$REPO" log -1 --format=%H -- "$project")" ]; then
+         to_build+=("$project")
       else
-         current=$((current + 1))
+         echo "transcript pages: skipping $project: git has never committed it, so it is not in this push"
+         skipped=$((skipped + 1))
       fi
    done < <(projects_in)
-   echo "transcript pages: $built rebuilt, $current already current, $failed failed"
+
+   if [ "${#to_build[@]}" -gt 0 ]; then
+      printf '%s\n' "${to_build[@]}" \
+         | xargs -d '\n' -P "$JOBS" -I{} bash -c 'build_one "$1" "$2"' _ {} "$logs"
+   fi
+
+   local status_file name drawn current page_counts
+   local projects=0 failed=0 pages_drawn=0 pages_current=0
+   for status_file in "$logs"/*.status; do
+      [ -e "$status_file" ] || continue
+      name=$(basename "$status_file" .status)
+      project=$(cat "$logs/$name.project")
+      projects=$((projects + 1))
+      # Two paths: a build that failed (its words printed, the push stopped)
+      # or one that succeeded (its page counts added up).
+      if [ "$(cat "$status_file")" != "0" ]; then
+         echo "transcript pages: FAILED for $project:" >&2
+         grep -v '^Reading ' "$logs/$name.log" | sed 's/^/    /' >&2
+         failed=$((failed + 1))
+      else
+         page_counts=$(sed -n 's/^  pages drawn *\([0-9]*\), \([0-9]*\) already current$/\1 \2/p' "$logs/$name.log")
+         if [ -z "$page_counts" ]; then
+            echo "transcript pages: the builder said nothing about its pages for $project" >&2
+            failed=$((failed + 1))
+            continue
+         fi
+         read -r drawn current <<< "$page_counts"
+         if [ "$drawn" -gt 0 ]; then
+            echo "transcript pages: $project: $drawn page(s) drawn"
+         fi
+         pages_drawn=$((pages_drawn + drawn))
+         pages_current=$((pages_current + current))
+      fi
+   done
+   echo "transcript pages: $projects projects, $pages_drawn pages drawn, $pages_current already current, $skipped skipped, $failed failed"
    [ "$failed" -eq 0 ]
 }
 # }}}

@@ -271,3 +271,15 @@ transcript's header line is `# Conversation Summary: agent-<that id>`. So:
    session log records the folder it ran in (the `cwd` field of its records,
    a string), so the sweep could list session folders first and read which
    project each belongs to, instead of guessing folders from project paths.
+7. **How is a helper with no description named?** Found 2026-11-05 (issue
+   051): 172 local `agent-*.meta.json` files have no `description`, some of
+   them written that day, so the exporter refuses those helpers and they
+   have no transcript. Some are skills run in a fork (`/code-review`), whose
+   launch is a Skill call; Claude Code describes others of the same kind as
+   `/<skill> <args>` (e.g. "/code-review 324 medium"), and the parent's log
+   holds the call, so that description can be recovered from it, as
+   `fetch-cloud-conversations` now does for cloud helpers. A helper whose
+   launch is not in the parent's log at all (a cloud log starts at its
+   latest compaction) has nothing to recover; its own first prompt is the
+   only text that says what it was for. Which source, in which order, and
+   is a recovered name marked as recovered?

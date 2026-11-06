@@ -1,6 +1,13 @@
 --[[
 BLP1 Textures (Issues 522a, 117)
 
+DEPRECATED (2026-10-07): the C twin in the W client
+(/mnt/mtwo/games/azeroth-core/custom-client/src/017-blp.c, in
+libwreaders.so: blp_decode, blp_decode_level) is the one implementation
+now; it matched this file byte for byte on every BLP1 in war3.mpq and
+War3x.mpq (W client issue 107a). Callers move to it through LuaJIT's FFI
+(the W client's scripts/libs/wreaders.lua).
+
 Warcraft III's texture format. The header, then up to sixteen mipmaps,
 each one of:
 

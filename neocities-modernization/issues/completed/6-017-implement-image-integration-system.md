@@ -19,6 +19,11 @@
 
 ## Dependencies
 - Issue 026: Scripts directory integration (for extracting images from ZIP archives)
+- 6-026a
+
+## Blocks
+
+- 10-042, 10-042a, 6-026d, 8-005
 
 ## Quality Assurance Criteria
 - All images in configured directories are discovered and cataloged
