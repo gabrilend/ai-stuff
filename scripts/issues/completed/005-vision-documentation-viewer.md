@@ -233,8 +233,8 @@ report_statistics() {
 ## Sub-Issues
 
 ### Issue 005a: Vision Viewer TUI
-**Status:** Blocked
-**Blocked By:** Issue 004 (Fix TUI Menu Incremental Rendering)
+**Status:** Done (2026-11-03), see What Happened
+**Was blocked by:** Issue 004 (Fix TUI Menu Incremental Rendering)
 **Location:** `/home/ritz/programming/ai-stuff/world-edit-to-execute/issues/`
 
 The vision-viewer script will provide an interactive interface for browsing and viewing vision documents. Implementation deferred until TUI library rendering issues are resolved.
@@ -262,10 +262,50 @@ Planned features:
 - **Impact**: Improved project discoverability and documentation access
 
 ## Success Criteria
-- [ ] `/home/ritz/programming/ai-stuff/scripts/visions/` directory exists
-- [ ] `sync-visions.sh` discovers all vision files across projects
-- [ ] Symlinks are created with meaningful project-based names
-- [ ] Script handles projects with multiple vision files
-- [ ] Script reports statistics on vision documentation coverage
-- [ ] Both headless and interactive modes work (interactive can be minimal until 005a)
-- [ ] Script follows DIR variable pattern for portability
+- [x] `/home/ritz/programming/ai-stuff/scripts/visions/` directory exists
+- [x] `sync-visions.sh` discovers all vision files across projects
+- [x] Symlinks are created with meaningful project-based names
+- [x] Script handles projects with multiple vision files
+- [x] Script reports statistics on vision documentation coverage
+- [x] Both headless and interactive modes work (interactive can be minimal until 005a)
+- [x] Script follows DIR variable pattern for portability
+
+## What Happened
+
+**Before 2026-11-03.** `sync-visions.sh`, `README-sync-visions.md` and the
+`visions/` links were built and committed. The issue was never closed, and
+`-I` was accepted and then ignored.
+
+**2026-11-03: sub-issue 005a, the viewer, built.** New script
+`vision-viewer`, tested by `tests/test-vision-viewer.sh` (24 checks).
+
+- `vision-viewer` with no options lists the documents.
+- `--view NAME` prints one. NAME may be the start of a name, as long as only
+  one name starts that way.
+- `--search TEXT` lists the documents that contain TEXT, in any case.
+- `-I` opens a menu: a radio list of the documents, with the highlighted one
+  shown in the preview panel. View (`v`) opens the chosen document in
+  `$PAGER` (`less` if unset). `-I --search TEXT` shows only the matches.
+- `sync-visions.sh -I` now syncs and then opens `vision-viewer -I` on the
+  links it just made.
+
+Decisions:
+
+- **Not blocked by 004.** 004 is the bash menu (`menu.sh`) drawing. The
+  viewer uses the Lua menu (`lua-menu.sh` over `tui.lua`), which draws
+  incrementally already and has a preview panel. Nothing here waits on #108.
+- **The viewer reads the links folder; it does not search the monorepo
+  itself.** `sync-visions.sh` stays the one place that decides what counts
+  as a vision document. A missing or empty folder says to run it. A link
+  whose document is gone is reported and left out of the list.
+- **An exact name wins over a prefix.** So `alpha` opens `alpha`, even when
+  `alphabet` is also there.
+- **One fix to `sync-visions.sh`.** Its link folder was worked out from the
+  default `DIR` before the options were read. So
+  `sync-visions.sh /some/monorepo`, or `-d`, still wrote the links into
+  `/home/ritz/programming/ai-stuff/scripts/visions`. The folder now follows
+  the monorepo given, unless `-o` names one.
+
+Seen, not changed: the committed `visions/` links are absolute
+`/home/ritz/...` paths, so they resolve only on that machine. Rerunning
+`sync-visions.sh` there keeps them as they are.

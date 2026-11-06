@@ -10,6 +10,7 @@ set -euo pipefail
 # -- {{{ Configuration
 DIR="${DIR:-/home/ritz/programming/ai-stuff}"
 VISIONS_DIR="${DIR}/scripts/visions"
+OUTPUT_GIVEN=false
 QUIET=false
 LIST_ONLY=false
 STATS_ONLY=false
@@ -312,6 +313,7 @@ parse_args() {
                 ;;
             -o|--output)
                 VISIONS_DIR="$2"
+                OUTPUT_GIVEN=true
                 shift 2
                 ;;
             -e|--extra)
@@ -358,6 +360,12 @@ parse_args() {
                 ;;
         esac
     done
+    # The links go under the monorepo that was named, unless -o says where:
+    # VISIONS_DIR was first set from the default DIR, before -d or a
+    # positional folder could change it.
+    if [[ "$OUTPUT_GIVEN" != true ]]; then
+        VISIONS_DIR="${DIR}/scripts/visions"
+    fi
 }
 # }}}
 
@@ -369,6 +377,12 @@ main() {
         show_statistics
     else
         sync_visions
+    fi
+
+    # -I: after syncing, open the viewer's menu on the links just made
+    # (issue 005a).
+    if [[ "$INTERACTIVE" == true ]]; then
+        exec "$(dirname "$(readlink -f "$0")")/vision-viewer" -I --visions "$VISIONS_DIR" "$DIR"
     fi
 }
 # }}}

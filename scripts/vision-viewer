@@ -1,0 +1,199 @@
+#!/usr/bin/env bash
+# vision-viewer - read the projects' vision documents from one place
+#
+# Reads the links that sync-visions.sh keeps in scripts/visions/, one per
+# project's vision document.  Without -I it lists them, prints one, or finds
+# the ones that mention a word.  With -I it opens a menu of them with the
+# highlighted document shown beside the list; choosing one opens it in
+# $PAGER (less if unset).  (Issue 005, sub-issue 005a.)
+#
+# Usage: vision-viewer [options] [monorepo-dir]
+#   -l, --list            list the vision documents (the default)
+#   -v, --view NAME       print one; NAME may be the start of a name if only
+#                         one name starts that way
+#   -s, --search TEXT     list the ones that contain TEXT (any case); with -I,
+#                         the menu shows only those
+#   -I, --interactive     choose from a menu
+#   --visions DIR         the links folder (default: <monorepo>/scripts/visions)
+#   -h, --help            this text
+
+# -- {{{ Configuration
+DIR="/home/ritz/programming/ai-stuff"
+VISIONS_DIR=""
+MODE="list"
+VIEW_NAME=""
+SEARCH_TEXT=""
+SCRIPT_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+LIBS_DIR="$SCRIPT_HOME/libs"
+# Sourced at the top level so the menu's tables are global.
+source "$LIBS_DIR/lua-menu.sh"
+# }}}
+
+# -- {{{ show_help
+show_help() {
+    sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+}
+# }}}
+
+# -- {{{ fail
+fail() {
+    echo "vision-viewer: $*" >&2
+    exit 1
+}
+# }}}
+
+# -- {{{ parse_args
+parse_args() {
+    local dir_given=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -l|--list) MODE="list"; shift ;;
+            -v|--view)
+                [[ -n "${2:-}" ]] || fail "$1 needs a name"
+                MODE="view"; VIEW_NAME="$2"; shift 2 ;;
+            -s|--search)
+                [[ -n "${2:-}" ]] || fail "$1 needs some text"
+                SEARCH_TEXT="$2"
+                [[ "$MODE" == "interactive" ]] || MODE="search"
+                shift 2 ;;
+            -I|--interactive) MODE="interactive"; shift ;;
+            --visions)
+                [[ -n "${2:-}" ]] || fail "$1 needs a folder"
+                VISIONS_DIR="$2"; shift 2 ;;
+            -h|--help) show_help; exit 0 ;;
+            -*) fail "unknown option: $1 (see --help)" ;;
+            *)
+                $dir_given && fail "one monorepo folder only, got $1 too"
+                DIR="$1"; dir_given=true; shift ;;
+        esac
+    done
+    [[ -n "$VISIONS_DIR" ]] || VISIONS_DIR="$DIR/scripts/visions"
+}
+# }}}
+
+# -- {{{ load_visions
+# Fills NAMES with every entry of the links folder whose document can be
+# read, sorted; a link whose document is gone is reported, not listed.
+load_visions() {
+    NAMES=()
+    if [[ ! -d "$VISIONS_DIR" ]]; then
+        fail "no visions folder at $VISIONS_DIR; run sync-visions.sh first"
+    fi
+    local entry name
+    while IFS= read -r entry; do
+        name="$(basename "$entry")"
+        if [[ -r "$entry" && -f "$entry" ]]; then
+            NAMES+=("$name")
+        else
+            echo "vision-viewer: $name points at $(readlink "$entry"), which cannot be read; run sync-visions.sh" >&2
+        fi
+    done < <(find "$VISIONS_DIR" -mindepth 1 -maxdepth 1 \( -type l -o -type f \) | sort)
+    if [[ ${#NAMES[@]} -eq 0 ]]; then
+        fail "no vision documents in $VISIONS_DIR; run sync-visions.sh first"
+    fi
+}
+# }}}
+
+# -- {{{ matching_names
+# The names whose document contains SEARCH_TEXT (any case), or all of them.
+matching_names() {
+    local name
+    for name in "${NAMES[@]}"; do
+        if [[ -z "$SEARCH_TEXT" ]] || grep -qiF -- "$SEARCH_TEXT" "$VISIONS_DIR/$name"; then
+            printf '%s\n' "$name"
+        fi
+    done
+}
+# }}}
+
+# -- {{{ resolve_name
+# An exact name, or the one name that starts with what was given.
+resolve_name() {
+    local want="$1" name
+    local -a starts=()
+    for name in "${NAMES[@]}"; do
+        [[ "$name" == "$want" ]] && { printf '%s\n' "$name"; return 0; }
+        [[ "$name" == "$want"* ]] && starts+=("$name")
+    done
+    if [[ ${#starts[@]} -eq 1 ]]; then
+        printf '%s\n' "${starts[0]}"
+        return 0
+    fi
+    if [[ ${#starts[@]} -gt 1 ]]; then
+        echo "vision-viewer: \"$want\" could be any of: ${starts[*]}" >&2
+    else
+        echo "vision-viewer: no vision document named \"$want\" (see --list)" >&2
+    fi
+    return 1
+}
+# }}}
+
+# -- {{{ interactive
+# A radio list of the documents, the highlighted one shown in the preview
+# panel, and View (v).  The chosen document opens in $PAGER.
+interactive() {
+    local -a shown=()
+    mapfile -t shown < <(matching_names)
+    if [[ ${#shown[@]} -eq 0 ]]; then
+        echo "No vision document contains \"$SEARCH_TEXT\"."
+        return 0
+    fi
+
+    menu_init
+    if [[ -n "$SEARCH_TEXT" ]]; then
+        menu_set_title "Vision Documents" "${#shown[@]} containing \"$SEARCH_TEXT\""
+    else
+        menu_set_title "Vision Documents" "${#shown[@]} projects"
+    fi
+    menu_add_section "visions" "single" "Projects"
+    local i
+    for i in "${!shown[@]}"; do
+        menu_add_item "visions" "doc$i" "${shown[$i]}" "checkbox" "0" "$(readlink "$VISIONS_DIR/${shown[$i]}")"
+        menu_set_item_filepath "doc$i" "$VISIONS_DIR/${shown[$i]}"
+    done
+    menu_set_section_max_visible "visions" 12
+    menu_add_content_source "item_file" "" ""
+    menu_add_section "actions" "single" "Actions"
+    menu_add_item "actions" "view" "View" "action" "" "Open the chosen document in ${PAGER:-less}" "v"
+
+    if ! menu_run; then
+        return 0
+    fi
+    local chosen=""
+    for i in "${!shown[@]}"; do
+        [[ "$(menu_get_value "doc$i")" == "1" ]] && chosen="${shown[$i]}"
+    done
+    if [[ -z "$chosen" ]]; then
+        echo "No document chosen."
+        return 0
+    fi
+    ${PAGER:-less} "$VISIONS_DIR/$chosen"
+}
+# }}}
+
+# -- {{{ main
+main() {
+    parse_args "$@"
+    load_visions
+    case "$MODE" in
+        list) printf '%s\n' "${NAMES[@]}" ;;
+        search)
+            local -a found=()
+            mapfile -t found < <(matching_names)
+            if [[ ${#found[@]} -eq 0 ]]; then
+                echo "No vision document contains \"$SEARCH_TEXT\"." >&2
+                exit 1
+            fi
+            printf '%s\n' "${found[@]}"
+            ;;
+        view)
+            local name
+            name="$(resolve_name "$VIEW_NAME")" || exit 1
+            cat "$VISIONS_DIR/$name"
+            ;;
+        interactive) interactive ;;
+    esac
+}
+# }}}
+
+main "$@"
