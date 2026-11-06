@@ -16,8 +16,8 @@ message's fields are described once in `protocol.FIELDS`.
 | 0x06 | JOIN_GAME | game_id, player_name |
 | 0x07 | JOIN_ACK | game_id, player_id, players (player_id, name, ready) |
 | 0x08 | JOIN_REJECT | game_id, reason |
-| 0x09 | LEAVE_GAME | game_id |
-| 0x0A | LOBBY_UPDATE | game_id, event ("join", "leave", "ready", "unready"), player_id, players |
+| 0x09 | LEAVE_GAME | game_id, player_id (optional: from the host, a kick; 801e) |
+| 0x0A | LOBBY_UPDATE | game_id, event ("join", "leave", "ready", "unready"; and from 801e "kick", "countdown", "cancel"), player_id, players, seconds (optional: with "countdown") |
 | 0x0B | START_GAME | game_id |
 | 0x0C | GAME_START | game_id, host_ip, host_port |
 | 0x0D | NAT_PUNCH | game_id, player_id, ip, port |

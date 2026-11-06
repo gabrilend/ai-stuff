@@ -17,12 +17,14 @@ asset packs) is issue 801g; this is only enough to run the server.
 
 Usage: luajit src/cli/matchmaking-serve.lua [DIR] [--bind HOST:PORT]
          [--seconds N] [--quiet] [--max-lobbies N] [--max-players N]
-         [--lobby-timeout N] [--idle-timeout N] [--nat-port P] [--nat-alt-ip IP]
+         [--lobby-timeout N] [--idle-timeout N] [--countdown N]
+         [--nat-port P] [--nat-alt-ip IP]
   DIR        the project (default /mnt/mtwo/programming/ai-stuff/world-edit-to-execute)
   --bind     where to listen (default 127.0.0.1:8080; 0.0.0.0:PORT opens it
              to every network the machine is on)
   --seconds  stop by itself after N seconds (default: run until killed)
   --quiet    no log lines
+  --countdown  seconds between the host's start and the game's (default 0)
   --nat-port the UDP reflector on the bind address, ports P and P+1
              (P 0: any two free ports)
   --nat-alt-ip  a second address of this machine the reflector also
@@ -40,7 +42,8 @@ local nat = require("matchmaking.nat")
 -- {{{ the arguments
 local config, seconds, quiet, nat_port, nat_alt_ip = {}, nil, false, nil, nil
 local numeric = { ["--max-lobbies"] = "max_lobbies", ["--max-players"] = "max_players_per_lobby",
-    ["--lobby-timeout"] = "lobby_timeout_seconds", ["--idle-timeout"] = "idle_timeout_seconds" }
+    ["--lobby-timeout"] = "lobby_timeout_seconds", ["--idle-timeout"] = "idle_timeout_seconds",
+    ["--countdown"] = "countdown_seconds" }
 local i = 1
 local function value(flag)
     local v = args[i + 1]

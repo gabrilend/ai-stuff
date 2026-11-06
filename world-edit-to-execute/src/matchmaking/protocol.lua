@@ -95,10 +95,11 @@ protocol.FIELDS = {
     JOIN_GAME = { { "game_id", "uint" }, { "player_name", "str" } },
     JOIN_ACK = { { "game_id", "uint" }, { "player_id", "uint" }, { "players", { list = player } } },
     JOIN_REJECT = { { "game_id", "uint" }, { "reason", "str" } },
-    LEAVE_GAME = { { "game_id", "uint" } },
+    LEAVE_GAME = { { "game_id", "uint" }, { "player_id", "uint", true } },   -- from the host, with a player: a kick (801e)
     LOBBY_UPDATE = {
-        { "game_id", "uint" }, { "event", "str" },                -- "join", "leave", "ready" or "unready"
-        { "player_id", "uint" }, { "players", { list = player } },
+        { "game_id", "uint" }, { "event", "str" },                -- "join", "leave", "ready", "unready",
+        { "player_id", "uint" }, { "players", { list = player } },  -- and (801e) "kick", "countdown", "cancel"
+        { "seconds", "uint", true },                               -- with "countdown": how long until the start
     },
     START_GAME = { { "game_id", "uint" } },
     GAME_START = { { "game_id", "uint" }, { "host_ip", "str" }, { "host_port", "uint" } },

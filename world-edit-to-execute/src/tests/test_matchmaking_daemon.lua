@@ -215,6 +215,27 @@ none, said = daemon("--bind 192.0.2.1:0 --quiet")
 test("an address not on this machine is refused", none == nil and said:find("can't listen on 192.0.2.1:0", 1, true) ~= nil, said)
 none, said = daemon("--frobnicate")
 test("an unknown option is refused", none == nil and said:find("--frobnicate is not an option", 1, true) ~= nil, said)
+
+-- --countdown (801e): the start comes that many seconds after START_GAME
+local cpid, cip, cport, cpipe = daemon("--bind 127.0.0.1:0 --seconds 20 --quiet --countdown 1")
+if cpid then
+    local h = client(cip, cport)
+    put(h, "REGISTER_GAME", game)
+    local ack = select(2, get(h))
+    put(h, "START_GAME", { game_id = ack.game_id })
+    local n1, m1 = get(h)
+    local t1 = socket.gettime()
+    local n2, m2 = get(h)
+    local waited = socket.gettime() - t1
+    test("--countdown: first the countdown, with its seconds", n1 == "LOBBY_UPDATE" and m1.event == "countdown" and m1.seconds == 1, n1)
+    test("then the start, about that much later", n2 == "GAME_START" and waited > 0.85 and waited < 1.5, tostring(n2) .. " " .. waited)
+    h:close()
+    os.execute("kill " .. cpid)
+    cpipe:read("*a")
+    cpipe:close()
+else
+    test("--countdown is taken", false, cip)
+end
 -- }}}
 
 -- {{{ the socket layer in this process

@@ -13,7 +13,8 @@ connection non-blocking, one `select()` a tick. LuaSocket is loaded only by
   `max_connections` (1000; `select()` takes at most 1024 sockets),
   `lobby_timeout_seconds` (3600), `idle_timeout_seconds` (120),
   `rate_per_second` (50) and `rate_burst` (100) messages, `max_output_bytes`
-  (4 MiB unsent), `max_name` (64 bytes). Also `clock` (seconds) and `log`
+  (4 MiB unsent), `max_name` (64 bytes), `countdown_seconds` (0: the game
+  starts at START_GAME; above 0, after that many seconds, 801e). Also `clock` (seconds) and `log`
   (a function taking one line), and `codec` (`encode`, `read_frame`;
   `protocol.lua` by default: the seam for question Q-1, should matchmaking
   speak 803's message layer).
@@ -52,8 +53,10 @@ Who may do what:
 | LIST_GAMES | anyone | GAME_LIST of waiting games, by id; map name matches any part, any case; `max_latency_ms` is the client's to apply |
 | JOIN_GAME | a connection in no lobby | JOIN_ACK to it, LOBBY_UPDATE "join" to the others; or JOIN_REJECT |
 | LEAVE_GAME | a member | LOBBY_UPDATE "leave" to the others; the host leaving closes the lobby |
-| LOBBY_UPDATE "ready"/"unready" | a member, before the start | LOBBY_UPDATE to every member; the player is the sender |
-| START_GAME | the host, once | GAME_START to every member: the host's address as seen here, its registered port |
+| LEAVE_GAME with a player_id | the host, before the start | that player is out: LOBBY_UPDATE "kick" to every member, the kicked one among them (801e) |
+| LOBBY_UPDATE "ready"/"unready" | a member, before the start | LOBBY_UPDATE to every member; the player is the sender; "unready" stops a countdown |
+| LOBBY_UPDATE "cancel" | the host, during a countdown | LOBBY_UPDATE "cancel" to every member; the lobby waits again |
+| START_GAME | the host, once | GAME_START to every member: the host's address as seen here, its registered port. With `countdown_seconds`, first LOBBY_UPDATE "countdown" with the seconds, GAME_START when they are up; a leave, kick or "unready" stops it with "cancel", and nobody joins meanwhile |
 | NAT_PUNCH | a member | to the host (from a player) or the named player (from the host), the sender's id stamped, an empty ip filled with the sender's address |
 | CHAT_MSG | a member, not empty | CHAT_MSG to every member, the sender's id stamped |
 | PING | anyone | PONG with its nonce |
