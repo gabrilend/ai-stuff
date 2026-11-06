@@ -57,3 +57,9 @@ fields, zero for every kind but the enforcer:
   adds 25 to the health cap, 10 to the damage and 1 to the sphere.
 
 These are guesses, to be measured.
+
+**What ground pays** (issue 301). There is a new rule, `mass_per_cell = 1`:
+every owned land cell pays its team one mass a tick. A team holding a quarter of
+a 64-by-64 field earns about a thousand mass a tick, or ten thousand a second.
+That is a starting point for the proving ground to tune against the costs in
+the unit catalogue.

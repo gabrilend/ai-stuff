@@ -22,6 +22,7 @@ The file returns one table.
 | `ticks_per_second` | integer | the beat (open question B4's working ruling) |
 | `claim_seconds` | double | the claim counter's period |
 | `claim_increments` | integer | claim increments of uninterrupted presence a claim takes (B6) |
+| `mass_per_cell` | integer | the mass an owned land cell pays its team every tick (issue 301); the world refuses rules without it, by name |
 | `launch_seconds` | double | the launch counter's period; a command truck launches its plane at most once an increment (issue 210) |
 | `commands` | integer | how many commands may wait in the queue at once |
 | `refusals` | integer | how many refusals the ring keeps for a viewer |

@@ -93,7 +93,7 @@ the test.
 | `thread-pool` | 209 | `slice(count, workers)` returns contiguous ranges, each `{first, last}`; `run_sliced(system, world)` over a tick row, returning the ranges; `trace_writes(body, world)` returns every write the body made, as `{array, field, index}`; `outside(world, run_slice, first, last)` names the first unit row written outside the range; `configure(workers, backend)`, `workers()`, `read_workers(root)`, `cores()`, `BACKENDS` |
 | `command-truck` | 210 | `move(world, id, x, y)` and `launch(world, id, heading)` return nothing or a refusal (heading in compass degrees, nought north); `trucks_alive(world, team)`; `owned_by(world, id, team)`; `next_launch_tick(world, team)`; `KIND`, `PLANE`, `MISSIONS`, `MISSION` |
 | `enforcer` | 211 | `eat_pass(world)`; `absorb(world, target, amount)` returns what the sphere leaves, and `combat.hurt` calls it (it replaces the `shield_pass` first named here: a shield on a pair needs no pass); `upgrade(world, id)` returns the step; `step`, `cap`, `sphere`, `shield`, each `(world, id)` |
-| `economy` | 301, 303, 305, 311 | `income_pass(world)`; `construction_pass(world)`; `build_power(world, team)`; `place_energy(world, team, cell)`; `find_hydrocarbon(world, team, cell)`; `consequences_pass(world)`; `cell_pays(world, cell)`; `improve(world, team, cell)` |
+| `economy` | 301, 303, 305, 311 | `income_pass(world)`; `held_cells(world, team)`; `construction_pass(world)`; `build_power(world, team)`; `place_energy(world, team, cell)`; `find_hydrocarbon(world, team, cell)`; `consequences_pass(world)`; `cell_pays(world, cell)`; `improve(world, team, cell)` |
 | `energy-menu` | 302 | `LEVELS`, four rows; `set_level(world, team, level)` raises on a fifth |
 | `roster` | 304, 309 | `add(world, team, kind, count)`; `count(world, team, kind)`; `on_energy(world, team)`; `hurt(world, team, fraction)`; `hurt_count(world, team, kind)`; `hurt_ids(world, team)` |
 | `cost-table` | 306 | a table in `assets/`; `for_kind(kind)` returns `mass`, `energy`, `build_ticks`; `RATIO` by alignment |
@@ -136,7 +136,7 @@ builds the system that writes it:
 - `world.bone.{count, x, y, mass}`
 - `world.heal.<kind>`, `world.reload.<kind>`, `world.recharge.enforcer`, `world.launch`, `world.cloud_round`,
   `world.claim.{period, increments_to_claim}` — every one a counter from issue 106
-- `world.team.{mass, energy, thorns, energy_level, launch_at}`
+- `world.team.{mass, mass_income_last_tick, energy, thorns, energy_level, launch_at}`
 - `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began, claim_seen, mark, occupant}`
 - `world.marked.{count, cell}` — the claim pass's scratch, empty between passes (issue 112)
 - `world.building.alive`

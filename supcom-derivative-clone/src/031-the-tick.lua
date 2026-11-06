@@ -113,7 +113,7 @@ end
 -- everything else writes shared state and runs on one worker in this order.
 M.SYSTEMS = {
   row("commands", false, {"commands", "apply_due"}),
-  row("income", false, "301"),
+  row("income", false, {"economy", "income_pass"}),
   row("construction", false, "305"),
   row("emit", false, "307"),
   row("move", true, {"movement", "move_pass"}),

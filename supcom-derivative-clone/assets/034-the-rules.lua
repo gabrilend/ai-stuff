@@ -39,6 +39,11 @@ return {
   claim_seconds = 1,
   claim_increments = 3,
 
+  -- Territory implies mass (issue 301): every owned land cell pays this much
+  -- mass to its team every tick. A whole number from one; the world refuses a
+  -- rules table without it rather than default to a dead economy.
+  mass_per_cell = 1,
+
   -- A command truck may launch its plane once a launch counter's increment: the
   -- counter fires once a launch_seconds, and a team that launched waits for the
   -- next increment (issue 210).
