@@ -167,11 +167,14 @@ function TestSuite.test_lane_availability()
     assert(#available == 2, "Both lanes should be available initially")
     assert(available[1].capacity == 10, "Each lane should have full capacity")
     
-    -- Deploy some units
+    -- Deploy five units into lane 1. A sub-path slot queues at most three
+    -- (issue 013), so they're spread over the first two sub-paths (issue
+    -- 013a: the test used to put all five in one slot).
     for i = 1, 5 do
         local unit = create_test_unit(i)
-        spawn_point:deploy_unit(unit, 1, 1)
+        assert(spawn_point:deploy_unit(unit, 1, i <= 3 and 1 or 2), "Unit " .. i .. " should deploy")
     end
+    assert(not spawn_point:deploy_unit(create_test_unit(6), 1, 1), "A full sub-path slot refuses a fourth unit")
     
     available = spawn_point:get_available_lanes()
     assert(available[1].capacity == 5, "Lane 1 should have reduced capacity")

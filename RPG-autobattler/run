@@ -339,6 +339,19 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     dofile('tests/test_lane_system.lua').run_all()
     " 2>/dev/null && print_success "Lane system tests passed" || print_error "Lane system tests failed"
+
+    # Test the full vector math and spawn point suites (issues 008a, 013a)
+    print_info "Testing Vector math suite..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_vector_math').run_all()
+    " 2>/dev/null && print_success "Vector math tests passed" || print_error "Vector math tests failed"
+
+    print_info "Testing Spawn points..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_spawn_point').run_all()
+    " 2>/dev/null && print_success "Spawn point tests passed" || print_error "Spawn point tests failed"
     
     # Test Enhanced Unit Rendering System
     print_info "Testing Enhanced Unit Rendering System..."
