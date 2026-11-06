@@ -111,6 +111,9 @@ parse_args() {
         esac
     done
 
+    # An absolute path, since each test runs from inside DIR and is given it
+    if [[ -d "$DIR" ]]; then DIR="$(cd "$DIR" && pwd)"; fi
+
     # Set TESTS_DIR after parsing
     TESTS_DIR="${DIR}/src/tests"
 }
