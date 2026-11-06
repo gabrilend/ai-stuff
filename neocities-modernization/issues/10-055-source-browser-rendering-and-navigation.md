@@ -316,7 +316,7 @@ so a reader can return from "the source" to "the work."
 
 ---
 
-## Suggested Build Order
+## Suggested Implementation Steps (build order)
 
 Foundational first, so later features build on them:
 1. **E** (extensionless fix) and **H** (back link) — small, unblock navigation.
