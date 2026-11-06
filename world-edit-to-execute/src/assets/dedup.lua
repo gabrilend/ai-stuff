@@ -25,6 +25,7 @@ The store's folder is <player data>/blobs by default (assets/player_data.lua:
     store:release("maps/x/assets/grass.blp")          -- removes that link, and the reference
     store:references(hash)  store:refcount(hash)      -- the links that point at it now
     store:list()  store:stats()  store:gc()  store:verify()
+    store:refcounts()  store:orphans()                -- every blob's live links; what gc() would remove
     store:pin(hash)  store:unpin(hash)
 
 A reference counts while its link is in place and still leads to the blob.
@@ -463,6 +464,25 @@ local function counts(self)
 end
 -- }}}
 
+-- {{{ function Store:refcounts / Store:orphans
+-- Live references per blob ({hex -> n}, one pass), for callers that want
+-- them all at once (the storage manager, issue 605).
+function Store:refcounts()
+    return counts(self)
+end
+
+-- The hashes gc() would remove now: no link leads to them, none pinned.
+function Store:orphans()
+    local n, out = counts(self), {}
+    for _, hex in ipairs(self.order) do
+        if not n[hex] and not self.pins[hex] then
+            out[#out + 1] = dedup.PREFIX .. hex
+        end
+    end
+    return out
+end
+-- }}}
+
 -- {{{ function Store:list
 -- Every stored hash, oldest first, from the index (no folder is walked).
 function Store:list()
@@ -590,7 +610,8 @@ function dedup.init(folder)
 end
 
 for _, name in ipairs({ "store", "store_file", "exists", "path", "link", "release", "references",
-                        "refcount", "list", "stats", "pin", "unpin", "pinned", "gc", "verify" }) do
+                        "refcount", "refcounts", "orphans", "list", "stats", "pin", "unpin", "pinned",
+                        "gc", "verify" }) do
     dedup[name] = function(...)
         if not dedup.default then
             error("dedup." .. name .. ": call dedup.init(folder) first, or use dedup.open(folder)", 2)
