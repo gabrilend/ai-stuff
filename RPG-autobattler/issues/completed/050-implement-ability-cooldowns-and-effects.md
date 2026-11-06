@@ -582,13 +582,82 @@ end
 ```
 
 ### Acceptance Criteria
-- [ ] Individual ability cooldowns prevent premature reuse
-- [ ] Global cooldowns prevent ability spam across all abilities
-- [ ] Cooldown reduction from buffs/stats works correctly
-- [ ] Damage over time effects tick at proper intervals
-- [ ] Heal over time effects restore health efficiently
-- [ ] Persistent effects are properly cleaned up when expired
-- [ ] Cleanse abilities remove appropriate effect types
-- [ ] Visual feedback clearly shows cooldown and effect status
-- [ ] System performance scales with many simultaneous effects
-- [ ] Integration with existing ability and effect systems works seamlessly
+- [x] Individual ability cooldowns prevent premature reuse
+- [x] Global cooldowns prevent ability spam across all abilities
+- [x] Cooldown reduction from buffs/stats works correctly
+- [x] Damage over time effects tick at proper intervals
+- [x] Heal over time effects restore health efficiently
+- [x] Persistent effects are properly cleaned up when expired
+- [x] Cleanse abilities remove appropriate effect types
+- [ ] Visual feedback clearly shows cooldown and effect status (both
+      systems give status for drawing: `CooldownSystem:get_status` and
+      `PersistentEffectsSystem:get_effects_on`; nothing draws them yet)
+- [x] System performance scales with many simultaneous effects
+- [x] Integration with existing ability and effect systems works seamlessly
+## What Happened
+
+Built as:
+- `src/systems/cooldown_system.lua`:
+  - `start(entity, container, index, global_seconds)`;
+  - `is_on_cooldown`, `tick`, `update`, `reset_all`, `reduction_for` and
+    `get_status`.
+  - It handles ability, global and shared cooldowns, with cooldown
+    reduction capped at 75%.
+- `src/systems/persistent_effects_system.lua`: damage and healing over
+  time.
+  - `add`, `add_damage_over_time`, `add_heal_over_time`,
+    `process_ability_activation`, `update`, `cleanse` and
+    `get_effects_on`.
+- The activation system (048) now starts cooldowns through a
+  CooldownSystem. It makes one by default, reading cooldown reduction from
+  its effect system.
+- The effect system (049):
+  - hands each activation to an attached persistent-effects system after
+    the instant part (a projectile's on each hit instead);
+  - when it cleanses debuffs, also ends damage over time.
+- New ability settings: `damage_over_time`, `heal_over_time`,
+  `over_time_duration`, `over_time_interval`, `shared_cooldown` and
+  `cooldown_reduction_bonus`.
+- New templates: `regeneration`, `focus` and `poison_dart`. Meteor strike
+  and healing circle share a "spell" cooldown. New sets: `druid` and
+  `skirmisher`.
+
+Tested headlessly by `tests/test_cooldowns_effects.lua` (nine tests). These
+include the whole loop through mana, activation, effects and over-time
+effects, and 600 over-time effects at once. Nothing was seen on screen.
+
+### Decisions
+- **Cooldown timers stay in the abilities component** (`cooldowns`,
+  `cooldown_durations` and `global_cooldown`). The sketch kept separate
+  tables per entity id in the system. One place means the activation
+  system, the debug info and a renderer all read the same numbers.
+- **Cooldowns are an extra wait after firing.** The mana bar is still the
+  main pacing, as the vision has it, and most abilities have no cooldown.
+- **Shared cooldowns** use a `shared_cooldown` name rather than the
+  sketch's category or type, since every damage ability sharing a timer
+  would be too broad. The others in the group wait half as long. A shared
+  wait never shortens a longer timer that is already running.
+- **Cooldown reduction** is the unit's `cooldown_reduction` stat (from
+  buffs, through the effect system's `get_stat`) plus the ability's
+  `cooldown_reduction_bonus`, capped at 75% as in the sketch. It doesn't
+  shorten the global cooldown.
+- **Over-time effects have their own list**, not the "effects" component.
+  They tick rather than modify stats. Their first tick comes one interval
+  after landing, so 5 s at 1 s intervals ticks five times. A long frame
+  can hold several ticks.
+- **The same effect recast refreshes, keeping the stronger tick.**
+  Different effects (by name) stack. The sketch didn't say. Refreshing
+  keeps a single poison from climbing without limit.
+- **Over-time strength follows the cast's planned share.** ManaEfficiency
+  prices only the instant part, so an over-time ability needs some
+  instant `power` to be priced at all. The templates give each some.
+- **Ticks go through the effect system**, so damage, healing, kills and
+  cues are counted in one place. Damage over time goes through armor or
+  magic resist unless it is "true".
+- **Damage over time counts as a debuff for cleanse.** Healing over time
+  is kept.
+- **The sketch's 0.5 s update interval is dropped.** Effects update every
+  frame and fire each tick on time. With 600 effects that takes about
+  0.005 s for a second of play.
+- **Drawing cooldowns and effects** is left to the mana bar UI (issue 045),
+  which comes next and can show a cooldown sweep from `get_status`.

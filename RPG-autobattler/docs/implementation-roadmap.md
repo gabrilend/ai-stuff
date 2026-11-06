@@ -76,7 +76,7 @@
 - [x] Implement targeting system for abilities (Issue #047)
 - [x] Add ability activation when mana is full (Issue #048)
 - [x] Create different ability types (damage, heal, buff, etc.) (Issue #049)
-- [ ] Implement ability cooldowns and effects
+- [x] Implement ability cooldowns and effects (Issue #050)
 
 ### 4.3 Basic Abilities
 - [ ] Create primary attack abilities for melee/ranged
