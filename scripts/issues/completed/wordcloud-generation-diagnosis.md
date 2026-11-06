@@ -122,3 +122,24 @@ Tested on `translation-layer-wow-chat-city-of-chat`:
 - Can be called from other scripts
 - Handles edge cases that silently failed in Python version
 - Built into the featureset design permanently
+
+## What Happened
+
+**2026-11-03: checked and moved into completed.** This report says it was
+resolved on 2026-01-12, and the code on main bears that out:
+
+- `backup-conversations` calls `libs/conversation-parser.lua` for every log.
+  No Python is left in the export path.
+- The report's root cause was "no `*_summary.md` files". Transcripts have
+  since been named by date span (issue 018), so a `*_summary.md` search would
+  find nothing today. `conversation-wordcloud-poet.sh` doesn't search by name
+  any more, though: it finds transcripts by their
+  `# Conversation Summary: <id>` header line, through
+  `libs/transcript-discovery.sh`.
+- A run of `conversation-wordcloud-poet.sh --no-poems` on a scratch project
+  holding one date-named transcript (`oct-2-26.md`) and one non-transcript
+  `.md` file wrote `wordcloud.md`. The transcript's words were counted and
+  the other file's were not. Nothing was left in `/tmp`.
+
+Not checked here: the three projects named at the top. Their transcripts are
+on Ritz's machine.
