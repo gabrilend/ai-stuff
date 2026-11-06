@@ -193,6 +193,8 @@ The `lua-menu.sh` / `menu.lua` library provides a robust interactive interface. 
 
 ### 2. Create abstract project-list library
 
+*Built (issue 010):* `libs/project-discovery.lua` and its bash face `libs/project-discovery.sh`; see `libs/project-discovery.info.md`. The sketch below is the original proposal.
+
 Extract the project discovery logic from `delta-version/scripts/list-projects.sh` into a reusable `libs/project-discovery.sh`:
 
 ```bash
