@@ -296,3 +296,45 @@ Cooldown: 8 seconds
 - issues/506c-input-handling.md (hover detection)
 - issues/506e-command-button-grid.md (button tooltips)
 - issues/506d-core-ui-elements.md (Label, Panel)
+
+## Decisions (2026-11-05)
+
+Made without the owner, and the owner's to overturn (Q-4: Lua; see 506).
+
+1. **`src/ui/tooltip.lua`, built on what exists:**
+   - Colour codes are read by `script_ui.lua`'s `pieces`, `lines` and
+     `text` (issue 520), which the map's messages already use. They are
+     not parsed a second time.
+   - TRIGSTR_ references are looked up through a `resolve(token)`
+     function, so `parsers/wts.lua`'s string table, `game.lua`'s, or the
+     VM's can all be passed. A reference that isn't found stays as it is.
+2. **Title and hotkey:** the title gets the hotkey after it, unless the
+   title already marks it with a colour code, as WC3's own titles do
+   ("Train |cffffcc00F|rootman").
+3. **Costs as text:** gold, lumber, food and mana that aren't zero, and
+   the cooldown in seconds, with gold-coloured labels. WC3 draws small
+   icons with the numbers; those icons aren't loaded here.
+4. **Placement:**
+   - The box sits above the button, right edges together.
+   - It goes below the button when there is no room above, then is
+     pushed back inside the screen.
+   - It is never wider than the screen.
+   - Text too long for the screen is cut, ending with "...".
+5. **The delay is 0.25 s** (`tooltip.DELAY`) on the same button; moving
+   to another button starts it again.
+6. **Not wired into `hud.lua`,** whose tooltip strips the colours and
+   sits in a fixed place (see 506, decision 3).
+
+## What happened (2026-11-05)
+
+- Added `src/ui/tooltip.lua` with its info page. `test_ui_framework.lua`
+  checks:
+  - lookups (inside text, not found, a resolver returning two values)
+  - hotkey marks, costs and cooldown
+  - colours drawn as colours and never shown as codes
+  - wrapping in pixels, placement at the screen's edges, cutting, a tiny
+    screen, and the delay
+
+**Left for the owner:** wiring it into the hud, cost and cooldown fields
+from object data (the card's buttons don't carry them yet), and checking
+it on a real screen.
