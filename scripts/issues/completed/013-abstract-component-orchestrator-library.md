@@ -92,3 +92,48 @@ orch_status_all
 - `README.md` - Scripts documentation
 - `state-daemon.sh` - Simpler key-value state service
 - `handheld-office/scripts/orchestrator.lua` - Source implementation
+
+## What Happened
+
+**2026-11-03.** Built as `libs/component-orchestrator.lua`, with the shell
+wrapper `libs/component-orchestrator.sh` and notes in
+`libs/component-orchestrator.info.md`. Tested by
+`tests/test_component-orchestrator.lua` (48 checks), which uses real
+processes: `sleep` for a daemon, netcat for something that listens on a port.
+
+Steps 1-9 are done. Step 10, a TUI dashboard, is filed as issue 060.
+`handheld-office`'s own orchestrator is not switched over; that belongs to
+that project.
+
+What the source did that was kept: registration with a command and a port,
+state saved to a file and read back by the next run, a timestamped log,
+start/stop/status. What was left behind as handheld-office's own: the cargo
+build steps and the three hard-coded binaries.
+
+Decisions:
+
+- **State is tab-separated text, not JSON.** The bash wrapper and `grep` can
+  read it, and the library needs no JSON module. Everything goes in one
+  folder, `<project>/tmp/orchestrator/` (or `$ORCH_STATE_DIR`).
+- **A component is stopped by its own pid, never by name.** The source used
+  `pkill -f daemon`, which kills every process whose command line contains
+  "daemon". Each component runs under `setsid`, so its pid is also its
+  process group, and stop sends TERM to that group (helpers it spawned stop
+  too), then KILL after `stop_wait` seconds.
+- **A reused pid is not ours.** The process start time from `/proc` is saved
+  with the pid. If it no longer matches, the component counts as `exited` and
+  nothing is signalled. Without `/proc`, `kill -0` is the fallback.
+- **Start waits until healthy.** With a port, `health_command` or
+  `health_url`, start waits up to `start_wait` seconds for every check to
+  pass. Without one, it waits a moment so a command that fails at once is
+  caught. A failed start kills what it started, and the error quotes the
+  last lines of the component's output.
+- **`stop(name)` stops only that component.** `stop_all` stops dependents
+  before the things they depend on. `start(name)` starts its dependencies
+  first.
+- **Exit statuses are read both ways.** A stock LuaJIT's `os.execute`
+  returns a number; one built with Lua 5.2 compatibility returns
+  true/nil plus a code. Group signals are written `kill -TERM -<pid>`,
+  because dash's `kill` refuses `--`.
+- **Ports are checked through bash's `/dev/tcp`**, so no netcat is needed at
+  run time. `health_url` uses curl when it is given.
