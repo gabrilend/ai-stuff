@@ -43,18 +43,22 @@ end
 -- }}}
 
 -- {{{ create_wct_data
--- Creates synthetic WCT data for testing
-local function create_wct_data(version, header_comment, triggers)
+-- Creates synthetic WCT data for testing, laid out as the World Editor
+-- writes it (issue 302a): in version 1 the header comment is
+-- NUL-terminated and the map's custom script follows it, length-prefixed;
+-- every length counts the text's closing NUL
+local function create_wct_data(version, header_comment, triggers, header_script)
     local parts = {}
 
     -- Version
     parts[#parts + 1] = pack_int32(version)
 
-    -- Header comment (only for version >= 1)
+    -- Header comment and the map's custom script (only for version >= 1)
     if version >= 1 then
-        if header_comment and #header_comment > 0 then
-            parts[#parts + 1] = pack_int32(#header_comment)
-            parts[#parts + 1] = header_comment
+        parts[#parts + 1] = (header_comment or "") .. "\0"
+        if header_script and #header_script > 0 then
+            parts[#parts + 1] = pack_int32(#header_script + 1)
+            parts[#parts + 1] = header_script .. "\0"
         else
             parts[#parts + 1] = pack_int32(0)
         end
@@ -66,8 +70,8 @@ local function create_wct_data(version, header_comment, triggers)
     -- Trigger entries
     for _, text in ipairs(triggers) do
         if text and #text > 0 then
-            parts[#parts + 1] = pack_int32(#text)
-            parts[#parts + 1] = text
+            parts[#parts + 1] = pack_int32(#text + 1)
+            parts[#parts + 1] = text .. "\0"
         else
             parts[#parts + 1] = pack_int32(0)
         end
@@ -100,6 +104,24 @@ local function run_synthetic_tests()
         local data = create_wct_data(1, header, {})
         local result = assert(wct.parse(data))
         assert(result.header_comment == header, "header mismatch")
+    end) then passed = passed + 1 else failed = failed + 1 end
+
+    -- Test 2b: the map's custom script after the comment (302a)
+    if test("WCT with the map's custom script", function()
+        local script = "globals\n    integer myGlobal = 5\nendglobals"
+        local data = create_wct_data(1, "a comment", { "", "custom" }, script)
+        local result = assert(wct.parse(data))
+        assert(result.header_comment == "a comment", "comment mismatch")
+        assert(result.header_script == script, "script mismatch")
+        assert(result.trigger_count == 2 and result.triggers[2] == "custom", "triggers after the script")
+    end) then passed = passed + 1 else failed = failed + 1 end
+
+    -- Test 2c: an emptied file (a protected map) is refused with its reason (302a)
+    if test("Protected map's empty WCT", function()
+        local result, err = wct.parse("")
+        assert(result == nil, "should not parse")
+        assert(err == wct.protected("") and err:find("protected"), "reason: " .. tostring(err))
+        assert(wct.protected(create_wct_data(1, "", {})) == nil, "a real file is not protected")
     end) then passed = passed + 1 else failed = failed + 1 end
 
     -- Test 3: WCT with mixed triggers (some custom, some not)
@@ -213,6 +235,7 @@ local function test_all_maps()
     local success_count = 0
     local fail_count = 0
     local no_wct_count = 0
+    local protected_count = 0
 
     for _, map_path in ipairs(maps) do
         local map_name = map_path:match("([^/]+)$")
@@ -229,9 +252,22 @@ local function test_all_maps()
                 success_count = success_count + 1  -- Not a failure
             else
                 local wct_data, wct_err = archive:extract("war3map.wct")
+                local protected = wct_data and wct.protected(wct_data)
                 if not wct_data then
                     print("EXTRACT FAIL: " .. wct_err)
                     fail_count = fail_count + 1
+                elseif protected then
+                    -- a protected map's emptied file (issue 302a): refused,
+                    -- with that reason
+                    local result, parse_err = wct.parse(wct_data)
+                    if result == nil and parse_err == protected then
+                        print("PROTECTED (refused: " .. parse_err .. ")")
+                        protected_count = protected_count + 1
+                        success_count = success_count + 1
+                    else
+                        print("PROTECTED, NOT REFUSED: " .. tostring(parse_err))
+                        fail_count = fail_count + 1
+                    end
                 else
                     local result, parse_err = wct.parse(wct_data)
                     if result then
@@ -251,10 +287,34 @@ local function test_all_maps()
     end
 
     print("")
-    print(string.format("Success: %d / %d (%d maps without wct)",
-        success_count, success_count + fail_count, no_wct_count))
+    print(string.format("Success: %d / %d (%d maps without wct, %d protected)",
+        success_count, success_count + fail_count, no_wct_count, protected_count))
 
     return success_count, fail_count
+end
+-- }}}
+
+-- {{{ A real file: Master-Crafters-Final-Conquest's (302a)
+-- Its 417 entries are all empty and its custom script is too; the header
+-- comment is the editor's default text.
+local function test_master_crafters()
+    print_separator("Master-Crafters-Final-Conquest's war3map.wct")
+    local archive = mpq.open(DIR .. "/assets/Master-Crafters-Final-Conquest.w3x")
+    if not archive then
+        print("Cannot open the map")
+        return 0, 1
+    end
+    local data = archive:extract("war3map.wct")
+    archive:close()
+    if test("read as the editor wrote it", function()
+        local result = assert(wct.parse(data))
+        assert(result.version == 1, "version")
+        assert(result.header_comment:find("^Enter map%-specific custom script code below%."), "comment")
+        assert(result.header_script == "", "custom script")
+        assert(result.trigger_count == 417, "417 entries, got " .. tostring(result.trigger_count))
+        assert(wct.get_custom_trigger_count(result) == 0, "none with text")
+    end) then return 1, 0 end
+    return 0, 1
 end
 -- }}}
 
@@ -275,6 +335,10 @@ local function main()
     local map_passed, map_failed = test_all_maps()
     total_passed = total_passed + map_passed
     total_failed = total_failed + map_failed
+
+    local mc_passed, mc_failed = test_master_crafters()
+    total_passed = total_passed + mc_passed
+    total_failed = total_failed + mc_failed
 
     -- Final summary
     print_separator("Final Results")

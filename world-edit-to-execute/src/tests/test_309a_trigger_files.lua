@@ -124,23 +124,29 @@ end
 
 -- {{{ make_synthetic_wct
 local function make_synthetic_wct()
-    -- WCT file structure (version 1):
+    -- WCT file structure (version 1), as the World Editor writes it
+    -- (issue 302a):
     -- - Version: 1 (4 bytes, little-endian)
-    -- - Header comment length: N (4 bytes)
-    -- - Header comment: N bytes (no null terminator)
+    -- - Header comment: NUL-terminated string
+    -- - The map's custom script: length N (4 bytes), N bytes ending in NUL
     -- - Trigger count: M (4 bytes)
-    -- - For each trigger: text_length (4 bytes), text (no null terminator)
+    -- - For each trigger: text_length (4 bytes, counting the closing NUL),
+    --   text and NUL; 0 for a trigger with no custom text
 
     local parts = {}
     local header_comment = "// Map header comment\n"
+    local header_script = "function MapInitHelper takes nothing returns nothing\nendfunction"
     local trigger_text = "function CustomFunc takes nothing returns nothing\n    call BJDebugMsg(\"Hello\")\nendfunction"
 
     -- Version 1 (TFT)
     table.insert(parts, string.char(1, 0, 0, 0))
 
-    -- Header comment (length-prefixed)
-    table.insert(parts, string.char(#header_comment, 0, 0, 0))
-    table.insert(parts, header_comment)
+    -- Header comment (NUL-terminated)
+    table.insert(parts, header_comment .. "\0")
+
+    -- The map's custom script (length-prefixed, NUL included)
+    table.insert(parts, pack_uint32(#header_script + 1))
+    table.insert(parts, header_script .. "\0")
 
     -- Trigger count: 2
     table.insert(parts, string.char(2, 0, 0, 0))
@@ -149,13 +155,11 @@ local function make_synthetic_wct()
     table.insert(parts, string.char(0, 0, 0, 0))
 
     -- Trigger 1: has custom text
-    table.insert(parts, string.char(#trigger_text, 0, 0, 0))
-    table.insert(parts, trigger_text)
+    table.insert(parts, pack_uint32(#trigger_text + 1))
+    table.insert(parts, trigger_text .. "\0")
 
     return table.concat(parts)
 end
--- }}}
-
 -- {{{ make_synthetic_jass
 local function make_synthetic_jass()
     return [[
@@ -263,6 +267,7 @@ test_section("WTG Parser Tests (Real Maps)")
 local maps = list_maps()
 local wtg_found = 0
 local wtg_parsed = 0
+local wtg_protected = 0
 
 for _, map_path in ipairs(maps) do
     local basename = get_basename(map_path)
@@ -273,7 +278,15 @@ for _, map_path in ipairs(maps) do
             wtg_found = wtg_found + 1
 
             local wtg_data = archive:extract("war3map.wtg")
-            if wtg_data then
+            local protected = wtg_data and wtg.protected(wtg_data)
+            if protected then
+                -- a protected map's emptied or replaced file (issue 302a):
+                -- refused, with that reason, and not counted as one to parse
+                wtg_protected = wtg_protected + 1
+                local triggers, err = wtg.parse(wtg_data)
+                test(basename .. " (protected)", triggers == nil and err == protected,
+                    tostring(err))
+            elseif wtg_data then
                 local triggers, err = wtg.parse(wtg_data)
 
                 if triggers then
@@ -299,11 +312,15 @@ for _, map_path in ipairs(maps) do
     end
 end
 
--- Summary test for coverage
-if wtg_found > 0 then
+-- Summary test for coverage: every wtg that isn't a protected map's parses
+if wtg_found > wtg_protected then
     test("WTG map coverage",
-        wtg_parsed == wtg_found,
-        string.format("%d/%d maps with wtg parsed", wtg_parsed, wtg_found))
+        wtg_parsed == wtg_found - wtg_protected,
+        string.format("%d/%d maps with wtg parsed (%d more protected)",
+            wtg_parsed, wtg_found - wtg_protected, wtg_protected))
+elseif wtg_found > 0 then
+    print(string.format("  [INFO] %d map(s) with war3map.wtg, all protected", wtg_found))
+    test("WTG synthetic test coverage", wtg_result ~= nil, "synthetic tests passed")
 else
     print("  [INFO] No maps contain war3map.wtg (protected maps)")
     test("WTG synthetic test coverage", wtg_result ~= nil, "synthetic tests passed")
@@ -347,6 +364,14 @@ if wct_result then
     test("WCT has custom trigger text",
         custom_count >= 1,
         "expected at least 1 non-empty custom trigger")
+
+    test("WCT has the map's custom script, without its closing NUL",
+        wct_result.header_script == "function MapInitHelper takes nothing returns nothing\nendfunction",
+        "got " .. tostring(wct_result.header_script))
+
+    test("WCT trigger text without its closing NUL",
+        wct_result.triggers[2] and wct_result.triggers[2]:sub(-11) == "endfunction",
+        "got " .. tostring(wct_result.triggers[2]))
 end
 -- }}}
 
@@ -355,6 +380,7 @@ test_section("WCT Parser Tests (Real Maps)")
 
 local wct_found = 0
 local wct_parsed = 0
+local wct_protected = 0
 
 for _, map_path in ipairs(maps) do
     local basename = get_basename(map_path)
@@ -365,7 +391,14 @@ for _, map_path in ipairs(maps) do
             wct_found = wct_found + 1
 
             local wct_data = archive:extract("war3map.wct")
-            if wct_data then
+            local protected = wct_data and wct.protected(wct_data)
+            if protected then
+                -- a protected map's emptied file (issue 302a)
+                wct_protected = wct_protected + 1
+                local custom, err = wct.parse(wct_data)
+                test(basename .. " (protected)", custom == nil and err == protected,
+                    tostring(err))
+            elseif wct_data then
                 local custom, err = wct.parse(wct_data)
 
                 if custom then
@@ -396,11 +429,15 @@ for _, map_path in ipairs(maps) do
     end
 end
 
--- WCT is optional, so coverage is informational
-if wct_found > 0 then
+-- WCT is optional; every one that isn't a protected map's must parse
+if wct_found > wct_protected then
     test("WCT map coverage",
-        wct_parsed == wct_found,
-        string.format("%d/%d maps with wct parsed", wct_parsed, wct_found))
+        wct_parsed == wct_found - wct_protected,
+        string.format("%d/%d maps with wct parsed (%d more protected)",
+            wct_parsed, wct_found - wct_protected, wct_protected))
+elseif wct_found > 0 then
+    print(string.format("  [INFO] %d map(s) with war3map.wct, all protected", wct_found))
+    test("WCT synthetic test coverage", wct_result ~= nil, "synthetic tests passed")
 else
     print("  [INFO] No maps contain war3map.wct (protected maps)")
     test("WCT synthetic test coverage", wct_result ~= nil, "synthetic tests passed")

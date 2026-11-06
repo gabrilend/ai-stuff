@@ -249,6 +249,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 301d | Parse WTG ECA functions | **Completed** | 301c |
 | 301e | Parse WTG parameters | **Completed** | 301d |
 | 302 | Parse war3map.wct (custom text triggers) | **Completed** | 102, 301 |
+| 302a | war3map.wct read as the editor writes it; protected maps' trigger files recognised | **Completed** 2026-11-06 | 301, 302, 309a |
 | 303 | Parse war3map.j (JASS script) | **Completed** | 102 |
 | 304 | Build JASS lexer | **Completed** | 303 |
 | 304a | Lexer core infrastructure | **Completed** | 303 |
