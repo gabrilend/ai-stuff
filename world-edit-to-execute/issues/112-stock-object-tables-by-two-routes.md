@@ -47,6 +47,19 @@ rather than from this file. The owner's installs are linked from
 (Until 2026-09-26 this section still described the starting point: no SLK
 parser, and `src/validation/init.lua` noting "we don't have SLK data".)
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #317 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- Items placed on the ground that the map itself defines or changes still hit the type-mismatch branch ("Unit placement uses item ID"), because only the stock path was fixed.
+- Ids shaped like custom ids never reach the stock lookup, even though map optimizers define custom objects only in the map's own SLK copies (DAoW-5.2 does), so those are reported as missing.
+- Nothing in the codebase builds a lookup and passes it to the validator; real runs still assume base-game ids are valid and now add a warning, while this issue marks the criterion done.
+- The error text names only the patch layer and data set, discarding where the table actually came from (the map's own trimmed copy, say), which points readers at the wrong place.
+- The report's "where looked up" field is false whenever a lookup is given without a description.
+- `gamedata/object_stock.lua` and `field_rules.lua` already read these tables by chain; this adds a second set of paths and caches, and builds full rows only to keep column 1.
+- A missing table or missing lookup counts ids as valid with only a warning, so a validation that checked nothing looks like one that passed.
+- The issue names a line that doesn't exist and adds a "What happened" log.
+
 ## Intended Behavior
 
 The owner (2026-09-24): "compare with the remote sources to validate, that way
@@ -158,7 +171,7 @@ map's chain (`src/gamedata/chain.lua`), not the plain paths.
 - [x] Route B fetches within Liquipedia's terms and is cached (112e)
 - [x] Comparison report with coverage and every mismatch investigated (112e)
 - [ ] The converter refuses to use an unchecked stock table
-- [ ] The cross-reference validator looks stock ids up in the map's chain instead of assuming them valid
+- [x] The cross-reference validator looks stock ids up in the map's chain instead of assuming them valid (2026-11-06: `gamedata/stock_ids.lua`; tested on a stand-in chain, the real-chain check runs where the install is)
 - [x] `.info.md` beside each new source file (the last one, `editor_versions.info.md`, written 2026-09-26)
 
 ## Open Questions
@@ -172,3 +185,69 @@ map's chain (`src/gamedata/chain.lua`), not the plain paths.
 - `docs/licensing-and-boundaries.md`
 - `issues/W02-build-wc3-maps-into-the-wow-client.md` (W02h, open question 7)
 - `wc3-installs/README.md`
+
+---
+
+## Decisions (2026-11-06)
+
+Made without the owner while building the validator's lookup; each one
+theirs to overturn.
+
+1. **The lookup is its own module, handed to the validator.**
+   `src/gamedata/stock_ids.lua` reads, through the map's chain, the first
+   column of each kind's stock table and answers "does the game define this
+   id". `validation.validate_map(map, { stock = ... })` and
+   `Map:validate({ stock = ... })` take it. The validator doesn't open the
+   chain itself: opening one needs the install, the layers and the parsed
+   `war3map.w3i`, which its callers have and it doesn't.
+2. **Without a lookup the old behaviour stays**, base-game ids assumed
+   valid with a warning each, plus one warning that counts them ("No stock
+   tables given: N base-game ids were assumed valid"), and the printed
+   report says the ids weren't looked up. Callers without an install (the
+   tests, the editor on a machine with no install linked) keep working.
+3. **The tables:** units `Units\UnitData.slk`, items `Units\ItemData.slk`,
+   abilities `Units\AbilityData.slk`, destructables
+   `Units\DestructableData.slk`, doodads `Doodads\Doodads.slk`. Each is
+   read once, the first time its kind is asked about. Because they come
+   through the chain, a map's own copy of a table, its patch layer and its
+   data set (`Custom_V1\...`) are what count.
+4. **A unit placement may name an item.** Items placed on the ground are
+   kept in `war3mapUnits.doo` with the units, so a placement is looked up
+   in the unit table, then the item table. A doodad placement is looked up
+   in the doodad table, then the destructable table (the same file holds
+   both). Item drops look in the item table and ability lists in the
+   ability table, as the issue asked ("the same assumption should be
+   checked for doodads and destructables").
+5. **Random placeholders are valid without a lookup.** `YYU` or `YYI`
+   followed by a level character, and `uDNR`, `bDNR`, `iDNR`, are the
+   editor's "random unit/item/building here", resolved when the map
+   starts; no table defines them.
+6. **A table the chain lacks is a warning, not an error.** The id can't be
+   checked, which isn't the same as wrong: the warning names the missing
+   table and what was searched, and the id is counted as assumed.
+7. **Not found is an error naming the id and what was searched**:
+   "Stock unit ID 'hxyz' not found in the game's tables (patch layer
+   1.29.2, data set Custom_V1)", with `searched` in its details.
+8. **The converter's refusal is not built here.** The converter that would
+   consult the mark is W02's (Phase W, the WC3-to-WoW build), which waits
+   on the owner's call about Phase W. It also needs a mark nothing writes
+   yet: the Route B report doesn't record which install it checked (by the
+   archives' hashes). Both are left for when Phase W moves.
+
+## What happened (2026-11-06)
+
+- `src/gamedata/stock_ids.lua` (with its `.info.md`): `from_chain`,
+  `from_sets`, `has`, `find`, `missing`, `searched`,
+  `is_random_placeholder`.
+- `src/validation/init.lua`: unit placements, doodad placements, item drops
+  and ability references look base-game ids up when given a lookup; the
+  report counts `stats.stock_assumed` and prints where ids were looked up.
+  `src/data/init.lua`: `Map:validate(options)` passes its options on.
+- `src/tests/test_stock_ids.lua` (53 checks, with its `.info.md`): a
+  stand-in chain of hand-written SLK tables; the real chain, when the
+  Frozen Throne install and the 1.29.2 layer are present (skipped here:
+  this checkout has no install).
+- Mutation check of the new code: 96 of 100 mutants caught. The four left
+  are `return nil` for `return false` inside `load`, whose callers only
+  test the value for truth.
+
