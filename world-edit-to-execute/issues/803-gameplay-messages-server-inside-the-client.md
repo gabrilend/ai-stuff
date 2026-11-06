@@ -180,3 +180,12 @@ the waiting dialog testable without a network.
 - `issues/515-render-graph-on-the-ceramic-engine.md` (point 4)
 - `issues/515d-extrapolate-predict-snap.md`
 - `issues/W08-our-own-server-speaking-the-same-protocol.md` (time as ticks)
+
+## Note (2026-11-06)
+
+`src/net/messages.lua.info.md` gained message 11 (`paths`, server to
+client, for drawing only), added to `messages.lua` with the crossing-armies
+demo on 2026-09-25 but missing from the info file's table, and a line for
+`messages.descriptions`, which the C reader is generated from. The table
+now lists all eleven messages; checked field by field against
+`messages.lua`.
