@@ -28,8 +28,12 @@ of the monorepo works, and its line statistics cover only that folder.
 Verified against delta-version (phases 0, 1, 2, A) and soren-ds (phases
 through 10), writing into a scratch folder.
 
-Not yet done: the per-project `src/cli/` symlink, incremental updates
-(every run rewrites the files whole).
+`--update` (`-u`) brings existing files up to date: each commit's section is
+copied from the old file when it is there and formatted only when it is not
+(see What Happened).
+
+Not yet done: the per-project `src/cli/` symlink, which needs the owner's
+projects.
 
 **Open question (owner):** in a four-digit issue number such as `1001`,
 is the phase `10` (issue 01) or `1` (issue 001)? The tool reads it as
@@ -228,12 +232,41 @@ standard (pre-1.31) and extended (1.31+) formats.
 - [x] Generates per-phase markdown files
 - [x] Includes commit statistics (scoped to the project folder)
 - [x] Includes file change details
-- [ ] Supports incremental updates
+- [x] Supports incremental updates (`--update`)
 - [x] Works as both CLI and library
 - [x] Interactive mode with TUI
 - [x] Project-abstract (works on any conforming project, monorepo or not)
 
 ---
+
+## What Happened
+
+**2026-11-03: incremental updates (step 8).** `git-history.sh --update`
+reads the phase file it is about to replace and keeps each commit's section,
+matched by the short hash in its `## [<hash>]` heading. Only commits without
+a section are formatted, which is where the time goes (eight git calls per
+commit). The header, the total and the statistics are worked out afresh.
+Tested by `tests/test-git-history-update.sh` (14 checks).
+
+Decisions:
+
+- **Sections are matched, not appended after "the last commit seen".**
+  Commits come from every branch (`git log --all`), so a branch merged today
+  can bring older commits into the middle of the list. Matching puts every
+  commit where a full run would, and the test checks that an update writes
+  the same file as a full run, merged branch and statistics included.
+- **No `.git-history-state` file.** The phase file itself is the state. A
+  separate record could disagree with a file that was deleted, edited or
+  restored; reading the file cannot.
+- **A section is kept as written.** A hand edit inside it survives an update;
+  a full run (no `-u`) rewrites every section. A short hash that grows longer
+  as the repository grows no longer matches, so that commit is simply
+  formatted again.
+- **Files are written beside the old one and moved over it**, so the old
+  file can be read while the new one is written, and an interrupted run
+  leaves the old file whole.
+- **`--update` is a flag, not the default**, so a plain run still rebuilds
+  everything, as before.
 
 ## Notes
 
