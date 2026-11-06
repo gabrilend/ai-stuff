@@ -1,0 +1,22 @@
+# peers.map — the peer table's once-a-second tick (issues 704, 705)
+#
+# src/system/121-peers.c arms an engine timer that writes into this
+# program's argument 0 once a second. Each tick ages every peer's links
+# (alive, stale, gone) and tells subscribers of every change; every fifth
+# tick the device also says "I am here" on each link that has an address.
+# Hearing other devices' announcements is not here: they arrive through
+# the net poll (net.map), which hands them to the peer table directly.
+#
+# The tick number rides a loop, so only one tick ever runs at once.
+
+boxes = ../boxes/
+
+station first_tick (boxes/062-arithmetic.c:constant)
+  in 0 = 0
+  out 0 - tick.1
+
+station tick (boxes/122-peers.c:peers_frame)
+  in 0 - 0$
+  in 1 - first_tick.0
+  in 1 - tick.0
+  out 0 - tick.1
