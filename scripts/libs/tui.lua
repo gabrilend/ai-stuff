@@ -230,8 +230,14 @@ if tty_in then
     tty_in:setvbuf("no")
 end
 
+-- When set, present() hands its output to this function instead of the
+-- terminal (see tui.set_output).
+local output_fn = nil
+
 local function write_raw(s)
-    if tty_out then
+    if output_fn then
+        output_fn(s)
+    elseif tty_out then
         tty_out:write(s)
     else
         io.stdout:write(s)
@@ -239,7 +245,9 @@ local function write_raw(s)
 end
 
 local function flush()
-    if tty_out then
+    if output_fn then
+        return
+    elseif tty_out then
         tty_out:flush()
     else
         io.stdout:flush()
@@ -844,6 +852,196 @@ function tui.draw_hline(row, start_col, end_col, char)
         tui.set_cell(row, x, char)
     end
 end
+-- }}}
+
+-- {{{ Panels
+-- A panel is a rectangle of the screen with its own coordinates: row 1,
+-- column 1 is the panel's top-left corner, wherever the panel sits.  A
+-- program lays out a header, a list and a footer once, as panels, and then
+-- writes "row 2 of the list" instead of working out the screen row each
+-- time.  Panels are thin: every write goes through tui.set_cell, so the
+-- dirty tracking above sees panel writes exactly as it sees any other.
+--
+-- Rules (issue 048, from delta-version issue 070):
+--   * Anything outside the panel is dropped, so a long string stops at the
+--     panel's right edge and row 10 of a 3-row panel writes nothing.
+--     Anything outside the screen is dropped too, so a panel that hangs off
+--     a small terminal draws only the part that fits.
+--   * Style is the one global style: panel:set_fg is tui.set_fg.
+--   * Panels do not overlap or draw borders; the program keeps them apart
+--     and draws boxes with tui.draw_box_* if it wants them.
+--   * row, col, width and height are fields to read.  To move or resize a
+--     panel (after a terminal resize, say), make a new one.
+local Panel = {}
+Panel.__index = Panel
+
+-- {{{ tui.create_panel
+-- row, col: the screen cell of the panel's top-left corner (1-based; it may
+-- lie off the screen).  width, height: whole numbers, at least 1.
+function tui.create_panel(row, col, width, height)
+    local function whole(name, v, least)
+        if type(v) ~= "number" or v ~= math.floor(v) or (least and v < least) then
+            error("tui.create_panel: " .. name .. " must be a whole number"
+                .. (least and (" of at least " .. least) or "")
+                .. ", got " .. tostring(v), 3)
+        end
+    end
+    whole("row", row)
+    whole("col", col)
+    whole("width", width, 1)
+    whole("height", height, 1)
+    return setmetatable({ row = row, col = col, width = width, height = height }, Panel)
+end
+-- }}}
+
+-- {{{ Panel:to_screen
+-- Panel position to screen position.  No bounds check: it is arithmetic.
+function Panel:to_screen(panel_row, panel_col)
+    return self.row + panel_row - 1, self.col + panel_col - 1
+end
+-- }}}
+
+-- {{{ Panel:from_screen
+-- Screen position to panel position, and whether it lies inside the panel.
+function Panel:from_screen(screen_row, screen_col)
+    local r = screen_row - self.row + 1
+    local c = screen_col - self.col + 1
+    local inside = r >= 1 and r <= self.height and c >= 1 and c <= self.width
+    return r, c, inside
+end
+-- }}}
+
+-- {{{ local function visible_rect
+-- The panel's rows that are on the screen, as screen rows (first, last),
+-- and the screen columns likewise.  Returns nil when no part is visible.
+local function visible_rect(panel)
+    local r1 = math.max(1, panel.row)
+    local r2 = math.min(rows, panel.row + panel.height - 1)
+    local c1 = math.max(1, panel.col)
+    local c2 = math.min(cols, panel.col + panel.width - 1)
+    if r1 > r2 or c1 > c2 then return nil end
+    return r1, c1, r2, c2
+end
+-- }}}
+
+-- {{{ Panel:set_cell
+function Panel:set_cell(row, col, char)
+    if row < 1 or row > self.height or col < 1 or col > self.width then return end
+    tui.set_cell(self.row + row - 1, self.col + col - 1, char)
+end
+-- }}}
+
+-- {{{ Panel:write_str
+-- One cell per character, as tui.write_str.  Stops at the panel's right
+-- edge.  Returns the panel column after the last character written.
+function Panel:write_str(row, col, str)
+    local x = col
+    for c in str:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        if x > self.width then break end
+        self:set_cell(row, x, c)
+        x = x + 1
+    end
+    return x
+end
+-- }}}
+
+-- {{{ local function blank_rect
+-- Puts plain spaces in the back buffer over a screen rectangle (already
+-- clipped to the screen) and marks it dirty.  The drawing style is left
+-- alone: a blank cell is always plain, whatever the style.
+local function blank_rect(r1, c1, r2, c2)
+    for y = r1, r2 do
+        local line = back_buffer[y]
+        if line then
+            for x = c1, c2 do
+                line[x] = make_cell(" ")
+            end
+        end
+    end
+    tui.invalidate_region(r1, c1, r2, c2)
+end
+-- }}}
+
+-- {{{ Panel:clear
+function Panel:clear()
+    local r1, c1, r2, c2 = visible_rect(self)
+    if r1 then blank_rect(r1, c1, r2, c2) end
+end
+-- }}}
+
+-- {{{ Panel:clear_row
+function Panel:clear_row(row)
+    if row < 1 or row > self.height then return end
+    local r1, c1, r2, c2 = visible_rect(self)
+    local y = self.row + row - 1
+    if r1 and y >= r1 and y <= r2 then blank_rect(y, c1, y, c2) end
+end
+-- }}}
+
+-- {{{ Panel:invalidate
+-- Marks the panel's cells for the next present().  A panel as wide as the
+-- screen marks whole rows; a narrower one marks only its own cells, so the
+-- rest of each row is not sent again.
+function Panel:invalidate()
+    local r1, c1, r2, c2 = visible_rect(self)
+    if r1 then tui.invalidate_region(r1, c1, r2, c2) end
+end
+-- }}}
+
+-- {{{ Panel:invalidate_row
+function Panel:invalidate_row(row)
+    if row < 1 or row > self.height then return end
+    local r1, c1, r2, c2 = visible_rect(self)
+    local y = self.row + row - 1
+    if r1 and y >= r1 and y <= r2 then tui.invalidate_region(y, c1, y, c2) end
+end
+-- }}}
+
+-- {{{ Panel style
+-- The style is global (delta-version 070's option 1); these are the same
+-- calls as tui.set_fg and the rest, kept on the panel so code that holds a
+-- panel need not reach for tui as well.
+function Panel:set_fg(fg) tui.set_fg(fg) end
+function Panel:set_bg(bg) tui.set_bg(bg) end
+function Panel:set_attrs(attrs) tui.set_attrs(attrs) end
+function Panel:reset_style() tui.reset_style() end
+-- }}}
+-- }}}
+
+-- {{{ Drawing without a terminal
+-- For tests, and for a program that wants a screen in memory: set up the
+-- buffers at a given size without touching the terminal, read a cell back,
+-- and catch what present() would send.
+
+-- {{{ tui.init_buffers
+-- Sets the screen size to r rows by c columns and makes blank buffers, with
+-- a full redraw pending.  Leaves the terminal alone (tui.init does not).
+function tui.init_buffers(r, c)
+    rows, cols = r, c
+    front_buffer = create_buffer(rows, cols)
+    back_buffer = create_buffer(rows, cols)
+    tui.invalidate()
+    return rows, cols
+end
+-- }}}
+
+-- {{{ tui.get_cell
+-- A copy of the back-buffer cell at (row, col): {char, fg, bg, attrs}, or
+-- nil outside the screen.
+function tui.get_cell(row, col)
+    local line = back_buffer[row]
+    local cell = line and line[col]
+    return cell and copy_cell(cell) or nil
+end
+-- }}}
+
+-- {{{ tui.set_output
+-- fn(text) receives what present() would write to the terminal.  nil sends
+-- it to the terminal again.
+function tui.set_output(fn)
+    output_fn = fn
+end
+-- }}}
 -- }}}
 
 -- {{{ tui.init
