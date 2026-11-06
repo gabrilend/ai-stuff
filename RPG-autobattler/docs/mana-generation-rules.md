@@ -46,3 +46,17 @@ Each ability sets its own `mana_rate` (default 10 a second) and `max_mana`
   nothing.
 - Only living enemies count.
 - A dead unit's bars empty.
+
+## Spending (issue 044)
+
+A full bar does not always spend all its mana. `src/systems/mana_efficiency.lua`
+works out the share the effect is worth:
+
+- **damage:** the share of the ability's power the target's health needs;
+- **heal:** the share its missing health needs;
+- **buff / debuff:** the whole bar, or nothing if the target already has it;
+- **area:** the summed usefulness of each target (up to `max_targets`),
+  divided by `max_targets`.
+
+No cast spends less than a tenth of the bar. What is left stays in the bar,
+which refills from there.
