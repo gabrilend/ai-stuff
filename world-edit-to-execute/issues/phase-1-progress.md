@@ -5,8 +5,8 @@
 From `docs/roadmap.md`, "Phase 1: Foundation - File Format Parsing (In Progress)":
 
 The map file formats are read. Still open: the stock object tables and
-their game-version layers (112, 112b, 112d, 112e), and the readers for WC3
-models and textures (116, 117). Phase numbers group functionality rather
+their game-version layers (112, 112b, 112d, 112e), and the texture reader
+(117). Phase numbers group functionality rather
 than mark time, so a foundation phase gaining new readers late is expected.
 
 Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/world-edit-to-execute -m`
@@ -44,9 +44,9 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 115 | [Balance History Explorer](./completed/115-balance-history-explorer.md) | completed | 112b, 112d, 112c |
 | 115a | [What Each Patch Changed](./completed/115a-what-each-patch-changed.md) | completed | 115 |
 | 115b | [Patch Notes for the Versions We Don't Read](./completed/115b-notes-for-versions-we-dont-read.md) | completed | 115a |
-| 116 | [Read WC3 Models (.mdx)](./116-read-wc3-models.md) | open | — |
+| 116 | [Read WC3 Models (.mdx)](./completed/116-read-wc3-models.md) | completed | — |
 | 117 | [Read WC3 Textures (BLP1)](./117-read-wc3-textures.md) | open | W01 |
 
-Completed 23, open 6, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 24, open 5, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

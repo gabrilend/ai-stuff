@@ -1,5 +1,5 @@
 --[[
-MDX Models (Issue 522b)
+MDX Models (Issues 522b, 116)
 
 Warcraft III's binary model format (version 800): "MDLX", then chunks of
 a four-character tag and a byte size. Read here:
@@ -24,7 +24,13 @@ a four-character tag and a byte size. Read here:
   LITE, PREM, PRE2, RIBB  lights, particle emitters, ribbons: their node
         is read (they're in the hierarchy), their own fields kept as raw
         bytes until something draws them
-  anything else: kept whole in m.other
+  anything else: kept whole, in file order in m.unread ({tag, offset,
+        bytes}) and by tag in m.other; mdx.summary lists their tags
+
+Only version 800, classic WC3's, is read; Reforged's HD versions (900 and
+later) are refused with an error naming the version. A file cut short, or a
+size inside it that runs past its chunk, raises an error naming the chunk
+and the byte offset (issue 116).
 
 Animated values are tracks: { interpolation = 0 none | 1 linear |
 2 hermite | 3 bezier, global = id or nil, keys = { {frame, value, in, out}, ... } };
@@ -34,32 +40,70 @@ mdx.sample(track, frame, default) evaluates one.
     local m = mdx.parse(bytes)
     m.geosets[1].vertices   -- { x1, y1, z1, x2, ... }
     m.textures[1].path, m.materials[1].layers[1].filter
+    mdx.summary(m)          -- { vertices, triangles, sequences, textures, ... }
+
+Inputs and outputs in full: parsers/mdx.info.md.
 ]]
 
 local ffi = require("ffi")
 
 local mdx = {}
 
+mdx.VERSION = 800   -- the one version read: classic WC3's
+
 mdx.FILTER = { [0] = "none", "transparent", "blend", "additive", "add_alpha", "modulate", "modulate2x" }
 mdx.SHADING = { unshaded = 1, sphere_env = 2, two_sided = 16, unfogged = 32, no_depth_test = 64, no_depth_set = 128 }
 
 -- {{{ Reader
+-- Every read checks it stays inside the chunk being decoded (r.limit), and
+-- a failed check names the chunk and the byte offset (issue 116): the
+-- buffer is raw memory, so an unchecked read past it would read whatever
+-- lies beyond instead of failing.
 local R = {}
 R.__index = R
 
 local f32 = ffi.new("float[1]")
-local u32v = ffi.new("uint32_t[1]")
 
 local function reader(data)
     local n = #data
-    local buf = ffi.new("uint8_t[?]", n)
+    local buf = ffi.new("uint8_t[?]", math.max(n, 1))
     ffi.copy(buf, data, n)
-    return setmetatable({ data = data, buf = buf, pos = 0, n = n }, R)
+    return setmetatable({ data = data, buf = buf, pos = 0, n = n, limit = n, where = "the file header" }, R)
 end
 
+-- {{{ R:fail
+-- An error naming where the reader is: the chunk and the byte offset
+function R:fail(fmt, ...)
+    error(string.format("MDX: %s, at byte %d: " .. fmt, self.where, self.pos, ...), 0)
+end
+-- }}}
+
+-- {{{ R:need
+function R:need(count)
+    if self.pos + count > self.limit then
+        self:fail("truncated (needs %d bytes, %d left)", count, math.max(0, self.limit - self.pos))
+    end
+end
+-- }}}
+
+-- {{{ R:record
+-- A record that starts with its own byte size (counting the size field):
+-- the position where it ends, checked to lie inside the chunk and past the
+-- size field, so a bad size can neither run off the chunk nor loop forever
+function R:record()
+    local start = self.pos
+    local size = self:u32()
+    if size < 4 or start + size > self.limit then
+        self.pos = start
+        self:fail("a record claims %d bytes, but %d are left", size, self.limit - start)
+    end
+    return start + size
+end
+-- }}}
+
 function R:u32()
+    self:need(4)
     local b, p = self.buf, self.pos
-    if p + 4 > self.n then error("MDX: read past the end") end
     self.pos = p + 4
     return b[p] + b[p + 1] * 256 + b[p + 2] * 65536 + b[p + 3] * 16777216
 end
@@ -68,28 +112,32 @@ function R:i32()
     return v >= 2147483648 and v - 4294967296 or v
 end
 function R:f32()
-    if self.pos + 4 > self.n then error("MDX: read past the end") end
+    self:need(4)
     ffi.copy(f32, self.buf + self.pos, 4)
     self.pos = self.pos + 4
     return f32[0]
 end
 function R:u16()
+    self:need(2)
     local b, p = self.buf, self.pos
     self.pos = p + 2
     return b[p] + b[p + 1] * 256
 end
 function R:u8()
+    self:need(1)
     local v = self.buf[self.pos]
     self.pos = self.pos + 1
     return v
 end
 function R:tag()
+    self:need(4)
     local t = self.data:sub(self.pos + 1, self.pos + 4)
     self.pos = self.pos + 4
     return t
 end
 function R:peek_tag() return self.data:sub(self.pos + 1, self.pos + 4) end
 function R:str(len)
+    self:need(len)
     local s = self.data:sub(self.pos + 1, self.pos + len)
     self.pos = self.pos + len
     return (s:gsub("%z.*$", ""))
@@ -118,7 +166,7 @@ local TRACK_SIZE = {
 
 local function read_track(r, tag)
     local size = TRACK_SIZE[tag]
-    if not size then error("MDX: unknown track " .. tag) end
+    if not size then r.pos = r.pos - 4 r:fail("unknown track %q", tag) end
     local count = r:u32()
     local t = { interpolation = r:u32(), keys = {} }
     local g = r:i32()
@@ -137,11 +185,15 @@ local function read_track(r, tag)
 end
 
 -- Tracks that follow a record's fixed fields, up to the record's end
+-- (reads may not pass the record's end while they're read)
 local function read_tracks(r, stop, into)
+    local limit = r.limit
+    r.limit = stop
     while r.pos < stop do
         local tag = r:tag()
         into[tag] = read_track(r, tag)
     end
+    r.limit = limit
 end
 -- }}}
 
@@ -203,7 +255,22 @@ end
 -- {{{ Chunks
 local chunk = {}
 
-function chunk.VERS(r, m) m.version = r:u32() end
+-- {{{ chunk.VERS
+-- Classic WC3 writes version 800. Reforged's HD models (900 and later) are
+-- refused, not guessed at: the project leaves Reforged's formats alone
+-- (docs/versions-we-leave-alone.md), and a caller that gets the error
+-- falls back to a stand-in as for any unreadable model.
+function chunk.VERS(r, m)
+    m.version = r:u32()
+    if m.version > mdx.VERSION then
+        error(string.format("MDX: version %d is Reforged's HD model format, which isn't read"
+            .. " (only version %d; see docs/versions-we-leave-alone.md)", m.version, mdx.VERSION), 0)
+    elseif m.version < mdx.VERSION then
+        error(string.format("MDX: version %d is older than the classic version %d, which isn't read",
+            m.version, mdx.VERSION), 0)
+    end
+end
+-- }}}
 
 function chunk.MODL(r, m, stop)
     m.name = r:str(80)
@@ -241,35 +308,26 @@ end
 function chunk.MTLS(r, m, stop)
     m.materials = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local stop_mat = r:record()
         local mat = { priority_plane = r:i32(), flags = r:u32(), layers = {} }
-        if m.version and m.version > 800 then mat.shader = r:str(80) end
-        if r:tag() ~= "LAYS" then error("MDX: material without LAYS") end
+        if r:tag() ~= "LAYS" then r.pos = r.pos - 4 r:fail("a material without LAYS") end
         local count = r:u32()
         for i = 1, count do
-            local ls = r.pos
-            local lsize = r:u32()
+            local stop_layer = r:record()
             local layer = { filter_mode = r:u32(), shading = r:u32(), texture = r:u32(),
                             texture_animation = r:i32(), coord = r:u32(), alpha = r:f32(), tracks = {} }
-            if m.version and m.version > 800 then
-                layer.emissive = r:f32()
-                layer.fresnel = r:floats(3)
-                layer.fresnel_opacity = r:f32()
-                layer.fresnel_team = r:f32()
-            end
             layer.filter = mdx.FILTER[layer.filter_mode] or "none"
-            read_tracks(r, ls + lsize, layer.tracks)
+            read_tracks(r, stop_layer, layer.tracks)
             mat.layers[i] = layer
         end
-        r.pos = start + size
+        r.pos = stop_mat
         m.materials[#m.materials + 1] = mat
     end
 end
 
 local function counted(r, tag, per, read)
     local t = r:tag()
-    if t ~= tag then error("MDX: expected " .. tag .. ", found " .. t) end
+    if t ~= tag then r.pos = r.pos - 4 r:fail("expected %s, found %q", tag, t) end
     local count = r:u32()
     local out = {}
     for i = 1, count * per do out[i] = read(r) end
@@ -279,8 +337,7 @@ end
 function chunk.GEOS(r, m, stop)
     m.geosets = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local stop_geoset = r:record()
         local g = {}
         g.vertices = counted(r, "VRTX", 3, R.f32)
         g.normals = counted(r, "NRMS", 3, R.f32)
@@ -293,26 +350,16 @@ function chunk.GEOS(r, m, stop)
         g.material = r:u32()
         g.selection_group = r:u32()
         g.selection_flags = r:u32()
-        if m.version and m.version > 800 then
-            g.lod = r:u32()
-            g.lod_name = r:str(80)
-        end
         g.extent = r:extent()
         local nextents = r:u32()
         g.sequence_extents = {}
         for i = 1, nextents do g.sequence_extents[i] = r:extent() end
-        -- (reforged models add tangents and skin weights here)
-        while r.pos < start + size and (r:peek_tag() == "TANG" or r:peek_tag() == "SKIN") do
-            local tag = r:tag()
-            local count = r:u32()
-            r.pos = r.pos + count * (tag == "TANG" and 16 or 1)
-        end
         local t = r:tag()
-        if t ~= "UVAS" then error("MDX: expected UVAS, found " .. t) end
+        if t ~= "UVAS" then r.pos = r.pos - 4 r:fail("expected UVAS, found %q", t) end
         local sets = r:u32()
         g.uvs = {}
         for i = 1, sets do g.uvs[i] = counted(r, "UVBS", 2, R.f32) end
-        r.pos = start + size
+        r.pos = stop_geoset
         m.geosets[#m.geosets + 1] = g
     end
 end
@@ -320,19 +367,19 @@ end
 function chunk.GEOA(r, m, stop)
     m.geoset_animations = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local stop_anim = r:record()
         local a = { alpha = r:f32(), flags = r:u32(), color = r:floats(3), geoset = r:u32(), tracks = {} }
-        read_tracks(r, start + size, a.tracks)
+        read_tracks(r, stop_anim, a.tracks)
+        r.pos = stop_anim
         m.geoset_animations[#m.geoset_animations + 1] = a
     end
 end
 
 local function read_node(r)
-    local start = r.pos
-    local size = r:u32()
+    local stop_node = r:record()
     local node = { name = r:str(80), id = r:i32(), parent = r:i32(), flags = r:u32(), tracks = {} }
-    read_tracks(r, start + size, node.tracks)
+    read_tracks(r, stop_node, node.tracks)
+    r.pos = stop_node
     return node
 end
 
@@ -357,12 +404,11 @@ local function node_records(field, extra)
     return function(r, m, stop)
         m[field] = {}
         while r.pos < stop do
-            local start = r.pos
-            local size = r:u32()
+            local stop_record = r:record()
             local node = read_node(r)
-            if extra then extra(r, node, start + size) end
-            node.raw = r.data:sub(r.pos + 1, start + size)
-            r.pos = start + size
+            if extra then extra(r, node, stop_record) end
+            node.raw = r.data:sub(r.pos + 1, stop_record)
+            r.pos = stop_record
             m[field][#m[field] + 1] = node
         end
     end
@@ -412,11 +458,11 @@ end
 function chunk.CAMS(r, m, stop)
     m.cameras = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local stop_camera = r:record()
         local c = { name = r:str(80), position = r:floats(3), fov = r:f32(), far = r:f32(), near = r:f32(),
                     target = r:floats(3), tracks = {} }
-        read_tracks(r, start + size, c.tracks)
+        read_tracks(r, stop_camera, c.tracks)
+        r.pos = stop_camera
         m.cameras[#m.cameras + 1] = c
     end
 end
@@ -424,10 +470,10 @@ end
 function chunk.TXAN(r, m, stop)
     m.texture_animations = {}
     while r.pos < stop do
-        local start = r.pos
-        local size = r:u32()
+        local stop_anim = r:record()
         local t = { tracks = {} }
-        read_tracks(r, start + size, t.tracks)
+        read_tracks(r, stop_anim, t.tracks)
+        r.pos = stop_anim
         m.texture_animations[#m.texture_animations + 1] = t
     end
 end
@@ -439,21 +485,37 @@ end
 -- }}}
 
 -- {{{ mdx.parse
+-- Raises an error naming the chunk and byte offset when the file is cut
+-- short or a size inside it is wrong, and naming the version when it isn't
+-- classic WC3's. Chunks this reader doesn't decode are kept, in file order,
+-- in m.unread ({ tag, offset, bytes }) and by tag in m.other.
 function mdx.parse(data)
     if data:sub(1, 4) ~= "MDLX" then error("not an MDX model (no MDLX)") end
     local r = reader(data)
     r.pos = 4
-    local m = { chunks = {}, other = {} }
-    while r.pos + 8 <= r.n do
+    local m = { chunks = {}, other = {}, unread = {} }
+    while r.pos < r.n do
+        local start = r.pos
+        r.where, r.limit = "the chunk list", r.n
+        if r.pos + 8 > r.n then
+            r:fail("%d stray bytes, too few for a chunk header (the file is cut short?)", r.n - r.pos)
+        end
         local tag = r:tag()
         local size = r:u32()
         local stop = r.pos + size
-        if stop > r.n then error("MDX: chunk " .. tag .. " runs past the end") end
+        if stop > r.n then
+            r.pos = start
+            r:fail("chunk %q claims %d bytes, but %d are left", tag, size, r.n - start - 8)
+        end
+        r.where = string.format("chunk %s (starting at byte %d)", tag, start)
+        r.limit = stop
         local fn = chunk[tag]
         if fn then
             fn(r, m, stop)
         else
-            m.other[tag] = data:sub(r.pos + 1, stop)
+            local bytes = data:sub(r.pos + 1, stop)
+            m.unread[#m.unread + 1] = { tag = tag, offset = start, bytes = bytes }
+            if not m.other[tag] then m.other[tag] = bytes end
         end
         m.chunks[#m.chunks + 1] = tag
         r.pos = stop
@@ -467,6 +529,37 @@ function mdx.parse(data)
     m.pivots = m.pivots or {}
     m.geoset_animations = m.geoset_animations or {}
     return m
+end
+-- }}}
+
+-- {{{ mdx.summary
+-- The facts the fetcher (603) and the catalogue (1001) show about a model
+-- without drawing it: counts, sequence names, the textures it names, the
+-- replaceable ids it uses (1 team colour, 2 team glow, ...), and the tags
+-- of the chunks left unread.
+function mdx.summary(m)
+    local s = { version = m.version, name = m.name, geosets = #m.geosets, vertices = 0, triangles = 0,
+                sequences = {}, textures = {}, replaceable_ids = {}, nodes = 0, unread = {} }
+    for _, g in ipairs(m.geosets) do
+        s.vertices = s.vertices + #g.vertices / 3
+        s.triangles = s.triangles + math.floor(#g.faces / 3)
+    end
+    for i, q in ipairs(m.sequences) do s.sequences[i] = q.name end
+    local seen = {}
+    for _, t in ipairs(m.textures) do
+        if t.replaceable ~= 0 then
+            if not seen[t.replaceable] then
+                seen[t.replaceable] = true
+                s.replaceable_ids[#s.replaceable_ids + 1] = t.replaceable
+            end
+        elseif t.path ~= "" then
+            s.textures[#s.textures + 1] = t.path
+        end
+    end
+    table.sort(s.replaceable_ids)
+    for _ in pairs(mdx.nodes(m)) do s.nodes = s.nodes + 1 end
+    for i, u in ipairs(m.unread or {}) do s.unread[i] = u.tag end
+    return s
 end
 -- }}}
 
