@@ -17,7 +17,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 801 | [Matchmaking Server](./801-matchmaking-server.md) | open | — |
 | 801a | [Matchmaking Protocol Specification](./completed/801a-protocol-specification.md) | completed | 801 |
 | 801b | [Matchmaking Server Core](./completed/801b-server-core.md) | completed | 801a |
-| 801c | [Matchmaking Client Library](./801c-client-library.md) | open | 801a, 801b |
+| 801c | [Matchmaking Client Library](./completed/801c-client-library.md) | completed | 801a, 801b |
 | 801d | [NAT Traversal System](./801d-nat-traversal.md) | open | 801a, 801b |
 | 801e | [Lobby UI](./801e-lobby-ui.md) | open | 801c |
 | 801f | [Asset Mirror Integration](./801f-asset-mirror.md) | open | 801b, 2026, 09, 26, 609 |
