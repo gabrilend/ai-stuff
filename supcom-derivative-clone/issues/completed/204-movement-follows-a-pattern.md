@@ -5,14 +5,17 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 201, 203 |
 | Blocks | 308 |
-| Reads | [factories and patterns in the sand](../docs/006-factories-and-patterns-in-the-sand.md) |
+| Reads | [factories and patterns in the sand](../../docs/006-factories-and-patterns-in-the-sand.md) |
 | Open questions | A4, C1 |
 
 ## Current behavior
 
-Nothing. The test program `tests/020-things-that-roll-fly-and-sail.lua` names
-this issue and looks for the stem `movement`. Patterns as a thing a player draws
-are issue 308; this issue is what a unit does with one it already carries.
+Built. `src/043-movement.lua` walks every live land and sea unit along its
+pattern by its speed, slowed uphill by its kind's `climb`, landing exactly on
+each point and holding after the last. The water and the field's edge are
+walls; a land unit whose next cell is held waits a pass, then steps aside
+square to its way until it is past. Planes are skipped. The tick's move row
+runs it, sliceable, after rewriting the cell occupancy.
 
 ## Intended behavior
 
@@ -71,11 +74,43 @@ tick, so two workers never race on it.
 6. Refuse, by name, a unit whose `pattern` names no pattern and a `leg` past
    the pattern's count; both are validator questions at load.
 
+## What happened
+
+- **The pattern store is `world.pattern = {count, points}`, with
+  `points[n]` a list of `{x, y}` tables**, because the test and the tests
+  document write it that way; the issue's flat array of points is not what the
+  test fills. The world allocates it, the hash and the copy include it, and the
+  validator checks every point and every unit's pattern and leg.
+- **`leg` is the point the unit is heading for**, from one; one past the last
+  point means it holds. A unit already standing on its point turns to the next
+  in the same pass. A step that would pass a point lands on it and goes no
+  further that pass; the leftover is not carried.
+- **Slope (C1, both):** a land unit's step is `speed / (1 + climb * rise)`,
+  where the rise is from its cell to the cell a whole cell ahead along its way,
+  and `climb` is a new catalogue field per kind (0.5 for the tank, 0.3 for the
+  enforcer, 0 for anything that does not walk the ground). Downhill is flat
+  speed. Ships' water is flat.
+- **The occupancy is rewritten at the start of the whole-world move pass**, not
+  by a separate row at the tick's end, because the tick's thirteen rows are
+  fixed by the phase 1 test. It is the same thing a pass later, and a slice
+  never writes it; the thread pool (209) must run `occupancy_pass` before
+  slicing. Two units can still step into one empty cell in the same pass; the
+  next pass sees both and sorts them out.
+- **Going round a held cell:** the issue's "neighbouring cells along its leg"
+  became a wait of one pass, then steps square to the way (left first), pass
+  after pass while the way stays blocked, until the unit is in the next row of
+  cells and its straight way runs past. Turning forty-five degrees was tried
+  first and left a unit nudging the corner of the held cell for ever.
+- **Only land units hold cells.** Ships and planes do not; the issue names land
+  only.
+- A4 (hold) and C1 stay open with these working rulings; the proving ground
+  answers whether a wait and a sidestep keep a column from knotting.
+
 ## Related documents and tools
 
-- [factories and patterns in the sand](../docs/006-factories-and-patterns-in-the-sand.md)
-- [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) — the movement section
-- [the dunes and the sightlines](../docs/002-the-dunes-and-the-sightlines.md) — slope
+- [factories and patterns in the sand](../../docs/006-factories-and-patterns-in-the-sand.md)
+- [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) — the movement section
+- [the dunes and the sightlines](../../docs/002-the-dunes-and-the-sightlines.md) — slope
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

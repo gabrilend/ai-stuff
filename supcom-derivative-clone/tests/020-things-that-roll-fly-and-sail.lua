@@ -138,9 +138,10 @@ harness.suite("a unit carries copies of its kind's numbers from birth", function
                 timers.read(world.unit.shield[id], world.unit.shield_at[id], world.recharge.enforcer,
                             row.shield) == row.shield)
   local plane = units.spawn(world, "helicopter", 1, 1, 1)
-  harness.check("a plane flies at its altitude and claims nothing",
-                world.unit.altitude[plane] == catalogue.helicopter.altitude
-                and world.unit.altitude[plane] > 0 and world.unit.claim_radius[plane] == 0)
+  local ground = math.max(world.field.height[1 * FIELD.size + 1 + 1], world.field.water_line)
+  harness.check("a plane flies its height above the ground and claims nothing",
+                world.unit.altitude[plane] == ground + catalogue.helicopter.altitude
+                and world.unit.claim_radius[plane] == 0, world.unit.altitude[plane])
   local ok, problem = pcall(units.spawn, world, "tank", 3, 1, 1)
   harness.check("a team the world does not have is refused",
                 not ok and tostring(problem):find("team 3", 1, true) ~= nil, problem)
@@ -218,7 +219,11 @@ harness.suite("the world's validator holds a unit to its kind", function()
   local units = harness.load("units", "201")
   local the_world = harness.load("the-world", "104")
   local world = fresh()
-  local id = units.spawn(world, "frigate", 1, 3, 3)
+  local water
+  for index = 1, FIELD.size * FIELD.size do
+    if world.field.height[index] < world.field.water_line then water = water or index end
+  end
+  local id = units.spawn(world, "frigate", 1, (water - 1) % FIELD.size, math.floor((water - 1) / FIELD.size))
   harness.check("a spawned world validates", (pcall(the_world.validate, world)))
   world.unit.domain[id] = units.DOMAINS.land
   local ok, problem = pcall(the_world.validate, world)
@@ -308,6 +313,137 @@ harness.suite("movement follows a pattern and holds at its end", function()
   local x, y = world.unit.x[id], world.unit.y[id]
   movement.move_pass(world)
   harness.check("a unit at the end of its pattern holds", world.unit.x[id] == x and world.unit.y[id] == y)
+end)
+-- }}}
+
+-- {{{ domains and movement, closer
+-- {{{ local function flat()
+-- A world whose field is flat land at height 10, with a strip of sea along the
+-- column x = 30 from the top edge to y = 40, so a suite knows exactly where the
+-- water and the shore are, and the start regions stay joined by land below it.
+local function flat()
+  local world = fresh()
+  local field = world.field
+  for index = 1, #field.height do field.height[index] = 10 end
+  for y = 0, 40 do field.height[y * field.size + 30 + 1] = 1 end
+  return world
+end
+-- }}}
+
+harness.suite("a domain is one row of a dispatch table, answered off the heights", function()
+  local domains = harness.load("domains", "203")
+  local units = harness.load("units", "201")
+  local world = flat()
+  local field = world.field
+  harness.check("domains are named integers", domains.LAND == 1 and domains.AIR == 2 and domains.SEA == 3)
+  harness.check("an integer domain is answered as its name is",
+                domains.can_stand(field, domains.SEA, 30, 5) == domains.can_stand(field, "sea", 30, 5))
+  harness.check("one row per domain in the dispatch table",
+                type(domains.STAND[1]) == "function" and type(domains.STAND[3]) == "function")
+  local ok, problem = pcall(domains.can_stand, field, "land", -3, 5)
+  harness.check("a position off the field is refused, not answered", not ok, problem)
+  ok, problem = pcall(domains.can_stand, field, "underground", 3, 5)
+  harness.check("a domain nobody has is refused by name",
+                not ok and tostring(problem):find("underground", 1, true) ~= nil, problem)
+  harness.check("land beside the sea is shore, and land away from it is not",
+                domains.is_shore(field, 29, 5) and domains.is_shore(field, 31, 5)
+                and not domains.is_shore(field, 20, 5) and not domains.is_shore(field, 30, 5))
+  field.height[5 * field.size + 10 + 1] = 15
+  harness.check("a plane's altitude is the ground beneath plus its flight height",
+                domains.altitude_at(field, "helicopter", 10, 5) == 15 + units.kind("helicopter").altitude
+                and domains.altitude_at(field, "helicopter", 30, 5)
+                    == field.water_line + units.kind("helicopter").altitude
+                and domains.altitude_at(field, "tank", 10, 5) == 0)
+  ok, problem = pcall(units.spawn, world, "tank", 1, 30, 5)
+  harness.check("a tank is not spawned on the water",
+                not ok and tostring(problem):find("land unit may not stand", 1, true) ~= nil, problem)
+  local id = units.spawn(world, "tank", 1, 29, 5)
+  world.unit.x[id] = 30
+  ok, problem = pcall(harness.load("the-world", "104").validate, world)
+  harness.check("a tank found in the sea is a refusal naming its row",
+                not ok and tostring(problem):find("row " .. id, 1, true) ~= nil, problem)
+end)
+
+harness.suite("the water is a wall, and a ridge is slow", function()
+  local units = harness.load("units", "201")
+  local movement = harness.load("movement", "204")
+  local world = flat()
+  local field = world.field
+  local id = units.spawn(world, "tank", 1, 25, 5)
+  world.pattern.count = 1
+  world.pattern.points[1] = {{x = 35, y = 5}}
+  world.unit.pattern[id], world.unit.leg[id] = 1, 1
+  for _ = 1, 200 do movement.move_pass(world) end
+  harness.check("a tank walking into the sea stops at the shore",
+                world.unit.x[id] < 29.5 and world.unit.x[id] > 29 and world.unit.y[id] == 5,
+                world.unit.x[id])
+  harness.check("and keeps its leg rather than turning round", world.unit.leg[id] == 1)
+  local flat_step = movement.step_length(field, "tank", 10, 10, 20, 10)
+  field.height[10 * field.size + 11 + 1] = 12
+  local up = movement.step_length(field, "tank", 10, 10, 20, 10)
+  local down = movement.step_length(field, "tank", 11, 10, 0, 10)
+  harness.check("flat ground is the catalogue's speed", flat_step == units.kind("tank").speed)
+  harness.check("uphill is slower than flat", up < flat_step)
+  harness.check("downhill is never faster than flat", down == flat_step)
+  harness.check("a ship's water is flat", movement.step_length(field, "frigate", 30, 1, 30, 9)
+                == units.kind("frigate").speed)
+end)
+
+harness.suite("two land units do not share a cell", function()
+  local units = harness.load("units", "201")
+  local movement = harness.load("movement", "204")
+  local world = flat()
+  local blocker = units.spawn(world, "tank", 2, 12, 10)
+  local walker = units.spawn(world, "tank", 1, 11, 10)
+  world.pattern.count = 1
+  world.pattern.points[1] = {{x = 11, y = 10}, {x = 20, y = 10}}
+  world.unit.pattern[walker], world.unit.leg[walker] = 1, 1
+  local cells = {}
+  local waited = false
+  for _ = 1, 120 do
+    movement.move_pass(world)
+    if world.unit.waited[walker] == 1 then waited = true end
+    cells[#cells + 1] = math.floor(world.unit.x[walker] + 0.5) .. "," .. math.floor(world.unit.y[walker] + 0.5)
+  end
+  local entered = false
+  for _, cell in ipairs(cells) do
+    if cell == "12,10" then entered = true end
+  end
+  harness.check("the walker waited a pass at the occupied cell", waited)
+  harness.check("and never stepped into it", not entered, table.concat(cells, " "))
+  harness.check("it went round and reached the end",
+                world.unit.x[walker] == 20 and world.unit.y[walker] == 10 and movement.held(world, walker),
+                world.unit.x[walker] .. "," .. world.unit.y[walker])
+  harness.check("the occupancy names the blocker's cell",
+                world.cell.occupant[10 * FIELD.size + 12 + 1] == blocker)
+end)
+
+harness.suite("planes do not walk patterns, and the move row runs", function()
+  local units = harness.load("units", "201")
+  local movement = harness.load("movement", "204")
+  local the_tick = harness.load("the-tick", "105")
+  local snapshot = harness.load("snapshot", "109")
+  local world = flat()
+  local plane = units.spawn(world, "helicopter", 1, 5, 5)
+  world.pattern.count = 1
+  world.pattern.points[1] = {{x = 9, y = 5}}
+  world.unit.pattern[plane], world.unit.leg[plane] = 1, 1
+  movement.move_pass(world)
+  harness.check("a plane with a pattern stays where it is", world.unit.x[plane] == 5)
+  local row = the_tick.SYSTEMS[5]
+  harness.check("the tick's fifth row is the move pass, and it slices",
+                row.name == "move" and row.waiting_for == nil and row.sliceable
+                and type(row.run_slice) == "function")
+  local before = snapshot.hash(world)
+  world.pattern.points[1][1].x = 9.5
+  harness.check("the patterns are part of the fingerprint", snapshot.hash(world) ~= before)
+  local copy = snapshot.copy(world)
+  world.pattern.points[1][1].x = 8
+  harness.check("and a snapshot's patterns stand alone", copy.pattern.points[1][1].x == 9.5)
+  world.unit.pattern[plane] = 4
+  local ok, problem = pcall(harness.load("the-world", "104").validate, world)
+  harness.check("a unit following a pattern the world lacks is refused",
+                not ok and tostring(problem):find("pattern 4", 1, true) ~= nil, problem)
 end)
 -- }}}
 

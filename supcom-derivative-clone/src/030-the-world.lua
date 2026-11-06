@@ -115,6 +115,7 @@ M.LAYOUT = {
     {"eye", "double"},          -- how high it looks from
     {"profile", "double"},      -- how tall it looks
     {"claim_radius", "integer"}, -- cells of territory it claims, copied at birth; zero claims none
+    {"waited", "integer"},      -- one when it waited a tick for an occupied cell; zero otherwise
     {"shield", "integer"},      -- the enforcer's shield pair; zero for everything else
     {"shield_at", "integer"},
     {"eaten", "integer"},       -- mass an enforcer has consumed
@@ -131,6 +132,7 @@ M.LAYOUT = {
     {"claim_seen", "integer"},  -- the increment its claimant was last near it
     {"improvement", "integer"}, -- what has been spent raising what it pays (issue 311)
     {"mark", "integer"},        -- this tick's presence, one bit per team; zero between passes
+    {"occupant", "integer"},    -- the land unit standing in it as the move pass began; zero for none
   }},
   {group = "marked", kind = "queue", capacity = "cells", fields = {
     {"cell", "integer"},        -- a cell some unit marked this tick, in the order first marked
@@ -396,6 +398,10 @@ function M.allocate(parameters)
   for row, name in ipairs(streams.STREAMS) do
     world.stream.state[row] = streams.seed_state(seed, name)
   end
+  -- The pattern store: `points[n]` is pattern n's list of {x, y} points, in the
+  -- order a unit walks them. A list of points is not a column, so it is kept
+  -- beside the groups rather than in the layout; the hash and the copy walk it.
+  world.pattern = {count = 0, points = {}}
   return world
 end
 -- }}}
@@ -494,6 +500,24 @@ function M.validate(world)
   for row = 1, world.stream.capacity do
     if world.stream.state[row] == 0 then
       error("the world: stream row " .. row .. " has a state of zero, which never leaves zero", 2)
+    end
+  end
+  -- The pattern store: one list of points per pattern counted, every point two
+  -- numbers on the field.
+  local store = world.pattern
+  if type(store) ~= "table" or type(store.count) ~= "number" or type(store.points) ~= "table" then
+    error("the world: the pattern store is not there", 2)
+  end
+  for number = 1, store.count do
+    local points = store.points[number]
+    if type(points) ~= "table" or #points == 0 then
+      error("the world: pattern " .. number .. " has no points", 2)
+    end
+    for index, point in ipairs(points) do
+      if type(point) ~= "table" or type(point.x) ~= "number" or type(point.y) ~= "number"
+         or point.x ~= point.x or point.y ~= point.y then
+        error("the world: pattern " .. number .. " point " .. index .. " is not two numbers", 2)
+      end
     end
   end
   -- The unit rows' own check: kinds the catalogue has, domains that agree.

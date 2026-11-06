@@ -52,6 +52,7 @@ The file returns one table: `{[name] = row}`.
 | `reload_seconds` | double | between shots; becomes `reload_ticks` |
 | `heal_period` | double | seconds between one point of health coming back; becomes `heal_ticks`, the period of `world.heal.<name>` |
 | `speed` | double | cells per tick on flat ground |
+| `climb` | double | how much a rise slows a land unit: a step up a rise of r per cell is `speed / (1 + climb * r)`; downhill is never faster; zero for kinds that do not walk the ground |
 | `eye`, `profile` | double | how high it looks from, how tall it looks |
 | `altitude` | double | flight height above the ground; zero for land and sea |
 | `claim_radius` | integer | cells of territory it claims around itself; zero claims nothing |

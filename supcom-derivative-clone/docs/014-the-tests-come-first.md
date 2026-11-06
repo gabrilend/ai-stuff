@@ -85,8 +85,8 @@ the test.
 | `territory` | 112 | `claim(world, team, x, y, radius)`; `claim_pass(world)`; `owner(world, cell)`; `percent(world, team)` |
 | `units` | 201, 202 | `spawn(world, kind, team, x, y)` returns an id, refusing an unknown kind by name; `alive(world)` returns a count; `catalogue()`, the unit catalogue loaded, validated and converted to ticks; `validate_catalogue(raw, rate)`; `kind(name or index)`, `index_of(name)`, `name_of(index)`; `counters()`, the heal and recharge counters the catalogue asks for; `validate(world)`; `dump(world, id)`; `report()` |
 | `unit-catalogue` | 202 | a table in `assets/`, one row per kind, every field an integer, a double, or a name: `health`, `damage`, `shell_speed`, `heal_period`, `eye`, `profile`, `shield`, and the rest the issue lists |
-| `domains` | 203 | `can_stand(field, domain, x, y)` |
-| `movement` | 204 | `move_pass(world)` |
+| `domains` | 203 | `can_stand(field, domain, x, y)`, the domain a name or an integer; `altitude_at(field, kind, x, y)`; `is_shore(field, x, y)`; `ground_at(field, x, y)`; `validate(world)`; `LAND`, `AIR`, `SEA`, `REACH`, `STAND` |
+| `movement` | 204 | `move_pass(world)` and `move_pass_slice(world, first, last)`; `occupancy_pass(world)`; `step_length(field, kind, from_x, from_y, to_x, to_y)`; `held(world, id)` |
 | `targeting` | 205, 405, 502 | `aim_pass(world)`; `falloff(kind, distance)` returns a fraction |
 | `combat` | 206, 207 | `fire_pass(world)`; `land_pass(world)`; `die_pass(world)`; `hurt(world, id, amount)`; `health(world, id)` |
 | `bones` | 208 | `leave(world, unit)`; `leave_at(world, x, y, mass)`; `eat(world, unit, bone)` |
@@ -129,14 +129,14 @@ builds the system that writes it:
 - `world.field.{size, height, water_line}`
 - `world.unit.{count, alive, kind, team, x, y, target, pattern, leg, health, health_at,
   shield, shield_at, eaten, eat_share, mission, strength, in_round, goal_x, goal_y,
-  claim_radius}`
+  claim_radius, waited}`
 - `world.pattern.{count, points}`
 - `world.shot.{count, arrives}`
 - `world.bone.{count, x, y, mass}`
 - `world.heal.<kind>`, `world.recharge.enforcer`, `world.cloud_round`,
   `world.claim.{period, increments_to_claim}` — every one a counter from issue 106
 - `world.team.{mass, energy, thorns, energy_level}`
-- `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began, claim_seen, mark}`
+- `world.cell.{owner, hydrocarbon, improvement, claim_by, claim_began, claim_seen, mark, occupant}`
 - `world.marked.{count, cell}` — the claim pass's scratch, empty between passes (issue 112)
 - `world.building.alive`
 - `world.factory.{line, running, pattern}`

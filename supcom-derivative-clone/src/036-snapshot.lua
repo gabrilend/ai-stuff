@@ -83,6 +83,34 @@ local function fold_array(hash, array, last, words_per_slot)
 end
 -- }}}
 
+-- A scratch double, so a pattern's coordinates fold as the words of their
+-- memory exactly as a double column's do.
+local scratch = ffi.new("double[1]")
+
+-- {{{ local function fold_double()
+local function fold_double(hash, value)
+  scratch[0] = value
+  return fold_array(hash, scratch, 0, 2)
+end
+-- }}}
+
+-- {{{ local function fold_patterns()
+-- The pattern store: its count, then each pattern's length and its points in
+-- order. Patterns are what units walk, so a pattern that differs is a world
+-- that differs.
+local function fold_patterns(hash, store)
+  hash = fold_number(hash, store.count)
+  for number = 1, store.count do
+    local points = store.points[number]
+    hash = fold_number(hash, #points)
+    for index = 1, #points do
+      hash = fold_double(fold_double(hash, points[index].x), points[index].y)
+    end
+  end
+  return hash
+end
+-- }}}
+
 -- {{{ local function rows_in_use()
 -- The last slot of a group that can hold anything: a pool's highest claimed
 -- row, a queue's count, every row of anything else. Folding a pool's unused
@@ -100,7 +128,8 @@ end
 
 -- {{{ function M.hash()
 -- The world's fingerprint: the tick, then every group in layout order (its
--- bookkeeping, then each field's rows in use), then every counter.
+-- bookkeeping, then each field's rows in use), then every counter, then the
+-- pattern store.
 function M.hash(world)
   local layout = world.layout
   local hash = fold_number(0x5eed5eed, world.tick)
@@ -131,6 +160,7 @@ function M.hash(world)
     end
     hash = fold_number(fold_number(fold_number(hash, counter.period), counter.increment), counter.next)
   end
+  hash = fold_patterns(hash, world.pattern)
   return hash % 4294967296
 end
 -- }}}
@@ -195,6 +225,16 @@ function M.copy(world)
     end
     into[row.path[#row.path]] = copy_table(from[row.path[#row.path]])
   end
+  -- The pattern store, every point its own table, so the copy stands alone.
+  local patterns = {count = world.pattern.count, points = {}}
+  for number = 1, world.pattern.count do
+    local points = {}
+    for index, point in ipairs(world.pattern.points[number]) do
+      points[index] = {x = point.x, y = point.y}
+    end
+    patterns.points[number] = points
+  end
+  copy.pattern = patterns
   return copy
 end
 -- }}}
