@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#
+# run-many-battles - fight many headless battles at once and total them up.
+#
+# Starts one headless run per processor core at a time, each with its own
+# seed (1 to COUNT), each leaving its receipt in the RAM scratch folder. When
+# all are done, it reads every receipt and prints one table: who won how
+# often, how long battles lasted, how often a parry succeeded, and where the
+# critical hits came from. The receipts are plain text, so the totals are a
+# reading of files, not a second count.
+#
+# Usage:
+#   ./run-many-battles COUNT [run options]     e.g. ./run-many-battles 64 --mode duel
+#   ./run-many-battles <dir> COUNT [options]
+#   ./run-many-battles --help
+
+DIR="/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if [ "${1:-}" = "--help" ]; then
+    sed -n '3,16p' "$0"
+    exit 0
+fi
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+COUNT="${1:?how many battles? (see --help)}"
+shift
+MODE_OPTIONS=("$@")
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}"
+
+BATCH="${DIR}/tmp/shared-memory/batches/$(date +%s)-$$"
+mkdir -p "${BATCH}"
+CORES=$(nproc)
+
+# A batch never runs on a single thread: one process per core, in waves.
+SEED=1
+while [ "${SEED}" -le "${COUNT}" ]; do
+    for _ in $(seq 1 "${CORES}"); do
+        [ "${SEED}" -gt "${COUNT}" ] && break
+        luajit "${DIR}/src/020-headless.lua" "${DIR}" --mode battle "${MODE_OPTIONS[@]}" \
+            --seed "${SEED}" --receipt "${BATCH}/${SEED}" &
+        SEED=$((SEED + 1))
+    done
+    wait
+done
+
+luajit "${DIR}/scripts/total-receipts" "${BATCH}"

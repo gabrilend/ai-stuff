@@ -5,8 +5,30 @@
 -- control loop reacts correctly (halve on too-big, wait on 429, grow on success,
 -- stop on fatal) and that the diff/batching are right.
 
+-- The project folder from --dir PATH, or nil when it was not given (the
+-- default below is then used); a stray word on the command line stops the
+-- program, named (libs/project-dir.lua, Issue 10-076).
+local PROJECT_DIR_ARG = (function()
+    local own = debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./"
+    local dir = dofile(own .. "../libs/project-dir.lua").read(arg, "")
+    if dir == "" then return nil end
+    return dir
+end)()
+
 package.path = arg[0]:gsub("[^/]+%.lua$", "") .. "?.lua;" .. package.path
 local S = require("neocities-sync")
+
+-- {{{ local function tuned()
+-- A full set of pacing numbers, as config.lua's deploy section gives the
+-- deploy script (run_adaptive requires every one, Issue 10-071), with a
+-- case's own numbers laid over them.
+local function tuned(overrides)
+    local opts = { budget = 8, max_count = 100, floor = 1, grow = 1.5, grow_after = 3,
+                   max_budget = 1024, base_delay = 0, max_retries = 8 }
+    for k, v in pairs(overrides) do opts[k] = v end
+    return opts
+end
+-- }}}
 
 local pass, fail = 0, 0
 local function check(label, cond)
@@ -75,7 +97,7 @@ do
         if #batch > 2 then return { status = 413 } end
         return { status = 200, ok_body = true }
     end
-    local stats = S.run_adaptive(items, op, {
+    local stats = S.run_adaptive(items, op, tuned{
         budget = 8, max_count = 100, floor = 1, grow_after = 1e9,  -- no growth this test
         sleep = function() end,
     })
@@ -93,7 +115,7 @@ do
         if calls == 1 then return { status = 429, retry_after = 3 } end
         return { status = 200, ok_body = true }
     end
-    local stats = S.run_adaptive(items, op, {
+    local stats = S.run_adaptive(items, op, tuned{
         budget = 8, grow_after = 1e9,
         sleep = function(s) slept = slept + s end,
     })
@@ -108,7 +130,7 @@ do
     local items = {}
     for i = 1, 30 do items[i] = { cost = 1 } end
     local op = function() return { status = 200, ok_body = true } end
-    local stats = S.run_adaptive(items, op, {
+    local stats = S.run_adaptive(items, op, tuned{
         budget = 2, max_count = 100, grow = 2, grow_after = 2, sleep = function() end,
     })
     check("steady run completes", stats and stats.done == 30)
@@ -121,7 +143,7 @@ do
     local items = {}
     for i = 1, 10 do items[i] = { cost = 1 } end
     local seen = 0
-    local stats = S.run_adaptive(items, function() return { status = 200, ok_body = true } end, {
+    local stats = S.run_adaptive(items, function() return { status = 200, ok_body = true } end, tuned{
         budget = 3, max_count = 100, grow_after = 1e9, sleep = function() end,
         on_batch_ok = function(batch) seen = seen + #batch end,
     })
@@ -133,7 +155,7 @@ end
 do
     local items = { { cost = 1 } }
     local op = function() return { status = 403 } end
-    local stats, err = S.run_adaptive(items, op, { sleep = function() end })
+    local stats, err = S.run_adaptive(items, op, tuned{ sleep = function() end })
     check("fatal returns nil + error", stats == nil and type(err) == "string")
 end
 -- }}}
@@ -142,11 +164,18 @@ end
 do
     local items = { { cost = 1, remote = "stubborn" } }
     local op = function() return { status = 500 } end   -- always fails, even at 1 file
-    local stats, err = S.run_adaptive(items, op, { budget = 1, floor = 1, sleep = function() end })
+    local stats, err = S.run_adaptive(items, op, tuned{ budget = 1, floor = 1, sleep = function() end })
     check("floor failure surfaces (no wedge)", stats == nil and err:match("minimum batch") ~= nil)
 end
 -- }}}
 
+-- {{{ run_adaptive: a missing pacing number is an error naming it
+do
+    local ok, err = pcall(S.run_adaptive, { { cost = 1 } }, function() return { status = 200, ok_body = true } end,
+        { budget = 8, sleep = function() end })
+    check("a missing pacing number is an error naming it", not ok and tostring(err):find("opts.max_count", 1, true) ~= nil)
+end
+-- }}}
 print("")
 print(string.format("Result: %d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)

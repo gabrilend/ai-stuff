@@ -1,0 +1,14 @@
+# lamp.txt - a desk lamp, using the owner's own example phrasings ("twice as
+# large as", "proportionally scaled to", "aligned with the rotational axis
+# of the cylinder shaped thing"). Written by Claude (Opus 5.5), 2026-10-10,
+# for issue 007e.
+The base is a grey disc.
+The weight is a black cylinder. The weight is half as wide as the base.
+The weight is twice as tall as the base. The weight sits under the base.
+The pole is a silver rod. The pole is three times as long as the base is wide.
+The pole is aligned with the rotational axis of the cylinder shaped thing.
+The pole sits on top of the base.
+The shade is a yellow cone. The shade is proportionally scaled to the base.
+The shade is at the end of the pole.
+The bulb is a white ball. The bulb is a quarter the size of the shade.
+The bulb is at the other end of the shade.

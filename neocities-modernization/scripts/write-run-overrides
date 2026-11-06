@@ -13,11 +13,14 @@
 -- choice from a previous run can never leak into this one.
 --
 -- Usage:
---   scripts/write-run-overrides DIR [--key value]...
---   e.g. scripts/write-run-overrides "$DIR" --model qwen3-embedding:4b
--- DIR defaults to the hard-coded project root; pass it (as run.sh does) to be
--- safe. Empty values are skipped: an absent key means "no override; use
+--   scripts/write-run-overrides [--dir PATH] [--key value]...
+--   e.g. scripts/write-run-overrides --dir "$DIR" --model qwen3-embedding:4b
+-- --dir defaults to the hard-coded project root; pass it (as run.sh does) to
+-- be safe. A word with no flag in front of it stops the script (Issue 10-076). Empty values are skipped: an absent key means "no override; use
 -- config.lua", so `--model ""` correctly records no model override at all.
+
+-- --help: print the header above and exit, before any work (libs/script-help.lua)
+dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/script-help.lua").handle(arg)
 
 -- {{{ setup_dir_path(provided)
 local function setup_dir_path(provided)
@@ -27,31 +30,31 @@ end
 -- }}}
 
 -- {{{ parse_args(args)
--- First bare (non --) argument is DIR; every "--key value" pair becomes an
--- override, skipping empty values so callers can pass through-unset flags
--- verbatim without building the argument list conditionally.
+-- Every "--key value" pair becomes an override, skipping empty values so
+-- callers can pass through-unset flags verbatim without building the argument
+-- list conditionally. (The project folder, --dir, is read before this.)
 local function parse_args(args)
     local dir = nil
     local overrides = {}
     local i = 1
     while i <= #(args or {}) do
         local a = args[i]
-        if a:sub(1, 2) == "--" then
-            local key = a:sub(3)
-            local value = args[i + 1] or ""
-            if value ~= "" then overrides[key] = value end
-            i = i + 2
-        else
-            if not dir then dir = a end
-            i = i + 1
-        end
+        local key = a:sub(3)
+        local value = args[i + 1] or ""
+        if value ~= "" then overrides[key] = value end
+        i = i + 2
     end
     return dir, overrides
 end
 -- }}}
 
-local provided_dir, overrides = parse_args(arg)
-local DIR = setup_dir_path(provided_dir)
+-- The project folder: --dir PATH, or the path above; a stray word stops the
+-- program, named (libs/project-dir.lua, Issue 10-076). It used to be the first
+-- bare word. Every other flag here takes the next word as its value ("*"),
+-- even an empty one, so an unset override is not a stray word.
+local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)") or "./") .. "../libs/project-dir.lua")
+    .read(arg, setup_dir_path(nil), "*")
+local _, overrides = parse_args(OWN_ARGS)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. package.path
 local runtime_overrides = require("runtime-overrides")
 runtime_overrides.set_project_root(DIR)

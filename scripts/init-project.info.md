@@ -26,7 +26,10 @@ quietly delivering the skeleton instead.
 The RAM tier layout is not defined here: `link_ram_directories` calls ensure
 mode of `libs/ensure-ram-tiers`, the same definition the session-start hook
 `restore-ram-tiers` uses to rebuild the tiers after a reboot (issue 033). An
-existing `tmp` link is honoured, not re-pointed.
+existing `tmp` link is honoured, not re-pointed. Building the tiers also gives
+the project's `.claude/settings.local.json` a path rule per room, so Claude
+Code sessions there may write into them from the shell without a question
+(issue 042, `libs/ensure-ram-tiers.info.md`).
 
 ## What it is for
 

@@ -1,0 +1,103 @@
+#!/bin/bash
+#
+# start-the-film-models
+#
+# Starts the model server the films need. Choosing a film for each message
+# uses two models that run on this computer's graphics card: one looks at
+# pictures, one turns text into lists of numbers. Both are served by Ollama,
+# a program that loads models onto the card and answers questions about them
+# over HTTP. This starts it, if it is not already answering, listening on this
+# computer only -- nothing on the network can reach it -- and writes its log
+# into the project's RAM folder.
+#
+# The address comes from the project's films settings, so there is one place
+# to change it. The server keeps running after this script ends; stop it with
+# the pkill line it prints.
+#
+# Usage:
+#   start-the-film-models [project-dir] [--settings <file>] [--dir <scripts-dir>]
+#
+# OLLAMA_RUN in the environment names the Ollama to start; the default below
+# is the build compiled for this machine's card.
+
+set -euo pipefail
+
+DIR="/home/ritz/programming/ai-stuff/scripts"
+OLLAMA_RUN="${OLLAMA_RUN:-/mnt/mtwo/programs/ollama/local/ollama/bin/ollama-run}"
+
+# -- {{{ parse_arguments
+function parse_arguments() {
+   PROJECT=""
+   SETTINGS=""
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         --settings) SETTINGS="${2:?--settings needs a file}"; shift ;;
+         --dir)      DIR="${2:?--dir needs a folder}"; shift ;;
+         -h|--help)  sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
+         -*)         echo "start-the-film-models: unknown option $1" >&2; exit 1 ;;
+         *)          PROJECT="$1" ;;
+      esac
+      shift
+   done
+   PROJECT=$(realpath "${PROJECT:-$(pwd)}")
+   if [ -n "$SETTINGS" ]; then
+      SETTINGS=$(realpath "$SETTINGS")
+   fi
+}
+# }}}
+
+# -- {{{ read_setting
+# One value from the project's resolved settings: "server" or "scratch". The
+# paths reach Lua through the environment, never pasted into its text.
+function read_setting() {
+   SITE_DIR="$DIR/transcript-site" PROJECT_DIR="$PROJECT" SETTINGS_FILE="$SETTINGS" WANTED="$1" \
+   luajit -e '
+      local file = os.getenv("SETTINGS_FILE")
+      if file == "" then file = nil end
+      local settings = dofile(os.getenv("SITE_DIR") .. "/settings.lua").load(os.getenv("PROJECT_DIR"), file)
+      if not settings.films then
+         error("this project'"'"'s settings ask for no films")
+      end
+      local wanted = os.getenv("WANTED")
+      if wanted == "server" then print(settings.films.server) else print(settings.scratch) end
+   '
+}
+# }}}
+
+# -- {{{ main
+function main() {
+   parse_arguments "$@"
+
+   local address scratch
+   address="$(read_setting server)"
+   scratch="$(read_setting scratch)"
+   local log="$scratch/film-models.log"
+   mkdir -p "$scratch"
+
+   # Already answering: nothing to do.
+   if curl -s --max-time 3 "http://${address}/api/tags" > /dev/null; then
+      echo "The film models are already being served at ${address}."
+      return 0
+   fi
+
+   echo "Starting the model server at ${address}; log in ${log}"
+   OLLAMA_HOST="${address}" nohup "${OLLAMA_RUN}" serve > "${log}" 2>&1 &
+
+   # It takes a few seconds to find the card. Ask every second for half a
+   # minute, and say plainly if it never answers rather than letting the
+   # matcher discover it later.
+   local tries=0
+   while [ "${tries}" -lt 30 ]; do
+      if curl -s --max-time 2 "http://${address}/api/tags" > /dev/null; then
+         echo "Ready. Stop it with: pkill -f 'ollama serve'"
+         return 0
+      fi
+      tries=$((tries + 1))
+      sleep 1
+   done
+   echo "The model server did not answer within thirty seconds; see ${log}" >&2
+   return 1
+}
+# }}}
+
+main "$@"

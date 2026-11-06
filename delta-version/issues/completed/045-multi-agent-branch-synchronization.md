@@ -31,16 +31,16 @@ The current architecture creates isolated "branch islands":
 
 ```
 Current State (2026-01-08):
-* 3be51ee9 (dv/dev)      Fix: Add authorship-tool...
-*   137af4e4             Merge branch 'master' into dv/dev
+* 71fcb118 (dv/dev)      Fix: Add authorship-tool...
+*   14992cce             Merge branch 'master' into dv/dev
 |\
-* | a441a7f6 (dv/issue-042)
-| | * d2ffb993 (wete/dev) Fix load balancing...
-| | * bfdf4edf           Fix: Add authorship-tool... [DUPLICATE!]
+* | ea81fbba (dv/issue-042)
+| | * bd38ff2b (wete/dev) Fix load balancing...
+| | * eb42c4ce           Fix: Add authorship-tool... [DUPLICATE!]
 | |/
-| * 9ec27498 (master)    Update worktree documentation...
+| * 754129b9 (master)    Update worktree documentation...
 |/
-* 49ddd896 (origin/master)
+* b0e65c5f (origin/master)
 ```
 
 **Problem**:
@@ -51,8 +51,8 @@ Current State (2026-01-08):
 ### 2. Duplicate Work
 
 Evidence from git log:
-- `dv/dev` commit `3be51ee9`: "Fix: Add authorship-tool to manage-worktree.sh valid projects"
-- `wete/dev` commit `bfdf4edf`: "Fix: Add authorship-tool to manage-worktree.sh valid projects"
+- `dv/dev` commit `71fcb118`: "Fix: Add authorship-tool to manage-worktree.sh valid projects"
+- `wete/dev` commit `eb42c4ce`: "Fix: Add authorship-tool to manage-worktree.sh valid projects"
 
 **Two agents independently made the same fix** because they couldn't see each other's work.
 
