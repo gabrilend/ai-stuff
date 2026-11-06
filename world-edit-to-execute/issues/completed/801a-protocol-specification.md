@@ -13,6 +13,20 @@
 
 No matchmaking protocol exists. We need to define the wire format and message types for host-server and client-server communication.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #304 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- 64-bit whole numbers are summed as floats before the 2^53 check, so a value just past 2^53 is rounded to 2^53 instead of refused (confirmed with the branch's files); the test only tries 2^54+1. Check the high 32 bits first.
+- Every port field allows up to 2^32-1, so impossible ports pass the wire check and fail later at connect. Add a port kind (0–65535).
+- The lobby event field accepts any text though only four words are allowed; add an allowed-values kind.
+- The decoder accepts NaN and infinity, which the encoder refuses; a NaN map key crashes with a raw Lua error that leaks file paths.
+- Encode refuses depth >= 32 while decode refuses only > 32, so a decoded value can't be written back.
+- The version rule contradicts itself: decode refuses any version other than 1, yet the header says later versions may add optional fields without breaking older readers.
+- A map with a repeated key silently keeps the last copy.
+- Reading frames from a buffer re-parses each header and copies the whole remaining buffer per message (quadratic on bursts).
+- Functions lack their own folds; the decoder is a 30-branch if/else chain where a table indexed by type byte would do.
+
 ## Intended Behavior
 
 A well-defined binary protocol that supports:

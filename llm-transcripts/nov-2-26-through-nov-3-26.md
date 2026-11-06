@@ -1,6 +1,6 @@
 # Conversation Summary: 3e9767bf-5307-4ac4-8204-4e97b6e35e1d
 
-Generated on: 2026-11-03 11:57:44
+Generated on: 2026-11-03 12:09:04
 Models: claude-opus-5-5
 
 ## Contents
@@ -2230,6 +2230,93 @@ Two things are still left:
 Should the push hook also run the exporter over every project first, so
 transcripts never lag like this? The catch: a push would then leave freshly
 saved transcripts behind as uncommitted changes, to go up with the next commit.
+
+--------------------------------------------------------------------------------
+
+### User Request 43
+
+<pasted_content id="48d6">
+> The fix: the repository now keeps a list of the 3,877 commit IDs the two
+> rewrites replaced, in
+> delta-version/archive/disentangle/old-commits.txt. The patch tool reads it on
+> every save. It holds only the 40-character IDs, nothing from
+> inside the files. The sweep then saved every lagging project except
+> filesystem-tapestry, and those transcripts match a fresh save with
+>   their patches.
+</pasted_content id="48d6">
+
+
+this sounds like technical debt
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 43
+
+> You're right. It's a global list that grows with every rewrite and has to stay
+> in sync forever, and the patch tool depends on a file in one particular
+> project.
+>
+> The cause is simpler than the fix I chose. Each ID patch already lists, in
+> full, every old ID it translates. The tool asks the repository whether a
+> quoted ID is a real commit, but the patch itself is a better witness: if an ID
+> is in the patch, it's an old commit. Making the patch its own source removes
+> the list, the setting I added, and the dependency on the old history entirely.
+> Doing that now.
+
+> Removing the list and testing that saves still work without it.
+
+> The new mismatch is this conversation itself, which grows with every reply.
+> Nothing else changed. Updating the docs to match, then committing.
+
+*[commit] 902181dbf in ai-stuff - An id patch carries everything needed to apply it*
+
+> The 91 quotes are translated across 12 files. Next, ID patches in those
+> repositories, so their next saves keep the new IDs.
+
+> 12 patches written. The mismatches look like the same lag as in ai-stuff, but
+> I'm confirming that none still quotes an old ID.
+
+> 19 more quotes translated, and one error. Finding it.
+
+> No failures. The "error" was just a filename containing that word. Sorting
+> each repository's changes into translation-only (mine) and everything else.
+
+> All six committed. Checking that only my commit is waiting in the three I
+> planned to push, then pushing.
+
+The list of old IDs is gone. Each ID patch now names its own old IDs, so it
+applies in any repository without help. The patch tests pass (35 of 35), and
+saves still work. Pushed to ai-stuff as `902181db`.
+
+**Your other projects:** I found six repositories whose transcripts quote
+ai-stuff commits (seven clones counting the second copy of r-mail). In those I
+translated 118 quoted IDs across 27 files and added ID patches, so their next
+saves keep the new IDs. I only committed changes that differ from the last
+commit in nothing but commit IDs, so everyone else's work stayed out.
+
+| Repository | State |
+|---|---|
+| r-mail | pushed. The second clone inside `stable-diffusion` pulled it. |
+| wow-chat-2026 | pushed |
+| custom-client | pushed. The clean-room page is still local, as you wanted. |
+| rao-chat | committed, **not pushed**: 48 other commits are waiting there |
+| double-diaper-dungeon | committed on its `move-to-play-abcd` branch, **not pushed**: one other commit is waiting |
+| DDD-transcripts | committed, **not pushed**: its branch doesn't track anything on GitHub |
+
+Left uncommitted on purpose: a live wow-chat-2026 conversation, three rao-chat
+transcripts and one DDD transcript that have grown since they were last saved,
+and custom-client's clean-room page.
+
+Two gaps remain:
+- **How I picked the repositories:** I only searched for transcripts containing
+  `[commit] … in ai-stuff`. A repository that quotes ai-stuff IDs only some
+  other way wasn't checked. I can sweep every repository on the machine if you
+  want certainty.
+- **`~/.claude`:** it quotes ai-stuff IDs in 4 files, but it has no remote, so
+  nothing there is public, and I left it alone.
+
+Should rao-chat, DDD and DDD-transcripts be pushed, or do those waiting commits
+belong to work that isn't ready?
 
 --------------------------------------------------------------------------------
 
