@@ -16,6 +16,19 @@ selected unit's name and hit points. Input (`src/render/input.c`) picks
 units in the world; nothing checks whether a click landed on the
 interface first.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #313 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- A tooltip on a narrow screen (under about 28–40 px) leaves a zero or negative text width, and the line wrapper never finishes: the hud freezes forever (confirmed).
+- A button pressed and then disabled before release still reports a click on release (confirmed), so an order can be issued for a disabled button.
+- Hotkeys fire whatever modifier is held (Alt+A also presses Attack) and keep firing while a modal panel is open (confirmed).
+- Only the body text is shortened; a very long title makes the box taller than the screen with no "..." (confirmed).
+- A text entry keeps keyboard focus after it is disabled, so typing still goes into it and hotkeys stay dead (confirmed).
+- The hotkey is left off the title whenever the title has any colour code, not only one marking the hotkey letter.
+- TRIGSTR lookup is copied from the map-strings parser; three console tables and the point-in-rectangle test are copied from the pixel layout; `hit.lua` holds its own list of console parts, so adding a part means editing three files (the clock's lower 10 px already lets clicks through).
+- Fold markers name sections rather than functions in several places; unresolved TRIGSTR references are kept with no notice.
+
 ## Intended Behavior
 
 WC3's game interface: the top bar (resources, upkeep, time, menu buttons),
@@ -269,3 +282,49 @@ See Issue 500 "Decided Answers" section D2 for full details.
 - 506d-core-ui-elements.md
 - 506e-command-button-grid.md
 - 506f-tooltip-system.md
+
+## Decisions (2026-11-05)
+
+Made without the owner, and the owner's to overturn.
+
+1. **Open question 1 (Q-4): the interface's pieces are built in Lua.** The
+   interface that exists today is Lua: 518b's `src/ui/wc3/` (hud,
+   layout, command card, the script's UI, from September 2026) and the
+   editor's screens. They draw through `render/ui2d.c`'s `ui_*` calls.
+   The C interface, `src/render/ui.c`, is the slice from 508g (December
+   2025). The newer code and its idioms point to Lua, so 506b, 506c, 506e
+   and 506f are Lua modules next to it.
+2. **Kept easy to move.** The pieces are data and plain functions:
+   - frames (`ui/anchor.lua`, `ui/wc3/console_frames.lua`)
+   - flat element records, as 506a describes them (`ui/hit.lua`)
+   - text in and boxes out (`ui/tooltip.lua`)
+
+   No piece keeps hidden state beyond its own small cache or tracker
+   table. If the owner chooses C boxes writing into the page, the port is
+   `anchor.resolve` (about 80 lines), `hit.test` and the tracker. The
+   frame data can be written out as a table for C.
+3. **None of them is wired into `hud.lua` yet.** The hud keeps
+   `layout.compute`, its own `over_ui` test and its own tooltip. Each
+   switch is a small change: `hud.r = console_frames.compute(w, h)`,
+   `hit.from_layout` with `commands.elements` in place of `over_ui`, and
+   `tooltip.build`/`draw` in place of `draw_tooltip`. Each is left for the
+   owner to choose, because each changes what the game shows, and none of
+   it has been seen on a real screen.
+
+## What happened (2026-11-05)
+
+- 506b, 506c, 506e and 506f were built as Lua modules: `ui/anchor.lua`,
+  `ui/wc3/console_frames.lua`, `ui/hit.lua`, `commands.elements` and
+  `ui/tooltip.lua`. Each sub-issue says what it holds.
+- `src/tests/test_ui_framework.lua` has 103 checks and is headless.
+  `src/cli/run-tests.sh -d DIR ui_framework` runs and counts it. The tests
+  that use the command card still pass: `wc3`, abilities, construction,
+  repair, research and shops.
+- A mutation check ran 55 mutants of the five pieces, with `ulimit -f`:
+  - 51 were caught at first.
+  - Three survivors are caught now that checks were added: a stretch
+    between a left point and a centre point, the command card's spacing,
+    and the message lines' scaling.
+  - The fourth survivor was a redundant line in the hit tracker. It was
+    removed, and the check now also expects a leave when a hovered
+    element is hidden.
