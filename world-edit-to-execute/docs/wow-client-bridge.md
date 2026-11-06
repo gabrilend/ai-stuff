@@ -300,7 +300,7 @@ extractors, the map browser).
 | Step | State |
 |------|-------|
 | WC3's pictures (BLP1, with its JPEG) in C: W client issue 107a (completed) | Reading built 2026-10-07. Every BLP1 in `war3.mpq` and `War3x.mpq` decodes to the same bytes as `src/parsers/blp.lua` (W client `tests/050-blp1-matches-lua.lua`) |
-| WC3 models (MDX) into the W client's model structure: its 401 step 2 | next |
+| WC3 models (MDX) into the W client's model structure: its 401 step 2 | Built in the W client's draft pull request (gabrilend/custom-client#2), not yet merged: `src/061-mdx.c`, held to `src/parsers/mdx.lua` and `src/assets/gpu.lua` by its `tests/062-mdx-matches-lua.lua`. Three things found on the way are fixed here in issue 118 (a record of size 0, unchecked 16-bit and 8-bit reads, a corner past its points) |
 | WC3 animations through the same posing: its 402 step 1 | after 401 |
 | WC3 particles and ribbons: its 403 | after 402 |
 
