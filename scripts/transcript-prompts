@@ -1,0 +1,249 @@
+#!/usr/bin/env luajit
+-- transcript-prompts
+--
+-- Writes, beside each conversation transcript, a file holding only what the
+-- person asked: one request per line, line N being "### User Request N".
+-- A model picking a project back up can read every request in a few
+-- screens, then open the transcript at the request it needs to understand
+-- (issue 002).
+--
+-- How it works, in general terms: it reads the transcript as the exporter
+-- left it -- AFTER the transcript patches were applied -- with the shared
+-- transcript reader (transcript-site/conversation/transcript-reader.lua),
+-- takes each user request's text, writes it on one line, and puts the lines in
+--
+--   <llm-transcripts>/prompts/<transcript name without .md>.txt
+--
+-- WHY FROM THE TRANSCRIPT AND NOT FROM THE SESSION LOG. The log holds the
+-- exact words, but a transcript patch (issue 036) may have redacted some of
+-- them, and a prompts file read from the log would put back what the patch
+-- took out. Read from the patched transcript, a redaction always applies
+-- here too, and the spot reads exactly as it does in the transcript. The
+-- price is that the text is the transcript's: wrapped at eighty columns,
+-- with pasted-back lines marked "> ", and those line breaks kept.
+--
+-- ONE LINE PER REQUEST. A request's own line breaks are written as the two
+-- characters \n, a backslash as \\, a carriage return as \r, so every
+-- request is exactly one line and the text can be turned back into the
+-- transcript's byte for byte.
+--
+-- The exporter (backup-conversations) runs this on every transcript it
+-- writes, and removes a prompts file when its transcript is renamed or
+-- retired. Run by hand, it fills in transcripts the exporter will never
+-- write again -- those whose session log has expired.
+--
+-- Usage:
+--   transcript-prompts TRANSCRIPT.md...    write each one's prompts file
+--   transcript-prompts --dir LLM-TRANSCRIPTS
+--                                          every transcript in the folder, and
+--                                          remove prompts files whose
+--                                          transcript is gone
+--   transcript-prompts --print TRANSCRIPT.md
+--                                          the lines on standard output only
+--   transcript-prompts --help
+--
+-- A file whose content would not change is left alone, so its timestamp and
+-- git status do not move. A helper's transcript (agent-... in its header) is
+-- skipped: its requests were written by the model that spawned it, not by
+-- the person. Exit status: 0 done, 1 a transcript could not be read (named
+-- on stderr; the others are still done), 2 bad arguments.
+
+-- {{{ local DIR
+-- Where the transcript reader lives: beside this file, so a checkout uses its
+-- own copy; the house path when this file was reached some other way.
+local SCRIPTS_DIR = (arg and arg[0] and arg[0]:match("^(.*)/[^/]*$"))
+    or "/home/ritz/programming/ai-stuff/scripts"
+-- }}}
+
+local reader = dofile(SCRIPTS_DIR .. "/transcript-site/conversation/transcript-reader.lua")
+
+local M = {}
+
+-- {{{ local function read_file / write_file
+local function read_file(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local s = f:read("*a")
+    f:close()
+    return s
+end
+
+local function write_file(path, content)
+    local tmp = path .. ".tmp-" .. tostring(os.time()) .. "-" .. tostring(math.random(1e9))
+    local f = assert(io.open(tmp, "wb"))
+    f:write(content)
+    f:close()
+    assert(os.rename(tmp, path))
+end
+-- }}}
+
+-- {{{ local function shell_quote
+local function shell_quote(s)
+    return "'" .. s:gsub("'", "'\\''") .. "'"
+end
+-- }}}
+
+-- {{{ function M.escape / M.unescape
+-- One request as one line, reversibly.
+function M.escape(text)
+    return (text:gsub("[\\\n\r]", { ["\\"] = "\\\\", ["\n"] = "\\n", ["\r"] = "\\r" }))
+end
+
+function M.unescape(line)
+    return (line:gsub("\\(.)", { ["\\"] = "\\", n = "\n", r = "\r" }))
+end
+-- }}}
+
+-- {{{ function M.prompts_path
+-- Where a transcript's prompts file goes: prompts/ beside it, same name.
+function M.prompts_path(transcript_path)
+    local folder, name = transcript_path:match("^(.*)/([^/]+)%.md$")
+    if not folder then
+        folder, name = ".", transcript_path:match("^([^/]+)%.md$")
+    end
+    if not name then return nil end
+    return folder .. "/prompts/" .. name .. ".txt", folder .. "/prompts"
+end
+-- }}}
+
+-- {{{ function M.lines_of
+-- The prompts file's content for one transcript's text: one escaped line per
+-- request, in request order, ending in a newline; "" for a conversation with
+-- no requests. Returns nil and a reason when the text is not a transcript, or
+-- its request numbers do not run 1, 2, 3... (line N must be request N).
+-- Returns false for a helper's transcript.
+function M.lines_of(text)
+    local ok, conversation = pcall(reader.read, text)
+    if not ok then return nil, tostring(conversation) end
+    if (conversation.session_id or ""):match("^agent%-") then return false end
+    local lines = {}
+    for _, exchange in ipairs(conversation.exchanges) do
+        if exchange.kind == "user" then
+            if exchange.number ~= #lines + 1 then
+                return nil, "request " .. tostring(exchange.number) .. " follows request " .. #lines
+            end
+            local body = exchange.body:gsub("^%s*\n", ""):gsub("%s+$", "")
+            lines[#lines + 1] = M.escape(body)
+        end
+    end
+    if #lines == 0 then return "" end
+    return table.concat(lines, "\n") .. "\n"
+end
+-- }}}
+
+-- {{{ function M.write_for
+-- Writes one transcript's prompts file when its content would change.
+-- Returns "created", "updated", "unchanged" or "skipped", or nil and why.
+function M.write_for(transcript_path)
+    local text = read_file(transcript_path)
+    if not text then return nil, "cannot read " .. transcript_path end
+    local content, why = M.lines_of(text)
+    if content == nil then return nil, transcript_path .. ": " .. why end
+    if content == false then return "skipped" end
+    local path, folder = M.prompts_path(transcript_path)
+    if not path then return nil, "not a .md file: " .. transcript_path end
+    local old = read_file(path)
+    if old == content then return "unchanged" end
+    os.execute("mkdir -p " .. shell_quote(folder))
+    write_file(path, content)
+    return old and "updated" or "created"
+end
+-- }}}
+
+-- {{{ local function transcripts_in
+-- The transcripts directly in a folder: .md files whose first line is the
+-- exporter's header. Hand-written notes and derived files are not.
+local function transcripts_in(folder)
+    local found = {}
+    local pipe = io.popen("find " .. shell_quote(folder) .. " -maxdepth 1 -type f -name '*.md' | sort")
+    for path in pipe:lines() do
+        local f = io.open(path, "r")
+        local first = f and f:read("*l") or ""
+        if f then f:close() end
+        if first:match("^# Conversation Summary: ") then found[#found + 1] = path end
+    end
+    pipe:close()
+    return found
+end
+-- }}}
+
+-- {{{ local function remove_orphans
+-- Removes prompts files in folder/prompts whose transcript is no longer in
+-- folder. Only .txt files there are considered; anything else is left alone.
+local function remove_orphans(folder)
+    local removed = {}
+    local pipe = io.popen("find " .. shell_quote(folder .. "/prompts")
+        .. " -maxdepth 1 -type f -name '*.txt' 2>/dev/null | sort")
+    for path in pipe:lines() do
+        local name = path:match("([^/]+)%.txt$")
+        if not read_file(folder .. "/" .. name .. ".md") then
+            os.remove(path)
+            removed[#removed + 1] = path
+        end
+    end
+    pipe:close()
+    return removed
+end
+-- }}}
+
+-- {{{ local function main
+local function main(args)
+    if #args == 0 or args[1] == "-h" or args[1] == "--help" then
+        print("usage: transcript-prompts TRANSCRIPT.md... | --dir LLM-TRANSCRIPTS | --print TRANSCRIPT.md")
+        os.exit(#args == 0 and 2 or 0)
+    end
+    if args[1] == "--print" then
+        if not args[2] then os.exit(2) end
+        local text = read_file(args[2])
+        if not text then
+            io.stderr:write("cannot read " .. args[2] .. "\n")
+            os.exit(1)
+        end
+        local content, why = M.lines_of(text)
+        if content == nil then
+            io.stderr:write(args[2] .. ": " .. why .. "\n")
+            os.exit(1)
+        end
+        io.write(content or "")
+        os.exit(0)
+    end
+
+    local targets, folder = {}, nil
+    if args[1] == "--dir" then
+        folder = args[2] and args[2]:gsub("/+$", "")
+        if not folder then os.exit(2) end
+        targets = transcripts_in(folder)
+    else
+        for _, a in ipairs(args) do
+            if a:match("^%-") then
+                io.stderr:write("unknown option: " .. a .. "\n")
+                os.exit(2)
+            end
+            targets[#targets + 1] = a
+        end
+    end
+
+    local failed = 0
+    for _, path in ipairs(targets) do
+        local result, why = M.write_for(path)
+        if result then
+            if result ~= "unchanged" and result ~= "skipped" then
+                print(result .. ": " .. M.prompts_path(path))
+            end
+        else
+            io.stderr:write("transcript-prompts: " .. why .. "\n")
+            failed = failed + 1
+        end
+    end
+    if folder then
+        for _, path in ipairs(remove_orphans(folder)) do print("removed: " .. path) end
+    end
+    os.exit(failed > 0 and 1 or 0)
+end
+-- }}}
+
+if arg and arg[0] and arg[0]:match("transcript%-prompts$") then
+    main(arg)
+end
+
+return M

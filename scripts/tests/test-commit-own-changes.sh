@@ -398,6 +398,31 @@ check "the old name's deletion is committed" "$(absent main:proj/llm-transcripts
 check "the report says the old one is gone" "$(yes_if grep -q 'sep-22-26.md (gone from disk' "${SCRATCH}/out-${S1}")"
 check "nothing is left uncommitted" "$( [ -z "$(git -C "${REPO}" status --porcelain)" ] && echo yes || echo no)"
 
+# Each transcript has a prompts file beside it (llm-transcripts/prompts/,
+# issue 002), written and renamed by the exporter along with it. It rides
+# along by the same rules: its project's, or its transcript's header.
+printf '\nA transcript'\''s prompts file rides along with it\n'
+new_repo transcript-prompts
+mkdir -p "${REPO}/proj/llm-transcripts/prompts" "${REPO}/far/llm-transcripts/prompts" "${REPO}/away/llm-transcripts/prompts"
+printf '# Conversation Summary: crossing-midnight\n\nday one\n' > "${REPO}/proj/llm-transcripts/sep-22-26.md"
+printf 'day one\n' > "${REPO}/proj/llm-transcripts/prompts/sep-22-26.txt"
+git -C "${REPO}" add -A && git -C "${REPO}" commit -q -m "one day's transcript and prompts"
+mv "${REPO}/proj/llm-transcripts/sep-22-26.md" "${REPO}/proj/llm-transcripts/sep-22-26-through-sep-23-26.md"
+mv "${REPO}/proj/llm-transcripts/prompts/sep-22-26.txt" "${REPO}/proj/llm-transcripts/prompts/sep-22-26-through-sep-23-26.txt"
+printf 'day two\n' >> "${REPO}/proj/llm-transcripts/prompts/sep-22-26-through-sep-23-26.txt"
+printf '# Conversation Summary: far-away\n\nunrelated\n' > "${REPO}/far/llm-transcripts/sep-23-26.md"
+printf 'unrelated\n' > "${REPO}/far/llm-transcripts/prompts/sep-23-26.txt"
+printf '# Conversation Summary: %s\n\nmine, filed away\n' "${S1}" > "${REPO}/away/llm-transcripts/sep-23-26.md"
+printf 'mine, filed away\n' > "${REPO}/away/llm-transcripts/prompts/sep-23-26.txt"
+coc "${S1}" "${REPO}" --project "${REPO}/proj" -m "transcripts and prompts"; s1=$?
+check "the commit succeeds" "$( [ $s1 = 0 ] && echo yes || echo no)"
+check "the renamed prompts file is committed with its new lines" \
+    "$(yes_if git -C "${REPO}" grep -q 'day two' main -- proj/llm-transcripts/prompts/sep-22-26-through-sep-23-26.txt)"
+check "the old prompts file's deletion is committed" "$(absent main:proj/llm-transcripts/prompts/sep-22-26.txt)"
+check "an unrelated project's prompts file stays out" "$(absent main:far/llm-transcripts/prompts/sep-23-26.txt)"
+check "this conversation's prompts file rides along wherever its transcript is filed" \
+    "$(yes_if git -C "${REPO}" cat-file -e main:away/llm-transcripts/prompts/sep-23-26.txt)"
+
 printf '\nCommit hooks run as git would run them\n'
 new_repo hooks
 HOOKS="$(git -C "${REPO}" rev-parse --absolute-git-dir)/hooks"

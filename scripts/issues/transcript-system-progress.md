@@ -238,6 +238,17 @@ commit have a conversation" first got the answer "not this issue's problem"
 for eight of twelve commits; the owner asked why it couldn't find those too,
 and every one turned out to have a findable cause.
 
+### Every transcript got a page of just the requests (002)
+
+Each transcript now has a prompts file beside it,
+`llm-transcripts/prompts/<name>.txt`: one line per request, line N being
+request N, line breaks escaped so the text comes back byte for byte. It is
+built from the patched transcript, not the session log, so a redaction made
+by a patch holds there too. The exporter writes it on every export and
+removes it on a rename or retirement; `transcript-prompts --dir` fills in the
+transcripts whose logs have expired. It lives one folder down so that no
+scanner of `llm-transcripts/*.md` ever sees it.
+
 ## What is still open
 
 - **Subagent transcripts are not being captured at all (025).** Claude Code

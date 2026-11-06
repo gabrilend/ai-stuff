@@ -116,8 +116,10 @@ function run_exporter() {
 # against the last commit, the second the disk against the staging list.
 function status_line() {
     local name="$1"
-    # every untracked file named singly, not folded into its folder's line
-    git -C "$REPO" status --porcelain --untracked-files=all | grep -F "$name"
+    # every untracked file named singly, not folded into its folder's line;
+    # the prompts files beside each transcript (issue 002) are left out, since
+    # their own test checks them
+    git -C "$REPO" status --porcelain --untracked-files=all | grep -F "$name" | grep -v '/prompts/'
 }
 # }}}
 

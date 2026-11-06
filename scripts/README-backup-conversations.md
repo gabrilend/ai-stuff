@@ -208,6 +208,16 @@ conversation's export and leaves its file as it was. See
 `transcript-patches.info.md`; `transcript-patches original <transcript>`
 remakes the unpatched rendering.
 
+## Prompts files
+
+Beside every transcript the exporter writes
+`llm-transcripts/prompts/<transcript name>.txt`: the person's requests only,
+one per line, line N being request N, with line breaks written as `\n`. It is
+read from the transcript after the patches, so a redaction applies to it
+too. It is written on every export (left alone when unchanged, put back when
+missing) and removed when its transcript is renamed or retired; a helper's
+transcript gets none. See `transcript-prompts.info.md`.
+
 ## Output Format
 
 Prose is wrapped at 80 columns — including paragraphs that open with
@@ -423,6 +433,8 @@ A missing tool is an error that names the tool, not a skipped backup.
   and every failure path.
 - `tests/test-transcript-export-guards.sh` — the race guard, husks, and both
   kinds of idempotency.
+- `tests/test-transcript-prompts.sh` — the prompts file beside each
+  transcript: escaping, redactions, renames, helpers.
 - `tests/test-transcript-rename-in-git.sh` — a day-crossing rename shows in
   git as a rename and stays staged and current. The real `commit-own-changes`
   then commits it as a rename, with no warning and a clean `git status`.
