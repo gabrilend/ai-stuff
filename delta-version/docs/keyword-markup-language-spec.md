@@ -237,6 +237,10 @@ or
 $DELTA_VERSION_DIR/config/ticket-keywords.conf (default)
 ```
 
+When both exist, the project's file is layered over delta-version's: its
+entries add to or replace the defaults (decided when the engine was built,
+issue 017), so a project names only the keywords it changes.
+
 ### Structure
 
 ```ini

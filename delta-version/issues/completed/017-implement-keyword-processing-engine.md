@@ -276,3 +276,49 @@ function process_template_file() {
 - Error handling prevents system failure
 - Performance acceptable for multiple keywords per template
 - Engine ready for integration with project discovery system
+
+---
+
+## What Happened (2026-11-02)
+
+Built as `delta-version/scripts/libs/kml.lua` (the engine) and
+`delta-version/scripts/process-template.lua` (its command line), each with an
+`.info.md`, and tested by `scripts/test-process-template.sh <monorepo>`
+(39 checks). Every success criterion above holds: templates are parsed,
+the configuration is loaded and checked, parameters are substituted, commands
+run in the project's folder under a time limit, results go back in place,
+failures are handled by the four error modes without stopping the rest, and
+each distinct command runs once per template however often it is used.
+
+**Decisions:**
+- **Lua, not the bash sketched above.** Escapes (`\][`, `\\][`), placeholders
+  next to ordinary `][` text and per-placeholder errors are a small scanner in
+  Lua and a regex tangle in bash; the commands themselves still run in bash.
+- **Parameters are held to the specification's character set** (letters,
+  digits, `_ - . /`, at most five, none empty), because they are pasted into
+  shell commands. Anything wider is an error and runs nothing; the test tries
+  `;`, a space and `$(...)`.
+- **A placeholder must give exactly as many parameters as its command's
+  highest `PARAMn`**, the specification's "parameter mismatch".
+- **Malformed placeholders are errors, not text**: `][Project_Name[]` is
+  reported rather than passed through, so a typo shows. `][` followed by
+  anything but a name-like run and `[` (for instance the `][ name ][` markers
+  of the directory-tree generator, 044) is plain text.
+- **Configuration layering**: the specification said the project's file *or*
+  delta-version's; the engine reads delta-version's and layers the project's
+  over it, so a project names only what it changes. `--config` uses one file
+  alone. The specification now says so.
+- **The engine's own keywords win**: `kml_version`, `template_name`,
+  `ticket_id` and `generation_date` are filled internally, and configuration
+  entries with those names are ignored (the shipped file's `generation_date`
+  and `kml_version` commands gave the same values anyway). `error` and
+  `debug` are always errors, as reserved.
+- **Ticket ids** default to `T-YYYYMMDD-HHMMSS-xxxx`; `--ticket-id` sets one,
+  for the distribution engine (019) to number tickets its own way.
+- `--check` validates a template without running anything, and `--list` shows
+  the keywords with their parameter slots; neither was asked for, both are
+  what a template writer needs first.
+- Fixed in the shipped configuration: `file_list` used `tr '\n' ', '`, which
+  maps newlines to commas only and left a trailing comma; it now joins names
+  with ", ".
+
