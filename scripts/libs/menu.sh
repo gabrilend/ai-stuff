@@ -1314,7 +1314,13 @@ menu_render_footer() {
 
     ((row++))
     tui_goto "$row" 0
-    tui_box_bottom "$TUI_COLS" double
+    # The bottom edge sits on the screen's last row, and tui_box_bottom ends
+    # with a newline, as every tui_box_* helper does for boxes printed line
+    # after line. A newline on the last row scrolls the whole screen up one
+    # row, after which every item sat one row above the row the incremental
+    # updates write to: an item drawn on row N reappeared on row N+1 and
+    # overwrote its neighbour (issue 004). The edge is printed without it.
+    printf '%s' "$(tui_box_bottom "$TUI_COLS" double)"
 }
 # }}}
 

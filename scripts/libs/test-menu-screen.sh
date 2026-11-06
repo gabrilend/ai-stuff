@@ -9,6 +9,10 @@
 #     three-byte character apart.
 #   - An option disabled by a rule marked "skip" is passed over by up/down
 #     (a per-stage "force" option while "force all" is on).
+#   - The bash menu (menu.sh) keeps every item on its own row after the
+#     cursor moves (scripts issue 004): its footer used to end the screen's
+#     last row with a newline, which scrolled the screen up one row, so each
+#     incremental update landed one row below the item it redrew.
 #
 # How: `script` gives the menu a real terminal (sized with stty), keys are
 # typed on a timer, the session is recorded, and test-menu-screen-replay.lua
@@ -66,13 +70,36 @@ menu_run
 EOF
 chmod +x "$WORK/radio.sh"
 
+# {{{ the bash menu (issue 004)
+# The pure-bash menu.sh, used where LuaJIT is missing: four items, nothing else.
+cat > "$WORK/bash-menu.sh" <<EOF
+#!/usr/bin/env bash
+LIBS_DIR="$LIBS_DIR"
+for lib in tui checkbox multistate input menu; do source "\$LIBS_DIR/\$lib.sh"; done
+tui_init
+menu_init
+menu_set_title "Bash menu test" "keys are typed by the test"
+menu_add_section "letters" "multi" "Letters"
+menu_add_item "letters" "a" "Alpha" "checkbox" "0" "first"
+menu_add_item "letters" "b" "Bravo" "checkbox" "0" "second"
+menu_add_item "letters" "c" "Charlie" "checkbox" "0" "third"
+menu_add_item "letters" "d" "Delta" "checkbox" "0" "fourth"
+menu_run
+tui_cleanup
+EOF
+chmod +x "$WORK/bash-menu.sh"
+# }}}
+
 # {{{ run_menu <name> <keys...>
 # Types each key one second apart after the menu has had time to draw, then
 # q to leave; prints the replayed final screen.
 run_menu() {
     local name="$1"; shift
     local script_file="$WORK/menu.sh"
-    case "$name" in radio*) script_file="$WORK/radio.sh" ;; esac
+    case "$name" in
+        radio*) script_file="$WORK/radio.sh" ;;
+        bash*) script_file="$WORK/bash-menu.sh" ;;
+    esac
     {
         sleep 2
         for key in "$@"; do printf '%s' "$key"; sleep 1; done
@@ -108,6 +135,19 @@ run_menu radio-h j h         # cursor to bravo, then h
 check "h on an empty radio list chooses nothing" "$(chosen radio-h)" ""
 run_menu radio-lj j l l      # choose bravo with l, then l again steps on
 check "once chosen, l steps to the next entry" "$(chosen radio-lj)" "charlie"
+# }}}
+
+# {{{ the bash menu keeps items in place (issue 004)
+# The item lines, as the screen shows them; the replay scrolls the way a
+# terminal does, so a screen that scrolled under the menu shows here as items
+# written over their neighbours.
+items_of() { grep -E '^[0-9]( |▸)\[' "$WORK/$1.screen" | sed 's/\[[^]]*\] //'; }
+run_menu bash-down j j
+check "after two moves each item is drawn once, in order, the cursor on the third" \
+    "$(items_of bash-down | tr '\n' '|')" "1 Alpha|2 Bravo|3▸Charlie|4 Delta|"
+run_menu bash-updown j j k
+check "and moving back up redraws them in place" \
+    "$(items_of bash-updown | tr '\n' '|')" "1 Alpha|2▸Bravo|3 Charlie|4 Delta|"
 # }}}
 
 rm -rf "$WORK"
