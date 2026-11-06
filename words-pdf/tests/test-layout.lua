@@ -254,30 +254,36 @@ kit.check("every region lies within the page width", function()
         end
     end
 end)
-kit.check("a full page gets no Tier 1 art, though its right margin is 16% (issue 033)", function()
-    -- The 15% page shift leaves the right margin 94.25 x 842, about 16% of
-    -- the page.  Before issue 033 that alone passed the gate on every
-    -- themed page; now only an empty column bottom can.
+kit.check("a full page gets no Tier 1 art (issue 033)", function()
+    -- Before issue 033 the right margin alone passed the gate on every
+    -- themed page; now only an empty column bottom can open it.
     local spaces = spaces_for(MAX_LINES_PER_PAGE - 1, MAX_LINES_PER_PAGE - 1)
     kit.same(#spaces.bottom_space, 0, "bottom regions")
-    kit.truthy(spaces.right_outer[1].width * spaces.right_outer[1].height
-        >= PAGE_W * PAGE_H * TIER1_MIN_REGION_AREA_FRACTION, "right margin is above the threshold")
     local qualifying = select_tier1_regions(spaces, PAGE_W, PAGE_H)
     kit.same(#qualifying, 0, "regions drawn")
 end)
-kit.check("a half-empty column opens the gate and the right margin joins it", function()
+kit.check("the margins left beside the drawn boxes are slivers (issue 035)", function()
+    -- With the regions placed where the boxes are drawn, the right margin
+    -- is 20.5 pt and the left 10 pt: neither joins a passing page.
+    local spaces = spaces_for(0, 0)
+    local min_area = PAGE_W * PAGE_H * TIER1_MIN_REGION_AREA_FRACTION
+    for _, name in ipairs({ "left_outer", "right_outer", "center" }) do
+        local r = spaces[name][1]
+        kit.truthy(r.width * r.height < min_area, name .. " is under the threshold")
+    end
+end)
+kit.check("a half-empty column opens the gate and only its bottom is drawn", function()
     local half = math.floor(MAX_LINES_PER_PAGE / 2)
     local spaces = spaces_for(MAX_LINES_PER_PAGE - 1, half)
     kit.same(#spaces.bottom_space, 1, "bottom regions")
     local qualifying = select_tier1_regions(spaces, PAGE_W, PAGE_H)
-    kit.same(#qualifying, 2, "regions drawn")
+    kit.same(#qualifying, 1, "regions drawn")
     kit.same(qualifying[1], spaces.bottom_space[1], "the right column's bottom")
-    kit.same(qualifying[2], spaces.right_outer[1], "the right margin")
 end)
 kit.check("with one column full, the page opens exactly when the other's bottom reaches 8%", function()
     -- Fill the right column a line at a time.  The page must pass exactly
     -- on the fills whose empty bottom is at least 8% of the page, and both
-    -- outcomes must occur (on A4 the turn comes near 36 empty lines).
+    -- outcomes must occur (on A4 the turn comes near 38 empty lines).
     local min_area = PAGE_W * PAGE_H * TIER1_MIN_REGION_AREA_FRACTION
     local opened, closed = 0, 0
     for lines = 1, MAX_LINES_PER_PAGE - 1 do

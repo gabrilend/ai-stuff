@@ -93,3 +93,10 @@ Changes to `compile-pdf-ai.lua` that the tests needed or found:
   gate always passes on a themed page) and issue 034 (the weighted theme
   chooser favors overused themes when every score is negative). A check
   in `test-layout.lua` records 033's current behavior and names the issue.
+
+## What Happened (rendering geometry, 2026-11-02)
+
+- `tests/test-render.lua` (8 checks, issue 035) runs `draw_boxed_poem`
+  against a recording stand-in for libharu, and checks the art layout
+  against what was drawn. This is a first regression test for PDF
+  generation (step 5) that needs no libharu.
