@@ -91,7 +91,8 @@ arrives by the same route through the same generator (409).
    the only place the bytes are and docs/011 puts reading them in a box,
    so the six filesystem boxes are the stated exception. A whole file
    larger than 4096 bytes cannot yet be written by one box; the painter
-   (810) is where that need first arrives.
+   (810) is where that need first arrives. *(413 answers it: the cap
+   stays, and `append-path` builds a larger file from several values.)*
 
 ## Related documents
 

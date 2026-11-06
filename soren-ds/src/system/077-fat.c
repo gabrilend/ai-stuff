@@ -385,6 +385,93 @@ int64_t fat_chain_new(struct fat_volume *v, const void *buffer, uint32_t length)
     return first;
 }
 /* }}} */
+
+/* {{{ chain_tail */
+/* The cluster holding byte `size - 1` of the chain starting at `first`;
+ * 0 when the chain ends before it (a damaged card, or a size the chain
+ * never had). */
+static uint32_t chain_tail(const struct fat_volume *v, uint32_t first, uint32_t size)
+{
+    uint32_t c = first;
+    for (uint32_t i = (size - 1) / v->cluster_bytes; i > 0; i--) {
+        if (!in_volume(v, c)) return 0;
+        c = fat_next(v, c);
+    }
+    return in_volume(v, c) ? c : 0;
+}
+/* }}} */
+
+/* {{{ fat_chain_cut */
+int fat_chain_cut(struct fat_volume *v, uint32_t first, uint32_t size)
+{
+    if (size == 0) return fat_chain_free(v, first);
+    uint32_t tail = chain_tail(v, first, size);
+    if (!tail) return FAT_IO;
+    uint32_t rest = fat_next(v, tail);
+    if (in_volume(v, rest)) {
+        set_next(v, tail, 0x0FFFFFFFu);
+        fat_chain_free(v, rest);
+    }
+    return FAT_OK;
+}
+/* }}} */
+
+/* {{{ fat_chain_append */
+int fat_chain_append(struct fat_volume *v, uint32_t first, uint32_t size, const void *buffer, uint32_t length)
+{
+    if (length == 0) return FAT_OK;
+    if (size == 0) return FAT_IO;                     /* nothing to add to: the caller writes a new chain */
+    if ((uint64_t)size + length > 0xFFFFFFFFu) return FAT_NO_SPACE;   /* FAT32's largest file */
+    /* Clusters past the one holding the last byte belong to no byte of the
+     * file: an append interrupted before its size was written leaves them.
+     * They are let go first, so the chain is exactly the file again. */
+    int r = fat_chain_cut(v, first, size);
+    if (r < 0) return r;
+    uint32_t tail = chain_tail(v, first, size);
+    const uint8_t *in = buffer;
+
+    /* 1. The spare room at the end of the last cluster. Nothing names
+     *    those bytes, so writing them changes nothing a reader sees. The
+     *    block holding the old end is read and written back with its old
+     *    bytes as they were. */
+    uint32_t used = (size - 1) % v->cluster_bytes + 1;
+    uint32_t room = v->cluster_bytes - used;
+    uint32_t fill = room < length ? room : length;
+    uint8_t block[BLOCK];
+    for (uint32_t done = 0; done < fill;) {
+        uint32_t at = used + done;                    /* the byte within the cluster */
+        uint32_t sector = at / BLOCK, in_block = at % BLOCK;
+        uint32_t n = BLOCK - in_block;
+        if (n > fill - done) n = fill - done;
+        uint64_t lba = fat_cluster_block(v, tail) + sector;
+        if (in_block || n < BLOCK) {
+            if (platform_card_read(lba, 1, block)) return FAT_IO;
+        }
+        bytes_copy(block + in_block, in + done, n);
+        if (platform_card_write(lba, 1, block)) return FAT_IO;
+        done += n;
+    }
+    if (fill == length) return fat_flush(v);
+
+    /* 2. The rest in new clusters, written and then recorded as taken
+     *    while still nobody's; 3. linked after the last cluster. Each is a
+     *    flush of its own, so a card pulled out between them holds a
+     *    chain no name reaches, never a file pointing into free clusters. */
+    int64_t more = fat_chain_new(v, in + fill, length - fill);
+    if (more < 0) return (int)more;
+    r = fat_flush(v);
+    if (r == FAT_OK) {
+        set_next(v, tail, (uint32_t)more);
+        r = fat_flush(v);
+    }
+    if (r < 0) {
+        fat_chain_cut(v, first, size);                /* off the end again; frees what was added */
+        if (fat_next(v, (uint32_t)more) != FAT_FREE) fat_chain_free(v, (uint32_t)more);
+        fat_flush(v);
+    }
+    return r;
+}
+/* }}} */
 /* }}} */
 
 /* {{{ directories */

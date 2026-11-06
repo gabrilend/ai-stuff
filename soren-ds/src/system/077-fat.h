@@ -105,6 +105,16 @@ int  fat_chain_read(struct fat_volume *v, uint32_t first, uint32_t offset, void 
  * (0 for an empty file) or a negative error. The old chain is untouched. */
 int64_t fat_chain_new(struct fat_volume *v, const void *buffer, uint32_t length);
 int  fat_chain_free(struct fat_volume *v, uint32_t first);
+/* Keep the clusters `size` bytes need and free the rest (all of it for 0). */
+int  fat_chain_cut(struct fat_volume *v, uint32_t first, uint32_t size);
+/* Add `length` bytes after the first `size` of a chain that is not empty
+ * (issue 413). The spare room in the last cluster is filled first, then
+ * new clusters are written, recorded as taken, and linked on: each step a
+ * flush of its own, so the table is never written pointing at clusters it
+ * calls free. The file's size is the caller's to write last; until then
+ * the file is its old self. Clusters past `size` left by an earlier,
+ * interrupted append are freed first. */
+int  fat_chain_append(struct fat_volume *v, uint32_t first, uint32_t size, const void *buffer, uint32_t length);
 uint32_t fat_chain_length(const struct fat_volume *v, uint32_t first);
 /* }}} */
 

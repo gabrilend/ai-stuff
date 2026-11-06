@@ -75,6 +75,13 @@ int64_t files_size(const char *path);
  * of each (the new contents are written to clusters nobody names, and one
  * block write then switches the name over). */
 int  files_write(const char *path, const void *bytes, uint32_t length);
+/* Add bytes to the end of a file, making it (and directories on the way)
+ * if it is not there; through a symlink, the target grows (issue 413).
+ * Each append is whole or not at all: a reader, or a card pulled out
+ * part-way, finds the file as it was before the call or with every new
+ * byte after it. A file built from many appends is not one write: what is
+ * on the card between them is the appends so far. */
+int  files_append(const char *path, const void *bytes, uint32_t length);
 /* Call `visit` for every entry of a directory (links followed to reach it;
  * entries that are links are listed as themselves). */
 int  files_list(const char *path, int (*visit)(const struct fat_entry *e, void *ctx), void *ctx);
