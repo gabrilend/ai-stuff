@@ -14,6 +14,7 @@ under a screen point, or in view, with no window.
   local sx, sy = cam:world_to_screen(1280, 720, x, y, z)
   local quad, reached = cam:view_quad(1280, 720)       -- { x1, y1, ... x4, y4 }
   local rect = cam:view_rect(1280, 720)                -- { min_x, min_y, max_x, max_y }
+  cam:step({ up = true, wheel = 1 }, dt)               -- a frame of the controls (505c)
   cam.c.distance = 2200                                -- the numbers, as in C
 
 Ground height for the answers is the camera's own z (the ground under its
@@ -44,17 +45,23 @@ bool camera_screen_to_ground(const CameraFrame* f, float sx, float sy, float gro
 bool camera_world_to_screen(const CameraFrame* f, float x, float y, float z, float* sx, float* sy);
 int camera_view_quad(const GameCamera* cam, const CameraFrame* f, float ground_z, float corners[8]);
 void camera_view_rect(const GameCamera* cam, const CameraFrame* f, float ground_z, CameraBounds* out);
+typedef struct camera_input {
+    bool left, right, up, down, edges;
+    float mouse_x, mouse_y, width, height, wheel;
+} CameraInput;
+int camera_pan_ways(const CameraInput* in);
+void camera_step(GameCamera* cam, const CameraInput* in, float dt);
 ]])
 
 -- {{{ camera.build
--- Compiles camera.c (and any further C files of src/render named in
--- `extra`) into BUILD/libcamera.so; returns its path.
+-- Compiles camera.c and camera_input.c (and any further C files of
+-- src/render named in `extra`) into BUILD/libcamera.so; returns its path.
 function camera.build(dir, build, extra)
     if not dir or dir == "" or not build or build == "" then error("render.camera: build needs the project and a build folder", 0) end
     local q = function(s) return "'" .. tostring(s):gsub("'", "'\\''") .. "'" end
     local lib = build .. "/libcamera.so"
     local src = dir .. "/src/render/"
-    local files = { q(src .. "camera.c") }
+    local files = { q(src .. "camera.c"), q(src .. "camera_input.c") }
     for _, name in ipairs(extra or {}) do files[#files + 1] = q(src .. name) end
     local cmd = "mkdir -p " .. q(build) .. " && gcc -shared -fPIC -O2 -Wall -Wextra -o " .. q(lib)
         .. " " .. table.concat(files, " ") .. " -lm"
@@ -105,6 +112,14 @@ function camera.open(lib_path)
         local out = {}
         for i = 0, 7 do out[i + 1] = self.quad[i] end
         return out, n
+    end
+    -- one frame of input (issue 505c): t = { left, right, up, down, edges,
+    -- mouse_x, mouse_y, width, height, wheel }, any left out off or 0
+    function Cam:step(t, dt)
+        local input = ffi.new("CameraInput", t.left or false, t.right or false, t.up or false, t.down or false,
+            t.edges or false, t.mouse_x or 0, t.mouse_y or 0, t.width or 0, t.height or 0, t.wheel or 0)
+        C.camera_step(self.c, input, dt or 0)
+        return C.camera_pan_ways(input)
     end
     function Cam:view_rect(w, h, ground_z)
         local r = ffi.new("CameraBounds")
