@@ -9,8 +9,9 @@ Validates the frame encoding system for pathfinding:
 ]]
 
 -- {{{ Setup paths
-package.path = package.path .. ";/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/?.lua"
-package.path = package.path .. ";/mnt/mtwo/programming/ai-stuff/world-edit-to-execute/src/?/init.lua"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+package.path = package.path .. ";" .. DIR .. "/src/?.lua"
+package.path = package.path .. ";" .. DIR .. "/src/?/init.lua"
 -- }}}
 
 local frames = require("runtime.pathfinding.frames")

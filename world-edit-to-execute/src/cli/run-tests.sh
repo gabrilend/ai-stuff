@@ -4,7 +4,8 @@
 # Supports filtering, verbose/quiet modes, and stops-on-first-failure option.
 
 # {{{ Configuration
-DIR="/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+# The project this script sits in (src/cli/..), unless -d names another
+DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 TESTS_DIR=""
 LUAJIT="luajit"
 
@@ -35,7 +36,7 @@ Options:
   -x, --stop       Stop on first failure
   -l, --list       List tests without running
   -t, --timing     Show timing for each test
-  -d, --dir DIR    Project directory (default: $DIR)
+  -d, --dir DIR    Project directory, passed to each test (default: $DIR)
   -h, --help       Show this help
 
 Arguments:
@@ -110,6 +111,9 @@ parse_args() {
         esac
     done
 
+    # An absolute path, since each test runs from inside DIR and is given it
+    if [[ -d "$DIR" ]]; then DIR="$(cd "$DIR" && pwd)"; fi
+
     # Set TESTS_DIR after parsing
     TESTS_DIR="${DIR}/src/tests"
 }
@@ -156,7 +160,9 @@ run_test() {
     local output exit_code
 
     start_time=$(date +%s.%N)
-    output=$(cd "$DIR" && "$LUAJIT" "$test_file" 2>&1)
+    # Each test is given the project directory, as run-net-tests.sh does;
+    # without it most tests fall back to a fixed path of their own
+    output=$(cd "$DIR" && "$LUAJIT" "$test_file" "$DIR" 2>&1)
     exit_code=$?
     end_time=$(date +%s.%N)
     duration=$(echo "$end_time - $start_time" | bc 2>/dev/null || echo "0")

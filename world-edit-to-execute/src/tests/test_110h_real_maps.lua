@@ -9,7 +9,7 @@ Tests object data parsing against actual WC3 map files to validate:
 - Custom vs original objects are distinguishable
 ]]
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local mpq = require("mpq")

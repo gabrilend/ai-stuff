@@ -2,7 +2,7 @@
 -- Tests declaration parsing: type, globals, native, function.
 -- Run with: luajit src/tests/test_parser_decl.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local lexer = require("jass.lexer")
