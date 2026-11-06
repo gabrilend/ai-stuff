@@ -107,3 +107,40 @@ fi
 - `libs/lua-menu.sh` - TUI library documentation
 - `libs/README-lua-menu-user.md` - User guide
 - `libs/README-lua-menu-dev.md` - Developer guide
+
+## What Happened
+
+**2026-11-03: phase 1, filesystem_scanner.sh.** `filesystem_scanner.sh -I
+[folder]` opens a menu built with `lua-menu.sh`. A "Do" list chooses what Go
+does: Scan now, Install cron job, Remove cron job, Preview schedule. Below it
+are the folder (the one named, the ones scanned lately, the default folder
+when none was named, and "Another folder..." to type a path), the cron day
+(every day or one weekday) and the cron time (hour and minute). The panel
+below the items shows this script's installed cron line and the last picture
+of the folder under the cursor. After each step the menu opens again with a
+one-line note in the subtitle; q leaves. Tested by
+`tests/test-filesystem-scanner.sh` (27 checks: the command line, and a real
+menu in a pretend terminal, against a scratch RAM tier and a stand-in
+crontab).
+
+Decisions:
+
+- **One Go button and a "Do" list**, as in phase 3: `menu_run` reports only
+  that an action was pressed, not which one, and `menu.lua` is left alone.
+- **`--day` and `--at` on the command line.** The schedule chosen in the menu
+  is also reachable without it, and without editing the script.
+- **Recent folders are kept in the RAM tier** (`recent-folders.txt`, last
+  eight, most recent first). Every scan adds to it, from the menu or not.
+  After a reboot the list starts empty, like the pictures beside it.
+- **The day is a radio list, not a multistate item,** because multistate items
+  on main can't yet be given a list of choices (PR #179).
+- **The time is two number fields, checked before anything runs.** A bad
+  value leaves the crontab alone and says why in the subtitle.
+- **Each step runs in a subshell,** so the old functions' `exit` calls end the
+  step, not the menu.
+- **`SCRIPTS_DIR` and `FILESYSTEM_SCANNER_CRONTAB` can be overridden,** so the
+  test touches no real RAM tier or crontab.
+
+Phases 4 (backup-conversations) and 5 (project-file-server) are still to do.
+Phase 3 (state-daemon.sh) is PR #211; phase 2's sync-visions viewer is PR
+#170 (issue 005).

@@ -25,11 +25,27 @@ Only when asked for by name (and with the permissions to read it).
 sudo ./filesystem_scanner.sh /
 ```
 
+### Interactive Mode
+A menu (`-I`) to pick what to do, the folder, and the cron day and time, then
+Go. The folders offered are the one named (or the current choice), the ones
+scanned lately, the default folder when none was named, and "Another
+folder..." to type a path. The panel below the items shows this script's
+installed cron line and the last picture of the folder under the cursor.
+After each step the menu opens again with a note in its title; `q` leaves.
+
+```bash
+./filesystem_scanner.sh -I
+./filesystem_scanner.sh -I /path/to/scan
+```
+
 ### Install Automatic Scanning
-Set up a cron job for regular filesystem snapshots.
+Set up a cron job for regular filesystem snapshots. `--day` and `--at` pick
+the schedule without editing the script.
 
 ```bash
 ./filesystem_scanner.sh --install-cron /path/to/scan
+./filesystem_scanner.sh --install-cron /path/to/scan --day fri --at 7:00
+./filesystem_scanner.sh --install-cron /path/to/scan --day daily --at 23:30
 ```
 
 ### View Cron Configuration
@@ -55,6 +71,9 @@ Uninstall automatic scanning.
 | `--install-cron [folder]` | Install cron job with configured schedule, scanning that folder |
 | `--uninstall-cron` | Remove cron job for this script |
 | `--show-cron` | Show current cron job configuration |
+| `--day <day>` | Cron day: `daily`, `sun`..`sat` (or full names), or 0-7 |
+| `--at <H:MM>` | Cron time on the 24-hour clock, e.g. `7:00` or `23:30` |
+| `-I, --interactive [folder]` | Open the menu (see Interactive Mode) |
 | `-h, --help` | Show usage information |
 
 ## Cron Configuration Variables
@@ -69,6 +88,13 @@ Modify these at the top of the script to customize the schedule:
 | `CRON_MONTH` | * | Month (1-12 or *) |
 | `CRON_DAY_OF_WEEK` | 0 | Day of week (0-7, 0=Sunday) |
 | `CRON_LOG_FILE` | `scripts/tmp/shared-memory/filesystem-scanner/cron.log` | Log file path (RAM; a user cannot write `/var/log`) |
+
+## Environment Overrides
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SCRIPTS_DIR` | the ai-stuff `scripts/` folder | Scripts folder whose RAM tier holds the pictures |
+| `FILESYSTEM_SCANNER_CRONTAB` | `crontab` | The crontab command used (the tests point it at a stand-in) |
 
 ## Capabilities
 
@@ -116,6 +142,13 @@ Scan completed at: Sat Dec 27 14:00:05 2024
 ## Output Location
 
 Output is saved to `scripts/tmp/shared-memory/filesystem-scanner/<folder-name>-hierarchy.txt`, the scripts folder's RAM artifact tier (rebuilt first if a reboot erased it), or wherever `-o` points. It is never written into the folder being scanned: earlier versions did, which littered every scanned project and, with the old default of `/`, tried to write into the root of the filesystem.
+
+The last eight folders scanned are listed, most recent first, in
+`recent-folders.txt` in the same place. The menu offers them; being in RAM,
+the list starts empty after a reboot.
+
+Tests: `bash tests/test-filesystem-scanner.sh` (scratch folders, a scratch RAM
+tier and a stand-in crontab; nothing real is touched).
 
 ## Scanning Behavior
 
