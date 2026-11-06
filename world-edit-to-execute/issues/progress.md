@@ -424,11 +424,11 @@ Phase 2 & 3 Complete
 | 506e | Command button grid | Re-cut 2026-09-26 | 506c, 506d, 110 |
 | 506f | Tooltip system | Re-cut 2026-09-26 | 506c, 506d, 104 |
 | **507** | Create minimap renderer | Re-cut 2026-09-26 | 501, 501d, 502 |
-| 507a | Minimap module | Re-cut 2026-09-26 | 506a, 501d |
+| 507a | Minimap module | Built 2026-11-06, awaiting review | 506a, 501d |
 | 507b | Terrain texture | Re-cut 2026-09-26 | 507a, 502 |
-| 507c | Unit dots | Re-cut 2026-09-26 | 507a |
-| 507d | Camera viewport | Re-cut 2026-09-26 | 507a, 501d |
-| 507e | Minimap interaction | Re-cut 2026-09-26 | 507a, 505c, 506c |
+| 507c | Unit dots | Built (518b), tested 2026-11-06, awaiting review | 507a |
+| 507d | Camera viewport | Built 2026-11-06 (the window hands it the camera with 501d) | 507a, 501d |
+| 507e | Minimap interaction | Built (518b), tested 2026-11-06, awaiting review | 507a, 505c, 506c |
 | 507f | Ping system | Re-cut 2026-09-26 | 507a, 803 |
 | **508** | **Vertical slice testing room** | **Completed** | 501f |
 | 508a | Threading infrastructure | **Completed** | 501a |
