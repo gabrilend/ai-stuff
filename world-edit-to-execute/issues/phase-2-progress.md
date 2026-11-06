@@ -21,6 +21,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 202c | [Parse unitsdoo Modified Abilities](./completed/202c-parse-unitsdoo-abilities.md) | completed | 202a |
 | 202d | [Parse unitsdoo Hero Data](./completed/202d-parse-unitsdoo-hero-data.md) | completed | 202a |
 | 202e | [Parse unitsdoo Random Unit and Waygate Data](./completed/202e-parse-unitsdoo-random-and-waygate.md) | completed | 202a |
+| 202f | [Read Unit Entries in the Order the Editor Writes Them](./completed/202f-unitsdoo-entry-layout-as-written.md) | completed | — |
 | 203 | [Parse war3map.w3r (Regions)](./completed/203-parse-war3map-w3r.md) | completed | 102 |
 | 204 | [Parse war3map.w3c (Cameras)](./completed/204-parse-war3map-w3c.md) | completed | 102 |
 | 205 | [Parse war3map.w3s (Sounds)](./completed/205-parse-war3map-w3s.md) | completed | 102 |
@@ -45,6 +46,6 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 208c | [Registry Integration Tests](./completed/208c-registry-integration-tests.md) | completed | 207, 208b |
 | 208d | [Phase 2 Demo Script](./completed/208d-phase2-demo-script.md) | completed | 208a, 208b, 208c |
 
-Completed 30, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 31, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

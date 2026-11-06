@@ -1,6 +1,7 @@
 #!/usr/bin/env lua
 -- Test suite for war3mapUnits.doo parser (Issue 202a)
--- Tests header parsing, basic fields, and skip logic for variable sections.
+-- Tests header parsing, basic fields, the variable sections (in the order
+-- the World Editor writes them, issue 202f) and damaged files.
 -- Run from project root: luajit src/tests/test_unitsdoo.lua
 
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
@@ -117,6 +118,69 @@ local function make_float32(f)
     end
 end
 -- }}}
+
+-- {{{ make_entry
+-- One unit entry in the layout the World Editor writes (issue 202f):
+-- head; item drops (the table pointer from subversion 11 on); gold and
+-- target acquisition; the hero section, which every entry has (level, the
+-- three stat bonuses from version 8 on, the inventory); abilities; the
+-- random section; custom color; waygate; creation number.
+-- t: id, x, y, z, angle, player, hp, mp, table_pointer, sets ({ {id, chance}, ... }
+-- per set), gold, level, str, agi, int, inventory ({ {slot, id}, ... }),
+-- abilities ({ {id, autocast, level}, ... }), random_flag, random_level,
+-- item_class, group, position, choices ({ {id, chance}, ... }), waygate,
+-- creation, version (8, or 7 for RoC: no table pointer, no stat bonuses)
+local function make_entry(t)
+    local v8 = (t.version or 8) >= 8
+    local p = {}
+    local function add(s) p[#p + 1] = s end
+    add(t.id or "hfoo"); add(make_int32(0))
+    add(make_float32(t.x or 0.0)); add(make_float32(t.y or 0.0)); add(make_float32(t.z or 0.0))
+    add(make_float32(t.angle or 0.0))
+    add(make_float32(1.0)); add(make_float32(1.0)); add(make_float32(1.0))
+    add(string.char(0)); add(make_int32(t.player or 0)); add(string.char(0, 0))
+    add(make_int32(t.hp or -1)); add(make_int32(t.mp or -1))
+    -- item drops
+    if v8 then add(make_int32(t.table_pointer or -1)) end
+    add(make_int32(#(t.sets or {})))
+    for _, set in ipairs(t.sets or {}) do
+        add(make_int32(#set))
+        for _, it in ipairs(set) do add(it[1]); add(make_int32(it[2])) end
+    end
+    -- gold, target acquisition
+    add(make_int32(t.gold or 12500)); add(make_float32(-1.0))
+    -- hero section
+    add(make_int32(t.level or 1))
+    if v8 then add(make_int32(t.str or 0)); add(make_int32(t.agi or 0)); add(make_int32(t.int or 0)) end
+    add(make_int32(#(t.inventory or {})))
+    for _, it in ipairs(t.inventory or {}) do add(make_int32(it[1])); add(it[2]) end
+    -- abilities
+    add(make_int32(#(t.abilities or {})))
+    for _, a in ipairs(t.abilities or {}) do add(a[1]); add(make_int32(a[2])); add(make_int32(a[3])) end
+    -- random section
+    local flag = t.random_flag or 0
+    add(make_int32(flag))
+    if flag == 0 then
+        add(make_int32(t.random_level or -1):sub(1, 3)); add(string.char(t.item_class or 0))
+    elseif flag == 1 then
+        add(make_int32(t.group or 0)); add(make_int32(t.position or 0))
+    elseif flag == 2 then
+        add(make_int32(#t.choices))
+        for _, c in ipairs(t.choices) do add(c[1]); add(make_int32(c[2])) end
+    end
+    -- custom color, waygate, creation number
+    add(make_int32(-1)); add(make_int32(t.waygate or -1)); add(make_int32(t.creation or 0))
+    return table.concat(p)
+end
+-- }}}
+
+-- {{{ make_file
+local function make_file(entries, version)
+    version = version or 8
+    return "W3do" .. make_int32(version) .. make_int32(version >= 8 and 11 or 9)
+        .. make_int32(#entries) .. table.concat(entries)
+end
+-- }}}
 -- }}}
 
 -- {{{ Test: is_hero function
@@ -185,38 +249,9 @@ print("  PASSED")
 -- {{{ Test: single unit entry (no hero, no items, no abilities)
 print("Test: single unit entry (basic)")
 do
-    -- Build a minimal unit entry
-    local unit_entry = "hfoo"          -- Type ID (Footman)
-        .. make_int32(0)               -- Variation
-        .. make_float32(1024.0)        -- X position
-        .. make_float32(2048.0)        -- Y position
-        .. make_float32(0.0)           -- Z position
-        .. make_float32(3.14159)       -- Angle (pi radians)
-        .. make_float32(1.0)           -- X scale
-        .. make_float32(1.0)           -- Y scale
-        .. make_float32(1.0)           -- Z scale
-        .. string.char(0)              -- Flags
-        .. make_int32(0)               -- Player 0 (Red)
-        .. string.char(0, 0)           -- Unknown bytes
-        .. make_int32(-1)              -- HP (default)
-        .. make_int32(-1)              -- MP (default)
-        -- Item drops section (empty)
-        .. make_int32(-1)              -- Item table pointer
-        .. make_int32(0)               -- Num item sets
-        -- Abilities section (empty)
-        .. make_int32(0)               -- Num abilities
-        -- No hero data (not a hero)
-        -- Random unit section
-        .. make_int32(0)               -- Not random
-        -- Waygate and creation number
-        .. make_int32(-1)              -- Waygate dest (inactive)
-        .. make_int32(1)               -- Creation number
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)               -- 1 unit
-        .. unit_entry
+    local data = make_file({ make_entry({
+        id = "hfoo", x = 1024.0, y = 2048.0, z = 0.0, angle = 3.14159,
+        player = 0, hp = -1, mp = -1, creation = 1 }) })
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "single unit should parse: " .. tostring(err))
@@ -236,8 +271,12 @@ do
     assert_eq(u.player, 0, "player should be 0")
     assert_eq(u.hp, -1, "hp should be -1 (default)")
     assert_eq(u.mp, -1, "mp should be -1 (default)")
+    assert_eq(u.gold, 12500, "gold should be 12500 (default)")
+    assert_near(u.target_acquisition, -1.0, 0.001, "target acquisition should be -1 (normal)")
+    assert_eq(u.custom_color, -1, "custom color should be -1 (the player's)")
     assert_eq(u.waygate_dest, -1, "waygate should be -1")
     assert_eq(u.creation_number, 1, "creation number should be 1")
+    assert_eq(result.tail_raw, "", "every byte read")
 end
 print("  PASSED")
 -- }}}
@@ -245,43 +284,8 @@ print("  PASSED")
 -- {{{ Test: hero unit entry
 print("Test: hero unit entry")
 do
-    -- Build a hero unit entry
-    local unit_entry = "Hpal"          -- Type ID (Paladin - hero)
-        .. make_int32(0)               -- Variation
-        .. make_float32(100.0)         -- X position
-        .. make_float32(200.0)         -- Y position
-        .. make_float32(0.0)           -- Z position
-        .. make_float32(0.0)           -- Angle
-        .. make_float32(1.0)           -- X scale
-        .. make_float32(1.0)           -- Y scale
-        .. make_float32(1.0)           -- Z scale
-        .. string.char(0)              -- Flags
-        .. make_int32(0)               -- Player 0
-        .. string.char(0, 0)           -- Unknown bytes
-        .. make_int32(100)             -- HP = 100
-        .. make_int32(50)              -- MP = 50
-        -- Item drops section (empty)
-        .. make_int32(-1)              -- Item table pointer
-        .. make_int32(0)               -- Num item sets
-        -- Abilities section (empty)
-        .. make_int32(0)               -- Num abilities
-        -- Hero data section (required for heroes)
-        .. make_int32(1)               -- Hero level = 1
-        .. make_int32(0)               -- Strength bonus
-        .. make_int32(0)               -- Agility bonus
-        .. make_int32(0)               -- Intelligence bonus
-        .. make_int32(0)               -- No inventory items
-        -- Random unit section
-        .. make_int32(0)               -- Not random
-        -- Waygate and creation number
-        .. make_int32(-1)              -- Waygate dest
-        .. make_int32(2)               -- Creation number
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)               -- 1 unit
-        .. unit_entry
+    local data = make_file({ make_entry({
+        id = "Hpal", x = 100.0, y = 200.0, hp = 100, mp = 50, level = 1, creation = 2 }) })
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "hero unit should parse: " .. tostring(err))
@@ -300,51 +304,20 @@ print("  PASSED")
 -- {{{ Test: unit with item drops
 print("Test: unit with item drops")
 do
-    -- Build a unit with item drops
-    local unit_entry = "hfoo"          -- Type ID
-        .. make_int32(0)               -- Variation
-        .. make_float32(0.0)           -- X position
-        .. make_float32(0.0)           -- Y position
-        .. make_float32(0.0)           -- Z position
-        .. make_float32(0.0)           -- Angle
-        .. make_float32(1.0)           -- X scale
-        .. make_float32(1.0)           -- Y scale
-        .. make_float32(1.0)           -- Z scale
-        .. string.char(0)              -- Flags
-        .. make_int32(0)               -- Player 0
-        .. string.char(0, 0)           -- Unknown bytes
-        .. make_int32(-1)              -- HP (default)
-        .. make_int32(-1)              -- MP (default)
-        -- Item drops section (2 sets, items in each)
-        .. make_int32(0)               -- Item table pointer
-        .. make_int32(2)               -- 2 item sets
-        -- Set 1: 2 items
-        .. make_int32(2)               -- 2 items in set
-        .. "rat6" .. make_int32(50)    -- Item 1: 50% chance
-        .. "rat9" .. make_int32(25)    -- Item 2: 25% chance
-        -- Set 2: 1 item
-        .. make_int32(1)               -- 1 item in set
-        .. "afac" .. make_int32(100)   -- Item: 100% chance
-        -- Abilities section (empty)
-        .. make_int32(0)               -- Num abilities
-        -- No hero data
-        -- Random unit section
-        .. make_int32(0)               -- Not random
-        -- Waygate and creation number
-        .. make_int32(-1)
-        .. make_int32(3)
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)
-        .. unit_entry
+    local data = make_file({ make_entry({
+        id = "hfoo", table_pointer = 0,
+        sets = {
+            { { "rat6", 50 }, { "rat9", 25 } },   -- set 1: 2 items
+            { { "afac", 100 } },                  -- set 2: 1 item
+        },
+        creation = 3 }) })
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "unit with items should parse: " .. tostring(err))
 
     local u = result.units[1]
     assert_eq(u.id, "hfoo", "type ID should be hfoo")
+    assert_eq(u.item_drops.table_pointer, 0, "table pointer should be 0")
     assert_eq(#u.item_drops.sets, 2, "should have 2 item sets")
     assert_eq(u.creation_number, 3, "creation number should be 3")
 
@@ -364,41 +337,14 @@ print("  PASSED")
 -- {{{ Test: unit with abilities
 print("Test: unit with abilities")
 do
-    -- Build a unit with modified abilities
-    local unit_entry = "hfoo"          -- Type ID
-        .. make_int32(0)               -- Variation
-        .. make_float32(0.0)           -- X position
-        .. make_float32(0.0)           -- Y position
-        .. make_float32(0.0)           -- Z position
-        .. make_float32(0.0)           -- Angle
-        .. make_float32(1.0)           -- X scale
-        .. make_float32(1.0)           -- Y scale
-        .. make_float32(1.0)           -- Z scale
-        .. string.char(0)              -- Flags
-        .. make_int32(0)               -- Player 0
-        .. string.char(0, 0)           -- Unknown bytes
-        .. make_int32(-1)              -- HP
-        .. make_int32(-1)              -- MP
-        -- Item drops section (empty)
-        .. make_int32(-1)
-        .. make_int32(0)
-        -- Abilities section (3 abilities)
-        .. make_int32(3)               -- 3 abilities
-        .. "AHhb" .. make_int32(1) .. make_int32(1)  -- Holy Light, autocast, level 1
-        .. "AHds" .. make_int32(0) .. make_int32(2)  -- Divine Shield, no autocast, level 2
-        .. "AHad" .. make_int32(1) .. make_int32(3)  -- Devotion Aura, autocast, level 3
-        -- No hero data
-        -- Random unit section
-        .. make_int32(0)
-        -- Waygate and creation number
-        .. make_int32(-1)
-        .. make_int32(4)
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)
-        .. unit_entry
+    local data = make_file({ make_entry({
+        id = "hfoo",
+        abilities = {
+            { "AHhb", 1, 1 },  -- Holy Light, autocast, level 1
+            { "AHds", 0, 2 },  -- Divine Shield, no autocast, level 2
+            { "AHad", 1, 3 },  -- Devotion Aura, autocast, level 3
+        },
+        creation = 4 }) })
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "unit with abilities should parse: " .. tostring(err))
@@ -425,98 +371,31 @@ end
 print("  PASSED")
 -- }}}
 
--- {{{ Test: random unit types (expanded for 202e)
+-- {{{ Test: random unit types (202e; flags as the editor writes them, 202f)
 print("Test: random unit types")
 do
-    -- Unit with random flag = 1 (random unit from level)
-    local unit_entry1 = "YYU5"         -- Random unit level 5 (type ID is placeholder)
-        .. make_int32(0)               -- Variation
-        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        .. make_int32(-1) .. make_int32(0)  -- No items
-        .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 1, random from level)
-        .. make_int32(1)               -- Flag = random from level
-        .. "YYU5"                      -- "YYU" + level char '5'
-        .. make_int32(-1)              -- Waygate inactive
-        .. make_int32(100)             -- Creation number
-
-    -- Unit with random flag = 2 (random from group)
-    local unit_entry2 = "hfoo"
-        .. make_int32(0)
-        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        .. make_int32(-1) .. make_int32(0)  -- No items
-        .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 2, random from group)
-        .. make_int32(2)               -- Flag = random from group
-        .. make_int32(3)               -- Group index
-        .. make_int32(1)               -- Position in group
-        .. make_int32(-1)              -- Waygate inactive
-        .. make_int32(101)             -- Creation number
-
-    -- Unit with random item (flag = 1, "YYI" prefix)
-    local unit_entry3 = "YYI3"         -- Random item level 3
-        .. make_int32(0)
-        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        .. make_int32(-1) .. make_int32(0)  -- No items
-        .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 1, random item from level)
-        .. make_int32(1)               -- Flag = random from level
-        .. "YYI3"                      -- "YYI" + level char '3'
-        .. make_int32(-1)              -- Waygate inactive
-        .. make_int32(102)             -- Creation number
-
-    -- Unit with active waygate
-    local unit_entry4 = "nwgt"         -- Waygate unit type
-        .. make_int32(0)
-        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        .. make_int32(-1) .. make_int32(0)  -- No items
-        .. make_int32(0)                    -- No abilities
-        -- Random unit section (flag = 0, not random)
-        .. make_int32(0)               -- Not random
-        .. make_int32(42)              -- Waygate destination = region 42
-        .. make_int32(103)             -- Creation number
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(4)               -- 4 units
-        .. unit_entry1
-        .. unit_entry2
-        .. unit_entry3
-        .. unit_entry4
+    local data = make_file({
+        -- flag 0 on a random unit: a unit of level 5
+        make_entry({ id = "uDNR", random_flag = 0, random_level = 5, creation = 100 }),
+        -- flag 1: from random group 3, its column 1
+        make_entry({ id = "hfoo", random_flag = 1, group = 3, position = 1, creation = 101 }),
+        -- flag 0 on a random item: an item of level 3, class 1
+        make_entry({ id = "iDNR", random_flag = 0, random_level = 3, item_class = 1, creation = 102 }),
+        -- a waygate, not random (flag 0, level -1)
+        make_entry({ id = "nwgt", waygate = 42, creation = 103 }),
+        -- flag 2: from a table of its own
+        make_entry({ id = "uDNR", random_flag = 2,
+            choices = { { "hfoo", 60 }, { "hkni", 40 } }, creation = 104 }),
+    })
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "random units should parse: " .. tostring(err))
-    assert_eq(#result.units, 4, "should have 4 units")
+    assert_eq(#result.units, 5, "should have 5 units")
 
-    -- Unit 1: Random unit from level 5
+    -- Unit 1: Random unit of level 5
     local u1 = result.units[1]
     assert_true(u1.random_unit ~= nil, "unit 1 should have random_unit")
-    assert_eq(u1.random_unit.flag, 1, "unit 1 random flag should be 1")
+    assert_eq(u1.random_unit.flag, 0, "unit 1 random flag should be 0")
     assert_eq(u1.random_unit.type, "unit", "unit 1 should be random unit type")
     assert_eq(u1.random_unit.level, 5, "unit 1 should be level 5")
     assert_eq(u1.waygate_dest, -1, "unit 1 waygate should be inactive")
@@ -525,17 +404,18 @@ do
     -- Unit 2: Random from group
     local u2 = result.units[2]
     assert_true(u2.random_unit ~= nil, "unit 2 should have random_unit")
-    assert_eq(u2.random_unit.flag, 2, "unit 2 random flag should be 2")
+    assert_eq(u2.random_unit.flag, 1, "unit 2 random flag should be 1")
     assert_eq(u2.random_unit.group_index, 3, "unit 2 group index should be 3")
     assert_eq(u2.random_unit.position, 1, "unit 2 position should be 1")
     assert_eq(u2.creation_number, 101, "unit 2 creation number")
 
-    -- Unit 3: Random item from level 3
+    -- Unit 3: Random item of level 3
     local u3 = result.units[3]
     assert_true(u3.random_unit ~= nil, "unit 3 should have random_unit")
-    assert_eq(u3.random_unit.flag, 1, "unit 3 random flag should be 1")
+    assert_eq(u3.random_unit.flag, 0, "unit 3 random flag should be 0")
     assert_eq(u3.random_unit.type, "item", "unit 3 should be random item type")
     assert_eq(u3.random_unit.level, 3, "unit 3 should be level 3")
+    assert_eq(u3.random_unit.item_class, 1, "unit 3 item class should be 1")
     assert_eq(u3.creation_number, 102, "unit 3 creation number")
 
     -- Unit 4: Waygate with active destination
@@ -543,6 +423,14 @@ do
     assert_nil(u4.random_unit, "unit 4 should not have random_unit")
     assert_eq(u4.waygate_dest, 42, "unit 4 waygate should be region 42")
     assert_eq(u4.creation_number, 103, "unit 4 creation number")
+
+    -- Unit 5: from its own table
+    local u5 = result.units[5]
+    assert_eq(u5.random_unit and u5.random_unit.flag, 2, "unit 5 random flag should be 2")
+    assert_eq(u5.random_unit and #u5.random_unit.choices, 2, "unit 5 should have 2 choices")
+    assert_eq(u5.random_unit and u5.random_unit.choices[2].id, "hkni", "unit 5 choice 2 id")
+    assert_eq(u5.random_unit and u5.random_unit.choices[2].chance, 40, "unit 5 choice 2 chance")
+    assert_eq(u5.creation_number, 104, "unit 5 creation number")
 end
 print("  PASSED")
 -- }}}
@@ -569,43 +457,10 @@ print("  PASSED")
 -- {{{ Test: UnitTable class
 print("Test: UnitTable class")
 do
-    -- Create two units for different players
-    local unit1 = "hfoo"
-        .. make_int32(0)
-        .. make_float32(100.0) .. make_float32(100.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)               -- Player 0
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        .. make_int32(-1) .. make_int32(0)
-        .. make_int32(0)
-        .. make_int32(0)
-        .. make_int32(-1)
-        .. make_int32(10)
-
-    local unit2 = "ogru"
-        .. make_int32(0)
-        .. make_float32(200.0) .. make_float32(200.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(1)               -- Player 1
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        .. make_int32(-1) .. make_int32(0)
-        .. make_int32(0)
-        .. make_int32(0)
-        .. make_int32(-1)
-        .. make_int32(11)
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(2)
-        .. unit1
-        .. unit2
+    local data = make_file({
+        make_entry({ id = "hfoo", x = 100.0, y = 100.0, player = 0, creation = 10 }),
+        make_entry({ id = "ogru", x = 200.0, y = 200.0, player = 1, creation = 11 }),
+    })
 
     local ut = unitsdoo.new(data)
 
@@ -646,29 +501,7 @@ print("  PASSED")
 -- {{{ Test: format output
 print("Test: format output")
 do
-    local unit1 = "Hpal"
-        .. make_int32(0)
-        .. make_float32(100.0) .. make_float32(200.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        .. make_int32(-1) .. make_int32(0)
-        .. make_int32(0)
-        -- Hero data
-        .. make_int32(1) .. make_int32(0) .. make_int32(0) .. make_int32(0)
-        .. make_int32(0)
-        .. make_int32(0)
-        .. make_int32(-1)
-        .. make_int32(1)
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)
-        .. unit1
+    local data = make_file({ make_entry({ id = "Hpal", x = 100.0, y = 200.0, level = 1, creation = 1 }) })
 
     local result = unitsdoo.parse(data)
     local output = unitsdoo.format(result)
@@ -684,44 +517,14 @@ print("  PASSED")
 -- {{{ Test: hero data parsing (202d)
 print("Test: hero data parsing (202d)")
 do
-    -- Build a hero with level, stats, and inventory
-    local unit_entry = "Hpal"          -- Paladin (hero)
-        .. make_int32(0)               -- Variation
-        .. make_float32(100.0) .. make_float32(200.0) .. make_float32(0.0)
-        .. make_float32(0.0)           -- Angle
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)              -- Flags
-        .. make_int32(0)               -- Player 0
-        .. string.char(0, 0)           -- Unknown bytes
-        .. make_int32(-1) .. make_int32(-1)  -- HP/MP (default)
-        -- Item drops section (empty)
-        .. make_int32(-1)              -- Item table pointer
-        .. make_int32(0)               -- Num item sets
-        -- Abilities section (empty)
-        .. make_int32(0)               -- Num abilities
-        -- Hero data section
-        .. make_int32(5)               -- Hero level = 5
-        .. make_int32(2)               -- Strength bonus = 2 (from tomes)
-        .. make_int32(0)               -- Agility bonus = 0
-        .. make_int32(3)               -- Intelligence bonus = 3
-        .. make_int32(2)               -- 2 inventory items
-        -- Inventory item 1: Boots of Speed in slot 0
-        .. make_int32(0)               -- Slot 0
-        .. "bspd"                      -- Item ID (Boots of Speed)
-        -- Inventory item 2: Ring of Protection in slot 2
-        .. make_int32(2)               -- Slot 2
-        .. "rin1"                      -- Item ID (Ring of Protection +1)
-        -- Random unit section
-        .. make_int32(0)               -- Not random
-        -- Waygate and creation number
-        .. make_int32(-1)
-        .. make_int32(100)
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)
-        .. unit_entry
+    -- A hero with level, stats, and inventory; abilities follow the
+    -- hero section, so one is given to check the order
+    local data = make_file({ make_entry({
+        id = "Hpal", x = 100.0, y = 200.0,
+        level = 5, str = 2, agi = 0, int = 3,
+        inventory = { { 0, "bspd" }, { 2, "rin1" } },
+        abilities = { { "AHhb", 0, 2 } },
+        creation = 100 }) })
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "hero with data should parse: " .. tostring(err))
@@ -745,6 +548,10 @@ do
     assert_nil(h.inventory[3], "slot 3 should be empty")
     assert_nil(h.inventory[4], "slot 4 should be empty")
     assert_nil(h.inventory[5], "slot 5 should be empty")
+
+    assert_eq(u.abilities[1] and u.abilities[1].id, "AHhb", "ability after the hero section")
+    assert_eq(u.abilities[1] and u.abilities[1].level, 2, "ability level")
+    assert_eq(u.creation_number, 100, "creation number")
 end
 print("  PASSED")
 -- }}}
@@ -752,32 +559,8 @@ print("  PASSED")
 -- {{{ Test: non-hero has nil hero_data
 print("Test: non-hero has nil hero_data")
 do
-    -- Build a regular unit (not a hero)
-    local unit_entry = "hfoo"          -- Footman (not hero)
-        .. make_int32(0)               -- Variation
-        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        -- Item drops section (empty)
-        .. make_int32(-1) .. make_int32(0)
-        -- Abilities section (empty)
-        .. make_int32(0)
-        -- NO hero data section (not a hero)
-        -- Random unit section
-        .. make_int32(0)
-        -- Waygate and creation number
-        .. make_int32(-1)
-        .. make_int32(101)
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)
-        .. unit_entry
+    -- every entry has the hero section; a non-hero's isn't kept as hero_data
+    local data = make_file({ make_entry({ id = "hfoo", level = 1, creation = 101 }) })
 
     local result, err = unitsdoo.parse(data)
     assert_true(result ~= nil, "non-hero should parse: " .. tostring(err))
@@ -785,6 +568,72 @@ do
     local u = result.units[1]
     assert_true(not u.is_hero, "should not be hero")
     assert_nil(u.hero_data, "non-hero should have nil hero_data")
+    assert_eq(u.creation_number, 101, "creation number")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: a non-hero's inventory (202f)
+print("Test: a non-hero's inventory (202f)")
+do
+    local data = make_file({ make_entry({ id = "h00U", inventory = { { 0, "I01M" } }, creation = 50 }) })
+
+    local result, err = unitsdoo.parse(data)
+    assert_true(result ~= nil, "non-hero with items should parse: " .. tostring(err))
+    local u = result.units[1]
+    assert_nil(u.hero_data, "still no hero_data")
+    assert_eq(u.inventory[0], "I01M", "its item in slot 0")
+    assert_eq(u.creation_number, 50, "creation number")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: a Reign of Chaos file (version 7, 202f)
+print("Test: a Reign of Chaos file (version 7, 202f)")
+do
+    -- no item table pointer, no stat bonuses
+    local data = make_file({
+        make_entry({ id = "sloc", version = 7, creation = 0 }),
+        make_entry({ id = "Hpal", version = 7, level = 3, inventory = { { 1, "bspd" } },
+            sets = { { { "ratc", 100 } } }, creation = 1 }),
+    }, 7)
+
+    local result, err = unitsdoo.parse(data)
+    assert_true(result ~= nil, "a version 7 file should parse: " .. tostring(err))
+    assert_eq(result and #result.units, 2, "2 units")
+    local h = result and result.units[2]
+    assert_eq(h and h.item_drops.table_pointer, -1, "no table pointer reads as -1")
+    assert_eq(h and h.item_drops.sets[1].items[1].id, "ratc", "its drop")
+    assert_eq(h and h.hero_data.level, 3, "hero level")
+    assert_eq(h and h.hero_data.inventory[1], "bspd", "inventory")
+    assert_eq(h and h.creation_number, 1, "creation number")
+    assert_eq(result and result.tail_raw, "", "every byte read")
+end
+print("  PASSED")
+-- }}}
+
+-- {{{ Test: damaged files fail with a message (202f)
+print("Test: damaged files fail with a message (202f)")
+do
+    local whole = make_file({ make_entry({ id = "hfoo", creation = 1 }), make_entry({ id = "hkni", creation = 2 }) })
+
+    -- cut inside the second unit
+    local result, err = unitsdoo.parse(whole:sub(1, #whole - 10))
+    assert_nil(result, "a cut file should not parse")
+    assert_true(err and err:find("unit 2/2") and err:find("past the end"), "the message names the unit: " .. tostring(err))
+
+    -- a count that can't fit
+    local bad = make_file({ make_entry({ id = "hfoo", abilities = { { "AHhb", 0, 1 } } }) })
+    local at = bad:find(make_int32(1) .. "AHhb", 1, true)
+    bad = bad:sub(1, at - 1) .. make_int32(100000) .. bad:sub(at + 4)
+    result, err = unitsdoo.parse(bad)
+    assert_nil(result, "an impossible ability count should not parse")
+    assert_true(err and err:find("ability count"), "the message names the count: " .. tostring(err))
+
+    -- an unknown random flag
+    result, err = unitsdoo.parse(make_file({ make_entry({ id = "hfoo", random_flag = 7 }) }))
+    assert_nil(result, "an unknown random flag should not parse")
+    assert_true(err and err:find("random flag 7"), "the message names the flag: " .. tostring(err))
 end
 print("  PASSED")
 -- }}}
@@ -792,38 +641,9 @@ print("  PASSED")
 -- {{{ Test: hero format output includes hero details
 print("Test: hero format output includes hero details")
 do
-    -- Build a hero with stats
-    local unit_entry = "Hamg"          -- Archmage
-        .. make_int32(0)
-        .. make_float32(0.0) .. make_float32(0.0) .. make_float32(0.0)
-        .. make_float32(0.0)
-        .. make_float32(1.0) .. make_float32(1.0) .. make_float32(1.0)
-        .. string.char(0)
-        .. make_int32(0)
-        .. string.char(0, 0)
-        .. make_int32(-1) .. make_int32(-1)
-        -- Item drops (empty)
-        .. make_int32(-1) .. make_int32(0)
-        -- Abilities (empty)
-        .. make_int32(0)
-        -- Hero data
-        .. make_int32(10)              -- Level 10
-        .. make_int32(5)               -- STR+5
-        .. make_int32(3)               -- AGI+3
-        .. make_int32(7)               -- INT+7
-        .. make_int32(1)               -- 1 inventory item
-        .. make_int32(0) .. "phea"     -- Healing Potion in slot 0
-        -- Random
-        .. make_int32(0)
-        -- Waygate and creation
-        .. make_int32(-1)
-        .. make_int32(200)
-
-    local data = "W3do"
-        .. make_int32(8)
-        .. make_int32(11)
-        .. make_int32(1)
-        .. unit_entry
+    local data = make_file({ make_entry({
+        id = "Hamg", level = 10, str = 5, agi = 3, int = 7,
+        inventory = { { 0, "phea" } }, creation = 200 }) })
 
     local result = unitsdoo.parse(data)
     local output = unitsdoo.format(result)
@@ -880,6 +700,12 @@ else
                 if data then
                     local result, parse_err = unitsdoo.parse(data)
                     tests_run = tests_run + 1
+                    -- the entries take every byte of the file (202f): a
+                    -- layout that reads wrong ends early or runs past
+                    if result and result.tail_raw ~= "" then
+                        result, parse_err = nil, string.format("%d bytes left after the last unit",
+                            #result.tail_raw)
+                    end
                     if result then
                         tests_passed = tests_passed + 1
                         local hero_count = 0
