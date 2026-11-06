@@ -33,6 +33,15 @@ Where platform_write sends its text besides standard output: a file path,
 or NULL for standard output alone. Standard output can also be silenced,
 for tests that produce a great deal of expected chatter.
 
+### twin_card_open
+
+```c
+void twin_card_open(const char *path)
+```
+
+Use this disk-image file as the SD card. It must already be formatted
+(scripts/make-card-image makes one).
+
 ### twin_platform_shutdown
 
 ```c
