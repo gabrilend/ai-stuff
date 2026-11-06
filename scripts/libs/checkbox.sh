@@ -21,12 +21,16 @@ fi
 # Checkbox State
 # ============================================================================
 
+# These tables are made with declare -g so they stay global even when this
+# file is sourced from inside a function: a plain declare there would make
+# them local to that function, and they would vanish when it returns.
+
 # State storage
-declare -A CHECKBOX_STATE        # item_id -> 0/1 (checked state)
-declare -A CHECKBOX_DISABLED     # item_id -> 1 (if disabled)
-declare -a CHECKBOX_ITEMS        # ordered list of item IDs
-declare -a CHECKBOX_LABELS       # display labels for items
-declare -a CHECKBOX_DESCRIPTIONS # optional descriptions
+declare -gA CHECKBOX_STATE        # item_id -> 0/1 (checked state)
+declare -gA CHECKBOX_DISABLED     # item_id -> 1 (if disabled)
+declare -ga CHECKBOX_ITEMS        # ordered list of item IDs
+declare -ga CHECKBOX_LABELS       # display labels for items
+declare -ga CHECKBOX_DESCRIPTIONS # optional descriptions
 
 # Cursor and scroll
 CHECKBOX_CURSOR=0

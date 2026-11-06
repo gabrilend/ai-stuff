@@ -6,23 +6,26 @@
 LIBS_DIR="${LIBS_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
 # {{{ State variables
-declare -a MENU_SECTIONS=()
-declare -A MENU_SECTION_TITLES=()
-declare -A MENU_SECTION_TYPES=()
-declare -A MENU_SECTION_ITEMS=()
-declare -A MENU_ITEM_LABELS=()
-declare -A MENU_ITEM_TYPES=()
-declare -A MENU_VALUES=()
-declare -A MENU_ITEM_DESCRIPTIONS=()
-declare -A MENU_ITEM_CONFIGS=()
-declare -A MENU_ITEM_DISABLED=()
-declare -A MENU_ITEM_SHORTCUTS=()
-declare -A MENU_ITEM_FLAGS=()
-declare -A MENU_ITEM_FILEPATHS=()  # Optional file path for preview
-declare -A MENU_SECTION_MAX_VISIBLE=()  # Max visible items per section (for viewport scrolling)
-declare -a MENU_DEPENDENCIES=()    # Dependencies: "item_id|depends_on|required_values|invert|multi"
-declare -a MENU_PREREQUISITES=()   # Prerequisites: "item_id|prerequisite_id" - auto-enable prereq when item selected
-declare -a MENU_SUGGESTED_DEPS=()  # Suggested deps: "item_id|depends_on|required_values|reason" - yellow highlight
+# These tables are made with declare -g so they stay global even when this
+# file is sourced from inside a function: a plain declare there would make
+# them local to that function, and they would vanish when it returns.
+declare -ga MENU_SECTIONS=()
+declare -gA MENU_SECTION_TITLES=()
+declare -gA MENU_SECTION_TYPES=()
+declare -gA MENU_SECTION_ITEMS=()
+declare -gA MENU_ITEM_LABELS=()
+declare -gA MENU_ITEM_TYPES=()
+declare -gA MENU_VALUES=()
+declare -gA MENU_ITEM_DESCRIPTIONS=()
+declare -gA MENU_ITEM_CONFIGS=()
+declare -gA MENU_ITEM_DISABLED=()
+declare -gA MENU_ITEM_SHORTCUTS=()
+declare -gA MENU_ITEM_FLAGS=()
+declare -gA MENU_ITEM_FILEPATHS=()  # Optional file path for preview
+declare -gA MENU_SECTION_MAX_VISIBLE=()  # Max visible items per section (for viewport scrolling)
+declare -ga MENU_DEPENDENCIES=()    # Dependencies: "item_id|depends_on|required_values|invert|multi"
+declare -ga MENU_PREREQUISITES=()   # Prerequisites: "item_id|prerequisite_id" - auto-enable prereq when item selected
+declare -ga MENU_SUGGESTED_DEPS=()  # Suggested deps: "item_id|depends_on|required_values|reason" - yellow highlight
 
 MENU_TITLE=""
 MENU_SUBTITLE=""
@@ -38,7 +41,7 @@ MENU_COMMAND_FILE_SECTION=""
 # Each entry is: "type|label|content" where type is "text" or "file"
 # Content panel shows these sources separated by dashed lines
 # The last source gets remaining available space
-declare -a MENU_CONTENT_SOURCES=()
+declare -ga MENU_CONTENT_SOURCES=()
 # }}}
 
 # {{{ menu_init
