@@ -379,3 +379,8 @@ These are findings for the parser issues; nothing here changes a parser.
 - Parsing times and file sizes per kind (the Notes' suggestion): sizes are
   in the JSON per file; times are not measured.
 
+### Note (2026-11-06)
+
+Three of the first run's eight failures were a protected map's
+placeholder trigger files (issue 302a). A06a reports such files as
+protected, apart from failures.

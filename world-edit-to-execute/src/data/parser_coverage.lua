@@ -3,9 +3,11 @@ parser_coverage.lua - which of a map's files the project can read (Issue A06)
 
 In plain terms: opens each test map, lists every file stored in it, and
 runs the project's own parser on each file it has one for. The answer, per
-map and per kind of file, is one of four: read, failed (the parser raised
-or gave nothing back), missing (the map doesn't hold that file) or no
-parser (the project has nothing that reads it yet). From that it builds a
+map and per kind of file, is one of five: read, protected (a map
+protector's placeholder, which the parser's module recognises and refuses
+by that name), failed (the parser raised or gave nothing back), missing
+(the map doesn't hold that file) or no parser (the project has nothing
+that reads it yet). From that it builds a
 per-kind summary, a map-by-kind matrix and a list of files nobody reads.
 src/cli/parser-coverage.lua prints it, as text, Markdown or JSON.
 
@@ -27,7 +29,9 @@ local coverage = {}
 
 -- {{{ The parsers
 -- Each kind of file and how the project reads it: a module and the name of
--- its reading function. A kind not listed has no parser.
+-- its reading function. A kind not listed has no parser. A module that also
+-- has `protected(data)` (wtg, wct: issue 302a) is asked first whether the
+-- file is a map protector's placeholder; it answers with the reason or nil.
 coverage.STANDARD = {
     ["war3map.w3i"] = { "parsers.w3i", "parse" },
     ["war3map.w3e"] = { "parsers.w3e", "parse" },
@@ -93,7 +97,8 @@ local function reader_for(kind)
     if readers[key] == nil then
         local ok, mod = pcall(require, spec[1])
         if ok and type(mod) == "table" and type(mod[spec[2]]) == "function" then
-            readers[key] = { fn = mod[spec[2]], name = spec[1] .. "." .. spec[2] }
+            readers[key] = { fn = mod[spec[2]], name = spec[1] .. "." .. spec[2],
+                             protected = type(mod.protected) == "function" and mod.protected or nil }
         else
             readers[key] = { fn = nil, name = spec[1] .. "." .. spec[2],
                 err = ok and "no function " .. spec[2] or tostring(mod) }
@@ -105,10 +110,19 @@ coverage.reader_for = reader_for
 -- }}}
 
 -- {{{ local function read_one(reader, data)
--- "read" or "failed", and the message when failed
+-- "read", "protected" or "failed", and the message when protected or failed.
+-- "protected" only when the module's check names the file a placeholder and
+-- the parser refuses it with that same reason, as 302a's tests require; a
+-- placeholder refused for any other reason still counts as failed.
 local function read_one(reader, data)
     if not reader.fn then return "failed", "cannot load " .. reader.name .. ": " .. reader.err end
+    local reason
+    if reader.protected then
+        local pok, why = pcall(reader.protected, data)
+        if pok and type(why) == "string" then reason = why end
+    end
     local ok, result, err = pcall(reader.fn, data)
+    if reason and ok and (result == nil or result == false) and err == reason then return "protected", reason end
     if not ok then return "failed", tostring(result) end
     if result == nil or result == false then return "failed", tostring(err or "nothing returned") end
     return "read"
@@ -117,7 +131,7 @@ end
 
 -- {{{ coverage.scan_map(path, options)
 -- One map: { path, name, files = { {name, kind, size, status, message} },
--- kinds = { [kind] = {read, failed, no_parser} }, missing = {kinds},
+-- kinds = { [kind] = {read, protected, failed, no_parser} }, missing = {kinds},
 -- error = message if the map would not open }. options.kinds: a set of kinds
 -- to look at (all when absent).
 function coverage.scan_map(path, options)
@@ -136,7 +150,7 @@ function coverage.scan_map(path, options)
         if not want or want[kind] then
             present[kind] = true
             local entry = { name = name, kind = kind }
-            local counts = map.kinds[kind] or { read = 0, failed = 0, no_parser = 0 }
+            local counts = map.kinds[kind] or { read = 0, protected = 0, failed = 0, no_parser = 0 }
             map.kinds[kind] = counts
             local reader = reader_for(kind)
             if not reader then
@@ -164,13 +178,15 @@ end
 
 -- {{{ local function map_status(map, kind)
 -- One cell of the matrix: "read" (every file of the kind read), "failed"
--- (any failed), "missing", "no_parser", or "error" (map didn't open)
+-- (any failed), "protected" (none failed or read: a protector's
+-- placeholder), "missing", "no_parser", or "error" (map didn't open)
 local function map_status(map, kind)
     if map.error then return "error" end
     local c = map.kinds[kind]
     if not c then return "missing" end
     if c.failed > 0 then return "failed" end
     if c.read > 0 then return "read" end
+    if (c.protected or 0) > 0 then return "protected" end
     return "no_parser"
 end
 coverage.map_status = map_status
@@ -178,8 +194,9 @@ coverage.map_status = map_status
 
 -- {{{ coverage.run(paths, options)
 -- Every map, then the totals: report = { maps, kinds (sorted list),
--- summary = { [kind] = { parser, maps_read, maps_failed, maps_missing,
--- files_read, files_failed, files_no_parser } }, totals }
+-- summary = { [kind] = { parser, maps_read, maps_protected, maps_failed,
+-- maps_missing, files_read, files_protected, files_failed, files_no_parser } },
+-- totals }
 function coverage.run(paths, options)
     local report = { maps = {}, kinds = {}, summary = {} }
     for _, p in ipairs(paths) do report.maps[#report.maps + 1] = coverage.scan_map(p, options) end
@@ -202,42 +219,47 @@ function coverage.run(paths, options)
     table.sort(exts)
     for _, k in ipairs(exts) do report.kinds[#report.kinds + 1] = k end
 
-    local totals = { maps = #report.maps, maps_unopened = 0, files = 0, read = 0, failed = 0, no_parser = 0 }
+    local totals = { maps = #report.maps, maps_unopened = 0, files = 0, read = 0, protected = 0, failed = 0, no_parser = 0 }
     for _, m in ipairs(report.maps) do
         if m.error then totals.maps_unopened = totals.maps_unopened + 1 end
     end
     for _, k in ipairs(report.kinds) do
         local reader = reader_for(k)
-        local s = { parser = reader and reader.name or nil, maps_read = 0, maps_failed = 0,
-                    maps_missing = 0, maps_no_parser = 0, files_read = 0, files_failed = 0, files_no_parser = 0 }
+        local s = { parser = reader and reader.name or nil, maps_read = 0, maps_protected = 0, maps_failed = 0,
+                    maps_missing = 0, maps_no_parser = 0, files_read = 0, files_protected = 0, files_failed = 0,
+                    files_no_parser = 0 }
         for _, m in ipairs(report.maps) do
             local st = map_status(m, k)
             if st == "read" then s.maps_read = s.maps_read + 1
+            elseif st == "protected" then s.maps_protected = s.maps_protected + 1
             elseif st == "failed" then s.maps_failed = s.maps_failed + 1
             elseif st == "missing" then s.maps_missing = s.maps_missing + 1
             elseif st == "no_parser" then s.maps_no_parser = s.maps_no_parser + 1 end
             local c = m.kinds[k]
             if c then
                 s.files_read = s.files_read + c.read
+                s.files_protected = s.files_protected + c.protected
                 s.files_failed = s.files_failed + c.failed
                 s.files_no_parser = s.files_no_parser + c.no_parser
             end
         end
         report.summary[k] = s
         totals.read = totals.read + s.files_read
+        totals.protected = totals.protected + s.files_protected
         totals.failed = totals.failed + s.files_failed
         totals.no_parser = totals.no_parser + s.files_no_parser
     end
-    totals.files = totals.read + totals.failed + totals.no_parser
+    totals.files = totals.read + totals.protected + totals.failed + totals.no_parser
     report.totals = totals
     return report
 end
 -- }}}
 
 -- {{{ Output
-local SYMBOL = { read = "ok", failed = "FAIL", missing = ".", no_parser = "-", error = "ERR" }
+local SYMBOL = { read = "ok", protected = "prot", failed = "FAIL", missing = ".", no_parser = "-", error = "ERR" }
 coverage.SYMBOL = SYMBOL
-local LEGEND = "Legend: ok = read, FAIL = a file failed, . = not in the map, - = no parser, ERR = map would not open"
+local LEGEND = "Legend: ok = read, prot = a protected map's placeholder, FAIL = a file failed, . = not in the map, "
+    .. "- = no parser, ERR = map would not open"
 
 -- Kinds that appear in at least one map (others only clutter the matrix)
 local function kinds_present(report)
@@ -264,14 +286,17 @@ local function summary_rows(report)
         rows[#rows + 1] = {
             k, s.parser or "-",
             string.format("%d/%d", s.maps_read, #report.maps),
+            string.format("%d/%d", s.maps_protected, #report.maps),
             string.format("%d/%d", s.maps_failed, #report.maps),
             string.format("%d/%d", s.maps_missing, #report.maps),
-            tostring(s.files_read), tostring(s.files_failed), tostring(s.files_no_parser),
+            tostring(s.files_read), tostring(s.files_protected), tostring(s.files_failed),
+            tostring(s.files_no_parser),
         }
     end
     return rows
 end
-local SUMMARY_HEAD = { "File kind", "Parser", "Maps read", "Maps failed", "Not in map", "Files read", "Files failed", "Files unread" }
+local SUMMARY_HEAD = { "File kind", "Parser", "Maps read", "Maps protected", "Maps failed", "Not in map",
+                       "Files read", "Files protected", "Files failed", "Files unread" }
 -- }}}
 
 -- {{{ local function failures(report)
@@ -287,6 +312,20 @@ local function failures(report)
     return out
 end
 coverage.failures = failures
+-- }}}
+
+-- {{{ local function protected_files(report)
+-- Every protector's placeholder: { map, file, reason }
+local function protected_files(report)
+    local out = {}
+    for _, m in ipairs(report.maps) do
+        for _, f in ipairs(m.files) do
+            if f.status == "protected" then out[#out + 1] = { m.name, f.name, f.message or "" } end
+        end
+    end
+    return out
+end
+coverage.protected_files = protected_files
 -- }}}
 
 -- {{{ local function unread_kinds(report)
@@ -308,8 +347,8 @@ coverage.unread_kinds = unread_kinds
 -- {{{ local function totals_line(report)
 local function totals_line(report)
     local t = report.totals
-    return string.format("%d maps (%d would not open); %d files: %d read, %d failed, %d with no parser",
-        t.maps, t.maps_unopened, t.files, t.read, t.failed, t.no_parser)
+    return string.format("%d maps (%d would not open); %d files: %d read, %d protected, %d failed, %d with no parser",
+        t.maps, t.maps_unopened, t.files, t.read, t.protected, t.failed, t.no_parser)
 end
 coverage.totals_line = totals_line
 -- }}}
@@ -364,6 +403,12 @@ function coverage.text(report, options)
         out[#out + 1] = "No parser yet (files, maps):"
         for _, u in ipairs(unread) do out[#out + 1] = string.format("  %s  %d files in %d maps", u[1], u[2], u[3]) end
     end
+    local prot = protected_files(report)
+    if #prot > 0 then
+        out[#out + 1] = ""
+        out[#out + 1] = string.format("Protected (a map protector's placeholder, not a parser failure): %d", #prot)
+        for _, f in ipairs(prot) do out[#out + 1] = string.format("  %s  %s", f[1], f[2]) end
+    end
     local fails = failures(report)
     if #fails > 0 then
         out[#out + 1] = ""
@@ -407,6 +452,15 @@ function coverage.markdown(report, options)
         out[#out + 1] = "## No Parser Yet"
         out[#out + 1] = ""
         out[#out + 1] = md_table({ "File kind", "Files", "Maps" }, r)
+    end
+    local prot = protected_files(report)
+    if #prot > 0 then
+        out[#out + 1] = ""
+        out[#out + 1] = "## Protected"
+        out[#out + 1] = ""
+        out[#out + 1] = "A map protector's placeholder in place of the file; the parser refuses it by that name."
+        out[#out + 1] = ""
+        out[#out + 1] = md_table({ "Map", "File", "Reason" }, prot)
     end
     local fails = failures(report)
     if #fails > 0 then

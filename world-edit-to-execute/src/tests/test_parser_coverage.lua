@@ -3,8 +3,9 @@
 --
 -- Checks how stored files are grouped into kinds, that a real test map's
 -- files are read and counted, that a parser that raises is counted as a
--- failure with its message, that a map that won't open is reported, and the
--- three outputs and the command-line tool.
+-- failure with its message, that a protected map's placeholder is counted as
+-- protected and not as a failure (302a), that a map that won't open is
+-- reported, and the three outputs and the command-line tool.
 --
 -- Run: luajit src/tests/test_parser_coverage.lua [DIR]
 
@@ -92,13 +93,63 @@ check("nil result counts as failed", said_no.files[1].status == "failed" and sai
       said_no.files[1].message)
 -- }}}
 
+-- {{{ a protector's placeholder (issue 302a)
+-- A module whose protected() names the file, and a parser that refuses it
+-- with that reason: protected. Refused for another reason, or read after
+-- all: failed, or read.
+local REASON = "protected map: test placeholder"
+local function placeholder_reader(result, err)
+    return function()
+        return { protected = function() return REASON end,
+                 parse = function() return result, err end }
+    end
+end
+package.preload["test_protected_reader"] = placeholder_reader(nil, REASON)
+package.preload["test_protected_other"] = placeholder_reader(nil, "some other trouble")
+package.preload["test_protected_reads"] = placeholder_reader({}, nil)
+local function scan_w3i_with(module)
+    coverage.STANDARD["war3map.w3i"] = { module, "parse" }
+    local r = coverage.scan_map(MAP, { kinds = { ["war3map.w3i"] = true } })
+    coverage.STANDARD["war3map.w3i"] = saved
+    return r
+end
+local prot = scan_w3i_with("test_protected_reader")
+check("placeholder counts as protected", prot.files[1].status == "protected" and prot.kinds["war3map.w3i"].protected == 1,
+      prot.files[1].status)
+check("protected keeps the reason", prot.files[1].message == REASON, prot.files[1].message)
+check("protected map status", coverage.map_status(prot, "war3map.w3i") == "protected")
+local other = scan_w3i_with("test_protected_other")
+check("placeholder refused for another reason fails", other.files[1].status == "failed"
+      and other.files[1].message == "some other trouble", other.files[1].message)
+local reads = scan_w3i_with("test_protected_reads")
+check("placeholder the parser reads counts as read", reads.files[1].status == "read", reads.files[1].status)
+
+-- The real thing: Conquest-v8-fix's trigger files are a protector's
+-- placeholders, and the project's own wtg and wct readers say so
+local CONQUEST = DIR .. "/assets/Conquest-v8-fix.w3x"
+local trig = coverage.run({ CONQUEST }, { kinds = { ["war3map.wtg"] = true, ["war3map.wct"] = true } })
+check("real map: wtg protected", coverage.map_status(trig.maps[1], "war3map.wtg") == "protected")
+check("real map: wct protected", coverage.map_status(trig.maps[1], "war3map.wct") == "protected")
+check("real map: protected, not failed", trig.totals.protected == 2 and trig.totals.failed == 0,
+      trig.totals.protected .. " protected, " .. trig.totals.failed .. " failed")
+check("real map: summary counts", trig.summary["war3map.wtg"].maps_protected == 1
+      and trig.summary["war3map.wtg"].files_protected == 1)
+local pf = coverage.protected_files(trig)
+check("real map: listed with the reason", #pf == 2 and pf[1][3]:find("protected map", 1, true) ~= nil)
+check("real map: not among failures", #coverage.failures(trig) == 0)
+local ttext = coverage.text(trig)
+check("text: protected section", ttext:find("Protected (", 1, true) ~= nil and ttext:find(" prot", 1, true) ~= nil)
+check("markdown: protected section", coverage.markdown(trig):find("## Protected", 1, true) ~= nil)
+check("json: protected status", coverage.json(trig):find('"status":"protected"', 1, true) ~= nil)
+-- }}}
+
 -- {{{ the whole run, with a map that won't open
 local report = coverage.run({ MAP, DIR .. "/assets/no-such-map.w3x" })
 local t = report.totals
 check("two maps", t.maps == 2)
 check("one unopened", t.maps_unopened == 1)
 check("unopened map status", coverage.map_status(report.maps[2], "war3map.w3i") == "error")
-check("files add up", t.files == t.read + t.failed + t.no_parser and t.files == #report.maps[1].files)
+check("files add up", t.files == t.read + t.protected + t.failed + t.no_parser and t.files == #report.maps[1].files)
 check("summary: w3i read in one map", report.summary["war3map.w3i"].maps_read == 1)
 check("summary: parser named", report.summary["war3map.w3i"].parser == "parsers.w3i.parse")
 check("summary: shd unread", report.summary["war3map.shd"].files_no_parser == 1 and not report.summary["war3map.shd"].parser)
@@ -139,6 +190,8 @@ check("cli: one map, exit 0", code == 0, code)
 check("cli: prints totals", out:find("1 maps (0 would not open)", 1, true) ~= nil)
 out, code = run('--json -f war3map.w3i "' .. MAP .. '"')
 check("cli: json filtered", code == 0 and out:find('"kinds":["war3map.w3i"]', 1, true) ~= nil, out:sub(1, 200))
+out, code = run('-f war3map.wtg -f war3map.wct "' .. CONQUEST .. '"')
+check("cli: protected only, exit 0", code == 0 and out:find("2 protected, 0 failed", 1, true) ~= nil, code)
 out, code = run('-m "' .. DIR .. '/assets/no-such-map.w3x"')
 check("cli: unopened map, exit 1", code == 1, code)
 out, code = run('--bogus')
