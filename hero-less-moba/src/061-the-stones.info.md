@@ -24,7 +24,7 @@ having to get along.
 | `offer(world, player, stone, to)` | | A verdict. The only verb that transfers. |
 | `dismiss(world, player, stone)` | | A verdict. *Not my problem.* |
 | `request(world, player, stone)` | | A verdict. Changes nothing by itself. |
-| `ping` / `move_cursor` | | — Things people say. |
+| `ping` / `move_cursor` | | — Things people say. A ping is **rate-limited**: `limit` in any `window_seconds`, from the upgrade table, refused in words that say when the next is free. |
 | `reroll(world, player, stone)` | | A verdict. Trades a stone for the next card. |
 | `may_touch(stone, player)` | | Theirs, or communal. |
 | `visible_to(world, stone, player)` | | Whether it is in that player's own view. |

@@ -13,6 +13,7 @@ because duplicates stack and a bit set cannot count.
 | --- | --- | --- |
 | `kind` | array of rows | The catalogue. A count vector has one slot per entry here. |
 | `deck` | table | How the shared deck is built. |
+| `ping` | table | The map ping's rate limit: `limit` pings in any `window_seconds`, each lasting `lasts_seconds` on screen. 3, 5 and 4. **The limit is the whole design of the feature** (704). |
 
 ## A kind row
 

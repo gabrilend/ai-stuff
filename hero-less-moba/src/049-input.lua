@@ -253,6 +253,14 @@ M.key = {
   space  = function(state, context) context.camera_module.home(context.camera) end,
   tab    = function(state) state.watching = (state.watching == 1) and 2 or 1 end,
   p      = function(state) state.paused = not state.paused end,
+  -- *Look at this place*, where the mouse is. Only on the map: the panel is not a place.
+  g      = function(state, context)
+    if state.mouse_x < context.panel.panel_left() then
+      local wx, wy = context.camera_module.screen_to_world(context.camera,
+                                                           state.mouse_x, state.mouse_y)
+      context.queue({verb = "ping", player = context.player_number(state), x = wx, y = wy})
+    end
+  end,
   ["1"]  = function(state) state.speed = 1 end,
   ["2"]  = function(state) state.speed = 4 end,
   ["3"]  = function(state) state.speed = 16 end,

@@ -145,6 +145,7 @@ local function make_frame(world)
     -- What each teammate is pointing at. Synced continuously and never opt-in, which
     -- is half of why you can see somebody reaching for a thing before they touch it.
     cursor = {},
+    ping = {},
 
     -- One per lane, for the viewing team only. The enemy's are not drawn greyed
     -- out or drawn without a direction -- they are not drawn.
@@ -186,6 +187,7 @@ local function make_frame(world)
 
   for number = 1, world.parameters.team_size * 2 do
     frame.cursor[number] = {x = 0, y = 0, tick = 0, team = 0}
+    frame.ping[number] = {x = 0, y = 0, tick = 0, team = 0, shown = 0}
   end
 
   for team = 1, 2 do
@@ -415,6 +417,20 @@ function M.stamp(world)
     local view = frame.cursor[number]
     view.x, view.y, view.tick = cursor.x, cursor.y, cursor.tick
     view.team = world.player[number].team
+  end
+
+  -- Pings, **for the team being watched and nobody else**, and only while they last.
+  -- An enemy ping is not hidden here -- it is absent, the way the enemy's sign-posts
+  -- are: there is nothing to leak, only something not to invent (704).
+  local lasts = world.parameters.upgrade.ping.lasts_seconds
+                * world.parameters.unit.ticks_per_second
+  for number, ping in ipairs(world.ping) do
+    local view = frame.ping[number]
+    view.x, view.y, view.tick = ping.x, ping.y, ping.tick
+    view.team = world.player[number].team
+    view.shown = (ping.live == 1
+                  and world.player[number].team == (world.viewing_team or 1)
+                  and world.tick - ping.tick < lasts) and 1 or 0
   end
   frame.wave_turn = world.wave_turn or 0
 
