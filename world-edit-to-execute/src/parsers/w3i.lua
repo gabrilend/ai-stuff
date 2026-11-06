@@ -403,30 +403,36 @@ function w3i.parse(data)
     map.forces, pos = parse_forces(data, pos)
 
     -- TFT: Upgrades and tech (optional - some maps don't have these)
-    -- (which of these the file has is kept for writing back: issue 911b)
+    -- (which of these the file has is kept for writing back: issue 911b).
+    -- Each section starts with a 4-byte count, so it is there when 4 bytes
+    -- are left; a count of 0 can be the file's last 4 bytes (issue 103c).
     map.sections = {}
-    if map.version >= 25 and pos + 4 <= #data then
+    local function has_count(at) return at + 3 <= #data end
+    if map.version >= 25 and has_count(pos) then
         map.upgrades, pos = parse_upgrades(data, pos)
         map.sections.upgrades = true
 
-        if pos + 4 <= #data then
+        if has_count(pos) then
             map.tech, pos = parse_tech(data, pos)
             map.sections.tech = true
         end
 
         -- Random unit tables
-        if pos + 4 <= #data then
+        if has_count(pos) then
             map.random_unit_tables, pos = parse_random_unit_tables(data, pos)
             map.sections.random_units = true
         end
 
         -- Random item tables
-        if pos + 4 <= #data then
+        if has_count(pos) then
             map.random_item_tables, pos = parse_random_item_tables(data, pos)
             map.sections.random_items = true
         end
     end
-    map.tail_raw = data:sub(pos)       -- (kept for writing back: issue 911b)
+    -- What follows, kept for writing back (issue 911b). On the test maps it
+    -- is nothing, or (11 DAoW maps and War-in-the-Plaguelands) a lone 0xFF
+    -- straight after the forces, in place of all four sections (issue 103c)
+    map.tail_raw = data:sub(pos)
 
     return map
 end

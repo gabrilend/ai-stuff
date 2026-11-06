@@ -3,7 +3,9 @@ Tests for war3map.w3i's random unit and item tables (issue 103b): each
 item is its chance, then its ID; a unit table is its positions' types,
 then rows of a chance and one ID per position. Read from Conquest-v8-fix,
 the one test map with random item tables, and from tables built here, then
-written back byte for byte.
+written back byte for byte. Also what follows the forces on every test map
+(issue 103c): the four sections, the last a count of 0 that ends the
+file, or a lone 0xFF in their place.
 Run: luajit src/tests/test_w3i_random_tables.lua [project dir]
 ]]
 
@@ -101,6 +103,47 @@ do
     test("the item table read back", it and it.name == "Loot" and it.sets[1].items[2].id == "pman"
         and it.sets[1].items[2].chance == 40)
     test("and written again the same", again and w3i.write(again) == bytes)
+end
+-- }}}
+
+-- {{{ What follows the forces, on every test map (issue 103c)
+test_section("After the forces, on every test map")
+do
+    local h = io.popen('ls "' .. DIR .. '/assets/"*.w3x 2>/dev/null')
+    local paths = {}
+    for p in h:lines() do paths[#paths + 1] = p end
+    h:close()
+    local all_four, lone_ff, other = 0, 0, {}
+    for _, path in ipairs(paths) do
+        local a = mpq.open(path)
+        local d = a and a:extract("war3map.w3i")
+        if a then a:close() end
+        local m = d and w3i.parse(d)
+        local name = path:match("([^/]+)%.w3x$")
+        local s = m and m.sections or {}
+        if not m or w3i.write(m) ~= d then
+            other[#other + 1] = name .. " (not read, or not written back as read)"
+        elseif m.tail_raw == "" and s.upgrades and s.tech and s.random_units and s.random_items then
+            all_four = all_four + 1
+        elseif m.tail_raw == "\255" and not (s.upgrades or s.tech or s.random_units or s.random_items) then
+            lone_ff = lone_ff + 1
+        else
+            other[#other + 1] = string.format("%s (%d bytes after the sections read)", name, #m.tail_raw)
+        end
+    end
+    test("every map: the four sections, or a lone 0xFF in their place", #paths > 0 and #other == 0,
+        table.concat(other, ", "))
+    test("both kinds are among the test maps", all_four > 0 and lone_ff > 0,
+        all_four .. " with the sections, " .. lone_ff .. " with 0xFF")
+
+    -- Master-Crafters' file ends with its random item tables' count of 0,
+    -- which used to be left unread as four unnamed bytes
+    local a = mpq.open(DIR .. "/assets/Master-Crafters-Final-Conquest.w3x")
+    local d = a:extract("war3map.w3i")
+    a:close()
+    local m = w3i.parse(d)
+    test("a count of 0 as the file's last 4 bytes is read", m and m.sections.random_items
+        and #m.random_item_tables == 0 and m.tail_raw == "" and d:sub(-4) == i32(0))
 end
 -- }}}
 

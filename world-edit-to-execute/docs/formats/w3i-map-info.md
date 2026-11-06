@@ -320,6 +320,15 @@ Then, per item (issue 103b: the chance comes first, as in Conquest-v8-fix):
 | ChancePercent | int32 | The item's chance |
 | ItemID | char(4) | Item ID |
 
+### The End of the File
+
+Each of the four TFT sections (upgrades, tech, random unit tables, random
+item tables) starts with a 4-byte count, and a count of 0 can be the file's
+last 4 bytes. Some released maps have none of the four: 12 of the test
+maps end in a single `0xFF` byte straight after the forces. The reader
+keeps that byte as `tail_raw` and writes it back; what puts it there is
+not known (issue 103c).
+
 ---
 
 ## Reading Sequence

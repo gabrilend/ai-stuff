@@ -125,6 +125,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 102d | Implement file extraction | **Completed** | 102a, 102b, 102c |
 | 103 | Parse war3map.w3i (map info) | **Completed** | 102 |
 | 103b | war3map.w3i random unit and item tables read as written | **Completed** 2026-11-06 | 103, 911b |
+| 103c | war3map.w3i: a final count of 0 read; the lone byte after some maps' forces named | **Completed** 2026-11-06 | 103b |
 | 104 | Parse war3map.wts (trigger strings) | **Completed** | 102 |
 | 105 | Parse war3map.w3e (terrain) | **Completed** | 102, 103 |
 | 106 | Design internal data structures | **Completed** | 103, 104, 105 |
