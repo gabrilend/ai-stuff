@@ -408,6 +408,12 @@ end -- }}}
 -- where a locked-out theme with score 0 would still beat themes with
 -- negative weighted_score values.
 -- After N picks, boost = 1/(1 + N/10): 1 → 0.91 → 0.50 → 0.33 → 0.09 (at 100).
+--
+-- Issue 034: the boost is a penalty whatever the score's sign. A positive
+-- score is multiplied by it (pulled down toward 0); a negative score is
+-- divided by it (pushed further below 0). Multiplying a negative score
+-- would pull it *up* toward 0, so when every theme scored below zero the
+-- most-picked theme won. Positive scores weigh exactly as before.
 function M.find_most_similar_theme_weighted(text_embedding, theme_embeddings, frequency_weights) -- {{{
    local best_theme = nil
    local best_weighted_score = -math.huge
@@ -417,7 +423,12 @@ function M.find_most_similar_theme_weighted(text_embedding, theme_embeddings, fr
        local raw_similarity = M.cosine_similarity(text_embedding, theme_embedding)
        local frequency_penalty = frequency_weights[theme] or 0
        local diversity_boost = 1.0 / (1.0 + frequency_penalty * 0.1)
-       local weighted_score = raw_similarity * diversity_boost
+       local weighted_score
+       if raw_similarity >= 0 then
+           weighted_score = raw_similarity * diversity_boost
+       else
+           weighted_score = raw_similarity / diversity_boost
+       end
 
        if weighted_score > best_weighted_score then
            best_weighted_score = weighted_score

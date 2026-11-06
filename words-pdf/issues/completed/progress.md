@@ -261,3 +261,14 @@ Phase 1 has established a **solid foundation** for advanced chat functionality w
 **Still open:** HTML-generation and navigation tests, sampling and performance checks.
 
 **Found and filed:** issue 033 (Tier 1 gate always passes because of the right margin) and issue 034 (weighted theme choice favors overused themes when every score is negative).
+
+---
+
+### Issue 034: Weighted Theme Choice Handles Negative Scores
+**Status:** ✅ Completed
+**Implementation Date:** 2026-11-02
+
+**Completed Steps:**
+- ✅ The diversity boost divides negative similarities and multiplies positive ones, so each pick lowers a theme's score whatever its sign
+- ✅ Five new checks in `tests/test-similarity.lua`; the four existing weighting checks pass unchanged
+- ✅ `docs/balance-updates.md` records the change and why no page's theme changes today

@@ -66,3 +66,20 @@ and below the dashed-border characters look roughly equal.
 Worth trying 1, 2, and 3 pt on the same page to see which reads most
 balanced. Bump if the bottom still feels heavier; reduce if the top
 starts to peek above the dashed border.
+
+---
+
+## 2026-11-02 — Diversity boost divides negative similarities
+
+**File:** `libs/fuzzy-computing.lua`
+**Function:** `find_most_similar_theme_weighted`
+**Value:** boost formula `1 / (1 + picks / 10)` unchanged
+
+Before this change, every score was multiplied by the boost. A negative
+score multiplied by it moved up toward 0, so an overused theme won when
+every theme scored below zero. Now a score below zero is divided by the
+boost, so each pick moves it further down. Positive scores weigh exactly
+as before. No page's theme changes today, because the callers send an
+all-negative result to "neutral" through their raw-similarity thresholds.
+
+Changed by Issue 034.
