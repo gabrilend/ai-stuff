@@ -225,6 +225,14 @@ do
     local fake = { tex_create = function() return 1 end, mesh_create = function() return 1 end,
                    model_create = function() return 1 end }
     local seen, models, poses, bad, skins, idn = {}, 0, 0, 0, 0, 0
+    -- Models the reader refuses because the file itself is cut short or
+    -- damaged (issue 523a), by map and name, with what is wrong. Any other
+    -- model that fails to read fails this test.
+    local malformed = {
+        ["War-in-the-Plaguelands-[24]-B6a.w3x:File00000129.mdx"] =
+            "its last collision shape, a cylinder, is cut off at the end of the file",
+    }
+    local refused, unexpected = {}, {}
     local maps = {}
     local p = io.popen('ls "' .. DIR .. '"/assets/*.w3x "' .. DIR .. '"/assets/*.w3m 2>/dev/null')
     for f in p:lines() do maps[#maps + 1] = f end
@@ -236,10 +244,19 @@ do
             if ok and d and d:sub(1, 4) == "MDLX" and not seen[d] then
                 seen[d] = true
                 idn = idn + 1
-                local m2 = mdx.parse(d)
+                local key = f:match("[^/]+$") .. ":" .. name
+                local ok2, m2 = pcall(mdx.parse, d)
+                if not ok2 then
+                    if malformed[key] and tostring(m2):find("MDX:", 1, true) then
+                        refused[#refused + 1] = key
+                    else
+                        unexpected[#unexpected + 1] = key .. " (" .. tostring(m2) .. ")"
+                    end
+                    m2 = nil
+                end
                 local cache = gpu.new(fake, { texture = function() return nil end })
                 -- (a fresh cache per model: the fake gives every model id 1)
-                local id = cache:build(m2, name)
+                local id = m2 and cache:build(m2, name)
                 local r = id and cache:rig(id)
                 if r then
                     models = models + 1
@@ -261,6 +278,11 @@ do
         ar:close()
     end
     print(string.format("  %d models, %d skinned geosets, %d poses", models, skins, poses))
+    for _, key in ipairs(refused) do
+        print("  refused, as malformed: " .. key .. ": " .. malformed[key])
+    end
+    test("every model reads, but for the known malformed ones (refused with an MDX: message)",
+        #unexpected == 0, table.concat(unexpected, "; "))
     test("the maps' models are rigged (250 or more)", models >= 250, tostring(models))
     test("every pose of every sequence is finite", bad == 0, bad .. " bad")
 end

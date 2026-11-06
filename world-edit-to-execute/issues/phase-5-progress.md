@@ -112,6 +112,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 521 | [Computer Players, the AI Editor's Way](./completed/521-computer-players.md) | completed | 519, 520 |
 | 522 | [WC3's Art, Decoded and Drawn](./completed/522-art-decoders-and-model-renderer.md) | completed | 517, 518, 112b |
 | 523 | [Models Play Their Own Animations](./completed/523-models-play-their-animations.md) | completed | 522, 519 |
+| 523a | [A Malformed Model in a Test Map Is Refused, and Named](./completed/523a-malformed-map-model-refused.md) | completed | 523, 522 |
 | 524 | [Fog of War](./completed/524-fog-of-war.md) | completed | 519, 520, 502d |
 | 525 | [Units' Real Stats, From the Stock Tables](./completed/525-real-unit-stats.md) | completed | 519, 112c, 112b |
 | 526 | [Ground Textures](./completed/526-ground-textures.md) | completed | 517b, 522, 502a |
@@ -132,6 +133,6 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 541 | [Buildings Block Movement](./completed/541-buildings-block-movement.md) | completed | 519a, 536 |
 | 542 | [Research](./completed/542-research.md) | completed | 521a, 524, 535 |
 
-Completed 60, open 41, retired 15, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 61, open 41, retired 15, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->
