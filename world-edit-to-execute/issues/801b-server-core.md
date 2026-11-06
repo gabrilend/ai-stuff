@@ -13,6 +13,20 @@
 
 No matchmaking server implementation exists.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #305 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- Errors inside message handlers are not caught, so a reply too big to encode (a game list over the 1 MiB payload limit, reachable by an attacker with two huge lobbies) stops the whole server.
+- If a client resets right after connecting, its peer address is nil and the log line that joins it raises, again stopping the server.
+- When the daemon fails to start, its test runs a pasted copy of an unrelated socket test and reports a wrong total.
+- Any bytes count as activity, so a client trickling partial frames is never closed for idleness; 1000 such sockets hold every slot and about 1 GB of buffers.
+- GAME_START gives players the host's address as the server saw it; a host on loopback or the server's LAN gives remote players `127.0.0.1` or `192.168.x.x`.
+- The daemon has no signal handling and no protection around its loop, so being killed (the documented way to stop) never tells lobbies they closed.
+- Each tick joins and re-cuts every stalled connection's backlog, sorts every connection and lobby, and counts tables by walking them.
+- The daemon has no `--help`; most functions lack folds.
+- The branch moved this issue to completed while question Q-1 is open and its decisions are unconfirmed; Current Behavior still says no server exists.
+
 ## Intended Behavior
 
 A robust server application that:
@@ -107,16 +121,16 @@ local stats = srv:stats()
 
 ## Acceptance Criteria
 
-- [ ] Server starts and listens on configured port
-- [ ] Accepts multiple concurrent client connections
-- [ ] Lobbies created successfully
-- [ ] Clients can join lobbies
-- [ ] Messages routed correctly to lobby members
-- [ ] Lobby closes when host disconnects
-- [ ] Stale lobbies cleaned up after timeout
-- [ ] Handles client disconnects gracefully
-- [ ] Statistics accurate and up-to-date
-- [ ] No memory leaks (lobbies properly garbage collected)
+- [x] Server starts and listens on configured port
+- [x] Accepts multiple concurrent client connections
+- [x] Lobbies created successfully
+- [x] Clients can join lobbies
+- [x] Messages routed correctly to lobby members
+- [x] Lobby closes when host disconnects
+- [x] Stale lobbies cleaned up after timeout
+- [x] Handles client disconnects gracefully
+- [x] Statistics accurate and up-to-date
+- [x] No memory leaks (lobbies properly garbage collected)
 
 ## Related Documents
 
@@ -131,3 +145,111 @@ local stats = srv:stats()
 - Keep lobby registry simple (no persistence needed - server restart = lobbies lost)
 - Log all lobby lifecycle events for debugging
 - Rate limit message handling to prevent spam
+
+---
+
+## Decisions (2026-11-05)
+
+Made without the owner, each one theirs to overturn. Question Q-1
+(`issues/CRITICAL-PATH.md`: should matchmaking reuse 803's message layer?)
+is still open and could reshape this along with 801a.
+
+1. **LuaSocket underneath, kept to one layer.** The issue names it, and it
+   is the well-known library already on the machine (nothing installed).
+   The core knows connections only as numbers and bytes, so every rule is
+   tested without a network; `start`/`tick`/`stop` put LuaSocket under it
+   and load it only when called. One `select()` a tick; `epoll` (the
+   issue's note) waits until a server needs more than the 1,000
+   connections `select()` allows (`max_connections`).
+2. **Loopback unless told:** the default `bind` is `127.0.0.1:8080`; a
+   public server says `0.0.0.0:PORT` itself.
+3. **Registering answers with a JOIN_ACK** (the new game id, the host as
+   its first player), since 801a has no register answer; a refused
+   register is a JOIN_REJECT with game id 0. The host's name rides in a
+   new optional field, `REGISTER_GAME.host_name` (801a decision 4 allows
+   it), "host" when left out.
+4. **A connection is in at most one lobby**, as its host or a player.
+5. **The server trusts the connection, not the message:** a ready mark,
+   chat line or NAT endpoint carries the sender's player id whatever the
+   message says. Players mark themselves with LOBBY_UPDATE "ready" or
+   "unready"; join and leave events are the server's.
+6. **Who hears what:** a joiner gets JOIN_ACK and the others LOBBY_UPDATE
+   "join"; a leave goes to those left; ready marks and chat go to every
+   member, the sender too, so all see one order; START_GAME from the host
+   sends GAME_START to every member with the host's address as the server
+   sees it and the port it registered. NAT_PUNCH from a player goes to the
+   host, from the host to the player it names, an empty ip filled with the
+   sender's address (801d builds on this).
+7. **A closing lobby sends UNREGISTER_GAME** to every member left,
+   whatever closed it (its host unregistering, leaving or going, the
+   timeout, the server stopping).
+8. **No countdown here:** the lobby passes through STARTING to
+   IN_PROGRESS as GAME_START goes out; a countdown is 801e's. A started
+   lobby is no longer listed and refuses joins, and stays until its host
+   goes or the timeout.
+9. **Stale means quiet:** a lobby with no lobby message (register, update,
+   join, leave, ready, chat, start, NAT) for `lobby_timeout_seconds` (an
+   hour) is closed; pings keep a connection, not a lobby. A connection
+   that sends nothing for `idle_timeout_seconds` (120) is closed, so
+   clients ping (801c).
+10. **Refusals:** a lobby holds 1 to `max_players_per_lobby` (12); names
+    are 1 to 64 bytes; the host may raise or lower `max_players` before
+    the start, never below the players there. UPDATE_GAME's `players`
+    count is not used: the server counts its own members.
+11. **Listing:** waiting games only, by id; the map name matches any part
+    in any case, mode and region exactly, `free_slots` at least;
+    `max_latency_ms` is ignored here, since only the client can measure it.
+12. **What is ignored and what drops:** a message the sender may not send
+    (not its lobby, not the host, after the start, a server's message) is
+    ignored and logged; bytes that are not a message (801a decision 6),
+    more than 50 messages a second beyond a burst of 100, or more than
+    4 MiB of unread output close the connection.
+13. **`messages_per_second` is the last whole second's count**, so it is
+    exact rather than averaged; `players_online` counts connections, and
+    `players_in_lobbies` those in lobbies.
+14. **The daemon is a small runner, not 801g:**
+    `src/cli/matchmaking-serve.lua` listens (`--bind`, port 0 takes a free
+    one and prints it), logs to standard error with UTC times, and can stop
+    by itself (`--seconds`). Configuration files, status and lobby
+    commands stay with 801g.
+15. **Socket tests run in a network of their own:** `src/tests/netns.lua`
+    reruns the test under `unshare -rn` and switches the loopback on
+    through LuaJIT's FFI, so no `ip` command is needed and nothing can
+    reach another network; without `unshare` the test fails saying so.
+
+## What happened
+
+- `src/matchmaking/server.lua` (core and socket layer) and
+  `src/cli/matchmaking-serve.lua` (the daemon), with info pages;
+  `REGISTER_GAME.host_name` added to `protocol.lua`.
+- `src/tests/test_matchmaking_server.lua` (109 checks, no network; 111 after the second round): every
+  message's rules and refusals, broken bytes, the rate, output and
+  connection limits, both timeouts on a hand-moved clock, the statistics,
+  and twenty closed lobbies collected by the garbage collector.
+- `src/tests/test_matchmaking_daemon.lua` (30 checks, under `unshare -rn`):
+  the daemon on loopback through a whole lobby, fifty connections at once,
+  a client sending rubbish, its log and options; the socket layer in the
+  test's own process, a message cut in two, more output than the socket
+  takes at once, and `stop()` telling the members.
+- `test_matchmaking_protocol.lua`: 3 more checks for the host's name (188).
+- Both new tests are in `run-net-tests.sh`; every net test passes but
+  `test_net_hosted`, which needs effil and failed the same before.
+- Mutation check: 36 mutants of the server and daemon, run with
+  `ulimit -f`. All 36 are caught, two of them (a partly sent message's
+  tail dropped, one connection accepted a tick) only after checks were
+  added for them.
+
+## Decisions, second round (2026-11-05)
+
+16. **The message codec is a setting** (`config.codec`, `protocol.lua` by
+    default), so question Q-1 (should matchmaking speak 803's message
+    layer?) can be answered without touching the server: a codec over
+    803's layer with the same `encode` and `read_frame` and the same
+    message names and fields is all it takes.
+17. **The tests find their project** from their own path when given none,
+    as `src/cli/run-tests.sh` runs them (by full path, from the project),
+    and end with a `Tests: N passed, M failed` line it can count. The
+    runner's own default folder is unchanged. `test_matchmaking_protocol.lua`
+    (801a's) got the same two lines.
+
+The server tests are 111 checks now (two for the codec).

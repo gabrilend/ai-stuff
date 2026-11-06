@@ -2522,9 +2522,9 @@ deciding local model vs hosted API
 > Reorganization deferred, then. Let me record the demo rule and the deferral so
 > neither gets lost.
 
-*[commit] b64c98a0 - my-own-custom-vtt: a question about a grid, and the world grew a third dimension*
+*[commit] 6f6aa4b3 - my-own-custom-vtt: a question about a grid, and the world grew a third dimension*
 
-Committed as `b64c98a0` — 18 files, 1,308 lines added.
+Committed as `6f6aa4b3` — 18 files, 1,308 lines added.
 
 **What I left out of the commit:** `llm-transcripts/` is untracked in this
 project and it isn't mine — it was already there when this session started.

@@ -1,0 +1,3 @@
+pull-requests.json
+
+Made by gh pr list -R gabrilend/ai-stuff --state all --json number,title,body,baseRefName,headRefName,isDraft,state,createdAt,mergedAt,comments,reviews on 2026-11-03, before the repository was remade on GitHub (issue 063). Every pull request as it stood: 236 open drafts and one merged. The remade repository's pull requests are opened again from this record; it is kept as the record of the numbers and pages that went.

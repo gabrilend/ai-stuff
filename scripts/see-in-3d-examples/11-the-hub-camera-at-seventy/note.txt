@@ -1,0 +1,5 @@
+title: The hub with the camera at seventy: the field slips away
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/11-the-hub-camera-at-seventy/picture.png
+stage: 25
+---
+The emptiest reading in the set, and an accurate one: the picture shows almost nothing beyond the console, so the scene puts almost nothing there. Set beside the noon sheet it is the same console on a field that has lost its people only because the camera stopped showing them.

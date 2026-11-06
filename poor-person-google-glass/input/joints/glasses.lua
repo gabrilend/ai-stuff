@@ -1,0 +1,270 @@
+-- glasses.lua - joint records for the model glasses (format: docs/joints.md).
+-- Made and refreshed by ./joints find, which never changes what a person wrote:
+-- each part's material, and each joint's equation, inputs and note.
+-- Write notes in a joint's `note`, not as comments: this file is rewritten.
+--
+-- To fill a joint: equation = "NAME" (a calculation in input/calculations/),
+-- inputs = { INPUT = "structure.MEASURE" or "a.PROPERTY" or "b.PROPERTY" or a number }.
+--   structure measures (in mm): gap, reach_a, reach_b, contact_size
+--   materials (input/materials.lua): aluminium-6061, borosilicate, index-matching-liquid, n-bk7, nylon-pa12, stainless-304
+-- An empty spot is "" (an equation) or "unassigned" (a material) or -1 (millimetres_per_unit).
+return {
+    contact_distance = 0.012250000238418579,
+    joints = {
+        {
+            a = "left lens",
+            b = "bridge",
+            equation = "",
+            found = {
+                contact_point = {
+                    0.5,
+                    -0.025000000000000001,
+                    0,
+                },
+                contact_size = 0.050000000000000003,
+                gap = 0,
+                normal = {
+                    1,
+                    0,
+                    0,
+                },
+                reach_a = 1,
+                reach_b = 0.25,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "left lens",
+            b = "left top rim",
+            equation = "",
+            found = {
+                contact_point = {
+                    -0.5,
+                    0.25,
+                    0,
+                },
+                contact_size = 1,
+                gap = 0,
+                normal = {
+                    -1,
+                    0,
+                    0,
+                },
+                reach_a = 1,
+                reach_b = 1,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "left lens",
+            b = "left bottom rim",
+            equation = "",
+            found = {
+                contact_point = {
+                    0.5,
+                    -0.25,
+                    1.5308099999999999e-18,
+                },
+                contact_size = 1,
+                gap = 3.0616199999999998e-18,
+                normal = {
+                    1,
+                    0,
+                    0,
+                },
+                reach_a = 1,
+                reach_b = 1,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "left lens",
+            b = "left hinge",
+            equation = "",
+            found = {
+                contact_point = {
+                    -0.5,
+                    -0.050000000000000003,
+                    -0.050000000000000003,
+                },
+                contact_size = 0.10000000000000001,
+                gap = 0,
+                normal = {
+                    -1,
+                    0,
+                    0,
+                },
+                reach_a = 1,
+                reach_b = 0.10000000000000001,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "bridge",
+            b = "right lens",
+            equation = "",
+            found = {
+                contact_point = {
+                    0.75,
+                    -0.025000000000000001,
+                    0,
+                },
+                contact_size = 0.050000000000000003,
+                gap = 0,
+                normal = {
+                    1,
+                    0,
+                    0,
+                },
+                reach_a = 0.25,
+                reach_b = 1,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "right lens",
+            b = "right top rim",
+            equation = "",
+            found = {
+                contact_point = {
+                    0.75,
+                    0.25,
+                    0,
+                },
+                contact_size = 1,
+                gap = 0,
+                normal = {
+                    -1,
+                    0,
+                    0,
+                },
+                reach_a = 1,
+                reach_b = 1,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "right lens",
+            b = "right bottom rim",
+            equation = "",
+            found = {
+                contact_point = {
+                    1.75,
+                    -0.25,
+                    1.5308099999999999e-18,
+                },
+                contact_size = 1,
+                gap = 3.0616199999999998e-18,
+                normal = {
+                    1,
+                    0,
+                    0,
+                },
+                reach_a = 1,
+                reach_b = 1,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "right lens",
+            b = "right hinge",
+            equation = "",
+            found = {
+                contact_point = {
+                    1.75,
+                    -0.050000000000000003,
+                    -0.050000000000000003,
+                },
+                contact_size = 0.10000000000000001,
+                gap = 0,
+                normal = {
+                    1,
+                    0,
+                    0,
+                },
+                reach_a = 1,
+                reach_b = 0.10000000000000001,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "left hinge",
+            b = "left arm",
+            equation = "",
+            found = {
+                contact_point = {
+                    -0.52521399999999996,
+                    -0.0032631499999999998,
+                    -0.050000000000000003,
+                },
+                contact_size = 0.050000000000000003,
+                gap = 0,
+                normal = {
+                    0,
+                    0,
+                    -1,
+                },
+                reach_a = 0.10000000000000001,
+                reach_b = 2,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+        {
+            a = "right hinge",
+            b = "right arm",
+            equation = "",
+            found = {
+                contact_point = {
+                    1.825,
+                    0,
+                    -0.050000000000000003,
+                },
+                contact_size = 0.050000099999999999,
+                gap = 0,
+                normal = {
+                    0,
+                    0,
+                    -1,
+                },
+                reach_a = 0.10000000000000001,
+                reach_b = 2,
+                still_found = true,
+            },
+            inputs = {},
+            note = "",
+        },
+    },
+    materials = {
+        bridge = "unassigned",
+        ["left arm"] = "unassigned",
+        ["left bottom rim"] = "unassigned",
+        ["left hinge"] = "unassigned",
+        ["left lens"] = "unassigned",
+        ["left top rim"] = "unassigned",
+        ["right arm"] = "unassigned",
+        ["right bottom rim"] = "unassigned",
+        ["right hinge"] = "unassigned",
+        ["right lens"] = "unassigned",
+        ["right top rim"] = "unassigned",
+    },
+    millimetres_per_unit = -1,
+    model = "glasses",
+}

@@ -1,0 +1,73 @@
+#!/usr/bin/env luajit
+-- total-receipts - adds up a folder of goodbye receipts into one table.
+--
+-- Every run leaves a receipt of plain "name: value" lines. This reads every
+-- receipt in a folder and prints what the batch did as a whole: wins per
+-- side, how long the battles lasted, how often a tried parry succeeded,
+-- where the critical hits came from, and the trips, volleys and yields.
+-- With --machine it prints the same totals as name=value lines for other
+-- programs (the phase demos) to read.
+--
+-- Usage: scripts/total-receipts <folder> [--machine]    (--help for this text)
+--
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if arg[1] == "--help" or not arg[1] then
+	print("scripts/total-receipts <folder> [--machine] - total a folder of receipts")
+	os.exit(arg[1] and 0 or 1)
+end
+package.path = DIR .. "/src/?.lua;" .. package.path
+local io_m = require("018-input-and-goodbye")
+local util = require("002-util")
+
+local folder, machine = arg[1], arg[2] == "--machine"
+local sums, results, runs = {}, {}, 0
+for _, name in ipairs(util.list_files(folder)) do
+	local r = io_m.read_receipt(folder .. "/" .. name)
+	runs = runs + 1
+	results[r.result] = (results[r.result] or 0) + 1
+	for k, v in pairs(r) do
+		if tonumber(v) then sums[k] = (sums[k] or 0) + tonumber(v) end
+	end
+end
+if runs == 0 then
+	io.stderr:write("total-receipts: no receipts in " .. folder .. "\n")
+	os.exit(1)
+end
+
+-- {{{ local function share()
+local function share(a, b)
+	if (sums[b] or 0) == 0 then return 0 end
+	return (sums[a] or 0) / sums[b]
+end
+-- }}}
+
+local totals = {
+	{ "runs", runs },
+	{ "team 1 wins", results["team 1"] or 0 },
+	{ "team 2 wins", results["team 2"] or 0 },
+	{ "draws", results["draw"] or 0 },
+	{ "unfinished", results["unfinished"] or 0 },
+	{ "mean seconds", (sums.seconds or 0) / runs },
+	{ "swings per run", (sums.swings or 0) / runs },
+	{ "hit share of swings", share("hits", "swings") },
+	{ "parry success share", share("parries", "parry_attempts") },
+	{ "critical share of hits", share("criticals", "hits") },
+	{ "criticals from momentum", share("crit_momentum", "criticals") },
+	{ "criticals from flanks", share("crit_flank", "criticals") },
+	{ "criticals from traits", share("crit_trait", "criticals") },
+	{ "criticals from chance", share("crit_chance", "criticals") },
+	{ "trips per run", (sums.trips or 0) / runs },
+	{ "volley darts that hit", share("dart_hits", "darts") },
+	{ "yields per run", (sums.yields or 0) / runs },
+}
+for _, row in ipairs(totals) do
+	local v = row[2]
+	local text = math.floor(v) == v and tostring(v) or string.format("%.3f", v)
+	if machine then
+		print(row[1]:gsub(" ", "_") .. "=" .. text)
+	else
+		print(string.format("  %-26s %s", row[1], text))
+	end
+end
