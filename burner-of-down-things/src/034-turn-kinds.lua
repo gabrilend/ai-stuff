@@ -309,9 +309,9 @@ kinds.TABLE = {
     },
     -- The storyteller (docs/069, issue 1001a): reads one case's ledger and
     -- its requests, in the person's own words, and nothing else; writes
-    -- only the story file. Segmenting it into per-turning-point chapters
-    -- (1001b), never telling a line twice (1001c) and naming whose each
-    -- thing was (1001d) are later pieces built on this reading turn.
+    -- only the story file. The machine's own chapters -- cut at turning
+    -- points, never telling a line twice, naming whose each thing was --
+    -- are 103-the-story.lua's (1001b-d); this turn is for retelling them.
     storyteller = {
         reads = { "ledger", "input/" },
         writes = { "output/story/{{about}}.md" },

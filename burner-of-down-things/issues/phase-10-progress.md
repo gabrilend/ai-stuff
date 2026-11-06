@@ -24,8 +24,18 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   is already there. No reader exists yet; 1002d's own note says it can
   take this file, parsed, unchanged, once one is built.
 
-1002c, 1001b-d, 1003b-d and all of 1004 remain: the fuller mood-vs-
-mechanism refusal; segmenting the ledger into chapters, never telling a
-line twice, naming whose each thing was; the draft form, its folder and
-the person's own promotion gate; and the phase 10 demo, which cannot be
-built until the story and lessons it shows exist end to end.
+- 1001b turning points — the ledger cut into chapters at its own turning
+  points (`src/103-the-story.lua`); a turn's own lines join the chapter of
+  the result they lead to.
+- 1001c no line told twice — each chapter's heading names its ledger
+  lines; a second telling starts after the last line told, so an
+  unchanged ledger adds nothing. `machine story <case>` runs it.
+- 1001d whose it was — the person, the machine, or a role with the harness
+  that played it (`the builder (the stand-in)`), read from the ledger's
+  own turn lines.
+
+1002c, 1003b-d and all of 1004 remain: the fuller mood-vs-mechanism
+refusal; the draft form, its folder and the person's own promotion gate;
+and the phase 10 demo, which cannot be built until the story and lessons
+it shows exist end to end. 1001 itself stays open for a storyteller turn
+retelling the machine's chapters in a model's words.
