@@ -5,16 +5,16 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 106, 201 |
 | Blocks | 211 |
-| Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) |
+| Reads | [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) |
 | Open questions | B3 |
 
 ## Current behavior
 
-Nothing. The timer pair (issue 106) and the unit row (issue 201) do not exist.
-The test program `tests/020-things-that-roll-fly-and-sail.lua` names this issue
-and asserts that a unit hurt twice on one increment heals from the second hit,
-not the first — which is the pair's whole point, and the case a per-unit
-countdown gets wrong.
+Built. `combat.health` derives a unit's health from its heal pair and its kind's
+heal counter, held to the catalogue cap; `combat.hurt` derives, subtracts and
+rewrites the pair with the increment of now. Every kind has its own heal
+counter, `world.heal.<kind>`, and `./report-catalogue` prints each kind's heal
+rhythm in ticks and seconds.
 
 ## Intended behavior
 
@@ -71,11 +71,28 @@ beside it.
 6. Write the test's exact case as the companion's example: hit at increment N,
    hit again at N, advance to N plus one, expect one point back and not two.
 
+## What happened
+
+- **The counters and the birth pair came with issue 201**: `units.counters()`
+  gives one heal counter per kind from the catalogue's `heal_period`, and
+  `spawn` writes the cap at the counter's increment. This issue added the two
+  functions over them, in the `combat` stem as the tests ask.
+- **`hurt` refuses a negative or fractional amount**, so nothing heals through
+  it, and lets health fall below zero for the die pass to find.
+- **The reporter** is a section of `units.report()` (and so of
+  `./report-catalogue`): one line per kind with its period in ticks and seconds
+  and the ticks from nothing to its cap.
+- **The test's exact case is the companion's example**: two hits of one at
+  increment N, then one point back at N plus one.
+- B3 still awaits evidence. Whether the roster's recovery (issue 304) shares
+  these functions is that issue's to decide; the pair is `timers.read` and
+  `timers.write`, which it can call over its own arrays.
+
 ## Related documents and tools
 
-- [the tick and the timers](../docs/003-the-tick-and-the-timers.md) — the pair of integers
-- [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md)
-- [the handheld](../docs/012-the-handheld.md) — why a derivation from three integers is a box
+- [the tick and the timers](../../docs/003-the-tick-and-the-timers.md) — the pair of integers
+- [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md)
+- [the handheld](../../docs/012-the-handheld.md) — why a derivation from three integers is a box
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

@@ -77,7 +77,7 @@ the test.
 | `the-tick` | 105, 801 | `SYSTEMS`, an ordered table of rows `{name, run, sliceable, run_slice}`, with `waiting_for` naming the issue on a row not yet built; `advance(world)`; `assemble(modules, parameters)`; `ticks_of(seconds)` |
 | `timers` | 106 | `counter(period)` returns `{period, increment, ...}`; `advance(counter, tick)`; `read(value, written_at, counter, cap)`; `write(value, written_at, counter, cap, change)` returns the new pair; `ticks_of(seconds, rate)` |
 | `random-streams` | 107 | `open(seed, name)`; `next_integer(stream, below)` in `[0, below)`; `next_double(stream)` in `[0, 1)`; `STREAMS`, the names; `draw(world, name, below)` and `draw_double(world, name)` for the world's own streams |
-| `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds` and `claim_increments`, the sizes of the command queue and the refusal ring, and `fingerprint_every`; copied into the world as `world.rule` |
+| `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds` and `claim_increments`, the sizes of the command queue, the refusal ring and the shot queue (`shots_per_unit`), and `fingerprint_every`; copied into the world as `world.rule` |
 | `commands` | 108 | `VERBS`, a dispatch table, and `ARGUMENTS`, each verb's argument names; `queue(world, command)` returns nothing or a refusal string naming the reason; `apply_due(world)` returns how many applied; `refusals(world)` returns the ring's refusals, oldest first; `unpack(world, row)` |
 | `snapshot` | 109 | `hash(world)`; `copy(world)`; `record(world, path, commands)`; `replay(path)`; `stamp(world)`; `snapshot_pass(world)`, the tick's last row; `note_command(world, command)`, the door's hook |
 | `headless-runner` | 110 | `run(root, options)` — options carry `seed`, `ticks`, `field`, `bots`, and `units` and `replay` — returns a report with `ticks`, `hash`, `seed`, `factories`, `shortest_pattern`, and `ended`, `replay`, `replay_checked`, `mismatch_tick`, `world`; `lines(report)` |
@@ -88,7 +88,7 @@ the test.
 | `domains` | 203 | `can_stand(field, domain, x, y)`, the domain a name or an integer; `altitude_at(field, kind, x, y)`; `is_shore(field, x, y)`; `ground_at(field, x, y)`; `validate(world)`; `LAND`, `AIR`, `SEA`, `REACH`, `STAND` |
 | `movement` | 204 | `move_pass(world)` and `move_pass_slice(world, first, last)`; `occupancy_pass(world)`; `step_length(field, kind, from_x, from_y, to_x, to_y)`; `held(world, id)` |
 | `targeting` | 205, 405, 502 | `aim_pass(world)` and `aim_pass_slice(world, first, last)`; `falloff(kind, distance)` returns a fraction; `flight_ticks(kind, distance)`; `candidates(world, shooter)`; `visible(world, shooter)`; `sees(world, a, b)`; `ready(world, id)`; `distance(world, a, b)` |
-| `combat` | 206, 207 | `fire_pass(world)`; `land_pass(world)`; `die_pass(world)`; `hurt(world, id, amount)`; `health(world, id)` |
+| `combat` | 206, 207 | `fire_pass(world)` and `fire_pass_slice(world, first, last)`; `land_pass(world)`; `die_pass(world)` returns how many died; `hurt(world, id, amount)`; `health(world, id)`; `damage_at(world, id, distance)`; `describe(world, index)` returns one shot as a line |
 | `bones` | 208 | `leave(world, unit)`; `leave_at(world, x, y, mass)`; `eat(world, unit, bone)` |
 | `thread-pool` | 209 | `slice(count, workers)` returns contiguous ranges; `run_sliced(system, world)`; `trace_writes(body, world)` returns every write the body made, as `{array, field, index}` |
 | `command-truck` | 210 | `move(world, id, x, y)`; `launch(world, id, heading)` returns nothing or a refusal |
@@ -121,7 +121,7 @@ rather than about a function. Those fields are part of the contract too, and
 the world's layout must carry them under these names. Issue 104 laid down the
 unit, cell, team and stream groups and the claim counter, and issue 108 the
 command queue and the refusal ring, and issue 112 the claim's presence fields
-and the marked queue; every other group and
+and the marked queue, and issue 206 the shot queue; every other group and
 field below is added to the layout, under the name given here, by the issue that
 builds the system that writes it:
 
@@ -131,7 +131,7 @@ builds the system that writes it:
   shield, shield_at, eaten, eat_share, mission, strength, in_round, goal_x, goal_y,
   claim_radius, waited}`
 - `world.pattern.{count, points}`
-- `world.shot.{count, arrives}`
+- `world.shot.{count, shooter, target, damage, arrives}` — the shells in flight (issue 206)
 - `world.bone.{count, x, y, mass}`
 - `world.heal.<kind>`, `world.reload.<kind>`, `world.recharge.enforcer`, `world.cloud_round`,
   `world.claim.{period, increments_to_claim}` — every one a counter from issue 106

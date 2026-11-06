@@ -28,3 +28,11 @@ kind's `claim_radius`: two for the tank, the anti-air gun, the frigate and the
 command truck, four for the enforcer (B6's working ruling), and zero for the
 helicopter, because a plane claims no ground. No value a match used changed;
 the enforcer's four and the plane's zero are new.
+
+**What a shell lands for, and when a gun fires again** (issue 206). A shot does
+the shooter's `damage` times its falloff at the distance it was fired over,
+rounded down, and never less than one. A gun that fires waits for the next
+increment of its kind's shared reload counter, so its first shot after a
+quiet spell can come early, and from then on it fires once a reload period.
+No catalogue value changed. The shot queue's size, `shots_per_unit = 4` in the
+rules, is a size and not a tuning: a full queue is a refusal by name.
