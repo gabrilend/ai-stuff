@@ -13,8 +13,9 @@ kit.equal(shape_types.recognise("hello world\nthis is plain text\n"), "text", "p
 kit.equal(shape_types.recognise("café menu\n"), "text", "well-formed multi-byte UTF-8 is text")
 
 -- A lone UTF-8 continuation byte (0x80) with nothing to continue: not
--- integers, not numbers, not well-formed UTF-8 — falls through to nil.
-kit.equal(shape_types.recognise("\128\129\130"), nil, "malformed bytes fall through, never guessed")
+-- integers, not numbers, not well-formed UTF-8 — falls through, never
+-- guessed. Through to nil while 902a stood alone; to `unknown` since 902c.
+kit.equal(shape_types.recognise("\128\129\130"), "unknown", "malformed bytes fall through, never guessed")
 
 for _, name in ipairs(shape_types.TYPES) do
     kit.check(type(name) == "string", "every type name is a string")
