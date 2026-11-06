@@ -181,6 +181,10 @@ function M.read_proposal(text, file, basename)
         elseif kw == "object" then
           ok = #f == 4 and q[4] and f[4]:match("%S") ~= nil and not q[2] and not q[3]
                and reader.is_name(f[2]) and reader.is_date(f[3])
+        elseif kw == "applied" then
+          -- `applied DATE [N]`: N is the change's place in the org's history.
+          ok = (#f == 2 or (#f == 3 and not q[3] and f[3]:match("^[1-9]%d*$") ~= nil))
+               and not q[2] and reader.is_date(f[2])
         else
           ok = #f == 2 and not q[2] and reader.is_date(f[2])
         end
@@ -190,6 +194,7 @@ function M.read_proposal(text, file, basename)
         elseif kw == "withdrawn" or kw == "applied" then
           if p[kw] then complain(problems, file, line.n, "P6", "%s twice", kw) end
           p[kw] = f[2]
+          if kw == "applied" and f[3] then p.applied_seq = tonumber(f[3]) end
         else
           p.answers[#p.answers + 1] = { kind = kw, person = f[2], date = f[3],
                                         id = kw == "approve" and f[4] or nil,
@@ -544,8 +549,20 @@ end
 -- Everything about a proposal against an org, today. Returns a report:
 -- { status, proposal, problems, reasons, kinds, new_map_text, new_state_text,
 --   dropped_state, standing }.
-function M.evaluate(org, proposal_text, file, basename, today)
+--
+-- With `as_of` (a date), the proposal is judged as it stood that day: its
+-- `applied` line is set aside and so is every answer dated after it. That is
+-- how a replayed history asks whether a change was ready when it was applied.
+function M.evaluate(org, proposal_text, file, basename, today, as_of)
   local proposal, problems = M.read_proposal(proposal_text, file, basename)
+  if as_of then
+    proposal.applied, proposal.applied_seq = nil, nil
+    local kept = {}
+    for _, a in ipairs(proposal.answers) do
+      if a.date <= as_of then kept[#kept + 1] = a end
+    end
+    proposal.answers = kept
+  end
   local report = { proposal = proposal, problems = problems, reasons = {} }
   if proposal.withdrawn then report.status = "withdrawn" return report end
   if proposal.applied then report.status = "applied" return report end
@@ -664,6 +681,32 @@ function M.diff(old_text, new_text, label)
 end
 -- }}}
 
+-- {{{ function M.list_proposals()
+-- The proposal files of an org, by path, in name order.
+function M.list_proposals(dir)
+  local list = {}
+  local pipe = io.popen("ls -1 '" .. dir:gsub("'", "'\\''") .. "/proposals' 2>/dev/null")
+  for name in pipe:lines() do
+    if name:match("%.proposal$") then list[#list + 1] = dir .. "/proposals/" .. name end
+  end
+  pipe:close()
+  table.sort(list)
+  return list
+end
+-- }}}
+
+-- {{{ function M.next_seq()
+-- One more than the highest change number any applied proposal carries.
+function M.next_seq(dir)
+  local high = 0
+  for _, path in ipairs(M.list_proposals(dir)) do
+    local p = M.read_proposal(reader.read_file(path) or "", path, nil)
+    if p.applied_seq and p.applied_seq > high then high = p.applied_seq end
+  end
+  return high + 1
+end
+-- }}}
+
 -- {{{ function M.main()
 function M.main(args)
   local usage = "usage: 010-proposals.lua ORG_DIR PROPOSAL [--today YYYY-MM-DD] [--write]\n"
@@ -715,8 +758,10 @@ function M.main(args)
       write_file(dir .. "/org.state", report.new_state_text)
     end
     local sep = text:sub(-1) == "\n" and "" or "\n"
-    write_file(path, text .. sep .. "\napplied " .. today .. "\n")
-    print("applied " .. today .. ": org.map written, the proposal marked applied")
+    local seq = M.next_seq(dir)
+    write_file(path, text .. sep .. "\napplied " .. today .. " " .. seq .. "\n")
+    print(string.format("applied %s as change %d: org.map written, the proposal marked applied",
+                        today, seq))
   end
   return (report.status == "ready" or report.status == "applied") and 0 or 3
 end

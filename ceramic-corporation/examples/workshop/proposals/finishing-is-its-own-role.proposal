@@ -1,0 +1,19 @@
+proposal finishing-is-its-own-role
+  by kai
+  opened 2026-10-02
+  says "chairs leave unsanded; let finishing be a role of its own between making and the buyer"
+
+add role finishing
+  + says "sands, oils and checks each chair"
+  + held-by kai
+  + in raw - making.raw
+  + out chair $buyers
+
+edit role making
+  - out chair $buyers
+  + out raw - finishing.raw
+
+approve jon 2026-10-03
+approve ines 2026-10-04
+
+applied 2026-10-12 2

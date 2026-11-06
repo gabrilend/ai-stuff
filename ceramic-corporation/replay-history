@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#
+# replay-history -- checks that an org's history explains its map.
+#
+# Starts from first.map, the map as the org was founded, and applies every
+# applied proposal again in its numbered order, each judged as it stood on the
+# day it was applied. The result must be org.map exactly; where it is not, the
+# map was changed some way other than an agreed proposal, and the diff shows
+# how. An org with no first.map keeps no history and has nothing to replay.
+# The rules are H1-H7 in docs/003-how-a-change-is-accepted.md.
+#
+# Usage:
+#   ./replay-history ORG_DIR
+#   ./replay-history /path/to/ceramic-corporation ORG_DIR
+#
+# Exits 0 when the history explains the map (or there is none), 1 when not.
+
+DIR="/mnt/mtwo/programming/ai-stuff/ceramic-corporation"
+
+# -- {{{ show_help
+show_help() {
+    sed -n '3,16p' "$0" | sed 's/^# \{0,1\}//'
+}
+# }}}
+
+if [ -f "$1/src/015-history.lua" ]; then
+    DIR="$1"
+    shift
+fi
+
+if [ "$#" -ne 1 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    show_help >&2
+    exit 2
+fi
+
+exec "${LUA:-luajit}" "${DIR}/src/015-history.lua" "$1"

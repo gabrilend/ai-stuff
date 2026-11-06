@@ -47,7 +47,7 @@ approve bo 2026-11-03 513f1bd9
 | `approve PERSON DATE [CHANGE-ID]` | — | PERSON agrees. |
 | `object PERSON DATE "REASON"` | — | PERSON does not agree, and says why. |
 | `withdrawn DATE` | — | The proposer has taken it back. |
-| `applied DATE` | — | It has been applied to the map. |
+| `applied DATE [N]` | — | It has been applied to the map, as the org's Nth change. |
 
 LINE is a body line of the map exactly as it would be written there, without
 its two leading spaces: everything after the `+` or `-` and the spaces that
@@ -61,7 +61,7 @@ follow it, compared character for character. KIND is a map head keyword: `person
 | P3 | A proposal's heads are `proposal`, `add`/`edit`/`remove KIND NAME`, and the answer lines. `add` blocks hold `+` lines only, `remove` blocks `-` lines only, `edit` blocks either, and at least one. Each body line is `+ LINE` or `- LINE`, and each LINE is well-formed for its KIND. `org` may only be edited. |
 | P4 | A block is the target of at most one `add`/`edit`/`remove` in a proposal. |
 | P5 | Answer lines are exactly the four shapes in the table above and have no body lines. `object` carries a non-empty reason: **an objection without a reason is noise**; with one, it is a record anybody can read and answer. An answer from somebody who is not a person in the org is not a problem — anybody can append a line — and does not count. |
-| P6 | Not both `withdrawn` and `applied`; neither twice. |
+| P6 | Not both `withdrawn` and `applied`; neither twice. N, when given, is a whole number from 1. |
 
 **Answers are appended, not edited.** A person's answer is their latest line;
 between two lines of one date, the later in the file. Changing your mind is
@@ -206,6 +206,40 @@ changing this format. That is what makes executives obsolete in the data model
 rather than in a slogan: the only standing anybody has comes from holding a box
 a change touches, speaking for an outside party a change reaches, or being one
 of everyone.
+
+## History
+
+An org that keeps `first.map` keeps a history: the map as it was founded,
+followed by every applied proposal in order. **Replaying it must make
+`org.map` exactly**, byte for byte. Where it does not, the map was changed
+some way other than an agreed proposal — and in an organisation where every
+change is meant to be a diff somebody agreed to, that is the one thing that
+must never go unnoticed.
+
+The order is the change number N on each `applied` line. The proposal tool
+writes it (one more than the highest already there) when it applies a
+proposal, because two proposals applied on one day to one block put their
+added lines in the order they were applied, and a date cannot say which came
+first.
+
+Each step is judged **as it stood on the day it was applied**: its `applied`
+line is set aside, and so is every answer dated after that day, and the rules
+are the rules of the map at that point in the replay. An approval written in
+afterwards does not make a change agreed retroactively.
+
+| Code | Rule |
+| --- | --- |
+| H1 | `first.map` is a valid map. |
+| H2 | Either every applied proposal carries a change number or none does. Some with and some without leaves the order unknowable. |
+| H3 | Change numbers run from 1 to the number of applied proposals, each once. |
+| H4 | In number order, the `applied` dates never go backwards. |
+| H5 | Each change applies to the map the steps before it made: not stale, not broken, not invalid. A replay stops at the first that does not. |
+| H6 | Each change was ready on the day it was applied, counting only answers dated that day or earlier. |
+| H7 | The replayed map is `org.map`, exactly. |
+
+| Code | Warns about |
+| --- | --- |
+| W4 | No applied proposal carries a number: the order is inferred from dates, then names. |
 
 ## The questions the vision asks, ruled on
 
