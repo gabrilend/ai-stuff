@@ -15,6 +15,16 @@
 --   local map = require("data").load("path/to/map.w3x")
 --   local report = validation.validate_map(map)
 --   print(validation.format_report(report))
+--
+-- Base-game ids (a placed footman, a dropped Claws of Attack) are looked up
+-- in the stock tables when a lookup over the map's game data chain is given
+-- (issue 112):
+--   local c = require("gamedata.chain").open({ install = ..., layers = ..., w3i = ..., map = path })
+--   local stock = require("gamedata.stock_ids").from_chain(c)
+--   local report = validation.validate_map(map, { stock = stock })
+-- Without one they are assumed valid, and the report says how many were.
+
+local stock_ids = require("gamedata.stock_ids")
 
 local validation = {}
 
@@ -78,6 +88,7 @@ function ValidationReport.new()
     self.stats = {
         units_checked = 0,
         doodads_checked = 0,
+        stock_assumed = 0,   -- base-game ids taken as valid without a stock table
         item_drops_checked = 0,
         abilities_checked = 0,
         waygates_checked = 0,
@@ -208,6 +219,56 @@ local function format_position(pos)
     return string.format("(%.0f, %.0f)", pos.x or 0, pos.y or 0)
 end
 -- }}}
+
+-- {{{ check_stock_id
+-- A base-game id the map's own object data doesn't define. With stock
+-- tables (gamedata/stock_ids.lua, read through the map's chain) it is looked
+-- up: listed means valid, not listed is an error naming the id and what was
+-- searched. Without them it is assumed valid, with a warning, as before
+-- issue 112 gave the validator the stock tables.
+-- @param report ValidationReport
+-- @param stock a stock_ids lookup, or nil
+-- @param kinds the stock kinds that may define the id, e.g. { "unit", "item" }
+-- @param id the id
+-- @param category the report category ("unit_placement", ...)
+-- @param noun what the id names, for messages ("unit", "doodad", ...)
+-- @param details the message details (the searched layer is added)
+local function check_stock_id(report, stock, kinds, id, category, noun, details)
+    if stock_ids.is_random_placeholder(id) then
+        -- Resolved by the game when the map starts; no table defines it.
+        report:mark_valid()
+        return
+    end
+    if not stock then
+        report:add_warning(category,
+            string.format("Base game %s ID '%s' not in custom object data", noun, id), details)
+        report.stats.stock_assumed = report.stats.stock_assumed + 1
+        report:mark_valid()  -- Assumed valid: no stock tables were given
+        return
+    end
+    local found = stock:find(kinds, id)
+    details.searched = stock.searched
+    if found then
+        report:mark_valid()
+    elseif found == false then
+        report:add_error(category,
+            string.format("Stock %s ID '%s' not found in the game's tables (%s)", noun, id, stock.searched),
+            details)
+    else
+        local lacking = {}
+        for _, kind in ipairs(kinds) do
+            local path = stock:missing(kind)
+            if path then lacking[#lacking + 1] = path end
+        end
+        details.missing_tables = table.concat(lacking, ", ")
+        report:add_warning(category,
+            string.format("Base game %s ID '%s' not checked: the game data has no %s (%s)",
+                noun, id, details.missing_tables, stock.searched), details)
+        report.stats.stock_assumed = report.stats.stock_assumed + 1
+        report:mark_valid()
+    end
+end
+-- }}}
 -- }}}
 
 -- {{{ Individual validators
@@ -216,7 +277,8 @@ end
 -- Validate that unit type IDs exist in object database.
 -- @param map Map object with registry and object_data
 -- @param report ValidationReport to append results
-function validation.validate_unit_placements(map, report)
+-- @param stock optional stock_ids lookup (gamedata/stock_ids.lua) for base-game ids
+function validation.validate_unit_placements(map, report, stock)
     if not map.registry or not map.registry.units then
         return
     end
@@ -265,13 +327,12 @@ function validation.validate_unit_placements(map, report)
                     player = unit.player,
                 })
             else
-                -- Base game ID - warning only (we don't have SLK data)
-                report:add_warning("unit_placement",
-                    string.format("Base game unit ID '%s' not in custom object data", id), {
+                -- Base game ID: a unit, or an item placed on the ground
+                -- (preplaced items share the units file)
+                check_stock_id(report, stock, { "unit", "item" }, id, "unit_placement", "unit", {
                     creation_id = unit.creation_number,
                     position = format_position(unit.position),
                 })
-                report:mark_valid()  -- Assume valid for base game
             end
         end
 
@@ -284,7 +345,8 @@ end
 -- Validate that doodad type IDs exist in object database.
 -- @param map Map object with registry and object_data
 -- @param report ValidationReport to append results
-function validation.validate_doodad_placements(map, report)
+-- @param stock optional stock_ids lookup (gamedata/stock_ids.lua) for base-game ids
+function validation.validate_doodad_placements(map, report, stock)
     if not map.registry or not map.registry.doodads then
         return
     end
@@ -332,13 +394,11 @@ function validation.validate_doodad_placements(map, report)
                     position = format_position(doodad.position),
                 })
             else
-                -- Base game ID - warning only
-                report:add_warning("doodad_placement",
-                    string.format("Base game doodad ID '%s' not in custom object data", id), {
+                -- Base game ID: a doodad or a destructable
+                check_stock_id(report, stock, { "doodad", "destructible" }, id, "doodad_placement", "doodad", {
                     creation_id = doodad.creation_number,
                     position = format_position(doodad.position),
                 })
-                report:mark_valid()
             end
         end
 
@@ -351,7 +411,8 @@ end
 -- Validate that item drop IDs reference valid items.
 -- @param map Map object with registry and object_data
 -- @param report ValidationReport to append results
-function validation.validate_item_drops(map, report)
+-- @param stock optional stock_ids lookup (gamedata/stock_ids.lua) for base-game ids
+function validation.validate_item_drops(map, report, stock)
     if not map.registry or not map.registry.units then
         return
     end
@@ -407,12 +468,10 @@ function validation.validate_item_drops(map, report)
                             drop_index = item_idx,
                         })
                     else
-                        report:add_warning("item_drop",
-                            string.format("Base game item ID '%s' not in custom object data", id), {
+                        check_stock_id(report, stock, { "item" }, id, "item_drop", "item", {
                             unit_id = unit.id,
                             unit_creation_id = unit.creation_number,
                         })
-                        report:mark_valid()
                     end
                 end
 
@@ -429,7 +488,8 @@ end
 -- Validate that ability IDs reference valid abilities.
 -- @param map Map object with registry and object_data
 -- @param report ValidationReport to append results
-function validation.validate_ability_references(map, report)
+-- @param stock optional stock_ids lookup (gamedata/stock_ids.lua) for base-game ids
+function validation.validate_ability_references(map, report, stock)
     if not map.registry or not map.registry.units then
         return
     end
@@ -481,12 +541,10 @@ function validation.validate_ability_references(map, report)
                         ability_level = ability.level,
                     })
                 else
-                    report:add_warning("ability_reference",
-                        string.format("Base game ability ID '%s' not in custom object data", id), {
+                    check_stock_id(report, stock, { "ability" }, id, "ability_reference", "ability", {
                         unit_id = unit.id,
                         unit_creation_id = unit.creation_number,
                     })
-                    report:mark_valid()
                 end
             end
 
@@ -593,9 +651,14 @@ end
 -- {{{ validate_map
 -- Run all validators on a map and return a comprehensive report.
 -- @param map Loaded Map object (from data.load)
+-- @param options optional table: stock, a stock_ids lookup over the map's
+--   game data chain (gamedata/stock_ids.lua). Without it, base-game ids
+--   the map doesn't define are assumed valid, and one warning says so.
 -- @return ValidationReport with all errors and warnings
-function validation.validate_map(map)
+function validation.validate_map(map, options)
     local report = ValidationReport.new()
+    local stock = options and options.stock
+    report.stock_searched = stock and stock.searched or false
 
     if not map then
         report:add_error("validation", "No map provided")
@@ -612,12 +675,18 @@ function validation.validate_map(map)
     end
 
     -- Run all validators
-    validation.validate_unit_placements(map, report)
-    validation.validate_doodad_placements(map, report)
-    validation.validate_item_drops(map, report)
-    validation.validate_ability_references(map, report)
+    validation.validate_unit_placements(map, report, stock)
+    validation.validate_doodad_placements(map, report, stock)
+    validation.validate_item_drops(map, report, stock)
+    validation.validate_ability_references(map, report, stock)
     validation.validate_waygates(map, report)
     validation.validate_region_sounds(map, report)
+
+    if not stock and report.stats.stock_assumed > 0 then
+        report:add_warning("stock_tables",
+            string.format("No stock tables given: %d base-game ids were assumed valid "
+                .. "(pass options.stock from gamedata/stock_ids.lua)", report.stats.stock_assumed))
+    end
 
     return report
 end
@@ -652,6 +721,14 @@ function validation.format_report(report)
     lines[#lines + 1] = string.format("  Ability references: %d", report.stats.abilities_checked)
     lines[#lines + 1] = string.format("  Waygates: %d", report.stats.waygates_checked)
     lines[#lines + 1] = string.format("  Region sounds: %d", report.stats.sounds_checked)
+    if report.stock_searched then
+        lines[#lines + 1] = "  Stock ids looked up in: " .. report.stock_searched
+    elseif report.stock_searched == false then
+        lines[#lines + 1] = "  Stock ids: not looked up (no stock tables given)"
+    end
+    if report.stats.stock_assumed > 0 then
+        lines[#lines + 1] = string.format("  Stock ids assumed valid: %d", report.stats.stock_assumed)
+    end
     lines[#lines + 1] = ""
 
     -- Errors

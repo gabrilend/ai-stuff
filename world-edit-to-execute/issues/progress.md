@@ -132,7 +132,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 109 | Implement PKWARE DCL decompression | **Completed** | 102d |
 | 110 | Object data parsers | **Completed** | 102 |
 | 111 | Cross-reference validation | **Completed** | 110, 202, 201 |
-| 112 | Stock object tables, read two ways and cross-checked | In progress | 112a, 112b, 112c |
+| 112 | Stock object tables, read two ways and cross-checked | In progress (the validator looks stock ids up; the converter's gate waits on Phase W) | 112a, 112b, 112c |
 | 112a | StormLib built from source by the dependency script | **Completed** 2026-09-24 | 113 |
 | 112b | Game-version layers, chosen per map | In progress | 112a |
 | 112c | Route A: stock rows merged with each map's objects, every field labelled | **Completed** 2026-09-24 | 112b |
