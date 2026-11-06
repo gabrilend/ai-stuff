@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#
+# phase-3-demo - the sword: hundreds of battles and duels, across every core.
+#
+# Fights 256 battalion battles and 256 one-on-one duels headless, one process
+# per core, and totals their receipts: who wins (the two sides should be even,
+# since they are built alike), how many swings land, how often a tried parry
+# succeeds, and where the critical hits come from. Then it checks the stated
+# rules of the sword one by one.
+#
+# Usage: phase-3-demo [project-dir]
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/sword-fighting-game}"
+echo "phase 3 - the sword"
+echo ""
+echo "256 battles of three battalions a side:"
+"${DIR}/run-many-battles" "${DIR}" 256
+echo ""
+echo "256 duels, one soldier a side:"
+"${DIR}/run-many-battles" "${DIR}" 256 --mode duel
+echo ""
+echo "the rules of the sword, checked:"
+luajit "${DIR}/tests/000-run-all.lua" "${DIR}" | grep "033-the-sword" | sed 's/033-the-sword.lua: //'

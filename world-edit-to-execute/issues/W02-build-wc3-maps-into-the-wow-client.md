@@ -64,6 +64,132 @@ folder. W08 plans a server of our own that would replace AzerothCore here.
 Tuning ("lots of tweaking") goes into `docs/balance-updates.md` as it happens,
 not into new issues.
 
+## Generated Sub-Issues
+
+- `W02a-terrain-to-adt-writer.md` (2026-11-04): written by hand from the
+  table above, not by the issue-splitter, which reads numbered issue ids
+  only (W02a's Notes say where). **Built** the same day as background
+  work: `src/wowbuild/`, the converter command `src/cli/wow-convert.lua`
+  (terrain only; the later sub-issues add theirs to it), the ground
+  texture table as data. Left: the texture paths checked against the
+  owner's client, Noggit, the stock client and AzerothCore's extractor on
+  the owner's machine.
+- `W02b-doodads-and-units-to-placements.md` (2026-11-04): written by hand
+  the same way. **Built** the same day as background work, on W02a's
+  branch: doodads as M2/WMO placements in the ADTs (with each chunk's
+  MCRF) through a model table kept as data (`src/wowbuild/models.lua`,
+  logical paths for the W client's resolver, which the baseline set
+  covers under the same names); units as `server/world.sql` (one template
+  per type and faction, one faction per WC3 force, only what the map uses,
+  as W02h asks); the map's own models copied into the build; a placement
+  list for the W client and W02c. The doodad and unit readers were fixed
+  on the way (every Frozen Throne map with units failed to parse). Left:
+  the model paths checked against the owner's client, the SQL on the
+  owner's AzerothCore, Noggit and the stock client.
+- `W02c-map-registration-and-output-forms.md` (2026-11-04): written by
+  hand the same way. **Built** the same day as background work, on W02b's
+  branch:
+  - the map's rows in Map, AreaTable, LoadingScreens, CreatureDisplayInfo,
+    CreatureModelData, FactionTemplate and Faction (`src/wowbuild/dbc.lua`,
+    layouts as data);
+  - an id scheme of 100 slots a build folder (map ids 900-999; open
+    question 3 answered for now);
+  - a loading screen made from the map;
+  - the forms: the W client's overlay (`DBFilesClient/`, `map.lua`,
+    `world/creatures-<id>.tsv`), the server's `server/dbc.sql` and merged
+    `server/dbc/`, and `patch-W.MPQ` through StormLib;
+  - everything read back through the W client's own readers.
+
+  Left: every column layout checked against a source or the owner's
+  stock files; the stock client, the SQL on AzerothCore and the
+  extractors on the owner's machine; the W client's side (the changes
+  listed in W02c's notes, for custom-client).
+- `W02e-triggers-on-the-server.md` (2026-11-04): written by hand the
+  same way, split into seven steps (coverage and skeleton; the server's
+  loader and the real ALE; templates and units' state; orders; groups,
+  forces and players' events; the mechanics; the whole of every map).
+  Renumbered into eight on 2026-11-05, when the most-called natives came
+  forward as step 2.
+  **Step 1 built** the same day as background work, on W02c's branch:
+  - the shim in its own AGPL v3 folder, `server-side/ale/wc3shim/`
+    (requires nothing outside it), with 133 natives in 8 groups: numbers
+    and strings, triggers, timers, waits, players' gold and lumber, units
+    made at a point as creatures, locations and rects, regions entered
+    and left;
+  - a fake ALE (`fake_ale.lua`) the shim runs on here, and the shim
+    checked line by line against the project's own runtime
+    (`src/jass/vm.lua`) on the same scripts;
+  - the converter's side (`src/wowbuild/triggers.lua`): each map's script
+    transpiled, the data the shim reads, and `natives-report.lua`, every
+    native the script calls against what the shim has, in
+    `server/triggers/<dir>/`.
+
+  Left: every ALE call checked against mod-ale on the owner's machine
+  (all are from memory), the server's loader, and steps 3-8.
+
+  **Step 2 built** 2026-11-05, on step 1's branch: the most-called
+  natives, 574 in 19 groups (units' state and life, heroes, orders, unit
+  events and deaths, groups and ForGroup, players, forces, alliances,
+  messages, chat, sounds, and Blizzard.j's wrappers over them), each
+  checked against the project's runtime on the same scripts. Types only
+  the script makes now get templates of their own, so no map has ghost
+  units (W02e's decision 30).
+- W02d, W02f-W02h: not yet written.
+- `W02f-launcher-and-loader.md` (2026-11-05): written by hand from the
+  table above. **Step 1 built** the same day: the converter writes
+  `server-stamp`, the server's files of the build with their checksums,
+  and the editor's Test Map reuses the server by it (issue 913). Left:
+  installing the build into AzerothCore, the stock client's side, the
+  character at the start.
+
+## Progress
+
+- *2026-11-04:* acceptance line 1 is met for the terrain: one command
+  converts `assets/DAoW-2.1.w3x`'s ground into a build folder. Line 3's
+  height half is checked against the W client's own ADT reader (every
+  outer vertex and cell centre within 0.5 yd; worst 2.5e-6). Line 6's
+  terrain part (texture folds and unmapped ground types) is in
+  `conversion-report.lua`. Line 7 holds for the terrain: everything is
+  written into the build folder; the ADTs name WoW's textures by path only.
+- *2026-11-04 (W02b):* line 4 is checked against the W client's own
+  reader for the doodads: every placed model comes back where WC3 placed
+  it (0.01 yd), facing its way through the W client's own placement
+  matrix, at its size; units become spawns at their WC3 points. In the
+  stock client and on a running server it waits for W02c. Line 6's
+  placements part (unmapped doodad and unit types, left-out doodads and
+  units) is in `conversion-report.lua`. Line 7 holds: the build carries
+  paths, SQL and the map's own imports only. Open question 4 is answered
+  for now by a hand-seeded table (W02b's decision 4).
+- *2026-11-04 (W02c):* the map is registered.
+  - Its rows are in the client's tables (the W client's reader reads every
+    column as written) and in the server's copies.
+  - `patch-W.MPQ` is written, and StormLib and the W client's archive
+    reader read every file of it back.
+  - Line 7 holds: stock tables are read from the player's folder at build
+    time, and their rows go only into the build folder.
+  - Open question 3 is answered for now (W02c's decision 1: map ids
+    900-999, a slot per map in a build folder).
+  - Lines 2-5 still wait for the owner's machine, W02d (the server's
+    ground) and the W client's side (W02c's notes).
+
+- *2026-11-04 (W02e, step 1):* line 6's natives part is in the build
+  folder: `server/triggers/<dir>/natives-report.lua` lists every native
+  the script calls and which the shim lacks, and `conversion-report.lua`
+  counts them. Every map in `assets/` is counted: 745 distinct names over
+  19 maps, of which the shim has 101; per map it has 40-85 names, 54-67%
+  of the call sites. Line 5 (a timer and a region-enter trigger on the
+  server) passes on a fake ALE against the project's runtime; on the
+  owner's AzerothCore it waits for W02e's step 3. Line 7 holds: the
+  transpiled script and its data are made from the map, in the build
+  folder; the shim ships under its own licence.
+- *2026-11-05 (W02e, step 2):* line 6's natives part grows: the shim has
+  368 of the 745 names, 95.5% of the 345,248 call sites (90.6-97.9% per
+  map; was 58.9%). What is left is mostly items, floating text, effects,
+  the camera, quests, dialogs, multiboards and destructables, listed per
+  map in `natives-report.lua`. Every unit the script makes now has a
+  template, so no map spawns a unit the server can't make. Line 5 still
+  waits for step 3 on the owner's AzerothCore.
+
 ## Acceptance Criteria
 
 - [ ] One WC3 map (the smallest DAoW map in `assets/`) converts with one command
@@ -90,7 +216,9 @@ not into new issues.
    **Install found on this machine:** `/mnt/mtwo/games/warcraft-iii/prefix/drive_c/users/ritz/Warcraft-III/` holds `war3.mpq` (Reign of Chaos) only. Most custom maps are Frozen Throne maps, whose stock tables live in `war3x.mpq`, with patch overrides in `War3Patch.mpq`; neither is installed there. The Frozen Throne disc image and patch are in `/mnt/mtwo/games/warcraft-iii/torrent-version/`. The stock-table reader must read the archives in patch order (patch over expansion over base), the same chain rule as the WoW client.
 6. ~~Who runs a converted map's rules in the W client?~~ Answered 2026-09-23: AzerothCore, through W02e. Multiplayer comes with the server; every WC3 rule the shim touches must be re-expressed as server logic.
 3. Which range of map ids is ours? (Must not collide with Blizzard's rows or other custom patches the owner uses.)
+   *Answered for now 2026-11-04 (W02c, the owner's to overturn):* 900-999, one per slot of a build folder (100 maps). Every other id a map takes (zone, loading screen, displays, factions, creature entries and guids) is a block of the same slot. Map ids stay three digits because AzerothCore's mmaps generator reads a map id from a `.map` file's first three characters. A stock row inside these blocks is reported when the stock tables are given. See `W02c-map-registration-and-output-forms.md`, decision 1.
 4. Custom units need a WoW model per WC3 unit type. Who fills the WC3 → WoW table first: a hand-seeded table for the melee races, or W05's forge?
+   *Answered for now 2026-11-04 (W02b, the owner's to overturn):* a hand-seeded table first (`src/wowbuild/models.lua`: the melee races' common units, creeps, tree walls, rocks and plants), every row unchecked; W05's forge fills the baseline set under the same names, and a row may name its own baseline model once one exists.
 8. Should the map and model fetcher (issue 603) also run inside the W client, as a map list in WC3 map mode? Deferred here from 603 by the owner (2026-09-26): "we should answer that question when we're working on the WoW client. I don't see why not, but maybe I will when we're working over there."
 
 ## Related Documents
@@ -98,3 +226,31 @@ not into new issues.
 - `docs/wow-client-bridge.md`, `docs/datapath-wc3-map-into-wow-client.md`
 - `docs/archive/azerothcore-2026-01-07/data-conversion-pipeline.md`, `custom-ability-bridge.md`
 - `docs/formats/w3e-terrain.md`, `docs/formats/unitsdoo.md`
+
+## Notes
+
+- *2026-11-04:* the editor's Test Map (issue 913) calls the converter as
+  `<convert...> <map.w3x> <build folder>`, the command named in the
+  editor's settings (`test_map.convert`), and takes exit code 0 as
+  success. The converter owns the build folder's contents. It may write
+  `<build folder>/server-stamp`, a line naming what the server reads, so
+  the editor starts the server again only when that changes. The server
+  programs are given the build folder as `{build}` in their commands and
+  as `WETE_TEST_MAP_BUILD`; installing it into the server is W02f's.
+- *2026-11-05:* `server-stamp` exists now (W02f step 1): not a line but a
+  small text file naming each file the server reads with its CRC-32 and
+  size, written by every conversion; a build without one counts as new.
+- *2026-11-05:* W02f step 2 in data form: the converter copies the shim
+  into the build (`server/ale/`) and writes `install-plan.lua`, which rows
+  go into which database and table and which files go to which of the
+  server's folders, checked against a stand-in for W02h's empty world
+  database. Nothing installs it yet, and every place and table in it is
+  from memory (W02f's unchecked list).
+- *2026-11-05:* `W02i-a-converted-maps-own-light.md`: each converted map
+  gets its own default light in Light, LightParams, LightIntBand and
+  LightFloatBand (W02c's scheme extended), with its war3map.w3i's fog
+  and water tint where the file turns them on, by the W client's own
+  rule. Before, both clients fell back to Light's row 1, or the W client
+  to its fixed grey day. Checked through the W client's light read
+  through its tables (custom-client #26): its headless run now reports
+  the map's own light (`light` 20000, was -1).
