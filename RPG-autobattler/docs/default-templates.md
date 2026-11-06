@@ -278,17 +278,17 @@ Stats pushed to an edge on purpose. These draw warnings by design.
 
 ### Glass Cannon
 
-Huge blows, almost no health.
+Heavy javelins and piercing shots, almost no health.
 
 - **Body:** ranged; **archetype:** glass cannon
-- **Points:** 62 of 100
+- **Points:** 70 of 100
 - **Stats:** health 50, speed 45, armor 0, magic resist 0, sight 80
-- **How to use it:** Hits hardest of all for its points, and dies to anything that reaches it.
+- **How to use it:** Hits hard from range while standing still, and dies to anything that reaches it.
 
 Abilities:
 
 1. **javelin_attack** (primary): 30 damage, projectile; reach 20; charges in 12.5 s; 10 points
-2. **power_strike** (damage): 45 damage; reach 15; charges in 12.5 s; 42 points
+2. **piercing_shot** (damage): 35 damage, pierces 3, projectile; reach 40; charges in 12.5 s; 50 points
 
 Warnings (on purpose): health 50 is very low (usual range 60-300).
 

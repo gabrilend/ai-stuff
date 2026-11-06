@@ -120,7 +120,9 @@ AbilityTemplates.abilities = {
         type = "buff", range = 20, max_mana = 100, mana_rate = 4, duration = 12,
         effect_name = "battle_fury", stacking = "stack", max_stacks = 3,
         modifiers = {attack = 0.25},
-        generation_conditions = {{type = "combat_state", value = "combat"}},
+        -- Charges while an enemy is near. (It once waited for combat
+        -- state "combat", which no system sets, so it never fired.)
+        generation_conditions = {{type = "enemies_in_range", operator = ">", value = 0, range = 40}},
         visual_effect = "fury_aura", sound_effect = "buff_cast"
     },
     protective_ward = {

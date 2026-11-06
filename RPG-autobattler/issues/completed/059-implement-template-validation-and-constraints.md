@@ -556,3 +556,36 @@ Headless only. Nothing was seen.
   the skirmisher three damage abilities, and the berserker spends 41
   points. They are legal; issue 061 revisits the defaults.
 
+## Follow-up: Triggers a Body Can Never Meet (Round 5)
+
+A provisional repricing run (issue 058) showed Glass Cannon losing every
+battle: its power strike charged only with an enemy within 15, and a
+ranged body backs away from enemies nearer than 20. Looking for the same
+mistake everywhere found a worse one: battle fury waited for combat
+state "combat", which no system ever sets (the game's "combat" is a
+value of a unit's `state`, a different field), so it never fired on any
+template. These are correctness bugs, not balance.
+
+- New warning rule `reachable_triggers` in
+  `src/validators/template_validator.lua`, with its facts in
+  `TemplateConstraints.triggers`: an ability's generation or activation
+  condition warns when it asks for another body (`unit_type`), a combat
+  state no system sets for this body, an unknown condition type (which
+  always fails), or, on a ranged body, an enemy nearer than the 20 the
+  body keeps away.
+- Battle fury now charges while an enemy is within 40.
+- Glass Cannon's power strike became piercing shot (issue 061's
+  defaults; 62 to 70 points).
+
+### Decisions
+
+- A warning, not an error: a custom template may mean it, and the
+  ranged keep-away can fail when the unit is cornered (that case says
+  "rarely if ever"; the others say "never").
+- The combat states each body can reach are listed by hand from the
+  systems that set them, next to the other limits. A test holds every
+  default template free of the warning, so a new default can't repeat
+  the mistake.
+- Battle fury keeps its idea ("in a fight") through a condition the
+  game and the harness both evaluate, rather than by adding a new state
+  to the systems.
