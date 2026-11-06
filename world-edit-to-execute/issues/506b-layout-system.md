@@ -231,3 +231,50 @@ Layout should be recalculated lazily, not every frame. Only recalc when dirty.
 - issues/506a-ui-component-system.md (base component)
 - issues/506-build-ui-framework.md (parent issue)
 - issues/505d-minimal-ui.md (layout example)
+
+## Decisions (2026-11-05)
+
+Made without the owner, and the owner's to overturn (Q-4: Lua; see 506).
+
+1. **WC3's own model:** anchor points as FDF's SetPoint has them (nine
+   points, each relative to a point of another frame, with an offset).
+   One point plus a size places a frame; two points on an axis stretch
+   it. This is `src/ui/anchor.lua`.
+2. **Units:** offsets and sizes are in the 4:3 area's units, 960 by 720
+   (WC3's 0.8 by 0.6 times 1200), with y going down like the rest of the
+   code.
+3. **Two roots:** `"screen"` (the window) and `"ui"` (the 4:3 area). The
+   4:3 area is always the window's full height, centred. On a window
+   narrower than 4:3 it is the whole window, scaled by the width, and
+   the extra height lands between the top and the bottom. So whatever
+   hangs from the 4:3 area's top and bottom always meets the bars at the
+   window's edges.
+4. **Resolved on resize only:** `anchor.cache(frames):get(w, h)` and
+   `console_frames.cache():get(w, h)` work the layout out once per size.
+5. **The console as data:** `src/ui/wc3/console_frames.lua`.
+   - The top bar and the console bar stretch across the window.
+   - Every part on them keeps its place in the 4:3 area (the minimap and
+     command card included), as WC3 does on wide screens.
+   - The sizes are `layout.lua`'s fitted into 960 across, so they are
+     this project's, not measured from the game. The game's FDF files
+     (on the owner's install) would give the real ones.
+6. **Same shape as `layout.compute`:** `console_frames.compute(w, h)`
+   returns the table `layout.compute(w, h)` returns, so the hud can take
+   either. The test draws the hud that way and presses a command button.
+   It is not switched on (see 506, decision 3).
+7. **Rounding:** rectangles come out in whole pixels, each edge rounded on
+   its own, so neighbours meet without gaps.
+
+## What happened (2026-11-05)
+
+- Added `src/ui/anchor.lua` and `src/ui/wc3/console_frames.lua`, with
+  info pages.
+- Added `src/tests/test_ui_framework.lua`. It checks anchors and their
+  refusals, and the console at 4:3, 16:9, 21:9, 5:4 and 4K (on screen,
+  parts apart, scaling at 4:3, 4:3 places kept on wide windows). It also
+  checks the resize-only cache and the hud running on the anchored
+  console.
+
+**Left for the owner:** switching the hud to it, and the console's real
+sizes from the game's FDF files. Acceptance criterion 2 ("WC3's layout")
+is met for this project's sizes only.

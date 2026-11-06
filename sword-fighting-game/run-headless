@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# run-headless - fight a battle, a duel or a whole match with no window.
+#
+# The game's rules run under plain LuaJIT, as fast as the processor allows,
+# with every soldier (the player's too) fought by its own mind. The run ends
+# by writing its receipt to output/goodbye, exactly as the windowed game does,
+# so a headless run is a full, checkable run. Options are those of the game;
+# see --help.
+#
+# Usage:
+#   ./run-headless [options]            run in this project
+#   ./run-headless <dir> [options]      run the project at <dir>
+
+DIR="/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+
+exec luajit "${DIR}/src/020-headless.lua" "${DIR}" "$@"
