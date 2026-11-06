@@ -41,6 +41,11 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   flat arrays; the `.png` paintbrush's document generated from its table
   and checked to match. 802 is whole and closed.
 
+- 808 step 1, the source end's checks — a language table (comment form,
+  extension, parser), the first-line check naming language and version,
+  the language's own parser over the file, and the `.src` paintbrush
+  through the wall. The turn kind that writes the file is still to come.
+
 807c-d, 805b-d, and 809b and 809d remain: box diagrams and prose
 templates; line-and-dot charts, diagrams by level and the machine drawing
 itself; and safe concurrent appends and floors.

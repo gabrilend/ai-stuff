@@ -404,8 +404,12 @@ function wall.load(text, brush, where)
         finding(findings, tonumber(tostring(run_err):match(":(%d+):")), nil,
             "does not run: " .. tostring(run_err):gsub("^[^:]*:%d+: ", ""))
     end
-    if brush.words.canvas and brush.words.canvas.required and not counts.canvas then
-        finding(findings, 1, "canvas", "every canvas needs one canvas{ … } saying its category")
+    for _, name in ipairs(word_names) do
+        if brush.words[name].required and not counts[name] then
+            local why = name == "canvas" and "every canvas needs one canvas{ … } saying its category"
+                or ("every " .. brush.name .. " canvas needs one " .. name .. "{ … }")
+            finding(findings, 1, name, why)
+        end
     end
     return words, findings
 end
@@ -647,7 +651,7 @@ function wall.document(brush)
     local lines = {
         "# The " .. brush.name .. " paintbrush",
         "",
-        "Generated from `src/151-the-wall.lua`'s `" .. brush.name:upper() .. "` table by",
+        "Generated from `" .. (brush.source or "src/151-the-wall.lua") .. "`'s `" .. brush.name:upper() .. "` table by",
         "`wall.document()`; do not edit by hand (a check compares the two).",
         "A canvas is a Lua file of these words and nothing else; a word or",
         "field not here is refused, with the nearest legal one named.",
