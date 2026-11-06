@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+#
+# render-gallery - pictures and moving pictures of every model, in one place.
+#
+# In plain terms: makes the models fresh (the formula-made ones, and the
+# ones described in words), then for each one has the viewer take its best
+# still pictures and record a moving picture -- a full turn on its plinth
+# for an object, a walk through every station for the light pipe -- turns
+# the recordings into GIFs (src/031, one worker per processor), copies
+# everything into output/gallery/, and writes output/gallery/index.html, a
+# page showing them all. Every still is also filed in development-history/
+# by the viewer, like any picture. Raw frames are removed once their GIF is
+# made, since each is a megabyte of RAM.
+#
+# Usage:
+#   scripts/render-gallery                 the project at the default location
+#   scripts/render-gallery <project-dir>   another copy of the project
+
+DIR="/mnt/mtwo/programming/ai-stuff/poor-person-google-glass"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}" || exit 1
+
+GALLERY="${DIR}/output/gallery"
+SHM="${DIR}/tmp/shared-memory"
+mkdir -p "${GALLERY}"
+
+# {{{ the models, made fresh
+"${DIR}/scripts/make-test-shapes" "${DIR}" > /dev/null || exit 1
+"${DIR}/scripts/make-light-pipe" "${DIR}" > /dev/null || exit 1
+for NAME in drum lamp crown glasses; do
+    "${DIR}/describe" "${DIR}" "${DIR}/input/descriptions/${NAME}.txt" > /dev/null || exit 1
+done
+# }}}
+
+# {{{ stills: one call of the viewer per model, its pictures copied in
+# still MODEL-FILE LABEL VIEWS [viewer options...]
+still() {
+    local MODEL="$1" LABEL="$2" VIEWS="$3"
+    shift 3
+    "${DIR}/view-cad" "${DIR}" "${MODEL}" "$@" --screenshot 0.4 --views "${VIEWS}" > /dev/null || exit 1
+    # the receipt lists every picture this run saved
+    while read -r FILE; do
+        cp "${FILE}" "${GALLERY}/${LABEL}-$(basename "${FILE}" | sed 's/^screenshot-.*\.gltf-//')"
+    done < <(awk '/^picture / { print $NF }' "${DIR}/output/goodbye")
+}
+# }}}
+
+# {{{ moving pictures: record, then make the GIF, then free the frames
+# moving MODEL-FILE LABEL MODE LENGTH FPS [viewer options...]
+moving() {
+    local MODEL="$1" LABEL="$2" MODE="$3" LENGTH="$4" FPS="$5"
+    shift 5
+    "${DIR}/view-cad" "${DIR}" "${MODEL}" "$@" --record 0.3 "${MODE}" "${LENGTH}" "${FPS}" > /dev/null || exit 1
+    local FRAMES
+    FRAMES=$(awk -F'"' '/name = / { print $2; exit }' "$(ls -td "${SHM}"/frames/*/ | head -1)info.lua")
+    luajit "${DIR}/src/031-making-a-gif.lua" "${DIR}" "${SHM}/frames/${FRAMES}" "${GALLERY}/${LABEL}-${MODE}.gif" || exit 1
+    rm -rf "${SHM}/frames/${FRAMES}"
+}
+# }}}
+
+SKETCH="${SHM}/shapes/crown-sketch.gltf"
+PIPE="${DIR}/output/models/light-pipe.gltf"
+WORDS="${DIR}/output/described"
+
+still "${SKETCH}" crown-sketch lit,annotated,joints --drag 0.1 40 0 --tilt 0.2 10
+moving "${SKETCH}" crown-sketch turn 6 12 --tilt 0.1 10 --wheel 0.2 3
+for NAME in drum lamp glasses crown; do
+    still "${WORDS}/${NAME}.gltf" "${NAME}" lit,annotated
+    moving "${WORDS}/${NAME}.gltf" "${NAME}" turn 6 12 --wheel 0.2 2
+done
+still "${PIPE}" light-pipe lit --stations
+moving "${PIPE}" light-pipe walk 42 10
+
+# {{{ the index page
+{
+    echo "<!doctype html>"
+    echo "<!-- made by scripts/render-gallery on $(date '+%Y-%m-%d %H:%M'): every model's pictures and moving pictures -->"
+    echo "<html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+    echo "<title>Crown gallery</title><style>"
+    echo "body{margin:0;padding:16px;background:#14161a;color:#dde1e6;font:15px/1.5 system-ui,sans-serif}"
+    echo "h1{font-weight:500}h2{font-weight:500;margin-top:2em;border-bottom:1px solid #333}"
+    echo ".grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}"
+    echo "figure{margin:0}img{width:100%;border-radius:6px;display:block}figcaption{font-size:13px;color:#9aa3ad;margin-top:4px}"
+    echo "</style></head><body><h1>Crown gallery</h1>"
+    echo "<p>Rendered by the project's own viewer. Moving pictures are GIFs written by the project's own encoder.</p>"
+    for LABEL in light-pipe crown-sketch glasses crown drum lamp; do
+        echo "<h2>${LABEL}</h2><div class=\"grid\">"
+        for FILE in "${GALLERY}/${LABEL}"-*.gif "${GALLERY}/${LABEL}"-*.png; do
+            [ -f "${FILE}" ] || continue
+            NAME=$(basename "${FILE}")
+            echo "<figure><img src=\"${NAME}\" alt=\"${NAME}\" loading=\"lazy\"><figcaption>${NAME}</figcaption></figure>"
+        done
+        echo "</div>"
+    done
+    echo "</body></html>"
+} > "${GALLERY}/index.html"
+# }}}
+
+echo "gallery: $(ls "${GALLERY}" | grep -c -e '\.png$') pictures, $(ls "${GALLERY}" | grep -c -e '\.gif$') moving pictures"
+echo "open: ${GALLERY}/index.html"

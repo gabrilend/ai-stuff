@@ -110,3 +110,7 @@ Benefits:
 3. **Fediverse media path**: Added `input/media_attachments/files` to match actual Mastodon archive structure
 
 **ISSUE STATUS: ✅ COMPLETE**
+
+## Blocks
+
+- 10-042

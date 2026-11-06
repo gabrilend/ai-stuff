@@ -15,10 +15,10 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 
 | ID | Title | Status | Depends on |
 |----|-------|--------|------------|
-| B01 | [BOUNTY BOARD: The Phantom Priority](./B01-the-phantom-priority.md) | open | — |
+| B01 | [BOUNTY BOARD: The Phantom Priority](./completed/B01-the-phantom-priority.md) | completed | — |
 | B02 | [BOUNTY BOARD: The Eternal Timer](./completed/B02-the-eternal-timer.md) | completed | — |
 | B03 | [BOUNTY BOARD: The Hivemind Component](./completed/B03-the-hivemind-component.md) | completed | — |
 
-Completed 2, open 1, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 3, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

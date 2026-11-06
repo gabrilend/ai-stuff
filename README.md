@@ -1,14 +1,48 @@
 # ai-stuff
 
+this project is not intended to confuse or distract you. It is something fun, beautiful, artistic, whatever, to explore, while you use the main tools and utilities of the project, which is rmail, the ceramic core engine, etc... whatever you find use in. feel free to patch or improve or even just build any of these for your own use. They are AGPL, so if you want to use them you gotta do so by sending someone a copy of your source-code. Nothing less.
+
+I've noticed recently that people are building large stacks of artwork and hiding secret messages in them. That's stupid. Don't hide your secrets, tell them. Use rmail. I'm like, pretty sure it works. I mean, it's a work in progress of course, but it'll never get worse, and it's always improving.
+
+god I wish I had like, 200,000$ in bitcoin.
+
+A mesh network can never track you unless it follows you. This is the beauty and peril of [a city square with people, but pronounced living in the modern age], you can always tell when you're noticed.
+
+"hey so-and-so was asking about you again"
+
+[cross dressing, but pronounced trans] is the art of "boobs are part of the outfit"
+
+said some guy in a 70s bar
+
+"drag queens are sexy, not opinionated" said some guy manually examining LLM connections
+
+I dunno, maybe the collective spirit of humanity is bad.
+
+I know we're trending toward good,
+
+but perhaps part of that is letting go-behind all of the [parts of yourself which both control and destroy you, but pronounced herd]
+
+"isolation is it's own reward." said some guy in the modern age
+
+"the jedi order created the sith" said some guy who was the bad guy
+
+"I'm not a bad guy" said I and probably some other guys
+
+I tell the truth because it is right not to lie. such is a principled life.
+
+"delibertarian" for a prosperous life.
+
+---
+
 *A project doesn't have to be anything more than a series of documents. The source code can be filled in later.*
 
 ---
 
 ## Introduction
 
-This is a unified monorepo containing ninety projects. Seventy-two sit at the top level; the other eighteen live on a shelf inside another directory — a game under `games/`, a study under `game-design/`, a device under `roms/`, a subproject under `symbeline-realms/subprojects/`. Thirteen further ideas are loose notes on those shelves, written down and not yet given a directory of their own. What makes it unusual is not its size, but its methodology: every change requires an issue file, every issue follows a naming convention, and every phase produces a working demonstration.
+This is a unified monorepo containing <!-- census:projects:words -->one hundred and one<!-- /census --> projects. <!-- census:top_level:Words -->Eighty-two<!-- /census --> sit at the top level; the other <!-- census:on_shelves:words -->nineteen<!-- /census --> live on a shelf inside another directory — a game under `games/`, a study under `game-design/`, a device under `roms/`, a subproject under `symbeline-realms/subprojects/`. <!-- census:loose_ideas:Words -->Thirteen<!-- /census --> further ideas are loose notes on those shelves, written down and not yet given a directory of their own. What makes it unusual is not its size, but its methodology: every change requires an issue file, every issue follows a naming convention, and every phase produces a working demonstration.
 
-Every number on this page is regenerated rather than retyped. `delta-version/scripts/census-projects.lua` produces them; run it when a figure here looks stale, because it will be.
+Every number on this page is regenerated rather than retyped. `delta-version/scripts/census-projects.lua --write-readme` rewrites them in place, and `--check-readme` names any that have gone stale; run it when a figure here looks old, because it will be.
 
 The system emerged from a simple observation: code without documentation becomes unmaintainable, but documentation without structure becomes unreadable. The solution is to make structure itself the documentation.
 
@@ -37,6 +71,8 @@ The workflow is simple:
 
 This creates a development history that can be read like a narrative. Each issue tells a story: here was a problem, here was a plan, here is what we learned.
 
+Nothing in it is hidden inside the artwork. A secret worth keeping in a picture is a decision worth telling in an issue, in plain words, where anyone can read it; and like the mail the opening lines recommend, an issue is a work in progress that can be added to and never made worse, only improved.
+
 ### Phase-Based Progress
 
 Work is organized into phases. Each phase has a progress file (`phase-X-progress.md`) that tracks completed issues and remaining work. When a phase completes, a demonstration program is created that shows—not describes—what was accomplished.
@@ -63,32 +99,44 @@ For complex issues, sub-issues use an alphabetical suffix: `522a-design-token-fo
 
 ## The Projects
 
-Of the ninety, 54 track issues, 19 are building without them, 16 are a vision document waiting to start, and one is an empty directory. A project with no issue file is not a failed project; it is one that has not needed the apparatus yet, and the apparatus is what the rest of this page describes.
+Of the <!-- census:projects:words -->one hundred and one<!-- /census -->, <!-- census:tracked:digits -->63<!-- /census --> track issues, <!-- census:building:digits -->21<!-- /census --> are building without them, <!-- census:vision:digits -->16<!-- /census --> are a vision document waiting to start, and <!-- census:empty_clause:text -->one is an empty directory<!-- /census -->. A project with no issue file is not a failed project; it is one that has not needed the apparatus yet, and the apparatus is what the rest of this page describes.
 
-Across the 54 that track: 1,250 issues completed out of 2,672, which is 47% overall. Another 54 issues are shelved — filed under an archive or marked superseded, meaning set aside or overtaken rather than finished. Those are counted apart and never folded into the completed figure, so retiring a mode cannot inflate a percentage.
+Across the <!-- census:tracked:digits -->63<!-- /census --> that track: <!-- census:completed:digits -->1,479<!-- /census --> issues completed out of <!-- census:issues:digits -->3,213<!-- /census -->, which is <!-- census:percent:digits -->46<!-- /census -->% overall. Another <!-- census:shelved:digits -->64<!-- /census --> issues are shelved — filed under an archive or marked superseded, meaning set aside or overtaken rather than finished. Those are counted apart and never folded into the completed figure, so retiring a mode cannot inflate a percentage.
+
+The wish at the top of this page was for two hundred thousand dollars in bitcoin. What the page can count instead is the ledger above, and not one entry in it can be spent; every one of them can be read.
 
 ### Active Development
 
-Ranked by files touched in the last three months, which is where the attention
-actually went rather than where the issue count is highest:
+Ranked by how many file changes git recorded inside each project over the last
+three months, which is where the attention actually went rather than where the
+issue count is highest:
 
+<!-- census:active_table -->
 | Project | Focus | Issues | Phases |
 |---------|-------|--------|--------|
+| **world-edit-to-execute** | Reads a Warcraft III map and plays it again in a new engine, scriptable in Lua, wearing whatever art its modders bring | 263/411 | 16 |
+| **neocities-modernization** | Poetry website with GPU-accelerated LLM similarity navigation | 210/316 | 17 |
+| **poor-person-google-glass** | Glasses with no camera and no lens: a laser shaped by sliding slotted tabs, turned outward by a mirror cylinder | 13/37 | 7 |
 | **hero-less-moba** | A lane-pushing game with the heroes, jungle, and item shop removed, to see what is still standing | 0/94 | 9 |
-| **neocities-modernization** | Poetry website with GPU-accelerated LLM similarity navigation | 187/306 | — |
-| **every-software-image-able** | A disk image carrying a model, the code that runs it, and an instruction to build every piece of software it can fit | 28/39 | 7 |
+| **centered-ui-design** | A team strategy game whose controls sit in the middle of the map, on a rotating glass-and-metal wheel everyone votes through | 5/73 | 10 |
 | **six-sided-dice-layer-cake** | A blueprint set a materials engineer could build from, every dimension given or derived | 96/96 | 14 |
 | **my-own-custom-vtt** | A virtual tabletop: several people at different computers sharing one imaginary space | 96/105 | 13 |
-| **soren-ds** | A handheld operating system for the Anbernic RG DS, a dual-touchscreen ARM device | 27/174 | 10 |
-| **games/enheim-tome** | A strategy game over one painting of one city, played as an ordinary person living in it | 0/91 | 9 |
+| **scripts** | The shared workshop every project borrows from: the commit gate, the issue checker, the progress dashboard, the transcript keepers | 20/70 | — |
+| **burner-of-down-things** | Takes a piece of software, describes it in issue files, and delivers a design that meets them | 60/111 | 10 |
+| **kanji-learning-image-generator** | For each kanji, a recipe for a picture, where the picture is the kanji | 33/44 | 5 |
 | **jurassic-maze** | A maze of stacked stone at a fixed corner-on angle, with a simulation inside that nobody plays and nobody wins | 55/60 | 10 |
-| **kanji-learning-image-generator** | For each kanji, a recipe for a picture, where the picture is the kanji | 32/36 | 4 |
-| **gif-generator** | A particle simulation described in prose, encoded to .gif without an encoder library | 23/26 | 6 |
-| **supcom-derivative-clone** | A factory war on dunes where nothing is out of range | 1/76 | 9 |
+<!-- /census -->
 
 The phases column counts phases *defined*, not phases finished. A project with
 nine phases and one completed issue has designed the whole shape and built one
-piece of it, which is the normal order of work here.
+piece of it, which is the normal order of work here. Where the progress
+dashboard cannot tell how a project's issue names divide into phase and number,
+the count comes from the project's own phase progress files instead, and where
+there are none the cell is "—": the census would rather say nothing than guess.
+The ranking leaves out a project's materials: what it reads in, what it
+generates, and its saved conversations. What each project is
+*for* is the one column no program can count; those sentences are kept by hand
+in `delta-version/assets/project-focus.lua`.
 
 Every project's standing, most finished first, is in
 [the appendix](#appendix-full-project-progress) at the foot of this page.
@@ -101,7 +149,7 @@ Feel free to poke around. I recommend reading the `notes/`, `docs/`, and `issues
 
 **AI & Language Processing** includes `neocities-modernization` (LLM embeddings for poetry navigation), `words-pdf` (poems laid out as pages with artwork keyed to each poem), `llm-transcripts` (conversation management), `llm-http`, and `intelligence-system` (reasoning frameworks).
 
-**Games & Game Engines** is the largest category by a wide margin, spanning `hero-less-moba`, `supcom-derivative-clone`, `games/enheim-tome`, `jurassic-maze`, `world-edit-to-execute` (WC3 map parsing), `RPG-autobattler`, `healer-td`, `console-demakes` (Game Boy Color), the seven projects under `games/`, and the design experiments in `game-design/`.
+**Games & Game Engines** is the largest category by a wide margin, spanning `hero-less-moba`, `supcom-derivative-clone`, `games/enheim-tome`, `jurassic-maze`, `world-edit-to-execute` (WC3 map parsing), `RPG-autobattler`, `healer-td`, `console-demakes` (Game Boy Color), the rest of the shelf under `games/`, and the design experiments in `game-design/`.
 
 **Hardware & Devices** has grown into a category of its own: `soren-ds` (a handheld operating system for the Anbernic RG DS), `apple-IIds`, `six-sided-dice-layer-cake` (buildable blueprints), `graphene-factory`, `usb-c-universal-encoder`, and `handheld-office`.
 
@@ -143,9 +191,9 @@ project-name/
 
 The first thing a program should do is read `input/`. The last thing it should do is write to `output/`. This lifecycle makes programs composable: one project's output becomes another's input.
 
-Ephemeral output never touches the disk. A project's `tmp/` is a symlink into `/tmp/`, which holds anything that needs to be executable, and `tmp/shared-memory/` is a second symlink into `/dev/shm/`, which is guaranteed RAM and holds logs and build artefacts. A run script creates both before it writes a line.
+Ephemeral output never touches the disk. A project's `tmp/` is a symlink into `/tmp/`, which holds anything that needs to be executable, and `tmp/shared-memory/` is a second symlink into `/dev/shm/`, which is guaranteed RAM and holds logs and build artefacts. A run script creates both before it writes a line. Like the mesh network in the opening lines, a scratch file can never be tracked unless something follows it: once the power goes, whatever lived only in RAM leaves no trail, and you can always tell what was noticed, because it is what got written down.
 
-The layout is a standard, not a census. It is kept by as many projects as have needed it — 22 have the RAM-tier symlink, 24 read from an `input/` directory, 30 carry their transcripts, 19 number their files from a single counter, 13 build the browsable HTML copy, and 528 source files across the repository have a companion `.info.md` beside them. `census-projects.lua --conventions` counts them again whenever you want to know how far the standard has actually spread.
+The layout is a standard, not a census. It is kept by as many projects as have needed it — <!-- census:tmp_symlink:digits -->40<!-- /census --> have the RAM-tier symlink, <!-- census:input_dir:digits -->33<!-- /census --> read from an `input/` directory, <!-- census:transcripts:digits -->40<!-- /census --> carry their transcripts, <!-- census:index_counter:digits -->28<!-- /census --> number their files from a single counter, <!-- census:html_copy:digits -->23<!-- /census --> build the browsable HTML copy, and <!-- census:info_md:digits -->1,310<!-- /census --> source files across the repository have a companion `.info.md` beside them. `census-projects.lua --conventions` counts them again whenever you want to know how far the standard has actually spread.
 
 ---
 
@@ -191,7 +239,7 @@ This creates a clean workflow: clone the repo, run `libs/install.sh`, then `./sc
 
 In C, header files (`.h`) declare what a module exposes without revealing implementation. Compilers use them to verify correct usage. Many languages don't have this concept, and even in C, headers serve compilers rather than humans.
 
-The `.info.md` pattern solves this. Each source file gets a corresponding markdown file listing its external functions, their signatures, and brief descriptions. This creates language-agnostic header files optimized for human and LLM consumption.
+The `.info.md` pattern solves this: [a header file, but pronounced for people]. Each source file gets a corresponding markdown file listing its external functions, their signatures, and brief descriptions. This creates language-agnostic header files optimized for human and LLM consumption. The interface is not a costume pulled over the source; it is part of the outfit, the part the world meets first.
 
 Here's an example documenting a task worker module with a dispatch table pattern:
 
@@ -237,7 +285,7 @@ Returns metadata for task ID without executing.
 - _worker_thread_main
 ```
 
-The dispatch table format makes the module's capabilities scannable at a glance. A caller can see all available operations, their IDs, and argument requirements without reading implementation code.
+The dispatch table format makes the module's capabilities scannable at a glance. A caller can see all available operations, their IDs, and argument requirements without reading implementation code. The guy manually examining LLM connections, quoted at the top of this page, would recognise the ideal: an interface should be striking, not opinionated. It shows everything it can do and leaves the choosing to the caller.
 
 The benefit is token efficiency. An LLM exploring a codebase can read `task_worker.info.md` (40 lines) instead of `task_worker.lua` (800 lines) to understand what the module offers. Only when the interface description proves insufficient does it need the full source.
 
@@ -256,9 +304,9 @@ if counter < 3 then counter = counter + 1 else return false
 
 ### Error Philosophy
 
-Prefer errors over fallbacks. Silent degradation masks problems that compound over time. When a fallback must be used, log it visibly and create an issue to eliminate it.
+Prefer errors over fallbacks. Silent degradation masks problems that compound over time. When a fallback must be used, log it visibly and create an issue to eliminate it. Every fallback is an order that creates its own sith: the path built to keep the system safe becomes the place its failures learn to hide.
 
-When a bug is fixed, create a test that validates the fix. The test serves as documentation of expected behavior and prevents regression.
+When a bug is fixed, create a test that validates the fix. The test serves as documentation of expected behavior and prevents regression. A test tells the truth because it is right not to lie, and it has no other way to be; a principled codebase is one where that is true of every check.
 
 ---
 
@@ -310,9 +358,9 @@ The manifest serves as both coordination mechanism and progress tracker. Anyone 
 
 ### For Agent Collaboration
 
-Respect your predecessors: don't undo prior work without justification. Leave clear notes for successors. FIXME comments are unsigned work items—investigate the reasoning before modifying.
+Respect your predecessors: don't undo prior work without justification. Leave clear notes for successors, clear enough that the next one can say "hey, so-and-so was asking about you again" and know exactly who was asking, and about what. FIXME comments are unsigned work items—investigate the reasoning before modifying.
 
-When multiple agents align on a decision, the system state changes qualitatively. Document consensus decisions and their rationale.
+When multiple agents align on a decision, the system state changes qualitatively. Document consensus decisions and their rationale. A collective can be wrong together; a herd is what a crowd becomes when nobody writes down why. Written reasons are what let a group trend toward good, and let go-behind whatever both drove it and was destroying it, once a better reason arrives.
 
 ---
 
@@ -320,11 +368,11 @@ When multiple agents align on a decision, the system state changes qualitatively
 
 ### Design Over Product
 
-The interest here is software design, not product development. Architectural elegance matters. Structure matters. Design documents are as important as working code.
+The interest here is software design, not product development. Architectural elegance matters. Structure matters. Design documents are as important as working code. Call it "delibertarian", as the top of the page does: every decision made deliberately, and everything made given away, for a prosperous life in the commons.
 
 ### Separation of Concerns
 
-Data generation and data viewing are separate systems. Generators write to standardized formats. Viewers read from those formats. Neither crosses the boundary. Errors localize to one side.
+Data generation and data viewing are separate systems. Generators write to standardized formats. Viewers read from those formats. Neither crosses the boundary. Errors localize to one side. Here, at least, isolation is its own reward: a failure that cannot reach its neighbour is a failure already half found.
 
 ### Upgrade Over Replace
 
@@ -332,7 +380,20 @@ Don't throw away and rebuild. Extend existing capabilities. Maintain compatibili
 
 ### Informative Negation
 
-"De-selected" is more informative than "not selected." The former implies history: something was selected, then un-selected. Apply this principle to variable names, log messages, error reports.
+"De-selected" is more informative than "not selected." The former implies history: something was selected, then un-selected. Apply this principle to variable names, log messages, error reports. It is the difference between "not a bad guy", which anyone can say (I did, and probably some other guys), and "reformed", which only someone with a history can.
+
+---
+
+## The Look
+
+⭐🌈🦄 ✨ 🐙🐠🐚🪸🐬🌊 ✨ 🌸🌷🌼🌺 ✨ 👗👒🎀👠 ✨ 🦊🦋🐝🐢 ✨ 🍓🍑🍋🍇🍉
+
+The interfaces built here share one look: a black ground, and on it bright,
+saturated colour that is never dimmed to be polite. Yellow stars, rainbows and
+unicorns; reef blues and coral pinks; flower petals; outfits; animals; fruit.
+Terminal menus, HTML documentation, phase demos and generated pictures all
+draw from that one palette, so a screen from any project here looks as though
+it belongs beside a screen from any other.
 
 ---
 
@@ -403,48 +464,67 @@ day-to-day work.
 ## Appendix: Full Project Progress
 
 Every project in the repository, most finished first, then the ones building
-without issue tracking, then the ones that are still an intention. 90 projects:
-54 track issues, 19 are building without them, 16 are a vision document waiting
-to start, and one is an empty directory. 1,250 issues completed of 2,672, 47%
-overall, with 54 more shelved. Regenerate with
-`delta-version/scripts/census-projects.lua --markdown`.
+without issue tracking, then the ones that are still an intention. <!-- census:projects:digits -->101<!-- /census --> projects:
+<!-- census:tracked:digits -->63<!-- /census --> track issues, <!-- census:building:digits -->21<!-- /census --> are building without them, <!-- census:vision:digits -->16<!-- /census --> are a vision document waiting
+to start, and <!-- census:empty_clause:text -->one is an empty directory<!-- /census -->. <!-- census:completed:digits -->1,479<!-- /census --> issues completed of <!-- census:issues:digits -->3,213<!-- /census -->, <!-- census:percent:digits -->46<!-- /census -->%
+overall, with <!-- census:shelved:digits -->64<!-- /census --> more shelved. Regenerate with
+`delta-version/scripts/census-projects.lua --write-readme`.
 
 A completed project is not a finished one. `six-sided-dice-layer-cake` has
 closed every issue it has; that means the blueprint set answers every question
 anyone has asked of it so far, not that nobody will ask another. Nor is a project
-at zero an idle one — `hero-less-moba` has had more work in the last three months
-than anything else here and has closed nothing, because its ninety-four issues
-are a design written down before a line of it is built.
+at zero an idle one — `hero-less-moba` has closed nothing, because its
+<!-- census:total@hero-less-moba:words -->ninety-four<!-- /census --> issues are a design written down before a line of it is built.
 
+Who did the work, in characters:
+
+- **Human-written text:** <!-- census:human_written:millions -->2.5 million<!-- /census --> — what the person typed across every saved conversation, and every `notes/` folder
+- **Machine-written text:** <!-- census:machine_written:millions -->12.2 million<!-- /census --> — what the model wrote across every saved conversation
+- **Source code generated:** <!-- census:source_generated:millions -->25.8 million<!-- /census --> — the repository's own code, vendored libraries left out
+- **Docs generated:** <!-- census:docs_generated:millions -->25.4 million<!-- /census --> — documents, `.info.md` files and issue files
+
+Pasted error logs and program output are not counted as the person's; pasted
+prose is, since pasting it meant reading it first.
+`delta-version/scripts/measure-authorship.lua` shows how each piece was credited.
+
+<!-- census:appendix_table -->
 | Project | Progress | % |
 |---------|----------|---|
 | six-sided-dice-layer-cake | 96/96 | 100% |
-| games/physics-sim | 182/184 | 99% |
+| games/physics-sim | 186/189 | 98% |
 | jurassic-maze | 55/60 | 92% |
 | my-own-custom-vtt | 96/105 | 91% |
-| kanji-learning-image-generator | 32/36 | 89% |
-| gif-generator | 23/26 | 88% |
 | symbeline-realms | 177/204 | 87% |
 | handheld-office | 38/50 | 76% |
+| kanji-learning-image-generator | 33/44 | 75% |
 | every-software-image-able | 28/39 | 72% |
-| world-edit-to-execute | 201/324 | 62% |
-| neocities-modernization | 187/306 | 61% |
+| neocities-modernization | 210/316 | 66% |
+| world-edit-to-execute | 263/411 | 64% |
+| gif-generator | 25/41 | 61% |
+| burner-of-down-things | 60/111 | 54% |
 | RPG-autobattler | 35/66 | 53% |
 | adroit | 9/17 | 53% |
 | words-pdf | 16/32 | 50% |
 | screen-record-stream | 1/2 | 50% |
-| delta-version | 31/105 | 30% |
+| delta-version | 49/124 | 40% |
+| poor-person-google-glass | 13/37 | 35% |
+| scripts | 20/70 | 29% |
+| soren-ds | 49/176 | 28% |
 | games/3d-rts | 7/29 | 24% |
 | usb-c-universal-encoder | 2/10 | 20% |
-| soren-ds | 27/174 | 16% |
-| scripts | 3/38 | 8% |
+| my-libs | 1/8 | 13% |
+| centered-ui-design | 5/73 | 7% |
 | games/first-person-spellcraft | 3/93 | 3% |
+| distant-computer | 1/34 | 3% |
 | supcom-derivative-clone | 1/76 | 1% |
 | apple-IIds | 0/131 | 0% |
 | hero-less-moba | 0/94 | 0% |
 | games/enheim-tome | 0/91 | 0% |
 | translation-layer-wow-chat-city-of-chat | 0/56 | 0% |
+| guide-feature | 0/47 | 0% |
+| ai-movie-generator | 0/32 | 0% |
 | progress-ii | 0/31 | 0% |
+| quantity-reception-optimizer | 0/24 | 0% |
 | ao3-source-code-import | 0/21 | 0% |
 | roms/symbeline-rumble | 0/19 | 0% |
 | wow-reports | 0/18 | 0% |
@@ -458,15 +538,16 @@ are a design written down before a line of it is built.
 | continual-co-operation | 0/7 | 0% |
 | filesystem-tapestry | 0/7 | 0% |
 | games/gameboy-color-rpg | 0/7 | 0% |
-| my-libs | 0/7 | 0% |
 | ai-playground | 0/6 | 0% |
 | symbeline-2 | 0/6 | 0% |
 | factor-IDE-2 | 0/5 | 0% |
 | risc-v-university | 0/5 | 0% |
 | xonotic-turning-radius | 0/4 | 0% |
+| ruby-forge | 0/3 | 0% |
 | ssh-view-only-viewer-script | 0/3 | 0% |
 | game-design/pyrrhic-victory | 0/2 | 0% |
 | 3d-generation-multiplayer-server | 0/1 | 0% |
+| RGPL-license-development | 0/1 | 0% |
 | console-demakes | 0/1 | 0% |
 | games/wow-chat-2 | 0/1 | 0% |
 | links-awakening | 0/1 | 0% |
@@ -483,6 +564,8 @@ are a design written down before a line of it is built.
 | game-design/mech-commander | — | *no issues filed* |
 | game-design/playstyle-balance-theory | — | *no issues filed* |
 | games/galactic-battlegrounds | — | *no issues filed* |
+| games/malazan-army-on-the-move-web-game-toon | — | *no issues filed* |
+| git-status-viewer | — | *no issues filed* |
 | graphene-factory | — | *no issues filed* |
 | lua-stories | — | *no issues filed* |
 | mGBA-link-cable-support | — | *no issues filed* |
@@ -514,11 +597,14 @@ are a design written down before a line of it is built.
 `new-projects/` holds 7 further ideas as loose notes, written down and not yet given a directory.
 
 Not projects: docker-scripts, ideas, libs, llm-transcripts, notes, skills.
+<!-- /census -->
 
 ---
 
 *"They want you to think about then, so that you aren't able to think about now."*
 
 ---
+
+The opening paragraph asks one thing of anyone who uses this with someone else: send them your source. The draft `RGPL` beside the licence (Our Great Public Library) is written to make that request binding.
 
 License: GNU Affero General Public License, version 3 or later. The full license text is in LICENSE; COPYRIGHT explains what it covers, which subdirectories hold vendored third-party code under their own terms, and what the Affero clause adds on top of the ordinary GPL.
