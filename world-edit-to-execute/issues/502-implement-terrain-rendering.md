@@ -47,6 +47,14 @@ player's own install like models (516); until then, colours.
 - [ ] Heights, cliffs and water show on the test maps
 - [ ] Terrain costs a few draw calls per frame, not one per tile
 
+## Status Note (2026-11-06)
+
+The table above predates issue 517b (2026-09-29). In the scene viewer's
+path (`src/render/landscape.c`) heights, cliff-coloured slopes, water by
+depth and chunk meshes are built; see the dated notes in 502b, 502c and
+502e for what is done and what is left in each. The vertical slice's
+`terrain.c` is still the flat colour grid.
+
 ---
 
 ## Earlier Design (January 2026, for a Lua renderer interface)
