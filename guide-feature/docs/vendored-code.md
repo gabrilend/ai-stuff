@@ -33,7 +33,7 @@ the difference, keep or adapt.
 | `libs/dkjson.lua` | `/home/ritz/programming/ai-stuff/libs/lua/` | the client's JSON reader and writer | 401b |
 | noble-hashes (a slow password-to-key function in plain JavaScript), for the HTML page's password prompt | its published source, copied in when 803 is built | the key is made from the password in the browser, so the password never crosses the network | 803 |
 | noble-ciphers (AES-256-GCM in plain JavaScript, no dependencies), for the HTML page | its published source, copied in when 803 is built; the path and version go here then | browsers have no built-in decryption on plain HTTP | 803 |
-| `libs/ensure-ram-tiers.lua` | `/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers.lua` | rebuilding the `tmp/` RAM folders after a reboot | 101 |
+| `libs/ensure-ram-tiers.lua` and `libs/ensure-ram-tiers` | `/mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers.lua` (commit 2cd0a5bfd) and the bash library it calls, `.../scripts/libs/ensure-ram-tiers` (commit 9e9117fe5); copied unchanged 2026-11-05, each beside its `.upstream` note. The Lua file is always handed this project's root as its `scripts_dir`, so its default path into the monorepo is never used | rebuilding the `tmp/` RAM folders after a reboot; the bash library is where the layout is written down, so the Lua file needs it beside it (and jq) | 101 |
 
 Each row is filled in with the real path and commit when its issue copies
 it. Words-pdf's own server is words-pdf's business. That it should start

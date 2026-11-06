@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+#
+# run-tests - runs every test this project has, and says what held.
+#
+# A test is any src/NNN-test-*.lua. Each is run with LuaJIT against this
+# project and must end with exit status 0. The last line says whether
+# anything broke.
+#
+# Usage:
+#   ./run-tests          every test
+#   ./run-tests <dir>    the same, for the project at <dir>
+
+DIR="/mnt/mtwo/programming/ai-stuff/guide-feature"
+if [ -n "${1:-}" ]; then
+    DIR="$1"
+fi
+
+PASSED=0
+FAILED=0
+FAILED_NAMES=""
+for TEST in "${DIR}"/src/[0-9][0-9][0-9]-test-*.lua; do
+    [ -e "${TEST}" ] || continue
+    NAME="${TEST##*/}"
+    printf '\n=== %s ===\n' "${NAME}"
+    if luajit "${TEST}" --dir "${DIR}"; then
+        PASSED=$((PASSED + 1))
+    else
+        FAILED=$((FAILED + 1))
+        FAILED_NAMES="${FAILED_NAMES}  ${NAME}\n"
+    fi
+done
+
+printf '\n%d test files passed, %d failed\n' "${PASSED}" "${FAILED}"
+if [ "${FAILED}" -gt 0 ]; then
+    printf 'failed:\n%b' "${FAILED_NAMES}"
+    exit 1
+fi

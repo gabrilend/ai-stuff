@@ -1,1 +1,4 @@
 tmp
+# Each program's goodbye receipt, its last run's beside it, and one half
+# written. Run artefacts, not source (issue 101).
+output/goodbye-*

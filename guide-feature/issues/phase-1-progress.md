@@ -12,5 +12,12 @@ Counts of done and open issues:
 `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/programming/ai-stuff/guide-feature -m`
 
 ## Completed Issues
-(None yet. Each completed issue adds a line here saying what it built
-and how it moves the phase toward its goals.)
+(Each completed issue adds a line here saying what it built and how it
+moves the phase toward its goals.)
+
+- **101, settings from input/ and the goodbye receipt** (2026-11-05):
+  `src/001-settings.lua` reads a program's `input/<program>` and the
+  `endpoints` file, refusing a bad line with its place. `src/002-goodbye.lua`
+  keeps the run log and writes `output/goodbye-<program>`. Every phase-1
+  program (the blitter, 107) now has its way to start and end. Tests:
+  `./run-tests`.

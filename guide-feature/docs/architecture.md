@@ -87,7 +87,8 @@ That's why it's a lua script").
 ## Every program starts with input/ and ends with output/goodbye
 
 Each program reads its settings from `input/` first, and writes a goodbye
-receipt to `output/goodbye` as its last act: when it stopped, the seed if
+receipt to `output/goodbye-<program>` as its last act (one per program,
+because several run on kuvalu at once; issue 101): when it stopped, the seed if
 any, and the counts of its own work (turns run, canvases blitted, words
 written, words blanked, fit retries). A missing or stale goodbye means the
 program did not end cleanly.

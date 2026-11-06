@@ -74,7 +74,7 @@ log line naming the reason. It is never dropped silently.
 | a voice's edited canvas in flight | voice `outbox/canvas`, then kuvalu `inbox/` | text |
 | arrivals waiting for the blitter | kuvalu `tmp/shared-memory/arrivals/` | text, one file each |
 | logs | each machine's `tmp/shared-memory/*.log` | text lines |
-| goodbye receipts | each machine's `output/goodbye` | text |
+| goodbye receipts | each machine's `output/goodbye-<program>` | text |
 
 Everything under `tmp/shared-memory/` is RAM and is emptied by a reboot.
 The blitter needs the history to find a voice's base. A voice whose base is

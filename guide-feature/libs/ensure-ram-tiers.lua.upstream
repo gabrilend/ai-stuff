@@ -1,0 +1,5 @@
+source: /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers.lua
+commit: 2cd0a5bfde964b5bafcd958883b8bc6a4e845ab2
+copied: 2026-11-05
+changes: none. guide-feature passes its own root as scripts_dir, so the
+         file's default DIR (the monorepo's scripts/) is never used.
