@@ -291,16 +291,16 @@ Legend: ✓ = success, ✗ = fail, ○ = file not in map, — = no parser
 
 ## Acceptance Criteria
 
-- [ ] Scans all test map archives
-- [ ] Lists files present in each map
-- [ ] Tests parsers against map files
-- [ ] Generates coverage matrix
-- [ ] Shows success/fail per parser per map
-- [ ] Identifies files without parsers
-- [ ] Terminal and markdown output
-- [ ] JSON output option
-- [ ] Verbose mode shows error details
-- [ ] Summary statistics
+- [x] Scans all test map archives
+- [x] Lists files present in each map
+- [x] Tests parsers against map files
+- [x] Generates coverage matrix
+- [x] Shows success/fail per parser per map
+- [x] Identifies files without parsers
+- [x] Terminal and markdown output
+- [x] JSON output option
+- [x] Verbose mode shows error details
+- [x] Summary statistics
 
 ---
 
@@ -316,3 +316,66 @@ which file types are optional vs. universal.
 
 Consider extending to show file sizes and parsing times for performance
 analysis.
+
+---
+
+## Implementation Notes
+
+**Date:** 2026-11-06 (built by Claude in the background; the owner reviews
+the draft pull request)
+
+### Files
+
+- `src/data/parser_coverage.lua` (+ `.info.md`): the scan, the summary, and
+  the text, Markdown and JSON outputs.
+- `src/cli/parser-coverage.lua` (+ `.info.md`): the command line, with the
+  flags step 7 lists (`-a`, `-m`, `-f`, `-v`, `--matrix`, `--json`,
+  `--markdown FILE`) and `--dir DIR` as the other tools in `src/cli/` take it.
+- `src/tests/test_parser_coverage.lua` (+ `.info.md`): 80 checks.
+
+### Decisions (2026-11-06)
+
+- **Where the code lives:** a library in `src/data/` and a thin tool in
+  `src/cli/`, the way `gamedata/route_b.lua` and `cli/route-b-report.lua`
+  split, so the test can call the library directly. The design above
+  sketched one script.
+- **Which files count as a kind:** each name in `mpq/standard_names.lua`
+  is its own kind (that list replaces the design's hand-written table);
+  every other stored file counts under its extension (`*.mdx`), so a map's
+  hundreds of imports give one row each, counted file by file.
+- **Readers:** whatever the project already has for each kind, including
+  readers outside `src/parsers/`: `demo.wc3map.footprint.parse_wpm` for the
+  pathing map, `parsers.profile_txt` for `war3mapMisc/Skin/Extra.txt`, and
+  the image decoders for the minimap and preview. `war3map.shd`,
+  `war3map.mmp`, `war3map.imp`, `(listfile)` and `(attributes)` have none.
+- **What failed means:** the reader raised, or returned nil/false; the
+  message is kept for `-v`, the Markdown report and JSON.
+- **A matrix cell** is the map's verdict for that kind: `FAIL` if any file
+  of the kind failed. Kinds no map holds are left out of the matrix.
+- **Plain ASCII in the terminal** (`ok`, `FAIL`, `.`, `-`) rather than the
+  design's box drawing and check marks, so the output lines up in any
+  terminal and greps cleanly.
+- **Exit codes:** 0 when nothing failed, 1 when a file failed or a map
+  would not open, 2 on a usage error, so a script can use it as a check.
+
+### First run (2026-11-06, the 19 maps in `assets/`, 21 s)
+
+19 maps, all open; 3,416 stored files: 3,262 read, 8 failed, 146 with no
+parser. Every map's w3i, w3e, wts, script, doo, wpm, w3u, w3d, w3a and
+Misc.txt read. The eight failures, all in the three non-DAoW maps:
+
+- `war3mapUnits.doo`: Conquest-v8-fix and Master-Crafters-Final-Conquest
+  (the reader runs past the end of the data).
+- `war3map.wtg` and `war3map.wct`: the same two maps ("too short", "Empty
+  WCT data", a wrong `WTG!` magic and a string length past the data);
+  both look like protected maps that blank or replace these files.
+- One imported `.blp` in Conquest-v8-fix ("not a BLP1 texture") and one
+  imported `.mdx` in War-in-the-Plaguelands ("read past the end").
+
+These are findings for the parser issues; nothing here changes a parser.
+
+### Still open
+
+- Parsing times and file sizes per kind (the Notes' suggestion): sizes are
+  in the JSON per file; times are not measured.
+
