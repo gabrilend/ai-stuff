@@ -4,7 +4,7 @@
 - **Phase**: 10 (Developer Tooling / Pipeline Infrastructure)
 - **Priority**: Medium
 - **Type**: Feature
-- **Status**: Open
+- **Status**: Completed (2026-11-02)
 - **Sibling**: 10-062 (the same reversal, but for the image gallery's chronological
   view). This issue is the POEM analog and is scoped to poems only; the gallery is
   out of scope here (see Decisions to Settle).
@@ -209,3 +209,93 @@ sentinel and error-on-unknown-marker behavior — issue 11-005) is the right too
 - `/issues/11-004-rewrite-explore-page-and-add-deeper-math-page.md`,
   `/issues/completed/11-005-externalize-explore-page-copy-into-editable-templates.md`
   — the explore page and its editable-template system.
+
+## What Happened (2026-11-02)
+
+`--reverse` is built as a mode flag, as specified.
+
+- **`src/reading-order.lua`** (new, dependency-free so effil workers can load
+  it) holds the two operations, commented as two:
+  - `chrono_page` / `chrono_page_range` -- which slice of the timeline is on
+    which chronological page. Reversed, page 1 holds the newest `per_page`
+    poems and the short page (if any) is the last, holding the oldest; each
+    page lists its poems oldest to newest. Without `reverse`, today's formula.
+  - `shown_count` / `reorder_by_date` -- the part of a similar/different list
+    the build shows (through the last page it writes, capped like the pages
+    are) is re-sorted by date, similar newest first, different oldest first,
+    THEN paginated; entries beyond it keep their order.
+- **`src/flat-html-generator.lua`** -- `compute_chronological_mapping` and
+  `generate_chronological_index_with_navigation` take `reverse` and use the
+  same rule, so a poem's links and its page agree; mapping entries now carry
+  their `timestamp`. `generate_complete_flat_html_collection` takes `reverse`,
+  hands it to the worker threads, and both the worker and the sequential path
+  re-sort before paginating. A reversed chronological page's subtitle says
+  "Newest poems first ...".
+  *After main's page workers (Issue 8-058, merged 2026-11-04):* there is one
+  builder, the page workers. `reverse` comes after main's `anchor_indices`;
+  the worker re-sorts a list right after `ranked-page.plan` has decided its
+  pages, taking plan's `count` as the shown part (the same number
+  `shown_count` gives) and the dated mapping from its page context. The
+  chronological jobs carry `reverse`, and `chronological-page.page_html`
+  writes the subtitle.
+- **Explore page** -- `page-templates/explore.txt` gains `{ORDERING_NOTE}`
+  after the paragraph on different pages. In a default build it is `OMIT`, so
+  the line vanishes and the page is byte-for-byte unchanged; in a reversed
+  build it is a short paragraph stating the order used.
+- **Plumbing** -- `libs/utils.lua`'s `parse_cli_args` reads `--reverse` for
+  `main.lua`, which passes it to the chronological pages, the explore page and
+  the collection. `wordcloud-generator.lua` and `generate-word-pages.lua` read it
+  and pass it to `compute_chronological_mapping`. `run.sh` parses `--reverse`,
+  lists it in `--help`, offers a "Newest First (--reverse)" checkbox in the
+  Configuration section, forwards it on every command that gets
+  `--chrono-per-page` (stages 9 and 10, run and dry run), and records
+  `"reverse"` in `generation-metadata.json`.
+
+### Decisions
+
+1. **Mode flag, not parallel pages** -- as the issue recommends.
+2. **Page 1 holds the newest FULL page.** The issue's worked example (page 1 =
+   poems N-99..N) means the timeline is cut from the newest end, so when the
+   total is not a multiple of the page size the short page is the LAST one
+   (the oldest poems), not page 1.
+3. **Re-sort the whole shown list, then paginate** -- as recommended. "Shown"
+   is the prefix through the last page the build writes (`--pages`, capped by
+   the storage ceiling), which is the set a default build shows; the cache's
+   ranking beyond it is never drawn and keeps its order (the TXT export, which
+   receives the same list, follows it).
+4. **Dates come from the chronological mapping**, the same timestamps the
+   chronological pages are sorted by; ties follow chronological-page order.
+   A gallery picture (not on the chronological pages) is dated from its own
+   creation date; an entry with no date at all goes after every dated one, in
+   score order, rather than stopping the build.
+5. **Word pages keep their order.** The issue's Intended Behavior reorders
+   chronological and similar/different pages only; the per-word pages and the
+   word cloud receive the flag so their chronological LINKS land on the right
+   page, and their own lists stay in similarity-to-the-word order.
+6. **The default changes nothing**: no reverse argument gives the same mapping,
+   the same chronological pages (tested byte-for-byte) and the same explore
+   page. The build record gains a `"reverse": false` line.
+7. **No staleness marker.** `main.lua`'s `is_html_fresh` looks for
+   `output/chronological.html`, which the pages stopped writing in 8-039, so
+   stage 9 always rebuilds and a mode switch cannot be skipped as "fresh". (That
+   stale check is worth its own fix; it is not changed here.)
+
+### Tests
+
+- `src/reading-order.test.lua` (new, 54 checks): the issue's 250/100 worked
+  example; every position on exactly one page, the one `chrono_page` names, for
+  awkward sizes in both modes; `shown_count`; the mapping in both modes (newest
+  on page 1, positions unchanged, timestamps present, no argument = forward);
+  similar newest-first and different oldest-first on a fixture with a tie, a
+  dated gallery picture, an undated entry and entries without an id; only the
+  shown part re-sorted; real chronological pages built both ways (default
+  byte-identical to a build without the argument; reversed page 1 = the newest
+  three, oldest at top; every poem on the page its links point to); the
+  explore page with and without the note; `parse_cli_args`; and run.sh handing
+  `--reverse` to all six commands that get `--chrono-per-page`.
+- Every other suite gives the same results as on main (the stale augment
+  expectations and the rsync/effil/real-data checks fail here as they do there;
+  #26 fixes or skips those).
+- Not run: a full stage 9-10 build in both modes (no corpus, caches or effil on
+  this machine; the pre-flight gate stops a dry run without the poem list).
+

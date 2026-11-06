@@ -110,12 +110,17 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-049 | Replace Ollama with llama.cpp (last leftovers removed) | Completed | 2026-10-22 |
 | 10-075 | Every run keeps a log in RAM (terminal, log or both, one output function) | Completed | 2026-10-23 |
 | 10-069 | One pre-flight gate: every cheap check a selected stage can fail, before any stage | Completed | 2026-10-25 |
+| 10-064 | `--reverse`: newest chronological pages first, similar/different by date | Completed | 2026-11-02 |
 | 10-076 | Every program names its folders by flags (--dir, --assets); a stray word stops it; no folder is assumed | Completed | 2026-11-03 |
 
 These tables are hand-kept and fall behind. For current done and open counts per
 phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.
 
 ## Issue Details
+
+**10-064: `--reverse` Reading Order** - COMPLETED (2026-11-02)
+- `./run.sh --reverse` (TUI "Newest First"): chronological page 1 holds the newest poems, each page still oldest-to-newest; similar/different pages show the same poems laid out by date (similar newest first, different oldest first); explore.html says so
+- `src/reading-order.lua` holds both rules; the flag is forwarded to main.lua, wordcloud-generator.lua and generate-word-pages.lua beside `--chrono-per-page`, so every chronological link agrees
 
 **10-003: Consolidate Config Files** - COMPLETED (umbrella issue)
 - Split into sub-issues for tracking:

@@ -46,6 +46,9 @@ local function parse_args(args)
     local max_words = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
     local poems_per_page = nil  -- Issue 8-050d; nil means not given: asked for, or --yes (10-065a)
     local chrono_per_page = nil  -- nil means fall back to config (never a literal)
+    -- Issue 10-064: the build's --reverse, so "chronological" links number the
+    -- pages the way that build did
+    local reverse = false
     -- Which embedding space to read. nil means "whatever run.sh's notepad or
     -- config.lua says"; a value here overrides both (see the --model branch).
     local model = nil
@@ -86,6 +89,9 @@ local function parse_args(args)
         -- word-page "chronological" links paginate identically to the actual
         -- chronological pages (this is a separate process from the one that
         -- built them). nil means fall back to config, never to a literal.
+        elseif a == "--reverse" then
+            reverse = true
+            i = i + 1
         elseif a == "--chrono-per-page" then
             chrono_per_page = tonumber(args[i + 1])
             i = i + 2
@@ -132,7 +138,7 @@ local function parse_args(args)
         end
     end
 
-    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server, threads
+    return dir, mode, all_words, max_words, poems_per_page, chrono_per_page, model, server, threads, reverse
 end
 -- }}}
 
@@ -146,7 +152,7 @@ local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)")
         ["--assets"] = true, ["--model"] = true, ["--threads"] = true, ["--server"] = true,
     })
 local _, RUN_MODE, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_POEMS_PER_PAGE, CLI_CHRONO_PER_PAGE,
-      CLI_MODEL, CLI_SERVER, CLI_THREADS = parse_args(OWN_ARGS)
+      CLI_MODEL, CLI_SERVER, CLI_THREADS, CLI_REVERSE = parse_args(OWN_ARGS)
 package.path = DIR .. "/libs/?.lua;" .. DIR .. "/src/?.lua;" .. DIR .. "/libs/vulkan-compute/lua/?.lua;" .. package.path
 
 local dkjson = require("dkjson")
@@ -1099,7 +1105,9 @@ function M.generate_word_html(options)
         -- pages were built with; a wrong size is exactly what broke these links,
         -- so an absent value hard-errors rather than guessing (Issue 10-036).
         local per_page = resolve_chrono_per_page()
-        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
+        -- Issue 10-064: and the build's --reverse (the same three arguments the
+        -- chronological pages were numbered with).
+        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page, CLI_REVERSE)
         local total_poems = 0
         for poem_index, info in pairs(mapping) do
             chrono_map[poem_index] = {
@@ -1354,6 +1362,8 @@ if arg and #arg >= 0 and debug.getinfo(3) == nil then
         require("output").print("  --html-only       Generate HTML pages only (Stage 9 - fast, requires embeddings)")
         require("output").print("  --all             Include all words (no max_words limit)")
         require("output").print("  --words N         Set maximum words to process (default: 200 from config)")
+        require("output").print("  --reverse         The build was made with --reverse (Issue 10-064): the")
+        require("output").print("                    chronological links number the pages newest first")
         require("output").print("  --yes, -y         Take config.lua's default for any value not given")
         require("output").print("  --help            Show this help message")
         require("output").print("")

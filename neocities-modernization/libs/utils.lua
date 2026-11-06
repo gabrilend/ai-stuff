@@ -176,6 +176,7 @@ function M.parse_cli_args(args)
         pages = nil,  -- Phase D (Issue 8-012): Pagination control ("1", "all", "1-10")
         poems_per_page = nil,  -- Issue 8-022: Poems per page override
         chrono_per_page = nil,  -- Issue 9-003: Chronological poems per page override
+        reverse = false,  -- Issue 10-064: newest chronological pages first (--reverse)
         seed = nil,  -- Issue 10-058: build master seed (threaded to randomizers)
     }
 
@@ -212,6 +213,8 @@ function M.parse_cli_args(args)
             i = i + 1
         elseif arg:match("^--poems%-per%-page=") then
             options.poems_per_page = tonumber(arg:match("^--poems%-per%-page=(%d+)"))
+        elseif arg == "--reverse" then
+            options.reverse = true  -- Issue 10-064
         elseif arg == "--chrono-per-page" and args[i + 1] then
             options.chrono_per_page = tonumber(args[i + 1])  -- Issue 9-003: Chronological poems per page
             i = i + 1

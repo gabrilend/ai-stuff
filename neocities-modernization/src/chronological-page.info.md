@@ -11,7 +11,7 @@ build them (Issue 8-058). The poems inside come from `poem-entry.lua`.
 | `display_filename(poem)` | a poem | `"notes/<original file name>"` for notes, `"<category>/<id>"` otherwise |
 | `entry_header(poem)` | a poem | its anchor (`<span id="<source key>">`, e.g. `fediverse-2339`, Issue 8-019) and the ` -> file: <name>` line, ending in a newline |
 | `file_name(page_num, total_pages)` | numbers | `"01.html"`… when there are several pages, `"index.html"` for one |
-| `page_html(page_num, total_pages, head_block, body)` | numbers, the shared `<head>` lines (string), the drawn poems (string) | the whole page |
+| `page_html(page_num, total_pages, head_block, body, reverse)` | numbers, the shared `<head>` lines (string), the drawn poems (string), whether the build is --reverse (Issue 10-064; changes the line under the heading) | the whole page |
 | `redirect_html()` | nothing | `chronological/index.html` for a paginated view: a redirect to `01.html` |
 
 ## Tests

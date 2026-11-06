@@ -37,6 +37,9 @@ local function parse_args(args)
     local max_words = nil  -- nil means not given: asked for, or --yes (Issue 10-065a)
     local chrono_per_page = nil  -- nil means fall back to config (never to a literal)
     local seed = nil  -- Issue 10-058: master seed for the shuffle; nil => auto at startup
+    -- Issue 10-064: the build's --reverse, so the poem-ID jump links number the
+    -- chronological pages the way that build did
+    local reverse = false
     -- Which embedding space to read the word colours from. nil defers to run.sh's
     -- notepad, then config.lua; a value here overrides both.
     local model = nil
@@ -66,6 +69,9 @@ local function parse_args(args)
         elseif a:match("^--words=") then
             local v = a:match("^--words=(.+)$")
             if v == "all" then all_words = true else max_words = tonumber(v) end
+            i = i + 1
+        elseif a == "--reverse" then
+            reverse = true
             i = i + 1
         elseif a == "--chrono-per-page" then
             -- The chronological page size the SAME build used, threaded from
@@ -105,7 +111,7 @@ local function parse_args(args)
             i = i + 1
         end
     end
-    return dir, all_words, max_words, chrono_per_page, seed, model, server, out
+    return dir, all_words, max_words, chrono_per_page, seed, model, server, out, reverse
 end
 -- }}}
 
@@ -115,7 +121,7 @@ end
 -- Plain print, not the run log: help is for the person at the terminal, and
 -- it runs before package.path can find libs/.
 if arg[1] == "--help" or arg[1] == "-h" then
-    print("Usage: luajit src/wordcloud-generator.lua [--dir PATH] [--all] [--words N] [--chrono-per-page N] [--seed N] [--yes]")
+    print("Usage: luajit src/wordcloud-generator.lua [--dir PATH] [--all] [--words N] [--chrono-per-page N] [--seed N] [--reverse] [--yes]")
     print("")
     print("Generates a word cloud HTML page from the poetry collection.")
     print("Words are sized by frequency, with stop words filtered out.")
@@ -131,6 +137,8 @@ if arg[1] == "--help" or arg[1] == "-h" then
     print("                       Same seed => identical word order. Normally passed")
     print("                       by run.sh; if omitted a seed is auto-generated and")
     print("                       logged to stderr.")
+    print("  --reverse            The build was made with --reverse (Issue 10-064): poem")
+    print("                       links number the chronological pages newest first.")
     print("  --yes, -y            Take config.lua's default for any value not given")
     print("  --out FOLDER         A trial run: write wordcloud.html into FOLDER, not")
     print("                       the site, and keep no record in archive/wordclouds/")
@@ -154,7 +162,7 @@ local DIR, OWN_ARGS = dofile((debug.getinfo(1, "S").source:sub(2):match("(.*/)")
         ["--assets"] = true, ["--model"] = true, ["--server"] = true,
     })
 local _, CLI_ALL_WORDS, CLI_MAX_WORDS, CLI_CHRONO_PER_PAGE, CLI_SEED,
-      CLI_MODEL, CLI_SERVER, CLI_OUT = parse_args(OWN_ARGS)
+      CLI_MODEL, CLI_SERVER, CLI_OUT, CLI_REVERSE = parse_args(OWN_ARGS)
 
 -- {{{ Issue 10-058: resolve + apply the master seed ONCE at startup
 -- The word shuffle used to call math.randomseed(os.time()) inside the shuffle on
@@ -458,7 +466,9 @@ local function generate_poem_index(poems_data)
     local chrono_page_map = {}
     do
         local per_page = resolve_chrono_per_page()
-        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page)
+        -- Issue 10-064: and the build's --reverse, or a reversed build's links
+        -- would land on the mirror-image page.
+        local mapping = flat_html.compute_chronological_mapping(poems_data, per_page, CLI_REVERSE)
         for poem_index, info in pairs(mapping) do
             -- named as the chronological pages name themselves ("03.html",
             -- or "index.html" for a one-page view)

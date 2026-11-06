@@ -25,6 +25,14 @@ are given on the `run.sh` command line (or in its menu, `run.sh -I`), not here:
 stages need, lists every missing one at once, and records them all in
 `output/generation-metadata.json` (Issue 10-065).
 
+**Reading order (no config field).** `./run.sh --reverse` (menu: "Newest
+First") numbers the chronological pages newest first -- page 1 holds the latest
+`--chrono-per-page` poems, each page still reading oldest to newest -- and lays
+out the shown part of every similar/different list by date (similar newest
+first, different oldest first). It is a per-build mode, recorded as `reverse`
+in `generation-metadata.json`, and is handed to stages 9 and 10 together so
+every chronological link agrees (Issue 10-064).
+
 **Keeping this page true.** The section reference below is generated from the
 comments in `config.lua`. After changing those comments or adding a section,
 run `scripts/generate-config-reference`; `scripts/generate-config-reference

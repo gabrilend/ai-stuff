@@ -32,6 +32,9 @@ local progress = require("progress-display")
 -- Issue 11-005: the explore pages read their prose from editable input/pages/*.txt
 -- files; this fills the {MARKER} placeholders with the live numbers.
 local page_template = require("page-template")
+-- Issue 10-064: the --reverse reading order (chronological page numbering, and
+-- the date order of similar/different lists), shared with the worker threads
+local reading_order = require("reading-order")
 
 -- Issue 10-003: Load unified config from config.lua
 local config_loader = require("config-loader")
@@ -737,7 +740,12 @@ end
 -- Computes poem_index → {position, page_number, total_poems, total_pages, timeline_progress}
 -- Used by parallel workers to generate correct chronological links and progress bars
 -- Issue 8-045: Added timeline_progress for time-based progress bar calculation
-local function compute_chronological_mapping(poems_data, chrono_poems_per_page)
+-- Issue 10-064: `reverse` numbers the pages newest-first (reading-order.lua's
+-- chrono_page); position stays oldest-first in both modes, and each entry now
+-- carries its timestamp so a --reverse build can lay similar/different lists out
+-- by date. Every program that links to a chronological page calls this with the
+-- same three arguments, so their links agree.
+local function compute_chronological_mapping(poems_data, chrono_poems_per_page, reverse)
     -- Sort chronologically (same as generate_chronological_index_with_navigation)
     local sorted_poems = sort_poems_chronologically_by_dates(poems_data)
     local total_poems = #sorted_poems
@@ -757,7 +765,7 @@ local function compute_chronological_mapping(poems_data, chrono_poems_per_page)
         local poem = poem_info.poem
         local poem_index = poem.poem_index
         if poem_index then
-            local page_number = chrono_poems_per_page and math.ceil(position / chrono_poems_per_page) or 1
+            local page_number = reading_order.chrono_page(position, chrono_poems_per_page, total_poems, reverse)
             -- Issue 8-045: Calculate timeline progress as percentage of time elapsed.
             -- Every entry has a timestamp: the sort refuses poems without one.
             local poem_timestamp = poem_info.timestamp
@@ -767,7 +775,8 @@ local function compute_chronological_mapping(poems_data, chrono_poems_per_page)
                 page_number = page_number,
                 total_poems = total_poems,
                 total_pages = total_pages,
-                timeline_progress = timeline_progress  -- Issue 8-045: time-based progress
+                timeline_progress = timeline_progress,  -- Issue 8-045: time-based progress
+                timestamp = poem_timestamp  -- Issue 10-064: the --reverse date order
             }
         end
     end
@@ -960,6 +969,8 @@ local function run_page_workers(num_threads, config, jobs)
             -- (src/ranked-page.lua) that the tests call too (Issue 8-058).
             local t_ranked_page = require('ranked-page')
             local t_effil_for_ctx = require('effil')
+            -- Issue 10-064: the --reverse date order of similar/different lists
+            local t_reading_order = require('reading-order')
             -- {{{ local function ranked_ctx()
             -- What every ranked page needs about the wider collection (see the
             -- module's header for each field). Built on the first poem job:
@@ -1029,7 +1040,7 @@ local function run_page_workers(num_threads, config, jobs)
                     " download every poem as text: <a href='../chronological.txt'>chronological.txt</a> (%d poems)\n",
                     work.total_poems)
                 local html = t_chrono_page.page_html(work.page_num, work.total_pages,
-                    config.page_head, table.concat(parts))
+                    config.page_head, table.concat(parts), work.reverse)
                 local dir_path = config.output_dir .. "/chronological"
                 os.execute('mkdir -p "' .. dir_path .. '"')
                 local file = dir_path .. "/" .. t_chrono_page.file_name(work.page_num, work.total_pages)
@@ -1086,6 +1097,15 @@ local function run_page_workers(num_threads, config, jobs)
                     local pages, count, total_pages = t_ranked_page.plan(list,
                         config.pages_is_all and "all" or config.pages_list,
                         config.poems_per_page, config.max_pages_per_poem)
+                    -- Issue 10-064: under --reverse, the part of the list this
+                    -- build shows (its first `count` poems, the pages planned
+                    -- above) is laid out by date -- similar newest first,
+                    -- different oldest first -- BEFORE it is drawn, so it reads
+                    -- in one time order across its pages. Which poems are shown
+                    -- does not change.
+                    if config.reverse then
+                        list = t_reading_order.reorder_by_date(list, page_type, count, ranked_ctx().chrono_map)
+                    end
                     local download = config.txt_exports
                         and { file = t_poem_address.text_file(poem), count = count } or false
                     local written = 0
@@ -1173,6 +1193,7 @@ local function run_page_workers(num_threads, config, jobs)
                         total_pages = job.total_pages,
                         total_poems = job.total_poems,
                         entries = job.entries,
+                        reverse = job.reverse,
                     })
                 elseif job.kind == "word_page" then
                     work_response_channels[worker_id]:push({
@@ -1276,8 +1297,11 @@ end
 -- chrono_per_page : number of poems per page, or nil for config.lua's value
 --                   (Issue 9-003); a number also turns pagination on
 -- num_threads     : number of worker threads, 1 or more
+-- reverse         : Issue 10-064 --reverse: the newest poems on page 1
+--                   (reading-order.lua); each page still reads oldest to
+--                   newest. nil/false is the usual order.
 -- returns         : the path of the first page written
-function M.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, num_threads)
+function M.generate_chronological_index_with_navigation(poems_data, output_dir, chrono_per_page, num_threads, reverse)
     if type(num_threads) ~= "number" or num_threads < 1 then
         error("generate_chronological_index_with_navigation needs a worker count of 1 or more; got "
             .. tostring(num_threads))
@@ -1313,8 +1337,11 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
     local jobs = {}
     for page_num = 1, total_pages do
         local entries = {}
-        local start_idx = (page_num - 1) * per_page + 1
-        for i = start_idx, math.min(page_num * per_page, total_poems) do
+        -- Issue 10-064: under --reverse page 1 holds the newest slice; the
+        -- same rule compute_chronological_mapping numbers the pages by
+        local start_idx, end_idx = reading_order.chrono_page_range(page_num,
+            chronological_paginated and poems_per_page or nil, total_poems, reverse)
+        for i = start_idx, end_idx do
             local info = sorted[i]
             local stamp = info.timestamp or first_timestamp
             entries[#entries + 1] = {
@@ -1323,7 +1350,8 @@ function M.generate_chronological_index_with_navigation(poems_data, output_dir, 
             }
         end
         jobs[#jobs + 1] = { kind = "chrono_page", page_num = page_num,
-            total_pages = total_pages, total_poems = total_poems, entries = entries }
+            total_pages = total_pages, total_poems = total_poems, entries = entries,
+            reverse = reverse and true or false }  -- Issue 10-064: the page says which order
     end
     -- }}}
 
@@ -1439,8 +1467,9 @@ end
 -- {{{ function M.generate_simple_discovery_instructions
 -- Back-compat shim: callers that pass only output_dir still work (boosts/golden
 -- counts simply won't appear without the corpus). Prefer passing poems_data.
-function M.generate_simple_discovery_instructions(output_dir, poems_data)
-    M.generate_explore_page(output_dir, poems_data)
+-- Issue 10-064: `reverse` adds the reading-order note to explore.html.
+function M.generate_simple_discovery_instructions(output_dir, poems_data, reverse)
+    M.generate_explore_page(output_dir, poems_data, reverse)
     M.generate_explore_math_page(output_dir, poems_data)
     return output_dir .. "/explore.html"
 end
@@ -1450,7 +1479,20 @@ end
 -- explore.html -- the welcome / map: orientation + live corpus stats + every
 -- navigation mode + links to the deeper-math page and (placeholder) the source
 -- browser (Issue 10-052). Data/view split: corpus_stats() computes, this renders.
-function M.generate_explore_page(output_dir, poems_data)
+--
+-- Issue 10-064: a --reverse build says so on the page ({ORDERING_NOTE}), since
+-- the prose describes the default order; in a default build the marker's line
+-- drops out and the page is unchanged.
+M.REVERSE_ORDERING_NOTE = table.concat({
+    "",
+    "This copy of the site is built newest first. The chronological pages start",
+    "with the most recent poems: page 1 holds the latest, and each page still",
+    "reads from older to newer. The similar and different pages show the same",
+    "poems as always, laid out by date instead of by score: similar pages put",
+    "the newest poem first, different pages the oldest.",
+}, "\n")
+
+function M.generate_explore_page(output_dir, poems_data, reverse)
     local s = corpus_stats(poems_data)
 
     -- The per-source list is a LOOP over the corpus, so it stays rendered here
@@ -1471,6 +1513,7 @@ function M.generate_explore_page(output_dir, poems_data)
         MAX_DATE     = (s.min_date and s.max_date) and s.max_date:sub(1, 10) or page_template.OMIT,
         IMAGE_ONLY_COUNT = (s.image_only > 0) and s.image_only or page_template.OMIT,
         SOURCE_LIST  = table.concat(source_rows, "\n"),
+        ORDERING_NOTE = reverse and M.REVERSE_ORDERING_NOTE or page_template.OMIT,
     }
 
     local template_path = DIR .. "/input/pages/explore.txt"
@@ -1611,7 +1654,10 @@ end
 --   its place on the timeline and in the ranked lists. Used by
 --   scripts/render-page-sample to draw a sample of the site (Issue 8-058);
 --   a build passes nothing and every poem gets its pages.
-function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page, anchor_indices)
+-- reverse: (optional) Issue 10-064 --reverse -- chronological pages numbered
+--   newest-first, and the shown part of every similar/different list laid out
+--   by date (reading-order.lua). nil/false is the usual output.
+function M.generate_complete_flat_html_collection(poems_data, similarity_data, embeddings_data, output_dir, pages_spec, poems_per_page, num_threads, chrono_per_page, anchor_indices, reverse)
     -- Load diversity cache for fast HTML generation (Issue: diversity generation taking 42+ hours)
     -- Cache provides instant lookup of pre-computed GPU diversity sequences
     load_diversity_cache()
@@ -1788,7 +1834,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
         effective_chrono_per_page = chrono_per_page
         chronological_paginated = true
     end
-    local chrono_mapping = compute_chronological_mapping(poems_data, chronological_paginated and effective_chrono_per_page or nil)
+    local chrono_mapping = compute_chronological_mapping(poems_data,
+        chronological_paginated and effective_chrono_per_page or nil, reverse)
 
     -- Issue 8-058: every page is built by the worker pool; one thread is one
     -- worker. (The single-threaded builder was a separate, drifted copy of
@@ -1809,6 +1856,8 @@ function M.generate_complete_flat_html_collection(poems_data, similarity_data, e
     -- Issue 9-003 Fix D: where each poem sits on the timeline and its page
     config.chrono_mapping = chrono_mapping
     config.chrono_paginated = chronological_paginated
+    -- Issue 10-064: lay the shown part of each list out by date
+    config.reverse = reverse and true or false
     -- Issue 8-013: each list's text export, and the download line on its pages
     config.txt_exports = PAGINATION_CONFIG.generate_txt_exports
     local done = run_page_workers(num_threads, config, jobs)

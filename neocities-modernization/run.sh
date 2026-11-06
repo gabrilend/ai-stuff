@@ -263,6 +263,10 @@ Required values ([n] = the stages that need it):
 Optional:
   --seed N              Master randomization seed. Randomized and recorded
                         if omitted.
+  --reverse             Newest first: chronological page 1 holds the latest
+                        poems (each page still reads oldest to newest), and
+                        similar/different pages are laid out by date --
+                        similar newest first, different oldest first   [9,10]
   --force               Force regeneration even if files are fresh
   --force-stage N       Force regenerate one stage only (1-10)
   --dir PATH            Project directory     (default: this script's own)
@@ -371,6 +375,13 @@ POEMS_PER_PAGE=""
 # Poems per chronological page. Declared here rather than springing into
 # existence inside the case statement, so the requirement gate can see it.
 CHRONO_PER_PAGE=""
+# Issue 10-064: --reverse -- newest chronological pages first, and similar /
+# different lists laid out by date. A mode switch, not a required value: absent
+# means today's reading order. Forwarded to every program that numbers or links
+# to chronological pages (main.lua, wordcloud-generator.lua,
+# generate-word-pages.lua), exactly as --chrono-per-page is, or their links would
+# disagree about which page a poem is on.
+REVERSE=false
 
 # Issue 10-058: master seed for all randomization (word-cloud shuffle, image
 # order). Issue 10-065 removed the two lower tiers of its old resolution chain.
@@ -553,6 +564,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             DRY_RUN=true
+            shift
+            ;;
+        --reverse)
+            REVERSE=true
             shift
             ;;
         # Boost inclusion (reshared posts), read by both the extraction and the
@@ -1341,6 +1356,7 @@ write_generation_metadata() {
   "stages": [$stages_json],
   "seed": $RANDOM_SEED,
   "seed_source": "$RANDOM_SEED_SOURCE",
+  "reverse": $REVERSE,
   "values": {
 $values_json
   }
@@ -2213,6 +2229,9 @@ run_generate_html() {
     local pages_arg="--pages $PAGES"
     local poems_per_page_arg="--poems-per-page $POEMS_PER_PAGE"
     local chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
+    # Issue 10-064: the reading order travels with the page size it numbers.
+    local reverse_arg=""
+    $REVERSE && reverse_arg="--reverse"
 
     # Same ordering rule as the word-cloud stage: the dry-run check comes before
     # the clear below, because --dry-run must not delete anything. This stage's
@@ -2223,7 +2242,7 @@ run_generate_html() {
             log_dry_run "rm $OUTPUT_DIR/{similar,different,chronological}/*.html (clear stale pages, --force)"
         fi
         log_dry_run "$DIR/scripts/sync-page-templates --dir $DIR (restore explore-page copy into input/pages/)"
-        log_dry_run "luajit src/main.lua --dir $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG"
+        log_dry_run "luajit src/main.lua --dir $DIR --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $reverse_arg $ASSETS_ARG"
         log_dry_run "luajit $DIR/src/generate-gallery-pages.lua --dir $DIR $ASSETS_ARG"
         log_dry_run "luajit $DIR/src/generate-source-browser.lua --dir $DIR"
         return 0
@@ -2253,7 +2272,7 @@ run_generate_html() {
     }
 
     # Issue 10-028: Apply low priority to HTML generation (parallel processing)
-    $NICE_PREFIX luajit src/main.lua --dir "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $ASSETS_ARG || {
+    $NICE_PREFIX luajit src/main.lua --dir "$DIR" --html-only $force_arg $threads_arg $pages_arg $poems_per_page_arg $chrono_per_page_arg $reverse_arg $ASSETS_ARG || {
         echo "Error: HTML generation failed" >&2
         exit 1
     }
@@ -2384,6 +2403,9 @@ run_generate_wordcloud() {
     local wordcloud_words_arg="--words $WORDCLOUD_WORDS"
     local wordcloud_poems_arg="--poems-per-page $WORDCLOUD_POEMS"
     local chrono_per_page_arg="--chrono-per-page $CHRONO_PER_PAGE"
+    # Issue 10-064: the same reading order stage 9 numbered the pages with.
+    local reverse_arg=""
+    $REVERSE && reverse_arg="--reverse"
     # Issue 10-035: the word pages are drawn by the page workers, as many as
     # the build's one thread count.
     local word_threads_arg="--threads $THREADS"
@@ -2395,8 +2417,8 @@ run_generate_wordcloud() {
     # nothing. Any destructive step in a stage function belongs below this check.
     if $DRY_RUN; then
         log_dry_run "rm $OUTPUT_DIR/wordcloud/*.html (clear stale per-word pages)"
-        log_dry_run "luajit $DIR/src/wordcloud-generator.lua --dir $DIR $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG $ASSETS_ARG"
-        log_dry_run "luajit $DIR/src/generate-word-pages.lua --dir $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/wordcloud-generator.lua --dir $DIR $wordcloud_words_arg $chrono_per_page_arg $reverse_arg $RANDOM_SEED_ARG $ASSETS_ARG"
+        log_dry_run "luajit $DIR/src/generate-word-pages.lua --dir $DIR --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $reverse_arg $word_threads_arg $ASSETS_ARG"
         return 0
     fi
 
@@ -2428,13 +2450,13 @@ run_generate_wordcloud() {
     # The word cloud IS the site's menu (and carries the live poem index), so a
     # failure here is fatal, not a warning -- there is no usable entry page without it.
     log_info "   Generating word cloud menu..."
-    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" --dir "$DIR" $wordcloud_words_arg $chrono_per_page_arg $RANDOM_SEED_ARG $ASSETS_ARG || {
+    $NICE_PREFIX luajit "$DIR/src/wordcloud-generator.lua" --dir "$DIR" $wordcloud_words_arg $chrono_per_page_arg $reverse_arg $RANDOM_SEED_ARG $ASSETS_ARG || {
         echo "Error: Word cloud menu generation failed" >&2
         exit 1
     }
 
     log_info "   Generating word similarity pages..."
-    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" --dir "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $word_threads_arg $ASSETS_ARG || {
+    $NICE_PREFIX luajit "$DIR/src/generate-word-pages.lua" --dir "$DIR" --html-only $wordcloud_words_arg $wordcloud_poems_arg $chrono_per_page_arg $reverse_arg $word_threads_arg $ASSETS_ARG || {
         echo "Error: Word similarity page generation failed" >&2
         exit 1
     }
@@ -2584,6 +2606,9 @@ interactive_mode_tui() {
     # Issue 10-016: Force Regeneration moved to stages section
     menu_add_item "config" "dry_run" "Dry Run" "checkbox" "0" \
         "Show what would be executed without running" "" "--dry-run"
+    # Issue 10-064: reading order. Unchecked is today's order.
+    menu_add_item "config" "reverse" "Newest First (--reverse)" "checkbox" "0" \
+        "Newest chronological pages first; similar/different by date" "" "--reverse"
     menu_add_item "config" "verbose" "Verbose Output" "checkbox" "0" \
         "Show detailed progress information" "" "--verbose"
     # Issue 10-065: a checkbox always holds a definite state, so this one always
@@ -2714,6 +2739,7 @@ interactive_mode_tui() {
             local force_html_val=$(menu_get_value "force_generate_html")
             local force_wordcloud_val=$(menu_get_value "force_generate_wordcloud")
             local dry_val=$(menu_get_value "dry_run")
+            local reverse_val=$(menu_get_value "reverse")
             local verbose_val=$(menu_get_value "verbose")
             # Issue 8-011: Get boost inclusion value from TUI
             local include_boosts_val=$(menu_get_value "include_boosts")
@@ -2759,6 +2785,7 @@ interactive_mode_tui() {
             [[ "$force_html_val" == "1" ]] && FORCE_STAGE_9=true || FORCE_STAGE_9=false
             [[ "$force_wordcloud_val" == "1" ]] && FORCE_STAGE_10=true || FORCE_STAGE_10=false
             [[ "$dry_val" == "1" ]] && DRY_RUN=true || DRY_RUN=false
+            [[ "$reverse_val" == "1" ]] && REVERSE=true || REVERSE=false
             [[ "$verbose_val" == "1" ]] && VERBOSE=true || VERBOSE=false
             # Issue 8-011/10-065: the boost checkbox now answers --boosts with a
             # definite yes or no. A checkbox cannot be "unanswered", which is why

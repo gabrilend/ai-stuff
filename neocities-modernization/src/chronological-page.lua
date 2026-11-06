@@ -98,7 +98,9 @@ end
 -- {{{ function M.page_html
 -- The whole page around body (the poems' text, already drawn).
 -- head_block: string, the shared <head> lines (viewport, font, centring)
-function M.page_html(page_num, total_pages, head_block, body)
+-- reverse: true for a --reverse build (Issue 10-064): page 1 holds the newest
+--   poems, and the line under the heading says so; nil/false, the usual line
+function M.page_html(page_num, total_pages, head_block, body, reverse)
     -- {{{ one page of many: page numbers in the title, navigation above and below
     if total_pages > 1 then
         local nav = M.navigation(page_num, total_pages)
@@ -108,7 +110,10 @@ function M.page_html(page_num, total_pages, head_block, body)
             string.format("<title>Poetry Collection - Chronological Order (Page %d of %d)</title>\n", page_num, total_pages),
             head_block, "</head>\n",
             require("page-theme").body_tag() .. "\n<center>\n",
-            "<h1>Poetry Collection</h1>\n<p>Poems in true chronological order by post date</p>\n",
+            "<h1>Poetry Collection</h1>\n<p>",
+            reverse and "Newest poems first: page 1 holds the latest; each page reads in post-date order"
+                or "Poems in true chronological order by post date",
+            "</p>\n",
             nav_html, "\n",
             '<p><a href="../wordcloud.html">Menu</a></p>\n</center>\n',
             '<table align="center"><tr><td>\n<pre>\n', body, "\n</pre>\n</td></tr></table>\n",
