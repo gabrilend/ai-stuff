@@ -437,6 +437,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_match').run_all()
     " 2>/dev/null && print_success "Match tests passed" || print_error "Match tests failed"
+
+    # Test units attacking bases and shields (issue 040b)
+    print_info "Testing Base assault..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_base_assault').run_all()
+    " 2>/dev/null && print_success "Base assault tests passed" || print_error "Base assault tests failed"
     
     # Test the match drawing calls (shapes requested, not how they look)
     print_info "Testing Match drawing..."
