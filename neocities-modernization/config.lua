@@ -704,6 +704,23 @@ return {
     -- here; nothing read it, so it was removed (2026-10-04).
     word_cloud = {
         output_file = "wordcloud.html",
+
+        -- Issue 11-006: the splash page -- a short, hand-written front door in
+        -- front of the word cloud. Its words live in page-templates/<template>
+        -- (copied into input/pages/ at build time, like the explore pages); the
+        -- build fills in the live numbers. It is written to the site's own
+        -- folder address (index.html), so whoever opens /similar-different/
+        -- lands here; the "Menu" links inside the site still go straight to the
+        -- word cloud. Set enabled = false to stop writing it. A hand-made page
+        -- already at output_file (one without the splash's marker comment) is
+        -- never overwritten: the splash goes to fallback_file instead, with a
+        -- warning.
+        splash = {
+            enabled = true,
+            output_file = "index.html",
+            fallback_file = "splash.html",
+            template = "wordcloud-splash.txt",
+        },
         min_occurrences = 5,        -- Minimum times a word must appear
         max_words = 200,            -- Words in the cloud and on word pages; the default offered when --words is not given (no limit: --all, or answer "all")
         poems_per_page = 50,        -- Poems on each word page; the default offered when --poems-per-page is not given (Issue 10-065a: this 50 used to be written in src/generate-word-pages.lua and applied silently)
