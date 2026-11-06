@@ -1,11 +1,13 @@
-# Issue 039: Panels in tui.lua
+# Issue 048: Panels in tui.lua
 
 ## Status
 - **Priority**: Medium
 - **Type**: Feature
 - **Status**: Completed
 - **Created**: 2026-11-02
-- **Routed from**: delta-version issue 067 (TUI Panel Abstraction Layer)
+- **Routed from**: delta-version issue 070 (TUI Panel Abstraction Layer)
+- **Renumbered**: filed as 039 at first; PR #114 had already taken 039 for
+  the test runner, so this is 048
 
 ## Current Behavior
 
@@ -15,7 +17,7 @@ row by hand (`menu.lua`, `verdict-viewer.lua`, delta-version's
 `history-viewer.lua`). Nothing stops a long line in one region from running
 into the next, and "redraw the list" means knowing where the list sits.
 
-delta-version issue 067 designed a panel layer for this. Its decision
+delta-version issue 070 designed a panel layer for this. Its decision
 (option A) is that the panels belong here, in the shared library, and that
 delta-version moves its history viewer onto them afterwards as its own issue.
 
@@ -30,7 +32,7 @@ list:write_str(2, 1, "second line of the list")       -- screen row 5
 list:invalidate_row(2)
 ```
 
-The API is the one 067 laid out: fields `row`, `col`, `width`, `height`;
+The API is the one 070 laid out: fields `row`, `col`, `width`, `height`;
 `set_cell`, `write_str`, `clear`, `clear_row`, `invalidate`,
 `invalidate_row`; `set_fg`, `set_bg`, `set_attrs`, `reset_style`;
 `to_screen` and `from_screen`. Anything outside the panel, or outside the
@@ -46,7 +48,7 @@ screen, is dropped.
 6. [x] `to_screen` and `from_screen`.
 7. [x] Tests that need no terminal.
 8. [ ] Move delta-version's `history-viewer.lua` onto panels: left for a
-       later PR, as 067 asks (its step 9).
+       later PR, as 070 asks (its step 9).
 9. [ ] Move `menu.lua` onto panels: not asked for yet; worth its own issue.
 
 ## What Happened
@@ -56,9 +58,9 @@ screen, is dropped.
 
 Decisions:
 
-- **Style is global**, 067's recommended option 1. `panel:set_fg` is
+- **Style is global**, 070's recommended option 1. `panel:set_fg` is
   `tui.set_fg`. Panel-local style can come later if a screen needs it.
-- **Invalidation marks only the panel's own cells.** 067's pseudocode marked
+- **Invalidation marks only the panel's own cells.** 070's pseudocode marked
   whole screen rows; a panel narrower than the screen would then resend the
   cells beside it. `tui.invalidate_region` already marks whole rows when a
   panel is as wide as the screen and single cells otherwise, so panels use it.
@@ -75,7 +77,7 @@ Decisions:
   lie off the screen.
 - **Fields are plain fields, read but not changed.** To move or resize a panel
   (after a terminal resize), make a new one. No overlap, z-order or borders,
-  as 067 decided.
+  as 070 decided.
 - **Three small additions let the tests run without a terminal**:
   `tui.init_buffers(rows, cols)` makes the buffers at a given size and leaves
   the terminal alone, `tui.get_cell(row, col)` returns a copy of a cell, and
