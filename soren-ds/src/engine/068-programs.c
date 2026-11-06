@@ -258,6 +258,15 @@ static void plan_station_shape(struct planning *g, struct plan *p, struct plan_s
                         "write a %s__compare beside the type", m->name, ps->box->name, ps->box->return_type, ps->box->return_type);
         }
     }
+    /* A comparator compares against a copy of its threshold, which has a
+     * fixed size; one on a wider value would quietly let nothing out of
+     * any exit (issue 313). */
+    if (m->kind == KIND_COMPARATOR && ps->box->return_size > ENGINE_THRESHOLD_BYTES) {
+        map_problem(g->problems, p->d.path, m->line, "%s is a comparator, but %s returns %s, which is %u bytes; "
+                    "a comparator can compare values of at most %d bytes (issue 313)",
+                    m->name, ps->box->name, ps->box->return_type, (unsigned)ps->box->return_size,
+                    ENGINE_THRESHOLD_BYTES);
+    }
 }
 /* }}} */
 

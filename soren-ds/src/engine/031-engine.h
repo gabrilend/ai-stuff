@@ -86,6 +86,12 @@ enum station_kind {
  * own ports, is only ever static, and is never handed to the box. */
 int engine_kind_extra_ports(int kind);
 
+/* A comparator copies its threshold onto the stack to compare against it,
+ * so the values it compares can be at most this wide. The loader refuses
+ * a comparator on a wider return type (issue 313); whether the limit
+ * should be lifted instead is still open. */
+#define ENGINE_THRESHOLD_BYTES 64
+
 struct destination {
     int32_t station;
     int32_t port;
