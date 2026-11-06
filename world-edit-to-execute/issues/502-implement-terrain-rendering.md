@@ -16,6 +16,18 @@ The vertical slice draws a map's terrain as a flat grid of coloured tiles
 right world positions, with a lookup from world point to tile. Heights,
 cliffs, water and fog are not drawn, and each tile is its own draw call.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #322 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- The new note in 502b says ships ride on the water when it is higher, but the water height reader blends four corners and a dry corner stores -1e30 ("no water"). Within one cell of a shore the blend is hugely negative, so ships sit on the ground, and the building-placement check (`footprint.lua`) allows building on water near a coast.
+- 502e's note says chunk meshes are built once at map load, but the editor rebuilds every land and water chunk, and re-lays every texture layer, whenever terrain changes (at most every 0.4 s during a stroke and again at its end). That full rebuild is exactly what 502e exists to remove.
+- 502b's note says the viewer's ground height keeps the camera on the ground; in the map demo it returns the higher of ground and water, so the camera rides on lake surfaces.
+- 502b's note gives the height rule as "+128 per cliff layer above 2"; the code uses `(layer - 2) * 128`, which also lowers layers 0 and 1.
+- 502b's note calls the shading "by slope"; it is by how squarely a face meets one fixed light direction.
+- The notes were added as dated sections while 502b, 502c and 502e's Current Behavior still say the terrain is flat, no water is drawn and each tile is its own draw call; 502's sub-issue table still says "open"; 502a still says every tile is drawn every frame although distance culling exists.
+- The notes write measured numbers (225 chunks, 8–11 FPS, 55% ambient, offsets) into the issue text, which will go stale.
+
 ## Intended Behavior
 
 Terrain is built **once, at map load**, and drawn every frame without
@@ -46,6 +58,14 @@ player's own install like models (516); until then, colours.
 - [ ] A test map's terrain is built once at load and not rebuilt per frame
 - [ ] Heights, cliffs and water show on the test maps
 - [ ] Terrain costs a few draw calls per frame, not one per tile
+
+## Status Note (2026-11-06)
+
+The table above predates issue 517b (2026-09-29). In the scene viewer's
+path (`src/render/landscape.c`) heights, cliff-coloured slopes, water by
+depth and chunk meshes are built; see the dated notes in 502b, 502c and
+502e for what is done and what is left in each. The vertical slice's
+`terrain.c` is still the flat colour grid.
 
 ---
 
