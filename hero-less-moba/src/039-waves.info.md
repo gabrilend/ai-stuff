@@ -52,10 +52,10 @@ All of them are stamped with the lane's upgrades, **including the captain**, whi
 exactly what separates a captain from a hero. In a lane carrying a dozen upgrades the
 captain walking out of it is enormous.
 
-**The order they take their places in is deliberate**: captain, then the line, then
-the missile bodies. Within the line heavy comes first and so stands nearest the centre
-of its rank; within the missile bodies skirmishers come first, so the archers are the
-ones furthest back. Placing each kind at its own bearing is 213's unbuilt half.
+**Each kind takes its place by its row's `stands`**: captain first, then the line,
+heaviest kit first so it stands nearest the centre of its rank and light infantry
+toward the flanks; then the skirmishers at the line's shoulders; then the archers
+behind.
 
 ## "Fully defeated"
 

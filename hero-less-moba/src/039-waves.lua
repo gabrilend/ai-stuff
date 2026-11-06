@@ -319,16 +319,30 @@ local function queue_wave(world, team, lane, turn)
   -- the line -- both where it is most useful and where an opponent can see it
   -- coming, which matters because a captain is the one body a commander chooses.
   --
-  -- The line is everybody drawn with a reach of one, and the deck has already put
-  -- them in the order they take their places: heavy first, so heavy stands nearest
-  -- the centre of the rank and light toward its ends; skirmishers before archers, so
-  -- the archers are the ones furthest back.
-  local melee_count = 0
+  -- **Where each kind stands is a band, read from its row's `stands`** (213): the
+  -- line in the front ranks, skirmishers at the line's shoulders, archers behind.
+  --
+  -- Within the line, **the heavier a body's kit the nearer the centre**. The line fills
+  -- its ranks from the middle outward, so ordering it by cost is the whole of the
+  -- rule: heavy infantry at small angles, shieldbearers next, light infantry toward
+  -- the flanks where they can turn them once a formation can turn. Ties go by entry
+  -- and then by kit, so the order never depends on what a sort did with a tie.
+  local archetype_rows = world.parameters.unit.archetype
+  local line, shoulder, behind = {}, {}, {}
+  local band = {line = line, shoulder = shoulder, behind = behind}
   for _, body in ipairs(drawn) do
-    if world.parameters.unit.archetype[body.archetype].reach == 1 then
-      melee_count = melee_count + 1
+    local into = band[archetype_rows[body.archetype].stands]
+    if into == nil then
+      error("unit row " .. body.archetype .. " was drawn for a wave and says nowhere to stand")
     end
+    into[#into + 1] = body
   end
+  table.sort(line, function(a, b)
+    if a.cost ~= b.cost then return a.cost > b.cost end
+    if a.entry ~= b.entry then return a.entry < b.entry end
+    return a.kit > b.kit
+  end)
+  local melee_count = #line
   -- How many bodies the **line** holds, which is what decides how many ranks it
   -- occupies and therefore where the ranks behind it start.
   --
@@ -351,6 +365,7 @@ local function queue_wave(world, team, lane, turn)
 
   lane = walks
   local front_index = 0
+  local shoulder_index = 0
   local behind_index = 0
 
   -- A captain is given its own role. Which rank it stands in is written on its
@@ -364,14 +379,17 @@ local function queue_wave(world, team, lane, turn)
     born(commander.captain, "captain", 0, 0)
   end
 
-  for _, body in ipairs(drawn) do
-    if world.parameters.unit.archetype[body.archetype].reach == 1 then
-      born(body.archetype, "front", front_index, body.kit)
-      front_index = front_index + 1
-    else
-      born(body.archetype, "back", behind_index, body.kit)
-      behind_index = behind_index + 1
-    end
+  for _, body in ipairs(line) do
+    born(body.archetype, "front", front_index, body.kit)
+    front_index = front_index + 1
+  end
+  for _, body in ipairs(shoulder) do
+    born(body.archetype, "shoulder", shoulder_index, body.kit)
+    shoulder_index = shoulder_index + 1
+  end
+  for _, body in ipairs(behind) do
+    born(body.archetype, "back", behind_index, body.kit)
+    behind_index = behind_index + 1
   end
 
   -- Now that every body has a place, the formation knows how deep it is, and every

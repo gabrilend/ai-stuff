@@ -511,6 +511,10 @@ M.archetype = {
   -- below -- so the same row walks out a little differently every time, and what it
   -- carries is also what it costs the lane.
   --
+  -- `stands` is where in the formation the kind takes its place (213's bearing
+  -- bands): `line` in the front ranks, heavier kit nearer the centre; `shoulder` at
+  -- the two ends of the line, shooting round it; `behind` in the ranks at the back.
+  --
   -- `kit.carries` is always worn. `kit.maybe` is a list of {piece, chance}, each tried
   -- once, in order, from the lane's kit stream: a fixed number of draws per body,
   -- whatever comes up, so that what one body carries never shifts what the next one
@@ -535,6 +539,7 @@ M.archetype = {
     cooldown_max = 22,
     kit          = {carries = {"gloves and boots", "mail", "shield", "war blade", "metal cap"},
                     maybe   = {}},
+    stands       = "line",
   },
 
   -- 20 -- light infantry. Usually a spear and leather; sometimes a shield, sometimes a
@@ -554,6 +559,7 @@ M.archetype = {
     cooldown_max = 22,
     kit          = {carries = {"gloves and boots", "spear", "leather"},
                     maybe   = {{"shield", 0.4}, {"sword", 0.3}, {"metal cap", 0.3}}},
+    stands       = "line",
   },
 
   -- 21 -- skirmishers. Short reach: enough to disable whatever comes near, and no more.
@@ -573,6 +579,7 @@ M.archetype = {
     cooldown_max = 24,
     kit          = {carries = {"gloves and boots", "javelins", "leather"},
                     maybe   = {{"metal cap", 0.3}}},
+    stands       = "shoulder",
   },
 
   -- 22 -- archers. Long reach, artillery: these genuinely shoot **over** a line, across
@@ -592,6 +599,29 @@ M.archetype = {
     cooldown_max = 28,
     kit          = {carries = {"gloves and boots", "bow", "leather"},
                     maybe   = {{"metal cap", 0.2}}},
+    stands       = "behind",
+  },
+
+  -- 23 -- shieldbearers. A light infantryman who has found a proper shield and a cap,
+  -- and the one entry a lane begins without: it is **unlocked** by a Bulwark slotted
+  -- into the lane, at the cost of light infantry tickets (issue 213's third thumb).
+  -- Line, nearer the centre than the light infantry it came from, because it is
+  -- heavier.
+  {
+    name         = "shieldbearer",
+    flavour      = 1,
+    reach        = 1,
+    radius       = 3.8,
+    health       = 80,
+    damage       = 12,
+    armour       = 1,
+    range        = 17,
+    acquire_range = 74,
+    speed        = 1.15,
+    cooldown_max = 22,
+    kit          = {carries = {"gloves and boots", "spear", "leather", "shield", "metal cap"},
+                    maybe   = {{"sword", 0.3}}},
+    stands       = "line",
   },
 }
 -- }}}
@@ -636,6 +666,10 @@ M.deck = {
     {archetype = 20, start = 12, max = 24},   -- light infantry
     {archetype = 21, start = 8,  max = 16},   -- skirmishers
     {archetype = 22, start = 6,  max = 12},   -- archers
+    -- Locked: no tickets until a Bulwark trades some in. Its most is eight, the same
+    -- headroom the archers have, so a lane can make it a real part of its line
+    -- without it ever being the whole of it.
+    {archetype = 23, start = 0,  max = 8},    -- shieldbearers
   },
 
   -- Weight per point of cost. Two, so a light infantryman in spear and leather costs
@@ -647,12 +681,17 @@ M.deck = {
   -- a wave fields about five bodies beside the captain, measured over a hundred
   -- waves -- one fewer than the old fixed wave, on purpose: the never-three rule caps
   -- the line at four, so more purse would have bought heavier waves rather than
-  -- larger ones, and a first guess should err toward the old strength, not past it. It may save up to twice that, so a lane that has been
-  -- cheap for a while can suddenly afford something, and the last body's discards may
-  -- take it into debt, so a lane that drew heavy infantry last is poorer next wave.
+  -- larger ones, and a first guess should err toward the old strength, not past it.
+  --
+  -- `income_per_wave` is a lane's income with nothing slotted into it; upgrades that
+  -- give resource add to it. A lane may save up to `saves_for_waves` waves of its
+  -- current income, so a lane that has been cheap for a while can suddenly afford
+  -- something -- and a lane fed resource can save more as well as spend more. The
+  -- last body's discards may take it into debt, so a lane that drew heavy infantry
+  -- last is poorer next wave.
   purse_start      = 18,
   income_per_wave  = 18,
-  purse_max        = 36,
+  saves_for_waves  = 2,
 
   -- At most this many drawn bodies in a wave, beside its captain: enough room for two
   -- of each of the four kinds, which is the most the never-three rule allows anyway.

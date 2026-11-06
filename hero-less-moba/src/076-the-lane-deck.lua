@@ -65,12 +65,27 @@
 -- are shuffled this way and put **below** the tickets nobody has drawn yet; when the
 -- deck runs out mid-wave, the discards are shuffled and become the deck.
 --
--- ## Not here yet
+-- ## The upgrades are what fill it
 --
--- What upgrades do to a deck -- a ticket for an entry, a point for the purse, an entry
--- traded for a better one -- is 213's second half, and so is placing each kind at its
--- own bearing. Until then every lane's deck holds its starting tickets forever, and a
--- kind stands where its reach already put it: line in front, missile behind.
+-- **An upgrade slotted into a lane is a change to what that lane raises.** At the
+-- start of every wave the lane's deck is refitted to whatever the lane holds at that
+-- moment, each kind's `lane` effect counted once per copy slotted:
+--
+--   * a **ticket** for an entry -- that kind turns up more often here;
+--   * a point of **resource** -- one more ticket turned a wave, so more troops or
+--     heavier ones;
+--   * a **trade** -- an entry unlocked at the cost of the one it takes its equipment
+--     from. As many tickets move as the old entry costs bare, and the lane gains as
+--     many points a wave as the pieces the new entry carries beyond the old one cost.
+--
+-- An entry never holds fewer than none or more than its `max`. Tickets gained go to
+-- the bottom of the deck; tickets lost come off the bottom first, so a change reaches
+-- the next draws last rather than first. Take the upgrade away and the next wave's
+-- deck is the old one again.
+--
+-- Where each kind then stands -- heavier kit nearer the centre of the line, skirmishers
+-- at its shoulders, archers behind -- is the spawner's and the formation's business,
+-- read from each row's `stands`.
 
 local M = {}
 
@@ -178,6 +193,140 @@ local function roll_kit(world, state, row)
 end
 -- }}}
 
+-- {{{ local function kit_weight()
+local function kit_weight(world, pieces)
+  local equipment = world.parameters.unit.equipment
+  local weight = 0
+  for _, piece in ipairs(pieces) do
+    weight = weight + equipment[piece].weight
+  end
+  return weight
+end
+-- }}}
+
+-- {{{ local function entry_of()
+-- Which deck entry raises this row. An upgrade naming a row no entry raises is an
+-- error, found at assembly rather than the first time somebody slots it.
+local function entry_of(settings, row)
+  for index, entry in ipairs(settings.entry) do
+    if entry.archetype == row then
+      return index
+    end
+  end
+  error("an upgrade's lane effect names unit row " .. tostring(row) ..
+        ", which no lane deck entry raises")
+end
+-- }}}
+
+-- {{{ function M.trade_terms()
+-- What one trade moves: how many tickets leave the old entry, and how many points a
+-- wave the lane gains for the new one's extra equipment. Both from the design's own
+-- arithmetic -- "if the swordsman entry costs 3, then 3 tickets leave it ... and N
+-- resources are added, where N is the cost of the sword" -- so neither is a number
+-- anybody has to choose.
+function M.trade_terms(world, trade)
+  local archetype = world.parameters.unit.archetype
+  local from, to = archetype[trade.from], archetype[trade.to]
+  local tickets = M.cost_of(world, from, 0)
+
+  -- The pieces the new entry always carries that the old one does not.
+  local had = {}
+  for _, piece in ipairs(from.kit.carries) do had[piece] = true end
+  local extra = {}
+  for _, piece in ipairs(to.kit.carries) do
+    if not had[piece] then extra[#extra + 1] = piece end
+  end
+  local resource = math.ceil(kit_weight(world, extra) /
+                             world.parameters.unit.deck.weight_per_point)
+  return tickets, resource
+end
+-- }}}
+
+-- {{{ function M.what_the_lane_holds()
+-- The tickets per entry and the income a lane has this wave, from what is slotted
+-- into it now. Pure: reads the lane's counts and the catalogues, writes nothing.
+function M.what_the_lane_holds(world, team, lane)
+  local settings = world.parameters.unit.deck
+  local kinds = world.parameters.upgrade.kind
+  local held = world.team[team].lane_slot[lane]
+
+  local tickets = {}
+  for index, entry in ipairs(settings.entry) do
+    tickets[index] = entry.start
+  end
+  local income = settings.income_per_wave
+
+  -- Tickets and resource first, then trades, so a lane that holds both a Whetstone
+  -- and a Bulwark trades away the ticket the Whetstone gave as readily as any other.
+  for kind, row in ipairs(kinds) do
+    local count = held[kind]
+    if count > 0 then
+      local effect = row.lane
+      if effect.ticket ~= nil then
+        local index = entry_of(settings, effect.ticket)
+        tickets[index] = tickets[index] + count
+      end
+      if effect.resource ~= nil then
+        income = income + effect.resource * count
+      end
+    end
+  end
+  for kind, row in ipairs(kinds) do
+    local count = held[kind]
+    local trade = row.lane.trade
+    if count > 0 and trade ~= nil then
+      local from = entry_of(settings, trade.from)
+      local to = entry_of(settings, trade.to)
+      local each, resource = M.trade_terms(world, trade)
+      for _ = 1, count do
+        -- Only what the old entry still has can leave it. A trade with nothing left
+        -- to trade still pays its resource: the equipment was found either way.
+        local moving = math.min(each, tickets[from])
+        tickets[from] = tickets[from] - moving
+        tickets[to] = tickets[to] + moving
+        income = income + resource
+      end
+    end
+  end
+
+  for index, entry in ipairs(settings.entry) do
+    if tickets[index] > entry.max then
+      tickets[index] = entry.max
+    end
+  end
+  return tickets, income
+end
+-- }}}
+
+-- {{{ local function refit()
+-- Brings the deck's cards to the tickets the lane holds now. Between waves every card
+-- is in the draw pile, so gains go on its bottom and losses come off its bottom.
+local function refit(state, tickets)
+  for index, want in ipairs(tickets) do
+    local have = state.tickets[index]
+    if want > have then
+      for _ = 1, want - have do
+        state.draw[#state.draw + 1] = index
+      end
+    elseif want < have then
+      local to_remove = have - want
+      for position = #state.draw, 1, -1 do
+        if to_remove == 0 then break end
+        if state.draw[position] == index then
+          table.remove(state.draw, position)
+          to_remove = to_remove - 1
+        end
+      end
+      if to_remove > 0 then
+        error("a lane's deck holds fewer tickets for entry " .. index ..
+              " than its own count says")
+      end
+    end
+    state.tickets[index] = want
+  end
+end
+-- }}}
+
 -- {{{ function M.begin()
 -- Every lane's deck, purse and meters, for both teams.
 --
@@ -193,9 +342,22 @@ function M.begin(world)
 
   for _, entry in ipairs(settings.entry) do
     local row = archetype[entry.archetype]
-    if row == nil or row.kit == nil or row.flavour ~= 1 then
+    if row == nil or row.kit == nil or row.flavour ~= 1 or row.stands == nil then
       error("the lane deck names row " .. tostring(entry.archetype) ..
-            ", which is not a wave soldier with a kit")
+            ", which is not a wave soldier with a kit and somewhere to stand")
+    end
+  end
+
+  -- Every upgrade's lane effect names entries that exist, checked now rather than the
+  -- first time a stone is slotted. `entry_of` errors on one that does not.
+  for _, row in ipairs(world.parameters.upgrade.kind) do
+    if row.lane == nil then
+      error("upgrade '" .. row.name .. "' says nothing about what it does to a lane's deck")
+    end
+    if row.lane.ticket ~= nil then entry_of(settings, row.lane.ticket) end
+    if row.lane.trade ~= nil then
+      entry_of(settings, row.lane.trade.from)
+      entry_of(settings, row.lane.trade.to)
     end
   end
 
@@ -238,6 +400,10 @@ function M.draw_wave(world, team, lane, commander)
   local archetype = world.parameters.unit.archetype
   local state = world.team[team].lane_deck[lane]
   local entries = settings.entry
+
+  -- What the lane holds now decides this wave's deck and next wave's income.
+  local tickets, income = M.what_the_lane_holds(world, team, lane)
+  refit(state, tickets)
 
   local line_cap = math.floor(settings.body_cap * commander.melee_share + 0.5)
   local half_cap = {[1] = line_cap, [2] = settings.body_cap - line_cap}
@@ -324,9 +490,13 @@ function M.draw_wave(world, team, lane, commander)
   state.last = {spent = spent, set_aside = set_aside, from_meter = from_meter,
                 fielded = fielded, purse_after = state.purse}
 
-  state.purse = state.purse + settings.income_per_wave
-  if state.purse > settings.purse_max then
-    state.purse = settings.purse_max
+  -- Refilled by this wave's income, and saved up to `saves_for_waves` of it: a lane
+  -- fed resource can save more as well as spend more.
+  state.income = income
+  state.purse = state.purse + income
+  local ceiling = income * settings.saves_for_waves
+  if state.purse > ceiling then
+    state.purse = ceiling
   end
 
   table.sort(bodies, function(a, b)

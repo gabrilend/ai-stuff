@@ -413,6 +413,23 @@ function M.assign_wave_slots(world, id, lane, role_index, role, melee_total)
     local rank, file = skipping_the_captain(role_index, 0)
     forward = -rank * RANK_SPACING
     sideways = M.file_offset(files, file)
+  elseif role == "shoulder" then
+    -- **At the shoulders of the line**: the two ends of the rank just behind it, left
+    -- and right in turn, working inward if there are more than two. Skirmishers stand
+    -- here (issue 213) -- short reach, shooting *around* the line rather than over
+    -- it, which a body at the end of the line can do and one behind its middle cannot.
+    --
+    -- That rank is otherwise the gap between the line and the archers, and the
+    -- shoulders take only its ends, so the gap still reads as a gap.
+    --
+    -- The note below says the shoulders belong to cavalry. They will, when there is
+    -- cavalry; 213 puts the skirmishers there until then, and moving them is moving
+    -- one band.
+    local line_ranks = math.ceil(melee_total / files)
+    local inward = math.floor(role_index / 2)
+    local side = (role_index % 2 == 0) and -1 or 1
+    forward = -line_ranks * RANK_SPACING
+    sideways = side * (half_width - inward * FILE_SPACING)
   else
     -- **Behind the line, in its own ranks.**
     --
