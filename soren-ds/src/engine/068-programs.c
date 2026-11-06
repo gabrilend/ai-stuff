@@ -959,6 +959,19 @@ int program_argument(int program, int door, const void *value, size_t size)
 }
 /* }}} */
 
+/* {{{ program_argument_every */
+int program_argument_every(int program, int door, const void *value, size_t size,
+                           uint64_t first_ns, uint64_t period_ns)
+{
+    struct program_record *r = program_record(program);
+    if (!r || door < 0 || door >= PROGRAM_DOORS || r->args[door].station < 0) {
+        return ENGINE_NO_PORT;
+    }
+    return engine_timer(r->args[door].station, r->args[door].number, value, size,
+                        first_ns, period_ns);
+}
+/* }}} */
+
 /* {{{ program_result */
 int program_result(int program, int door, void *out, size_t size)
 {

@@ -73,6 +73,12 @@ int program_unfinished(int program, struct map_report *report)
 int program_argument(int program, int door, const void *value, size_t size)
 ```
 
+### program_argument_every
+
+```c
+int program_argument_every(int program, int door, const void *value, size_t size, uint64_t first_ns, uint64_t period_ns)
+```
+
 ### program_result
 
 ```c
