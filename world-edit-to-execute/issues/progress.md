@@ -408,7 +408,7 @@ Phase 2 & 3 Complete
 | 503c | Team colors selection | Re-cut 2026-09-26; partly built | 503a |
 | 503d | Health bars indicators | Re-cut 2026-09-26 | 501 |
 | 503e | Facing direction | Re-cut 2026-09-26 | 501 |
-| **504** | Create asset pack specification | Re-cut 2026-09-26 | 516 |
+| **504** | Create asset pack specification | In progress (the format, its reader and 516's stand-in chooser built; the screen and the window wait) | 516 |
 | **505** | Implement default visual mode | Retired (superseded/) | — |
 | 505a | Default renderer backend | Retired (superseded/) | — |
 | 505b | Wire render systems | Retired (superseded/) | — |
@@ -477,7 +477,7 @@ Phase 2 & 3 Complete
 | 515e | Growing asset table | Pending | 515b |
 | 515f | Measured against the pool | Pending | 515c, 515d, 515e |
 | 515k | A crowd on every design (the unpredictable workload) | In progress (steps 1-3 committed) | 405f, 515h, 515j |
-| 516 | Draw WC3 models in the engine (community models first, placeholders otherwise) | Pending | 116, 117 |
+| 516 | Draw WC3 models in the engine (community models first, placeholders otherwise) | Pending (the stand-in chooser built in 504's change) | 116, 117 |
 
 ### Dependency Graph
 
