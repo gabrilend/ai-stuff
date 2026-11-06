@@ -20,16 +20,21 @@ ceramic-corporation/
 │                                               every rule, naming each by code.
 ├── blocked-board ............................. Ranks what an org waits on by how
 │                                               much depends on it.
+├── apply-proposal ............................ Says whether a change may be applied,
+│                                               shows its diff, and applies it.
 ├── run-tests ................................. Every test, under LuaJIT and Lua
 │                                               5.4, and every example validated.
 │
 ├── src/ ...................................... The tools. Numbered, each with a
 │   │                                           companion .info.md.
 │   ├── 007-org-reader ........................ The one reader, and the validator.
-│   └── 008-blocked-board ..................... owes, frees, reach.
+│   ├── 008-blocked-board ..................... owes, frees, reach.
+│   └── 010-proposals ......................... Status, kinds, affected, rules;
+│                                               the map edited as text.
 ├── tests/
-│   └── 009-the-map-and-the-board ............. One refusal per rule code; the
-│                                               board against document 004.
+│   ├── 009-the-map-and-the-board ............. One refusal per rule code; the
+│   │                                           board against document 004.
+│   └── 011-proposals ......................... Every ruling of document 003.
 │
 ├── notes/
 │   └── vision ................................ Where all of this came from, in the
