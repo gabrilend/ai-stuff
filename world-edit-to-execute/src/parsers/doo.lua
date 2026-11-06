@@ -144,12 +144,14 @@ end
 -- }}}
 
 -- {{{ parse_special_doodads
--- Parses the special doodads section.
--- Version 7: Variable-length item drop tables
--- Version 8: Fixed 16-byte entries (ID + 3 int32s for position/reference data)
--- Returns the special doodads array and next position.
-local function parse_special_doodads(data, pos, doo_version)
-    local special = {}
+-- Parses the special doodads section: a version (0), a count, and 16 bytes
+-- per entry: an ID (such as YCc1 or LCc2), an int32 that is 0 on every
+-- test map, and the entry's x and y on the terrain's tile grid. Version 7
+-- and 8 files have the same section; neither holds item drops here
+-- (issue 201f).
+-- Returns the special doodads and the next position, or nil and a message.
+local function parse_special_doodads(data, pos)
+    local special = { version = 0, doodads = {} }
 
     -- Check if we have enough data for the header
     if pos + 8 > #data + 1 then
@@ -157,55 +159,23 @@ local function parse_special_doodads(data, pos, doo_version)
     end
 
     -- Special doodads version
-    local version = read_int32(data, pos); pos = pos + 4
-    special.version = version
+    special.version = read_int32(data, pos); pos = pos + 4
 
     -- Number of special doodads
     local count = read_int32(data, pos); pos = pos + 4
-    special.doodads = {}
+    if count < 0 or pos + 16 * count - 1 > #data then
+        return nil, string.format("special doodad count %d doesn't fit the data (byte %d of %d)",
+            count, pos - 4, #data)
+    end
 
-    -- Version 8+ uses fixed-size entries (16 bytes each)
-    if doo_version >= 8 then
-        for i = 1, count do
-            local sd = {}
-            sd.id, pos = read_id(data, pos)
-            -- Three int32 values - exact meaning unclear, possibly position/reference
-            sd.unknown1 = read_int32(data, pos); pos = pos + 4
-            sd.x = read_int32(data, pos); pos = pos + 4
-            sd.y = read_int32(data, pos); pos = pos + 4
-            special.doodads[i] = sd
-        end
-    else
-        -- Version 7: Variable-length item drop tables
-        for i = 1, count do
-            local sd = {}
-
-            -- Doodad ID that has item drops
-            sd.id, pos = read_id(data, pos)
-
-            -- Number of item sets
-            local num_sets = read_int32(data, pos); pos = pos + 4
-            sd.item_sets = {}
-
-            for j = 1, num_sets do
-                local item_set = {}
-
-                -- Number of items in this set
-                local num_items = read_int32(data, pos); pos = pos + 4
-                item_set.items = {}
-
-                for k = 1, num_items do
-                    local item = {}
-                    item.id, pos = read_id(data, pos)
-                    item.chance = read_int32(data, pos); pos = pos + 4
-                    item_set.items[k] = item
-                end
-
-                sd.item_sets[j] = item_set
-            end
-
-            special.doodads[i] = sd
-        end
+    for i = 1, count do
+        local sd = {}
+        sd.id, pos = read_id(data, pos)
+        -- Its meaning is unsettled (0 on every test map); x and y are tiles
+        sd.unknown1 = read_int32(data, pos); pos = pos + 4
+        sd.x = read_int32(data, pos); pos = pos + 4
+        sd.y = read_int32(data, pos); pos = pos + 4
+        special.doodads[i] = sd
     end
 
     return special, pos
@@ -271,9 +241,12 @@ function doo.parse(data)
     -- the rest (special doodads), kept as it is for writing back (issue 911a)
     result.tail_raw = data:sub(pos)
 
-    -- Parse special doodads section (item drops for v7, position data for v8)
+    -- Parse special doodads section (the same in versions 7 and 8, issue 201f)
     if pos <= #data then
-        local special, new_pos = parse_special_doodads(data, pos, result.version)
+        local special, new_pos = parse_special_doodads(data, pos)
+        if not special then
+            return nil, "war3map.doo: " .. new_pos
+        end
         result.special_doodads = special
         pos = new_pos
     else
@@ -372,9 +345,9 @@ function doo.format(result)
     end
     lines[#lines + 1] = ""
 
-    -- Special doodads (item drops)
+    -- Special doodads (an ID and a tile position each, issue 201f)
     if result.special_doodads and #result.special_doodads.doodads > 0 then
-        lines[#lines + 1] = string.format("Special doodads (with item drops): %d",
+        lines[#lines + 1] = string.format("Special doodads: %d",
             #result.special_doodads.doodads)
         for i, sd in ipairs(result.special_doodads.doodads) do
             if i > 5 then
@@ -382,12 +355,7 @@ function doo.format(result)
                     #result.special_doodads.doodads - 5)
                 break
             end
-            local total_items = 0
-            for _, set in ipairs(sd.item_sets) do
-                total_items = total_items + #set.items
-            end
-            lines[#lines + 1] = string.format("  %s: %d item sets, %d items total",
-                sd.id, #sd.item_sets, total_items)
+            lines[#lines + 1] = string.format("  %s at (%d, %d)", sd.id, sd.x, sd.y)
         end
     else
         lines[#lines + 1] = "Special doodads: none"

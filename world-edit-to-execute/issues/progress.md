@@ -186,6 +186,7 @@ padded with a zero byte.
 |----|------|--------|--------------|
 | 201 | Parse war3map.doo (doodads/trees) | **Completed** | 102 |
 | 201e | A version 8 doodad's drops read before its creation number | **Completed** 2026-11-06 | 201 |
+| 201f | The special doodads section read the same in versions 7 and 8 | **Completed** 2026-11-06 | 201e |
 | 202 | Parse war3mapUnits.doo (units/buildings) | **Completed** | 102, 201 |
 | 202a | Parse unitsdoo header and basic fields | **Completed** | 201 |
 | 202b | Parse unitsdoo item drops | **Completed** | 202a |

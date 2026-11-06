@@ -92,3 +92,8 @@ and each set's items), and the creation number last. So on every version
   special-doodad test encodes the item-drop reading.
 - `test_map_save` passes only with 202f as well (on this branch alone it
   stops at Conquest-v8-fix's units file).
+
+### Note (2026-11-06)
+
+The first point under "Still open" is taken up in 201f: the special
+doodads section is read the same way in versions 7 and 8.
