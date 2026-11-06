@@ -39,7 +39,7 @@ captain is a **hobgoblin captain**, fielding barbarians and goblin archers.
 | `id` | integer | Row in the commander catalogue. |
 | `name` | string | Shown to players. |
 | `captain` | integer | Row in the unit catalogue — this commander's signature wave body, and the only wave unit that differs between commanders. |
-| `melee_share` | double | What proportion of a wave is melee. The rest is ranged. |
+| `melee_share` | double | How much of a wave may be line; the rest may be missile. Since issue 213 the lane's deck decides which bodies fill each half and how many the lane can afford. |
 | `bounty` | integer[colours] | Which colours this commander's bodies carry, and in what ratio — *"three blue die for every one green and every five red."* Killing them pays this. |
 | `roster` | integer[] | Rows in the unit catalogue. The heroes this commander may buy. At least three, ideally five. |
 

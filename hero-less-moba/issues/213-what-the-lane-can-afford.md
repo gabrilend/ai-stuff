@@ -10,13 +10,19 @@
 
 ## Current behavior
 
-Every wave in every lane is the same wave: four melee, two ranged, one captain, from
-a table with three numbers in it. The only thing that differs between two lanes is
-what upgrades have been slotted into their stone, which changes how strong those
-seven bodies are and never changes **which** seven bodies they are.
+**The first half is built (213a): a wave is drawn, not specified.** Beside its captain,
+every wave is drawn from its lane's deck of tickets, one deck per lane per team. Four
+kinds — heavy infantry, light infantry, skirmishers and archers — appended to the unit
+table as rows 19 to 22, each in a kit drawn at birth from equipment whose weight is its
+cost. Cost is paid in discards; the purse is counted in tickets turned; a meter walks a
+missing kind out undrawn; never three of a kind; the pile shuffle exactly as specified.
+See [the lane deck](../src/076-the-lane-deck.info.md).
 
-There is one melee body and one ranged body in the whole game. No equipment, no
-weight, no variety, and nothing anywhere that decides a wave's composition.
+**The second half is not built (213b):** what the upgrades do to a deck — `+1 ticket`,
+`+1 resource`, an entry traded for a better one — and placing each kind at its own
+bearing. Until then every deck holds its starting tickets forever, and a kind stands
+where its reach puts it: line in front, missile behind, heavy nearest the centre of its
+rank because it takes its place first. Cavalry is not built, as specified.
 
 ## Intended behavior
 
@@ -149,11 +155,43 @@ with more lanes than players is a thing that might happen.
 - The headless runner's census, which is where "what did this lane actually field"
   gets measured
 
+## Decisions taken building 213a
+
+The design left these open. Each is a parameter in `M.deck` or `M.equipment` in the
+[unit table](../assets/025-unit-table.lua), and each is **chosen by Claude, open for
+Ritz**.
+
+- **The purse is counted in tickets turned**, not in a separate currency. H12 says cost
+  is how much of the deck a choice consumes rather than a price checked against a
+  balance, so every card off the top is a point: the one drawn, the ones discarded for
+  it, and one set aside. A wave draws until the purse is spent. Income 18 a wave,
+  saving up to 36, starting at 18. The last body may take it into debt.
+- **Starting tickets** heavy 2, light 12, skirmishers 8, archers 6 — about the old
+  two line to one missile, heavy rare. **Most tickets** per entry twice the start, so
+  the doubling rule's threshold is four waves missing for every kind alike.
+- **A resource point against equipment:** one point of cost per two of weight, rounded
+  up, at least one. Light in spear and leather costs 1, full heavy kit costs 4.
+- **The meter** fills by an entry's tickets each wave the kind is missing, and resets
+  when it walks out. A meter-spawned body is not drawn but still pays its discards.
+- **Never three** is enforced as a cap of two per kind per wave; a third card is set
+  aside. The body cap is 8, which is two of each of the four kinds.
+- **The commander's `melee_share` survives** as the most of a wave that may be line, the
+  rest missile, against the body cap. A card for a full half is set aside. That keeps
+  F40 — a commander is a mixture and a captain — and lets the deck decide which bodies.
+- **Kit streams** are one per lane per team, named for the lane only, so both teams'
+  first waves are identical and an untouched match is still a mirror, while neither
+  team's draws depend on the other's.
+- **Equipment changes numbers.** Each piece adds to health, armour, damage, range or
+  speed, folded in by `give_body` so a sweep that rebuilds a body keeps its kit.
+- **A siege-surge's stream and the arena's posed formations still use melee and
+  ranged**, rows 1 and 2. A surge is dealt the whole chest rather than a lane's purse,
+  and the arena poses formations by count.
+
+Measured on the pinned seed, against main: the match ends at tick 15,389 instead of
+14,484, and team 1 wins instead of team 2. Waves are about five bodies beside the
+captain where they were six, because the never-three rule caps the line at four.
+
 ## Still open
 
-Nothing blocking. H10, H11 and H12 are answered above.
-
-What is not specified and will need deciding when it is built: how many tickets a
-unit starts with, what a resource point is worth against a piece of equipment, and
-what the maximum ticket count per entry is — the number the doubling rule doubles.
-Those are balance and belong in the ledger rather than here.
+Nothing blocking. H10, H11 and H12 are answered above. 213b — upgrades filling the
+deck and the purse, and bearing placement — is the rest of this issue.

@@ -81,6 +81,14 @@ if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "code" ]; then
     if [ "$?" -ne 0 ]; then
         FAILED=1
     fi
+
+    # The lane's deck, apart and without a match around it: hundreds of waves drawn in
+    # a fraction of a second, so a wave with three of a kind is named as that.
+    echo
+    luajit "${DIR}/tests/077-the-lane-deck.lua"
+    if [ "$?" -ne 0 ]; then
+        FAILED=1
+    fi
 fi
 
 if [ "${WHICH}" = "all" ] || [ "${WHICH}" = "scenes" ]; then

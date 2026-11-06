@@ -26,7 +26,8 @@ things, and there are twenty structures.
 | `release(world, id)` | | — Frees a slot, clearing **every** field on it. |
 | `begin_decay(world, id, span)` | ticks | — Takes a body off the field without taking its slot. |
 | `revive(world, id, health)` | | — Puts a decaying body back, intact. |
-| `give_body(world, id, row)` | archetype row | — Copies a catalogue row into a body's slot. |
+| `give_body(world, id, row)` | archetype row | — Copies a catalogue row into a body's slot. Folds in the body's kit, from `soldier.kit`, when the row has one. |
+| `wear(soldier, id, equipment, piece)` | | — Adds one piece of equipment to a body's numbers. A piece the table does not have is an error. |
 | `raise(world, name, detail)` | | — Records an event for this tick. |
 | `empty_counts(kind_count)` | | One integer per upgrade kind, all zero. |
 

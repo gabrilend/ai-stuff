@@ -373,15 +373,17 @@ function M.put_a_formation(world, team, along, melee_count, ranged_count, headin
   -- that asks "how far along" multiplies by facing.
   wave.hint = (heading == 1) and 1 or #lane.path
 
+  -- A posed formation carries nothing optional: kit 0 for every body. A row with no
+  -- kit has nothing to carry anyway, and one with a kit wears what it always wears.
   local front, behind = 0, 0
   for _ = 1, melee_count do
     world.waves.spawn_body(world, team, 1, melee_archetype, wave_id, "front", front,
-                           melee_count)
+                           melee_count, 0)
     front = front + 1
   end
   for _ = 1, ranged_count do
     world.waves.spawn_body(world, team, 1, ranged_archetype, wave_id, "back", behind,
-                           melee_count)
+                           melee_count, 0)
     behind = behind + 1
   end
 

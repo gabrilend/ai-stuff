@@ -560,6 +560,7 @@ M.cast = {
   {name = "gate",             file = "063-the-gate"},
   {name = "replay",           file = "066-the-replay-log"},
   {name = "patterns",         file = "072-the-movement-patterns"},
+  {name = "lane_deck",        file = "076-the-lane-deck"},
 }
 -- }}}
 
@@ -615,6 +616,7 @@ function M.assemble(modules, parameters)
   world.stones     = modules.stones
   world.rest_of_brain = modules.rest_of_brain
   world.patterns   = modules.patterns
+  world.lane_deck  = modules.lane_deck
   world.gate_module = modules.gate
   world.replay_module = modules.replay
   world.random_streams = modules.random_streams
@@ -653,6 +655,8 @@ function M.assemble(modules, parameters)
   modules.stones.begin(world)
   modules.rest_of_brain.begin(world)
   modules.waves.begin(world)
+  -- Every lane's deck, purse and meters, before anything can raise a wave from them.
+  modules.lane_deck.begin(world)
   modules.structures.begin(world)
   modules.snapshot.begin(world)
   -- After the structures exist, because the log preallocates one slot per piece of

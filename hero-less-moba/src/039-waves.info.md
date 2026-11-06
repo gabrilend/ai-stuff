@@ -16,7 +16,7 @@ group and a pile of unrelated bodies has no groups in it.
 | `begin(world)` | | — Sets the cadence running. Called once at assembly. |
 | `spawn_pass(world)` | | — Starts waves when due, then puts on the ground whatever is due. |
 | `raise_one(world, team, lane)` | | The wave id. One wave of that team's ordinary composition, now, whatever the clock says. |
-| `spawn_body(world, team, lane, archetype, wave_id)` | | The new body's id. |
+| `spawn_body(world, team, lane, archetype, wave_id, role, role_index, melee_total, kit)` | | The new body's id. `kit` is the bit mask of optional pieces it carries, 0 for none. |
 | `member_died(world, wave_id)` | | — One member gone. Called once per death from the reap pass. |
 
 ## The wave record
@@ -37,19 +37,25 @@ Waves **accumulate** and are not freed when they empty, so the post-match report
 say how many waves each team lost in each lane — the single most useful number for
 judging whether the upgrade economy is balanced.
 
-## A wave is three kinds of body
+## A wave is a captain and whatever its lane could afford
 
-Melee, ranged, and a captain — **one captain per lane, every wave.** That rule is what
-makes every lane worth contesting: each carries a body worth about three ordinary
-ones, so a lane you never contest is a captain you never collect.
+**One captain per lane, every wave**, chosen by whichever commander's turn it is. That
+rule is what makes every lane worth contesting: each carries a body worth about three
+ordinary ones, so a lane you never contest is a captain you never collect.
 
-All three are stamped with the lane's upgrades, **including the captain**, which is
+Everybody else is drawn from the lane's deck (issue 213, and
+[the lane deck](076-the-lane-deck.info.md)): heavy and light infantry, skirmishers and
+archers, each in a kit drawn at birth. The commander's `melee_share` still decides how
+much of a wave may be line and how much missile; the deck decides which and how many.
+
+All of them are stamped with the lane's upgrades, **including the captain**, which is
 exactly what separates a captain from a hero. In a lane carrying a dozen upgrades the
 captain walking out of it is enormous.
 
-**The order they leave in is deliberate**: captain, then melee, then ranged — so that
-by the time the column meets anything, the bodies that want the front are already in
-front of the bodies that do not.
+**The order they take their places in is deliberate**: captain, then the line, then
+the missile bodies. Within the line heavy comes first and so stands nearest the centre
+of its rank; within the missile bodies skirmishers come first, so the archers are the
+ones furthest back. Placing each kind at its own bearing is 213's unbuilt half.
 
 ## "Fully defeated"
 

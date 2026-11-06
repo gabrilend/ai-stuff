@@ -27,17 +27,18 @@
 -- this the game could never notice a wave being wiped, because "wiped" is a
 -- statement about a group and a pile of unrelated bodies has no groups in it.
 --
--- ## A wave is three kinds of body
+-- ## A wave is a captain and whatever its lane could afford
 --
--- Melee bodies, ranged bodies, and a captain -- **one captain per lane, every
--- wave.** That rule is what makes every lane worth contesting: each carries a
--- body worth three times an ordinary one, so a lane you never contest is a
--- captain you never collect.
+-- **One captain per lane, every wave.** That rule is what makes every lane worth
+-- contesting: each carries a body worth three times an ordinary one, so a lane you
+-- never contest is a captain you never collect.
 --
--- All three are ordinary wave units with different rows in the unit table, and
--- all three are stamped with the lane's upgrades -- including the captain, which
--- is exactly what separates a captain from a hero. In a lane carrying a dozen
--- upgrades the captain walking out of it is enormous.
+-- Everybody else is drawn from the lane's deck -- heavy and light infantry,
+-- skirmishers and archers, in whatever mixture the lane could afford and happened to
+-- draw (issue 213, and the lane deck module). All of them are ordinary wave units
+-- stamped with the lane's upgrades -- the captain included, which is exactly what
+-- separates a captain from a hero. In a lane carrying a dozen upgrades the captain
+-- walking out of it is enormous.
 --
 -- ## Who gets paid
 --
@@ -50,11 +51,6 @@
 -- by destroying the *arrangement* rather than by taking anything away.
 
 local M = {}
-
--- Archetype rows, by name, so that the composition below reads as prose.
-local MELEE   = 1
-local RANGED  = 2
-local CAPTAIN = 3
 
 -- {{{ function M.new_wave()
 -- A wave record with nobody in it yet: the books a group of bodies is kept in.
@@ -145,11 +141,15 @@ end
 -- Team 1 enters its lane at path index 1 walking forward; team 2 enters at the
 -- far end walking backward. One path array, read in two directions, which is why
 -- every "how far along" comparison in the project multiplies by facing.
-function M.spawn_body(world, team, lane_id, archetype, wave_id, role, role_index, melee_total)
+function M.spawn_body(world, team, lane_id, archetype, wave_id, role, role_index, melee_total,
+                      kit)
   local id = world.allocate(world)
   local soldier = world.soldier
   local row = world.parameters.unit.archetype[archetype]
 
+  -- What it carries, before the copy, because the copy is what folds it in. Zero for
+  -- a row with no kit -- a captain, or the arena's melee and ranged.
+  soldier.kit[id] = kit
   world.give_body(world, id, row)
   soldier.team[id] = team
   soldier.archetype[id] = archetype
@@ -264,7 +264,22 @@ end
 local function queue_wave(world, team, lane, turn)
   local soldier = world.soldier
   local settings = world.parameters.unit.wave
-  local total = settings.melee_count + settings.ranged_count + settings.captain_count
+
+  -- **The commanders take turns sending waves**, so a third of what leaves a base
+  -- is somebody else's captain and somebody else's mixture. That is what makes
+  -- commander selection a team conversation in the lobby rather than three private
+  -- preferences -- and it is why a player learns the enemy's roster by watching
+  -- rather than by being told.
+  local commander_id = world.commanders.commander_for_wave(world, team, turn)
+  local commander = world.parameters.commander.commander[commander_id]
+
+  -- **Who walks out is drawn from this lane's deck** -- the deck of the lane that pays
+  -- for the wave, not the one it walks during a challenge. The commander's share still
+  -- says how much of it may be line and how much missile; the deck says which line and
+  -- which missile, and how many the lane could afford. See the lane deck module.
+  local drawn = world.lane_deck.draw_wave(world, team, lane, commander)
+  local total = #drawn + settings.captain_count
+
   -- Where it walks, which during a challenge is the middle whatever lane it was
   -- raised for.
   local walks = world.phases.spawn_lane_for(world, lane)
@@ -292,14 +307,6 @@ local function queue_wave(world, team, lane, turn)
   -- arrives in the middle still looking like one -- which is what lets a player see
   -- which of the three groups converging on the monster came from where.
   world.wave[wave_id].shape_lane = lane
-
-  -- **The commanders take turns sending waves**, so a third of what leaves a base
-  -- is somebody else's captain and somebody else's mixture. That is what makes
-  -- commander selection a team conversation in the lobby rather than three private
-  -- preferences -- and it is why a player learns the enemy's roster by watching
-  -- rather than by being told.
-  local commander_id = world.commanders.commander_for_wave(world, team, turn)
-  local commander = world.parameters.commander.commander[commander_id]
   world.wave[wave_id].commander = commander_id
 
   -- **The whole wave appears at once, in its ranks.** There is no column that
@@ -312,12 +319,16 @@ local function queue_wave(world, team, lane, turn)
   -- the line -- both where it is most useful and where an opponent can see it
   -- coming, which matters because a captain is the one body a commander chooses.
   --
-  -- The mixture is the commander's: how much of the wave is melee and how much is
-  -- ranged. The bodies themselves are identical for every commander in the game --
-  -- what differs is the ratio, the captain, and the colours they pay in.
-  local body_count = settings.melee_count + settings.ranged_count
-  local melee_count = math.floor(body_count * commander.melee_share + 0.5)
-  local ranged_count = body_count - melee_count
+  -- The line is everybody drawn with a reach of one, and the deck has already put
+  -- them in the order they take their places: heavy first, so heavy stands nearest
+  -- the centre of the rank and light toward its ends; skirmishers before archers, so
+  -- the archers are the ones furthest back.
+  local melee_count = 0
+  for _, body in ipairs(drawn) do
+    if world.parameters.unit.archetype[body.archetype].reach == 1 then
+      melee_count = melee_count + 1
+    end
+  end
   -- How many bodies the **line** holds, which is what decides how many ranks it
   -- occupies and therefore where the ranks behind it start.
   --
@@ -330,9 +341,10 @@ local function queue_wave(world, team, lane, turn)
   local melee_total = melee_count + (captain_in_the_line and settings.captain_count or 0)
 
   local bounty_index = 0
-  local function born(archetype, role, role_index)
+  local function born(archetype, role, role_index, kit)
     bounty_index = bounty_index + 1
-    local id = M.spawn_body(world, team, lane, archetype, wave_id, role, role_index, melee_total)
+    local id = M.spawn_body(world, team, lane, archetype, wave_id, role, role_index,
+                            melee_total, kit)
     world.commanders.stamp_bounty(world, id, commander_id, bounty_index)
     return id
   end
@@ -349,16 +361,17 @@ local function queue_wave(world, team, lane, turn)
   -- the middle of the front rank is *the* middle of that rank, and the melee lay out
   -- around it; a captain behind is a body standing in a gap of its own.
   for _ = 1, settings.captain_count do
-    born(commander.captain, "captain", 0)
+    born(commander.captain, "captain", 0, 0)
   end
 
-  for _ = 1, melee_count do
-    born(MELEE, "front", front_index)
-    front_index = front_index + 1
-  end
-  for _ = 1, ranged_count do
-    born(RANGED, "back", behind_index)
-    behind_index = behind_index + 1
+  for _, body in ipairs(drawn) do
+    if world.parameters.unit.archetype[body.archetype].reach == 1 then
+      born(body.archetype, "front", front_index, body.kit)
+      front_index = front_index + 1
+    else
+      born(body.archetype, "back", behind_index, body.kit)
+      behind_index = behind_index + 1
+    end
   end
 
   -- Now that every body has a place, the formation knows how deep it is, and every
