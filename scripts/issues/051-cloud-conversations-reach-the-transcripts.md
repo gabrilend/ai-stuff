@@ -30,6 +30,17 @@ the kind):
   reads; same 48 sessions). Neither are the cloud sessions of 2026-11-03,
   including the one that built this script. The fetcher does not reach the
   conversations it was written for. Open.
+- **But a Duet thread is an ordinary cloud session, left out of the
+  listing.** Seen from inside a Duet thread on 2026-11-06, by asking the
+  cloud for that thread's own session record: its id has the usual
+  `session_…` shape (`cse_…` as its code id, the same swap
+  `code_session_id` makes), `environment_kind` is `anthropic_cloud`,
+  `origin` is `claude-in-hearth`, its tags include `hearth-thread`, and it
+  carries a `parent_session_id`, the channel's own session, which started
+  it. The listing that thread could read showed only `claude_code_cli` and
+  `web_claude_ai` sessions, so the listing leaves the `claude-in-hearth`
+  origin out. Asking for a left-out session by its id worked there. The Duet
+  app's own thread list names each thread's session by its `cse_…` id.
 
 ## Intended Behavior
 
@@ -67,6 +78,16 @@ and running the fetch again with nothing new changes nothing.
    local log is the record. `--list` names each session's kind.
 9. ○ Find where Duet threads are kept and how they can be read with the
    owner's sign-in, then list and fetch them with their helpers.
+   - ✓ Where: in the same session store, as `anthropic_cloud` sessions of
+     origin `claude-in-hearth`, left out of the listing (Current Behavior).
+   - ○ Read one: run `fetch-cloud-conversations --session <id>` with one
+     thread's id on the owner's computer. `--session` already fetches a
+     session the listing does not show. This answers whether Claude Code's
+     sign-in may read a thread's log; nothing else can.
+   - ○ List them: a way to learn the thread ids without the listing (a
+     listing parameter that includes `claude-in-hearth`, the channel
+     session's record, or a file of ids the owner keeps), only once the
+     read works.
 
 ## Decisions
 
@@ -101,10 +122,12 @@ and running the fetch again with nothing new changes nothing.
 
 ## Open questions
 
-1. **Where are Duet threads kept?** The owner opens them both in the Claude
-   app and on claude.ai in a browser. Neither listing Claude Code's sign-in
-   reaches holds them. Next: find the address the app or claude.ai uses
-   for a thread, and whether Claude Code's sign-in may read it.
+1. **Where are Duet threads kept?** Answered 2026-11-06: in the session
+   store, left out of its listing (Current Behavior). Still open: whether
+   Claude Code's sign-in may read a thread's log by its id (step 9, "Read
+   one"), and how to list them. The browser address `claude.ai/duet/…`
+   names the app's page, not where the log is kept, so watching the
+   browser's requests is not needed for the first part.
 2. **A cloud log starts at its latest compaction.** The paged feed, asked
    `from_first_event=true`, began "Environment exploration" at its
    compaction boundary of 2026-09-30 (`cumulativeDroppedTokens` 3,021,565);
