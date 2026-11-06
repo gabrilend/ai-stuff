@@ -1,6 +1,6 @@
 #!/usr/bin/env luajit
 -- Test suite for j.lua (JASS script parser)
--- Tests parsing against synthetic JASS data since test maps lack war3map.j files.
+-- Tests parsing against synthetic JASS data and every test map's script.
 -- Run from project root: luajit src/tests/test_j.lua
 
 local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
@@ -396,28 +396,84 @@ log(formatted)
 print()
 -- }}}
 
--- {{{ Test: Maps without war3map.j
-print("=== Test: Maps Without war3map.j ===")
+-- {{{ Test: Line endings, constant functions, the scripts folder (303d)
+print("=== Test: Line Endings, Constant Functions, Scripts Folder ===")
+print()
+
+do
+    -- a protected map's script ends lines with a lone CR
+    local cr = MINIMAL_JASS:gsub("\n", "\r")
+    local parsed = j.parse(cr)
+    assert_true(parsed.has_main and parsed.has_config, "lone-CR script: main and config found")
+    assert_eq(parsed.raw, cr, "lone-CR script: raw kept as given")
+    assert_eq(parsed.line_count, j.parse(MINIMAL_JASS).line_count, "lone-CR script: same line count")
+
+    -- and the World Editor's ends them with CRLF
+    local crlf = MINIMAL_JASS:gsub("\n", "\r\n")
+    parsed = j.parse(crlf)
+    assert_true(parsed.has_main and parsed.has_config, "CRLF script: main and config found")
+    assert_true(j.validate(parsed), "CRLF script validates")
+
+    -- constant functions are functions
+    local with_constant = MINIMAL_JASS ..
+        "\nconstant function LowWord takes integer i returns integer\n    return i\nendfunction\n"
+    parsed = j.parse(with_constant)
+    assert_true(j.get_function_by_name(parsed, "LowWord") ~= nil, "constant function found")
+    local valid, errors = j.validate(parsed)
+    assert_true(valid, "constant function counted in the block balance: " .. table.concat(errors, "; "))
+
+    -- the script under scripts\ when there is no war3map.j
+    local function archive_with(files)
+        return {
+            has = function(_, name) return files[name] ~= nil end,
+            extract = function(_, name) return files[name] end,
+        }
+    end
+    assert_eq(j.extract(archive_with({ ["scripts\\war3map.j"] = "x" })), "x", "scripts\\war3map.j read")
+    assert_eq(j.extract(archive_with({ ["war3map.j"] = "a", ["scripts\\war3map.j"] = "b" })), "a",
+        "war3map.j first")
+    local none, err = j.extract(archive_with({}))
+    assert_true(none == nil and err ~= nil, "no script: nil and a message")
+end
+
+print()
+-- }}}
+
+-- {{{ Test: Every map's script
+-- Issue 303 recorded that the test maps of the time held no war3map.j and
+-- asserted it; they kept their scripts as scripts\war3map.j, which
+-- j.extract didn't read, and the maps added on 2026-11-02 hold war3map.j.
+-- Every WC3 map has a script, so each test map's is read and analysed
+-- (issue 303d).
+print("=== Test: Every Map's Script ===")
 print()
 
 local maps = get_map_files()
-local maps_without_j = 0
+local maps_with_script = 0
 
 for _, map_path in ipairs(maps) do
+    local map_name = map_path:match("([^/]+)$")
     local archive = mpq.open(map_path)
     if archive then
         local text, err = j.extract(archive)
-        if not text then
-            maps_without_j = maps_without_j + 1
-            log(string.format("  %s: %s", map_path:match("([^/]+)$"), err))
-        end
         archive:close()
+        if text then
+            maps_with_script = maps_with_script + 1
+            local parsed = j.parse(text)
+            local valid, errors = j.validate(parsed)
+            assert_true(parsed.has_main and parsed.has_config,
+                map_name .. ": main and config found")
+            assert_true(valid, map_name .. ": validates: " .. table.concat(errors, "; "))
+            log(string.format("  %s: %d bytes, %d functions, %d globals", map_name, #text,
+                #parsed.functions, #parsed.variables))
+        else
+            log(string.format("  %s: %s", map_name, err))
+        end
     end
 end
 
--- We expect all test maps to lack war3map.j (they're minimal maps)
-print(string.format("Maps without war3map.j: %d/%d", maps_without_j, #maps))
-assert_eq(maps_without_j, #maps, "All test maps should lack war3map.j (minimal maps)")
+print(string.format("Maps with a script: %d/%d", maps_with_script, #maps))
+assert_eq(maps_with_script, #maps, "Every test map has a script")
 
 print()
 -- }}}
