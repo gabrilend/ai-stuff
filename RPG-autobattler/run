@@ -392,6 +392,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_ability_selection').run_all()
     " 2>/dev/null && print_success "Ability selection tests passed" || print_error "Ability selection tests failed"
+
+    # Test Repricing machinery (issue 058)
+    print_info "Testing Repricing machinery..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_repricing').run_all()
+    " 2>/dev/null && print_success "Repricing tests passed" || print_error "Repricing tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
@@ -667,6 +674,27 @@ run_balance_report() {
 }
 # }}}
 
+# {{{ run_repricing
+# Suggested prices from every default template fighting every other in
+# headless battles (src/testing/repricing.lua). PROVISIONAL: nothing is
+# written, and the prices stay first guesses until issue 067 gives real
+# matches. Takes a minute or two.
+run_repricing() {
+    print_info "Running repricing round robin (provisional)..."
+    (cd "$DIR" && lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    local Repricing = require('src.testing.repricing')
+    local DefaultTemplates = require('src.data.default_templates')
+    local manager = require('src.managers.template_manager'):new()
+    manager:create_default_templates()
+    local templates = {}
+    for _, data in ipairs(DefaultTemplates.data()) do templates[#templates + 1] = manager:get_template(data.name) end
+    local proposal = Repricing.run(templates, {battles = 4, reference = manager:get_template('Warrior')})
+    for _, line in ipairs(Repricing.lines(proposal)) do print(line) end
+    " 2>/dev/null | grep -v 'INFO') && print_success "Repricing done (provisional, nothing written)" || print_error "Repricing failed"
+}
+# }}}
+
 # {{{ write_template_docs
 # Rewrites docs/default-templates.md from src/data/default_templates.lua.
 write_template_docs() {
@@ -712,6 +740,7 @@ main() {
             "demo") demonstrate_systems ;;
             "perf") performance_analysis ;;
             "balance") run_balance_report ;;
+            "reprice") run_repricing ;;
             "template-docs") write_template_docs ;;
             "all") 
                 check_lua_syntax
@@ -722,7 +751,7 @@ main() {
                 ;;
             *) 
                 print_error "Unknown command: $2"
-                print_info "Available commands: test, check, unit, features, demo, perf, balance, template-docs, all"
+                print_info "Available commands: test, check, unit, features, demo, perf, balance, reprice, template-docs, all"
                 exit 1
                 ;;
         esac

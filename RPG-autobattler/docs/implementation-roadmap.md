@@ -91,7 +91,7 @@
 
 ### 5.1 Template System
 - [x] Design unit template data structure (Issue #057: priced templates, default per ability set)
-- [ ] Create point-based balancing system
+- [ ] Create point-based balancing system (Issue #058: provisional repricing machinery in; tuning waits on Issue #067)
 - [x] Implement template validation and constraints (Issue #059: errors and warnings from one constraints file)
 - [x] Add template saving/loading system (Issue #060: JSON files by category, backups, import/export, library)
 - [x] Create default template sets for testing (Issue #061: 21 templates in five sets, guide in docs/default-templates.md)
