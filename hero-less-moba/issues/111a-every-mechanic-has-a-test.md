@@ -10,10 +10,14 @@
 
 ## Current behavior
 
-**Two kinds of test, one front door, and fifty-nine of eighty mechanics named by one.**
+**Two kinds of test, one front door, and sixty-six of eighty mechanics named by one.**
 The shape is built and the census is being worked down. Twenty-five tests exist. Seventeen are read by a
 bench and eight by a person; two of the seventeen fail a claim, and both failures are
 findings rather than flakes.
+Beside them, suites that are programs name what they cover in a `-- covers:` header:
+the invariants, the formation sandbox, and the commanders, which builds a small world
+for each question about who is dealt what, where a bought hero may stand and whom each
+healer chooses. Phase 5 is now named in full.
 
 What exists:
 

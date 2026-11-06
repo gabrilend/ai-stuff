@@ -293,11 +293,16 @@ end
 -- for it to go, because a silent redirect is a fallback and a fallback in a game
 -- where a hero costs a minute of income is a purchase you did not make.
 local function tower_behind(world, structure)
-  local best, best_milestone = nil, 99
+  -- Milestones count outward from each team's own library, so "further back" is a
+  -- smaller milestone for both teams, and the *nearest* of those is the largest.
+  -- This once kept the smallest, which named the tower beside the library whenever
+  -- any tower between was clear -- a refusal that sent the player twice as far back
+  -- as it had to, and that read correctly in every case with only two towers.
+  local best, best_milestone = nil, -1
   for _, other in ipairs(world.structure) do
     if other.alive == 1 and other.team == structure.team and other.lane == structure.lane
        and other.kind ~= 3 and other.milestone < structure.milestone then
-      if other.milestone < best_milestone and M.clear_ground(world, other) then
+      if other.milestone > best_milestone and M.clear_ground(world, other) then
         best, best_milestone = other, other.milestone
       end
     end

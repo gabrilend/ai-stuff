@@ -14,6 +14,11 @@ Eleven heroes across two rosters of five, covering distinct jobs rather than thr
 grades of the same soldier: one that holds a line, one that kills a line, one that
 kills stone, and healers.
 
+**Tested** in `tests/075-the-commanders.lua`: every roster is five different heroes with no
+ability in common; between them somebody kills a line, somebody kills stone and somebody
+mends; and no two heroes on a roster send the same bill. Totals are meant to be about
+equal (the unit table says so), so the bill's shape is what is checked, not its size.
+
 ## Intended behavior
 
 One commander, fully realised, with **five** heroes. The vision says at least

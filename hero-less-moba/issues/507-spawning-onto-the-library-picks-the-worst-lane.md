@@ -15,6 +15,10 @@ measured in **milestones** rather than distance — a lane where they sit one pa
 your first tower is in less trouble than one where they are inside your base, even
 though the base is nearer.
 
+**Tested** in `tests/075-the-commanders.lua`: a library hero enters the lane the enemy has
+pushed deepest into by milestone, a tie goes to the lower lane number, and the far team's
+hero enters at its own end.
+
 ## Intended behavior
 
 The third spawn destination, and the only one that can never be blocked — if

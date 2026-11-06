@@ -419,7 +419,9 @@ function M.run(world)
               M.effect[ability.effect](world, id, target, ability)
               soldier.ability_cooldown[id] = ability.cooldown
               world.raise(world, "ability", {
-                id = id, team = soldier.team[id], name = name,
+                -- `ability`, not `name`: raise() writes the event's own name into
+                -- `name`, and the ability's was being overwritten by "ability".
+                id = id, team = soldier.team[id], ability = name,
                 x = soldier.x[id], y = soldier.y[id], radius = ability.radius or 0,
               })
               break

@@ -18,6 +18,13 @@ Which puts a hero's whole personality in its condition — two with identical st
 different conditions are two genuinely different purchases. Ten conditions and nine
 effects exist.
 
+**Tested** in `tests/075-the-commanders.lua`: every ability a hero names resolves to a
+condition, an effect and a cooldown; a priest mends a wounded ally once and then waits
+out its cooldown; a heal stops at full; and a name missing from the table is an error
+that says the name. The `ability` event now carries the ability's name in an `ability`
+field -- it used to put it in `name`, which `raise` overwrites with the event's own name,
+so every ability event read simply "ability".
+
 ## Intended behavior
 
 Each hero carries one or two **abilities**. An ability is an entry in a dispatch

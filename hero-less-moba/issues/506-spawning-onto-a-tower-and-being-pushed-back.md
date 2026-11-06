@@ -17,6 +17,14 @@ the refusal names the nearest tower behind it that would accept one.
 Refused, never redirected. A silent redirect is a purchase you did not make, and in a
 game where a hero costs a minute of income that matters.
 
+**Tested** in `tests/075-the-commanders.lua`: a clear tower accepts; an enemy inside the
+radius refuses, charges nothing and spawns nothing; the refusal names the **nearest**
+tower behind, and the library once every tower in the lane is under attack. The nearest
+part was a bug the test found: the refusal used to name the tower beside the library
+whenever any tower between was clear, because it kept the smallest milestone rather
+than the largest one below. Refused-not-redirected stays as built; the "pushed back"
+reason code below is not.
+
 ## Intended behavior
 
 The second spawn destination. A player picks any of their own living guard
