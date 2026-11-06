@@ -277,6 +277,18 @@ Budget planning for Neocities deployment. These values inform the pagination sys
 | `reserved_for_maze_gb` | 0.031 | Reserved for HTML Maze feature |
 | `reserved_headroom_gb` | 5 | Safety buffer |
 
+### explore_page
+**Read by:** `src/flat-html-generator.lua` (`generate_explore_page`)
+**Priority:** Low
+
+Settings for `explore.html`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `cadence_recent_months` | number | 36 | Months shown in the per-month "when they were written" chart, counted back from the newest poem (Issue 11-008). The per-quarter chart always covers the whole history. A whole number of at least 1. |
+
+---
+
 ### word_cloud
 
 Word cloud page settings. Extracts vocabulary from all poems, filters stop words (common words like "the", "and"), and displays the remaining words sized by frequency. Each word links to poems containing it. Read by: src/wordcloud-generator.lua

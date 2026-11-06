@@ -41,6 +41,7 @@ Phase 11 focuses on innovative navigation systems that give users agency in how 
 | Issue | Description | Status | Completed |
 |-------|-------------|--------|-----------|
 | 11-005 | Externalize explore-page copy into editable templates | Implemented | 2026-06-26 |
+| 11-008 | Writing-cadence histograms (by month, by quarter) on the explore page | Implemented | 2026-11-02 |
 
 The explore page (`explore.html`) and its companion math page (`explore-2.html`)
 now read all their wording from two plain-text files anyone can edit --

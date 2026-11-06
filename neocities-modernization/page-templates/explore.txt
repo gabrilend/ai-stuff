@@ -63,6 +63,17 @@ WHAT IS HERE (counted at build time)
   sources:
 {SOURCE_LIST}
 
+WHEN THEY WERE WRITTEN ({CADENCE_COUNTED} poems, counted at build time)
+  Not counted: {CADENCE_IMAGE_ONLY} image-only posts (no words) and
+  {CADENCE_BOOSTS} boosts (someone else's words).
+
+  per quarter, which shows the trend ({CADENCE_FIRST} to {CADENCE_LAST}):
+{CADENCE_QUARTERS}
+
+  per month, the last {CADENCE_MONTH_COUNT} months, which shows the bursts and quiet stretches
+  ({CADENCE_MONTHS_FROM} to {CADENCE_LAST}):
+{CADENCE_MONTHS}
+
 LINKS
   <a href="chronological/01.html">Start reading (chronological)</a>
   <a href="wordcloud.html">Word cloud</a>

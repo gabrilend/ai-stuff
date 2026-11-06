@@ -4,7 +4,8 @@
 - **Phase**: 11 (Advanced Exploration)
 - **Priority**: Medium
 - **Type**: Feature
-- **Status**: OPEN — not started
+- **Status**: IMPLEMENTED 2026-11-02 — built and tested on fixture poems; the
+  real corpus's figure is seen on the next full build
 - **Created**: 2026-08-08
 - **Sorted from**: `new-issue-please-sort`
 - **Builds on**: 11-004 (created the explore pages), 11-005 (moved their prose
@@ -109,3 +110,74 @@ project preference for a validator over a hardcoded claim.
 - **8-045** — timeline-based progress bars; the existing date-to-position work
 - **10-056** — phase demos computing real statistics; same "show the real
   numbers" instinct, different surface
+
+## What Happened (2026-11-02)
+
+The explore page now carries a **WHEN THEY WERE WRITTEN** figure, under the
+source list: poems per quarter (the trend), then poems per month (the bursts
+and the quiet stretches), drawn as the same monospace `█`/`·` bars the math
+page uses, every bucket labelled with its count.
+
+- **Counting** -- `writing_cadence(poems_data)` in `src/flat-html-generator.lua`
+  (exported as `M.writing_cadence`). It reads dates through
+  `sort_poems_chronologically_by_dates`, the chronological pages' own sort, and
+  turns each timestamp back into a calendar month with `os.date`, so a poem is
+  counted in the month it sits under when reading start to finish. It walks
+  every month from the first counted poem to the last, so empty months and
+  empty quarters are present with a zero.
+- **The invariant** -- both histograms must sum to the number of poems counted;
+  if either does not, the build stops with the two numbers rather than
+  publishing a figure that does not add up.
+- **Drawing** -- `cadence_bars()` stacks one `ascii_bar_row` per bucket, each
+  histogram scaled to its own largest bucket. `ascii_bar_row` gained an
+  optional `show_any`: a non-zero bucket always fills at least one cell, so a
+  quiet month (one poem beside a month of two hundred) never looks like an
+  empty one. The math page's charts do not pass it and are unchanged.
+- **Placement** -- `page-templates/explore.txt` gained the figure's prose with
+  markers (`CADENCE_COUNTED`, `CADENCE_FIRST`, `CADENCE_LAST`,
+  `CADENCE_IMAGE_ONLY`, `CADENCE_BOOSTS`, `CADENCE_MONTH_COUNT`, and the two
+  bar blocks `CADENCE_QUARTERS`, `CADENCE_MONTHS`). The wording is the owner's
+  to edit; the loops stay in code (the 11-005 split). Every line of the figure
+  carries a marker, so with nothing dated to count (the explore page called
+  without a poem list) the whole figure drops out instead of leaving headings.
+
+### Decisions on the open questions
+
+1. **Text bars**, as the issue recommended: the site's own visual language,
+   the existing `ascii_bar_row`, no second idiom.
+2. **Width vs. range** -- the bars run horizontally, one row per bucket, so a
+   long span makes the figure taller, never wider: a row is at most about 60
+   characters whatever the range. **Length, decided on review:** the per-month
+   chart shows only the last 36 months, the per-quarter chart covers the whole
+   history. The 36 is `config.explore_page.cadence_recent_months`. The window
+   is counted back from the newest counted poem's month, not from today, so a
+   rebuild of the same corpus is the same page (10-058); a corpus shorter than
+   the window shows all its months. The month bars are scaled to the busiest
+   month in the window, so a quiet recent stretch is not flattened by a burst
+   years earlier. The counts and their sum check still run over every month.
+3. **Image-only posts are not counted** as writing, and neither are gallery
+   images; the page states how many were left out.
+4. **Boosts are not counted** (someone else's words); the page states how many.
+5. **Counts are computed inline, not written to a JSON first.** The build-time
+   sum check is the validator, and nothing else would read the file.
+
+### Tests
+
+`src/flat-html-generator.cadence.test.lua` (new, 28 checks): the month and
+quarter counts on a five-month fixture with an empty January; image-only posts
+and boosts counted apart; a year-long gap keeping all fourteen months and five
+quarters; nothing-to-count cases; and the real `explore.html` built from the
+real template (synced into `input/pages/` as run.sh does), checking the
+headings, the empty month drawn as dots and a zero, the busiest month full, a
+quiet month still visible, and no marker left unfilled. The seven other
+`flat-html-generator` suites and `page-template.test.lua` still pass.
+
+Follow-up (the 36-month window): `recent_months()` (exported as
+`M.recent_months`) cuts the month list; `generate_explore_page` takes an
+optional `explore_cfg` (default `config.explore_page`) and the template's month
+heading now names the window and its span (`CADENCE_MONTHS_FROM` to
+`CADENCE_LAST`). A missing section, or a count that is not a whole number of at
+least 1, stops the build. 21 more checks (49 in all): the window's length, end
+and start on a 53-month fixture, a window wider than the corpus, a one-month
+window, each refused setting, the shipped value, and a built page drawing 12
+month rows beside all 18 quarters with the bars scaled to the window.
