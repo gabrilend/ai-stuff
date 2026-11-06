@@ -488,9 +488,11 @@ end
 -- Run cross-reference validation on the map.
 -- Checks that all object placements reference valid definitions,
 -- waygates point to existing regions, etc.
+-- @param options optional: { stock = a gamedata/stock_ids.lua lookup over the
+--   map's game data chain }, so base-game ids are looked up (issue 112)
 -- @return ValidationReport with errors and warnings
-function Map:validate()
-    return validation.validate_map(self)
+function Map:validate(options)
+    return validation.validate_map(self, options)
 end
 -- }}}
 -- }}}
