@@ -563,11 +563,69 @@ end
 ```
 
 ### Acceptance Criteria
-- [ ] All targeting types (enemy, ally, self, ground, area) work correctly
-- [ ] Line of sight validation prevents targeting through obstacles
-- [ ] Target prioritization respects ability-specific preferences
-- [ ] Area effect abilities find optimal center points
-- [ ] Range validation ensures targets are within ability reach
-- [ ] Performance scales well with large numbers of potential targets
-- [ ] Target caching reduces redundant calculations
-- [ ] System integrates seamlessly with ability activation
+- [x] All targeting types (enemy, ally, self, ground, area) work correctly
+- [x] Line of sight validation prevents targeting through obstacles
+- [x] Target prioritization respects ability-specific preferences
+- [x] Area effect abilities find optimal center points
+- [x] Range validation ensures targets are within ability reach
+- [x] Performance scales well with large numbers of potential targets
+- [x] Target caching reduces redundant calculations
+- [ ] System integrates seamlessly with ability activation (the activation
+      system is issue 048; targets already carry what ManaEfficiency.plan
+      reads, and a test feeds them straight into a plan)
+## What Happened
+
+Built as `src/systems/targeting_system.lua`:
+- `TargetingSystem:new(entity_manager, options)`, where options can set a
+  `blocked(x1, y1, x2, y2)` function, a list of circular `obstacles`, and a
+  `cache_duration`.
+- `update(dt)`, called once a frame.
+- `find_targets(caster, ability)`, which returns targets best first, and
+  info: the centre of an area, or a reason when nothing was found.
+- `prioritize`, `target_value`, `units_within`, `has_line_of_sight` and
+  `score_center`, all usable on their own.
+
+Tested headlessly by `tests/test_targeting.lua` (seven tests, including 300
+casters over ten frames). Nothing was seen on screen.
+
+### Decisions
+- **A target is a plain table** with `entity`, position, `distance`,
+  `current_health`, `max_health`, `unit_type`, `has_effect` and `stats`.
+  These are the fields `ManaEfficiency.plan` reads, so targets go
+  straight into a plan.
+- **Ground targeting is area targeting.** Both pick the best point within
+  range and report it as `info.center`. A circle around empty ground does
+  nothing, so the best point always holds units.
+- **Area centres are tried at each affected unit within range.** The
+  sketch tried a grid of points. Units are where the value is, and this
+  needs no precision setting. A centre scores, for each unit inside, the
+  share of the ability's power it can use (health for damage, missing
+  health for healing), weakened by falloff toward the edge.
+- **No friendly fire.** Area damage affects only enemies and area healing
+  only allies, so allies don't lower a damage centre's score as in the
+  sketch.
+- **Default priorities by type:**
+  - damage: closest;
+  - debuff: highest value;
+  - heal: lowest health share;
+  - buff and area: closest.
+- **Priority modes:** closest, farthest, weakest, strongest,
+  lowest_health_percentage and highest_value. Highest value is health,
+  weighted by type (ranged 1.2, support and special 1.3, tank 0.9) and
+  by +10% per ability the target carries. Ties go to the closer target,
+  then the lower entity id, so the order never depends on table order.
+- **Targets that already carry the ability's buff or debuff go last**, so
+  ManaEfficiency's "already_affected" refusal only happens when every
+  target has it.
+- **Line of sight takes a `blocked` function or circular obstacles.**
+  `src/systems/line_of_sight_system.lua` can't be loaded: it requires the
+  missing `src.config.colors` and a global `EntityManager`. A unit's own
+  team never blocks sight.
+- **Living units are read once per frame** into a list and a 64-pixel
+  grid. Results are cached per caster and ability until the next
+  `update()`, or for `cache_duration` seconds when that's set.
+- **No separate target-info component.** The abilities component already
+  has `last_target`, which the activation system (048) fills. Target
+  locking can be added there if units are seen to flicker between targets.
+- **`exclude_self`** was added to the ability settings for ally abilities
+  that shouldn't pick the caster.
