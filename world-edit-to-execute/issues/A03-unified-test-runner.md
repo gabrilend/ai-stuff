@@ -26,6 +26,18 @@ holds four zero bytes there. The test now prints it escaped.)
 
 ---
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #324 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- The fix only helps tests started by the runner. Each test still falls back to the fixed `/mnt/mtwo/...` path when run alone (as its own header says to), so it can test an old copy and pass falsely, with no message. One shared "find the project from this script's own place" step (as `test_unit.lua` does), or a loud refusal when no folder is given, would replace the ~45 copied fallback lines.
+- Six tests (`test_mpq`, `test_w3c`, `test_w3r`, `test_w3i`, `test_wct`, `test_wtg_header`) put the project folder into an unquoted `ls`. Now that the folder comes from wherever the project sits, a space in its path finds no maps, and the real-map checks pass with nothing tested.
+- `test_309b`–`f` put the folder inside double quotes in a shell command, and `test_triggers.lua` uses Lua's `%q`, which is not shell quoting; a `$` or backtick in the path breaks them.
+- The runner no longer has a hard-coded project folder at its top (house rule), unlike its sibling `run-net-tests.sh`; started through a symlink it would pick the wrong project. `cd` can also print extra text when CDPATH is set, corrupting the folder it computes.
+- Nine tests are now known to fail (`test_309a`, `test_wct`, `test_unitsdoo`, `test_map_save`, `test_phase2_integration`, `test_j`, `test_new_map`, `test_anim`, `test_net_hosted`) with no issue tracking them, so the runner exits 1 on every run.
+- `test_triggers.lua` starts its child suites with `lua` (5.2 here), not `luajit`; `test_frames.lua` puts the project last on the module path, unlike the others.
+- The branch's note in this issue is a dated log with hand-counted totals; the options table and steps above it still describe the old runner.
+
 ## Intended Behavior
 
 A unified test runner script that:

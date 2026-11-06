@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# phase-4-demo - seeing it: the window, driven by a script.
+#
+# Opens the game on a lone battle and plays it without a hand on the mouse:
+# the commander's view while the contingents close, then into the front rank
+# when the lines touch, the sword moved along its U and swung, the overhead,
+# and the guard. Pictures are taken along the way and filed into
+# development-history/ with their notes. Afterwards it prints the run's
+# receipt (frames drawn, ticks run, swings, hits) and the filed pictures.
+#
+# Usage: phase-4-demo [project-dir]
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/sword-fighting-game}"
+echo "phase 4 - seeing it (a window opens and plays itself for about 22 seconds)"
+"${DIR}/run-game" "${DIR}" --mode battle --seed 4 \
+    --screenshot 2 demo4-commander \
+    --hold 8 w 1.5 \
+    --screenshot 14.5 demo4-lines-close \
+    --key 15 tab \
+    --hold 15.2 w 1.0 \
+    --mouse 16.4 -260 0 --screenshot 16.6 demo4-u-left \
+    --click 16.8 640 360 --screenshot 17.05 demo4-slash \
+    --mouse 18 520 0 --click 18.2 640 360 \
+    --key 19 space --screenshot 19.6 demo4-overhead \
+    --right-hold 20.4 1.2 --screenshot 21 demo4-guard \
+    --quit 22
+echo ""
+echo "the receipt:"
+sed 's/^/    /' "${DIR}/output/goodbye"
+echo ""
+echo "the newest pictures in development-history/:"
+ls -1t "${DIR}/development-history" | grep "\.png$" | head -6 | sed 's/^/    /'

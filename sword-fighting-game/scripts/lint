@@ -1,0 +1,268 @@
+#!/usr/bin/env luajit
+-- lint - checks every Lua file in the project against the house style.
+--
+-- The house style comes from the owner's rules and from st and dwm, the
+-- suckless programs the project is modelled on: files read in a numbered
+-- order, every function folded, a header saying what each file is, LuaJIT
+-- syntax only, tabs for indentation, short lines, and tables of functions
+-- instead of long if-chains. Each rule is one function in a table, so a new
+-- rule is a new row. Every finding is an error: warnings are errors here.
+--
+-- Usage: scripts/lint [project-dir]     (--help for this text)
+--
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if arg[1] == "--help" then
+	print("scripts/lint [project-dir] - check the house style; exit 1 on any finding.")
+	print("Rules: reading order, companion pages, headers, folds, LuaJIT syntax,")
+	print("tab indentation, line length, and dispatch tables over if-chains.")
+	os.exit(0)
+end
+DIR = arg[1] or DIR
+
+local MAX_COLUMNS = 110
+local MAX_ELSEIF = 2
+local findings = {}
+
+-- {{{ local function report()
+local function report(path, line, fmt, ...)
+	findings[#findings + 1] = string.format("%s:%d: %s", path:sub(#DIR + 2), line,
+		string.format(fmt, ...))
+end
+-- }}}
+
+-- {{{ local function list()
+local function list(cmd)
+	local out = {}
+	local p = io.popen(cmd)
+	for l in p:lines() do out[#out + 1] = l end
+	p:close()
+	return out
+end
+-- }}}
+
+-- {{{ local function read_lines()
+local function read_lines(path)
+	local lines = {}
+	for l in io.lines(path) do lines[#lines + 1] = l end
+	return lines
+end
+-- }}}
+
+-- The lines with strings and comments blanked out, so the syntax rules see
+-- only code. Long strings and long comments spanning lines are followed.
+-- {{{ local function code_only()
+local function code_only(lines)
+	local out = {}
+	local in_long = false
+	for i, l in ipairs(lines) do
+		local s = l
+		if in_long then
+			local close = s:find("]]", 1, true)
+			if close then
+				s = s:sub(close + 2)
+				in_long = false
+			else
+				s = ""
+			end
+		end
+		s = s:gsub('\\"', ""):gsub("\\'", "")
+		s = s:gsub('"[^"]*"', '""'):gsub("'[^']*'", "''")
+		local long = s:find("%[%[")
+		if long then
+			local close = s:find("]]", long + 2, true)
+			if close then
+				s = s:sub(1, long - 1) .. s:sub(close + 2)
+			else
+				s = s:sub(1, long - 1)
+				in_long = true
+			end
+		end
+		s = s:gsub("%-%-.*$", "")
+		out[i] = s
+	end
+	return out
+end
+-- }}}
+
+local RULES = {}
+
+-- The first line (after a #! line) is a comment saying what the file is.
+-- {{{ function RULES.header()
+function RULES.header(path, lines)
+	local first = lines[1] or ""
+	if first:match("^#!") then first = lines[2] or "" end
+	if not first:match("^%-%-") then
+		report(path, 1, "the file does not open with a comment saying what it is")
+	end
+end
+-- }}}
+
+-- Every named function is directly preceded by its fold-open line; every
+-- fold closes on a line of its own just after an "end"; opens and closes
+-- balance.
+-- {{{ function RULES.folds()
+function RULES.folds(path, lines)
+	local depth = 0
+	for i, l in ipairs(lines) do
+		local named = l:match("^%s*local%s+function%s+[%w_.:]+%s*%(")
+			or l:match("^%s*function%s+[%w_.:]+%s*%(")
+		if named and not (lines[i - 1] or ""):match("^%s*%-%- {{{") then
+			report(path, i, "function is not opened by a -- {{{ fold line")
+		end
+		if l:match("^%s*%-%- {{{") then depth = depth + 1 end
+		if l:match("^%s*%-%- }}}") then
+			depth = depth - 1
+			if not (lines[i - 1] or ""):match("end[%s%),]*$") then
+				report(path, i, "fold closes somewhere other than just after an end")
+			end
+		end
+		if depth < 0 then
+			report(path, i, "a fold closes that was never opened")
+			depth = 0
+		end
+	end
+	if depth ~= 0 then report(path, #lines, "%d fold(s) never closed", depth) end
+end
+-- }}}
+
+-- Syntax from Lua 5.3 and 5.4 that LuaJIT does not run.
+local FORBIDDEN = {
+	{ "//", "integer division (Lua 5.3)" },
+	{ "<const>", "a <const> attribute (Lua 5.4)" },
+	{ "<close>", "a <close> attribute (Lua 5.4)" },
+	{ "<<", "a shift operator (Lua 5.3): use bit.lshift" },
+	{ ">>", "a shift operator (Lua 5.3): use bit.rshift" },
+	{ "&", "a bitwise and (Lua 5.3): use bit.band" },
+	{ "|", "a bitwise or (Lua 5.3): use bit.bor" },
+}
+
+-- {{{ function RULES.luajit_syntax()
+function RULES.luajit_syntax(path, lines, code)
+	for i, l in ipairs(code) do
+		for _, f in ipairs(FORBIDDEN) do
+			if l:find(f[1], 1, true) then report(path, i, "%s", f[2]) end
+		end
+		-- a tilde not followed by = is a bitwise xor or not
+		if l:find("~[^=]") or l:find("~$") then
+			report(path, i, "a bitwise ~ (Lua 5.3): use bit.bxor")
+		end
+	end
+end
+-- }}}
+
+-- Indentation is by tabs, as st and dwm are written.
+-- {{{ function RULES.tabs()
+function RULES.tabs(path, lines)
+	for i, l in ipairs(lines) do
+		if l:match("^\t* +%S") and not l:match("^%s*%-%-") then
+			report(path, i, "indented with spaces; the house indents with tabs")
+		end
+	end
+end
+-- }}}
+
+-- Tabs count as eight columns, as they show in st.
+-- {{{ function RULES.columns()
+function RULES.columns(path, lines)
+	for i, l in ipairs(lines) do
+		local tabs = select(2, l:match("^(\t*)"):gsub("\t", ""))
+		local width = tabs * 8 + #l - tabs
+		if width > MAX_COLUMNS then
+			report(path, i, "%d columns, more than %d", width, MAX_COLUMNS)
+		end
+	end
+end
+-- }}}
+
+-- An if-chain with more than two elseif branches wants to be a table.
+-- {{{ function RULES.dispatch()
+function RULES.dispatch(path, lines, code)
+	local stack = {}
+	for i, l in ipairs(code) do
+		local indent = l:match("^(%s*)")
+		if l:match("^%s*if%s") and l:match("then%s*$") then
+			stack[#stack + 1] = { indent = indent, count = 0, line = i }
+		end
+		local top = stack[#stack]
+		if top and indent == top.indent and l:match("^%s*elseif%s") then top.count = top.count + 1 end
+		if top and indent == top.indent and l:match("^%s*end%s*$") then
+			if top.count > MAX_ELSEIF then
+				report(path, top.line, "if-chain with %d elseif branches: make it a table",
+					top.count)
+			end
+			stack[#stack] = nil
+		end
+	end
+end
+-- }}}
+
+-- Every numbered file starts with a three-digit index; no index twice;
+-- none above the counter; every source file has its companion page.
+-- {{{ local function check_reading_order()
+local function check_reading_order(files)
+	local f = io.open(DIR .. "/.file-index-counter", "r")
+	local counter = tonumber(f:read("*l"))
+	f:close()
+	local seen = {}
+	for _, path in ipairs(files) do
+		local base = path:match("([^/]+)$")
+		local in_order = path:find("/src/", 1, true) or path:find("/tests/", 1, true)
+		local index = base:match("^(%d%d%d)%-")
+		if in_order and not index then
+			report(path, 1, "file name has no three-digit reading-order index")
+		end
+		if in_order and index then
+			if seen[index] then
+				report(path, 1, "index %s is also used by %s", index, seen[index])
+			end
+			seen[index] = base
+			if tonumber(index) > counter then
+				report(path, 1, "index %s is above .file-index-counter (%d)", index, counter)
+			end
+		end
+		local companion = path:gsub("%.lua$", ".info.md")
+		if path:find("/src/", 1, true) and not io.open(companion, "r") then
+			report(path, 1, "no companion page %s", companion:match("([^/]+)$"))
+		end
+	end
+end
+-- }}}
+
+-- The .lua files under src/, tests/, assets/ and mods/, and the scripts in
+-- scripts/ that run under luajit.
+-- {{{ local function lua_files()
+local function lua_files()
+	local files = list('find "' .. DIR .. '/src" "' .. DIR .. '/tests" "' .. DIR .. '/assets" "'
+		.. DIR .. '/mods" -name "*.lua" | sort')
+	for _, path in ipairs(list('find "' .. DIR .. '/scripts" -type f | sort')) do
+		local f = io.open(path, "r")
+		local first = f:read("*l") or ""
+		f:close()
+		if first:match("luajit") then files[#files + 1] = path end
+	end
+	for _, name in ipairs({ "main.lua", "conf.lua" }) do
+		local f = io.open(DIR .. "/" .. name, "r")
+		if f then
+			f:close()
+			files[#files + 1] = DIR .. "/" .. name
+		end
+	end
+	return files
+end
+-- }}}
+
+local files = lua_files()
+check_reading_order(files)
+for _, path in ipairs(files) do
+	local lines = read_lines(path)
+	local code = code_only(lines)
+	for _, name in ipairs({ "header", "folds", "luajit_syntax", "tabs", "columns", "dispatch" }) do
+		RULES[name](path, lines, code)
+	end
+end
+
+for _, f in ipairs(findings) do print(f) end
+print(string.format("lint: %d files, %d findings", #files, #findings))
+os.exit(#findings == 0 and 0 or 1)
