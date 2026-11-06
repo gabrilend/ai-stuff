@@ -23,6 +23,18 @@ None of the maps in `assets/` is past version 25, so no test met it. The
 W client's own reader (custom-client 083, PR 15) reads these fields and
 found the gap; its issue 1109 lists this as a follow-up for this project.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #248 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- Version checks are open-ended, so any unlisted version (26, 27, 29, 30, 32, 33) is read with a guessed layout; the only sign is a field nothing reads.
+- Writing as 28 or 31 without the new fields silently writes zeros (game version 0.0.0.0, supported modes 0).
+- The round-trip test only checks the writer against the reader, which share the same guesses; no real 28/31 file is compared byte for byte.
+- `local m = base` aliases instead of copying, so each pass starts from the previous pass's edits.
+- The new test extracts the map outside the protected helper and drops the open error.
+- The format spec (`docs/formats/w3i-map-info.md`) and the writer's header weren't updated.
+- The layout is written twice by hand (reader and writer); the fold marker is a sentence; this issue lacks a suggested-steps section and its Current Behavior describes the code before the fix.
+
 ## Intended Behavior
 
 Versions 28 and 31 read every field at the right place, and write back
