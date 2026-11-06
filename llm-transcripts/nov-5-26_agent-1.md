@@ -1,6 +1,6 @@
 # Conversation Summary: e6dbe205-343e-43d5-b88f-0d2fcac7a3db
 
-Generated on: 2026-11-05 19:01:07
+Generated on: 2026-11-05 19:34:45
 Models: claude-opus-5-5
 
 --------------------------------------------------------------------------------
@@ -223,6 +223,405 @@ Two questions before I build:
   it's already filed under the right project. Is there a case where the cloud
   copy holds something the local one doesn't, like a chat you continued from
   your phone after the computer was off?
+
+--------------------------------------------------------------------------------
+
+### User Request 4
+
+okay remote control is important and they should be filed into the transcripts
+that they're uh, remote controlling. But we're looking for duet's logs, and
+their sub-agents.
+
+can you make sure that remote control's logs aren't duplicated in the local
+transcript storage?
+
+yeah uh let's fix 2-5.
+
+> - How do you open your Duet chats? In the Claude app, on claude.ai in a
+> browser, or somewhere
+    else?
+
+both of those.
+
+
+
+<pasted_content id="c6a1">
+> - For Remote Control sessions, which copy should count as the record: the one
+> on your computer
+>     or the one in the cloud? I'd pick the local copy, because it's already filed under the right
+>     project. Is there a case where the cloud copy holds something the local one doesn't, like a
+>     chat you continued from your phone after the computer was off?
+</pasted_content id="c6a1">
+
+
+I don't know. See if there are any edge cases like that. If so, then we gotta
+pull the remote. otherwise, prefer the local and avoid pulling unnecessarily.
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 4
+
+> Checking every event in the 25 Remote Control cloud copies against your local
+> session store, to see whether the cloud holds anything the local logs don't.
+
+> Eight greps writing to one pipe at once mangled each other's lines. Rerunning
+> with each line written whole.
+
+> xargs reports exit 123 when any batch of files has no matches, and that
+> stopped the script. Telling it that "no match" isn't an error.
+
+> The logs in the old folder are byte-for-byte copies left behind when
+> wow-chat-2026 and wow-chat-neuron moved to `/mnt/kaun`. Checking whether the
+> copies turned into duplicate transcripts.
+
+> The helpers' events are dated Sep 29, but the main log I fetched starts on Sep
+> 30, so the main log may be missing its first day. Checking whether the fetch
+> cut it short.
+
+> Found four places in Claude Code that use the feed. Reading the code around
+> each one.
+
+The code is compiled, so it's only partly readable. It does show another listing
+address, `/v1/code/sessions`, besides the one the fetcher uses. That might be
+where Duet chats are listed. Trying it.
+
+--------------------------------------------------------------------------------
+
+### User Request 5
+
+Base directory for this skill: /home/ritz/.claude/skills/issue-lifecycle
+
+# Issue lifecycle
+
+The owner's CLAUDE.md is the authority on what issue files are for and what
+they must contain; where it and this skill ever disagree, CLAUDE.md wins. This
+skill adds the mechanics CLAUDE.md leaves open: which tools answer which
+question, in what order, and what to do when a tool says no.
+
+All tools live in one place and are called by absolute path:
+
+| Tool | Answers |
+|---|---|
+| `/home/ritz/programming/ai-stuff/scripts/validate-issues <project>` | is the issue tree consistent; next free number per phase |
+| `validate-issues <project> --next <phase>` | the number to give a new issue |
+| `validate-issues <project> --file <issue>` | is this one issue well-formed and are its links matched |
+| `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m` | done/open counts per phase (for progress files and demos) |
+| `/home/ritz/programming/ai-stuff/scripts/commit-own-changes <repo> -F -` | commits exactly the lines this session wrote, plus the changed transcripts of the commit's projects (any conversation's), and runs the repository's commit hooks, without touching the shared staging area |
+| `/home/ritz/programming/ai-stuff/scripts/stage-own-changes <repo>` | previews what that commit would take; writes nothing |
+| `/home/ritz/programming/ai-stuff/scripts/claim-own-change <file>` | records lines this session changed by a route the edit ledger cannot see (see Committing) |
+| `/home/ritz/programming/ai-stuff/scripts/adopt-left-behind-changes <repo> -- <path>...` | takes ownership, line by line, of uncommitted work a finished session left, leaving lines any other session still holds (see Committing) |
+
+Each tool has a `.info.md` beside it; read that rather than the source.
+
+## Before writing a new issue
+
+1. **Search first, including `issues/completed/`.** Grep the issue tree for
+   the feature's nouns, not just the likely title. A completed issue about the
+   same machinery is reopened and extended rather than duplicated: history is
+   more useful stacked vertically in one file than spread across several.
+2. **Pick the phase by what the work builds on**, not by when it is being
+   done. Lower numbers are foundations; later issues depend on earlier ones.
+3. **Take the number from the tool:** `validate-issues <project> --next
+   <phase>`.
+   It reads the project's own naming shape (522, 1001, 9-007, A04) and never
+   reuses a number that a completed file already holds.
+4. **Write the blueprint** with the three sections CLAUDE.md requires, plus
+   link fields in the shape the project already uses (look at a neighbour).
+   Name related functions, structures and files instead of pasting code.
+5. **Check it:** `validate-issues <project> --file <new-issue>`, and fix what it
+   reports on the new file. If the new issue blocks or is blocked by others,
+   add the matching line to the other side too.
+
+## While working
+
+- Keep **Current Behavior** true. It is the only section that changes while
+  an issue is in progress; rewrite it in place rather than appending a log.
+- A question that surfaces is written into the issue (an "Open questions"
+  section) and then asked. An issue with an unanswered question is in
+  progress, not done.
+- Anything discovered that changes another issue's assumptions is written into
+  that issue now, not at completion.
+
+## Splitting into sub-issues
+
+Split when an issue holds work streams that could be built, tested or reviewed
+separately, or when it cannot be finished in one sitting. Do not split an issue
+that is already one mechanism. When splitting, produce and then write out:
+
+1. **A table** — `| ID | Name | Dependencies | Description |`, where ID is the
+   parent number plus a lower-case letter (103a, 103b), Name is dash-separated
+   lower-case words, Dependencies is "None" or sibling IDs.
+2. **The rationale** — the distinct work streams, why one issue cannot hold
+   them, what splitting buys.
+3. **The execution order** — a small dependency graph, e.g.
+   `103a (foundation) → 103b (needs 103a) → 103c (parallel with 103b)`.
+
+Each row becomes a file `{parent}{letter}-{name}.md` with the three sections.
+The parent keeps its blueprint and gains a short list of its sub-issues; the
+analysis itself is not appended to the parent (that would be worklog, not
+blueprint). Run `validate-issues` afterwards: it reports orphaned sub-issues
+and one-sided links.
+
+## Completing an issue
+
+An issue is complete only when nothing in it is deferred and no open question
+is unanswered. Then, in this order:
+
+1. **Run the project's tests.** A fixed bug gets a test that would have caught
+   it.
+2. **Rewrite the issue as the blueprint of what was built**: Current Behavior
+   states the built system; steps name the real functions and files; decisions
+   not taken are stated with their reason. Poetry the owner wrote during the
+   work goes into the issue verbatim.
+3. **Move it** into `issues/completed/` (`git mv`, so the history follows).
+4. **Update `issues/phase-<N>-progress.md`** for that phase. Take counts from
+   `progress-dashboard.lua <project> -m`, or better, name the command instead
+   of copying numbers that will go stale.
+5. **Update related issues** whose Current Behavior or assumptions changed.
+6. **Run `validate-issues <project>`** and fix new findings that the change
+   caused. Findings older than the change are reported to the owner, not
+   silently fixed in passing.
+7. **Commit** as below.
+
+## Committing
+
+The rule (CLAUDE.md): a commit carries exactly the lines this session wrote —
+never another session's work, even if it sits in the same file — and every
+changed transcript of the commit's projects rides along — the session's own
+project folder and the projects of the files it commits — this
+conversation's and any other's left behind (a session that committed, talked
+on and quit), so each project's story in git stays whole.
+
+Commit small and often: each piece as soon as it is done and checked, not a
+pile at the end.
+
+1. Optionally preview: `stage-own-changes <repo>` lists what would be taken
+   and what left out, and writes nothing.
+2. Commit: `commit-own-changes <repo> -F -` with the message on standard
+   input. It builds the commit on a private staging list from this session's
+   own lines (the edit ledger the edit hook keeps) plus those transcripts, and
+   never touches the shared staging area, so nothing another
+   session has staged can ride along. Plain `git commit` is refused by the
+   commit gate.
+3. Message style: say what the software now does, in plain English and by
+   mechanism or analogy; mention any extra changes and why. No function names.
+
+**What it can split.** Between sessions it splits by lines: inside one file,
+only this session's lines are taken. Within this session's own work it splits
+only by file (`-- <path>...`); there is no way to take some of your blocks in
+a file and leave the rest. So when two of your issues touched the same file,
+commit the one that file mostly serves and say in the message which lines of
+the other rode along -- and describe the limit that precisely, never as "it
+cannot split a file by lines".
+
+**When it stops or leaves something out.**
+
+- **A tangled ("mixed") block** means another session changed lines right
+  next to or on top of yours. Nothing is committed. Tell the owner which file
+  and line; decide together what that region should say. `--leave-mixed`
+  commits your other blocks meanwhile.
+- **Lines that are yours but were written by a route the ledger could not see**
+  (a script you ran, a generator, `sed`, a rename): record them with
+  `claim-own-change <file>` and say so in the commit message.
+- **Nothing to commit, but the work is there**: an earlier session wrote it
+  and ended, or the machine rebooted and emptied the ledgers. Look first with
+  `adopt-left-behind-changes <repo> --dry-run -- <path>...`, then adopt and
+  commit one batch at a time with `commit-own-changes <repo> -F - --
+  <path>...`. Lines reported as **held** belong to another session. Take them
+  (`--from <session>`) only if that session has finished, and ask the owner
+  if unsure. Say in the commit message that the work was adopted and from
+  whom. This is the route for a left-behind backlog, not the token.
+- **A warning about the shared staging area** means someone had staged that
+  file by hand in a way that overlaps your commit; their entry was left alone.
+  Tell the owner.
+
+The one-time permission tokens (`/tmp/claude-allow-*`) belong to the person.
+Never create one; if a gate names a token, relay the gate's message and let
+the owner decide.
+
+## Open questions
+
+- Phase ≥ 10 in compact names depends on the project's issue-number width;
+  `validate-issues` decides it from evidence (progress files, `phase-N-demo`
+  names). A project with none of those gets a warning. Should the house rule
+  fix one width (two digits, as in the 522 example) for every new project?
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 5
+
+> Now the fixes. First, `--limit` and the session kind in the listing:
+
+> Next, fetching each session's helpers:
+
+> Now `bring_home`: fetch the helpers too, refuse to save an empty log, and
+> compare the helpers when checking for changes.
+
+> Now `main`: skip Remote Control sessions, show each session's kind in
+> `--list`, and fail the run on empty logs.
+
+> Updating the script's header comment to match:
+
+> Now the tests. Each fix gets a test that would have caught its bug:
+
+> Issue 025 says a helper's transcript header reads `# Conversation Summary:
+> agent-<id>`. Adding the checks:
+
+> The exporter refuses a helper log that has no `agent-<id>.meta.json` beside it
+> to name it. Checking what that file holds locally and where the fetcher can
+> get the same facts.
+
+> That local description file has no `description` field either, so the exporter
+> would refuse that local helper too. Checking how widespread that is.
+
+> The safety hook read `find -exec` as a write, and your rules ban `-exec`
+> anyway. Rewriting it as a plain read:
+
+> Checking that jq query against a real local parent whose helpers do have
+> descriptions:
+
+> The query recovers Claude Code's own description for one helper, and also for
+> the one Claude Code had left without a description. Now the test fixture's
+> parent log gets real launches:
+
+> All 46 pass. Next, confirming the new `--limit` test would have caught the old
+> crash by running it against the merged version:
+
+> The merged version fails every new check, including both `--limit` ones, so
+> the tests catch each bug. Now the real cloud, with the fixed fetcher:
+
+> Issue 025 (the exporter's helper naming) also needs to know that descriptions
+> are missing. Reading its open questions:
+
+> Updating the README's intro and "where things go" to match:
+
+> Tests pass and the docs are updated. Committing this session's changes. The
+> tool also brings along this project's changed conversation transcripts, as
+> your rule asks.
+
+*[commit] 1ec7f96bc in ai-stuff - Cloud fetcher: pass over Remote Control, bring helpers home, fail on empties*
+
+I fixed items 2–5 and committed them locally as `1ec7f96bc`; nothing is
+pushed. The fetcher still doesn't reach Duet, so that issue stays open.
+
+**Remote Control duplicates:** there are none.
+- **Cloud copy vs. local:** every event in the 25 Remote Control sessions the
+  cloud held a copy of (22,508 events) is also in a log on your computer. A
+  Remote Control session runs in Claude Code on your computer and stops when it
+  stops, so the cloud copy can't contain anything the local log is missing. The
+  local copy is the record, and the fetcher no longer downloads these sessions;
+  it only counts them.
+- **Transcripts:** each Remote Control conversation has exactly one transcript,
+  in the project it ran in. Four of them have two copies of their log inside
+  Claude Code's own session store, left behind when wow-chat-2026 and
+  wow-chat-neuron moved to `/mnt/kaun`. They still produced one transcript each.
+
+**What changed in the fetcher:**
+- **`--limit`** no longer crashes with exit code 141.
+- **Remote Control sessions** are counted and left alone. `--list` now marks
+  each session `cloud` or `remote-control`.
+- **Empty logs** now fail the run and name the session, instead of being saved
+  as empty files without a word.
+- **Helpers** come home with their session, one log per helper. Each helper gets
+  a description taken from where the parent launched it, so the exporter can
+  name it. A change to a helper alone now counts as a change to the session.
+
+The tests went from 30 to 46 and all pass. The new tests fail against the
+version you merged, so they really catch these bugs. The real run listed 5
+sessions with `--limit 5`, and fetched the one cloud session with its 2 helpers.
+
+**Still open (written into the issue file):**
+1. **Duet threads aren't listed** at either address Claude Code's sign-in can
+   read. Neither is the cloud session that built this fetcher on Nov 3.
+2. **The cloud's copy of a session starts at its latest compaction** (the point
+   where a long conversation was replaced by a summary). For "Environment
+   exploration", the 3 million tokens of conversation before Sep 30 aren't in
+   what the cloud returned.
+3. **That session's 2 helpers have no description,** because they were launched
+   before the compaction. So exporting it stops at them. The same gap exists for
+   172 helpers on your own computer, some from today. I added it as an open
+   question to the exporter's issue file (025).
+
+**Left over:** my first run used the old version, which saved those 47 Remote
+Control logs into the fetcher's own store at
+`~/.claude/cloud-projects/-home-ritz/`. Nothing turns them into transcripts, but
+they're redundant copies. Should I delete them?
+
+To start on the Duet question: when you open a Duet thread on claude.ai in a
+browser, what does the address bar say, up to the first long string of letters
+and digits? Is it `claude.ai/code/…`, `claude.ai/chat/…`, or something else?
+That tells me which part of the service keeps the threads, and whether Claude
+Code's sign-in is allowed to read them at all.
+
+--------------------------------------------------------------------------------
+
+### User Request 6
+
+<pasted_content id="c6a1">
+> Left over: my first run used the old version, which saved those 47 Remote
+> Control logs into the
+> fetcher's own store at ~/.claude/cloud-projects/-home-ritz/. Nothing turns
+> them into
+>   transcripts, but they're redundant copies. Should I delete them?
+</pasted_content id="c6a1">
+
+
+sure, if they're redundant.
+
+
+
+<pasted_content id="c6a1">
+> To start on the Duet question: when you open a Duet thread on claude.ai in a
+> browser, what does
+> the address bar say, up to the first long string of letters and digits? Is it
+> claude.ai/code/…,
+> claude.ai/chat/…, or something else? That tells me which part of the service
+> keeps the threads,
+>   and whether Claude Code's sign-in is allowed to read them at all.
+</pasted_content id="c6a1">
+
+
+claude.ai/duet/
+
+--------------------------------------------------------------------------------
+
+### Assistant Response 6
+
+> The list has 47 Remote Control logs and leaves out the real cloud session.
+> Removing them:
+
+> Done. The store now holds only the one real cloud session and its helpers.
+> Searching Claude Code for anything that mentions Duet:
+
+I deleted the 47 redundant Remote Control logs. The fetcher's store now holds
+only the one real cloud session and its two helpers.
+
+**About Duet:** the word "duet" appears nowhere in your installed Claude Code.
+Claude Code has no code for reading Duet threads, so the addresses the fetcher
+copied from Claude Code can't lead to them. `claude.ai/duet/` suggests the
+threads belong to claude.ai's own web service. The browser reads that service
+with your login cookie, not with the sign-in Claude Code keeps. I don't know
+whether Claude Code's sign-in is accepted there. Guessing addresses with your
+token would mean sending it to places I can't name, so I've stopped here
+instead.
+
+The surest way to find the real address is to watch what the browser asks for
+when it opens a thread. Two ways to do that, best first:
+
+1. **You look:** open a Duet thread, press F12, choose the **Network** tab, then
+   reload the page. Type `duet` into the filter box and tell me the address of
+   the request that returns the conversation. It's usually the largest response,
+   and you only need everything before the `?`. Don't copy any request headers:
+   they contain your login cookie.
+2. **I look:** I can drive your Chrome with the Chrome extension, open
+   `claude.ai/duet/`, and read which addresses the page requests. That acts
+   inside your logged-in browser, so it needs your go-ahead first.
+
+There's also a puzzle in this. Earlier, a Duet chat described each task as
+running as its own session. But the cloud's session list has nothing after Nov
+1, even though a Duet task built this fetcher on Nov 3. If Duet tasks really are
+sessions, the list must be hiding them somehow. Why would a list show sessions
+you started from your computer but not ones Duet started for you?
 
 --------------------------------------------------------------------------------
 
