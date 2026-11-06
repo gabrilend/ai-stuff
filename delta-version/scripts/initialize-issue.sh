@@ -358,18 +358,11 @@ print_next_steps() {
     echo
 
     if ! $is_subissue; then
-        # Get short project name for branch naming
-        local short_name="${project}"
-        case "$project" in
-            delta-version) short_name="dv" ;;
-            neocities-modernization) short_name="neo" ;;
-            world-edit-to-execute) short_name="wete" ;;
-        esac
-
+        # The worktree starts detached at origin/main (issue 046): the work
+        # goes onto a claude/ branch and back to main by pull request.
         echo -e "${BOLD}When complete:${NC}"
-        echo -e "  cd /mnt/mtwo/programming/ai-stuff"
-        echo -e "  git checkout main"
-        echo -e "  git merge ${short_name}/issue-${issue_num}"
+        echo -e "  git switch -c claude/${issue_num}-<slug>"
+        echo -e "  git push -u origin claude/${issue_num}-<slug>   # then open a pull request against main"
         echo -e "  ./delta-version/scripts/manage-worktree.sh remove $issue_num $project"
     else
         echo -e "${BOLD}Sub-issue workflow:${NC}"

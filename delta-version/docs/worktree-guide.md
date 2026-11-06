@@ -1,14 +1,16 @@
-# Git Worktree Guide for Multi-Agent Development
+# Git Worktree Guide
 
-> **Deprecated (2026-09-22).** Worktrees are retired from this development
-> environment. New work happens on `master` in the main tree; parallel
-> sessions are kept apart at commit time by the line ledger and its commit
-> gate (`scripts/issues/032-commit-only-your-own-lines.md`), which commits
-> only the lines a session wrote. Any worktree that still exists should have
-> its results migrated into the main tree and then be removed. This guide is
-> kept as a record of how the worktree layout worked.
+A worktree is a second working directory on the same repository. This
+project's worktrees all **start from the remote's main** (`origin/main`) and
+their work goes back to `main` through a pull request. There are no
+per-project `/dev` branches, and nothing depends on a hook in the main
+repository (decided in issue 046, 2026-11-02).
 
-This guide explains how to use git worktrees for parallel development, enabling multiple AI agents to work on the same project simultaneously without conflicts.
+Work on main in the main tree is still the everyday way to work: parallel
+sessions there are kept apart at commit time by the line ledger and its
+commit gate (`scripts/issues/032-commit-only-your-own-lines.md`). Reach for a
+worktree when a piece of work needs a checkout of its own, for example to
+build a branch for a pull request while the main tree stays as it is.
 
 > **For AI agents:** the examples below `cd` into folders, which is how a
 > person at a terminal works. An agent cannot: the directory-change gate
@@ -17,316 +19,129 @@ This guide explains how to use git worktrees for parallel development, enabling 
 > [worktree-agent-instructions.md](worktree-agent-instructions.md) spells
 > every step out that way.
 
-## Overview
-
-Git worktrees allow you to have multiple working directories connected to the same repository. Each worktree has its own branch checked out, so agents can work independently without overwriting each other's uncommitted changes.
-
-### Why Worktrees?
-
-The traditional git workflow has a limitation: only ONE branch can be checked out per working directory. This breaks when:
-- Agent A is working on issue-038 with uncommitted changes
-- Agent B checks out issue-016 in the same directory
-- Agent A's work is overwritten or causes conflicts
-
-Worktrees solve this by giving each issue its own directory with its own branch.
-
 ## Directory Structure
 
 ```
 /mnt/mtwo/programming/
-    ├── ai-stuff/                         ← Main repo (master branch)
-    │   ├── .git/                          ← Shared git repository
-    │   ├── delta-version/
-    │   ├── neocities-modernization/
-    │   └── world-edit-to-execute/
-    │
-    └── ai-worktrees/                      ← Worktree root (outside main repo)
-        ├── dv/                            ← delta-version worktrees
-        │   ├── issue-017/                 ← Full repo copy on dv/issue-017 branch
-        │   │   ├── delta-version/
-        │   │   ├── neocities-modernization/
-        │   │   └── world-edit-to-execute/
-        │   └── issue-038/
-        ├── neo/                           ← neocities-modernization worktrees
-        │   └── issue-8-030/
-        └── wete/                          ← world-edit-to-execute worktrees
-            └── issue-800/
+    ├── ai-stuff/                     ← main repository
+    └── ai-worktrees/                 ← worktree root (outside the repository)
+        ├── dv/issue-017/             ← a whole-repository checkout
+        │   ├── delta-version/
+        │   └── ...
+        ├── neo/issue-8-030/
+        └── authorship-tool/issue-1/
 ```
 
-## Branch Hierarchy
+Three projects keep the short folder names they had before (`dv`, `neo`,
+`wete`) so older worktrees are still found; every other project uses its own
+directory name.
 
-```
-master                                    ← Main repo (locked to this branch)
-├── dv/issue-017                          ← Issue branch (in worktree)
-├── dv/issue-038                          ← Issue branch (in worktree)
-├── neo/issue-8-030                       ← Issue branch (in worktree)
-└── wete/issue-800                        ← Issue branch (in worktree)
-```
+## What a Worktree Starts From
 
-### Merge Flow
+| How it is made                                   | Checked out as                          |
+|--------------------------------------------------|-----------------------------------------|
+| `create <issue> <project>`                       | detached HEAD at `origin/main`          |
+| `create <issue> <project> --branch claude/<x>`   | new branch from `origin/main`, no upstream |
+| `create <issue> <project> --branch feature/<x>`  | new branch from `origin/main`, no upstream |
+| `--branch` naming a branch that already exists   | that branch, where it stands            |
 
-**Simple one-step merge**: Issue branch → master
+`create` fetches `origin main` first, so the worktree starts from what is
+really on the remote, not from a local `main` that may be behind. If the
+fetch fails it stops; `--no-fetch` uses the copy you already have.
 
-When an issue is complete, merge directly to master from the main repository.
+Branch names must be `claude/<name>` or `feature/<name>`. A name whose last
+part is `dev` is refused, as is anything else (`main`, `dv/issue-017`, ...).
 
-## Using the Management Script
-
-The worktree management script is located at:
-```
-/mnt/mtwo/programming/ai-stuff/delta-version/scripts/manage-worktree.sh
-```
-
-### Commands
-
-#### Create a Worktree
+## Commands
 
 ```bash
-./scripts/manage-worktree.sh create <issue-number> <project>
-
-# Examples:
 ./scripts/manage-worktree.sh create 017 delta-version
-./scripts/manage-worktree.sh create 8-030 neocities-modernization
-./scripts/manage-worktree.sh create 800 world-edit-to-execute
-```
-
-This creates:
-- A new branch: `dv/issue-017` (branched from `master`)
-- A new directory: `/mnt/mtwo/programming/ai-worktrees/dv/issue-017/`
-
-#### List Active Worktrees
-
-```bash
-# List all worktrees
-./scripts/manage-worktree.sh list
-
-# List worktrees for a specific project
-./scripts/manage-worktree.sh list delta-version
-```
-
-#### Check Worktree Status
-
-```bash
-./scripts/manage-worktree.sh status
-```
-
-Shows all active worktrees with uncommitted change counts.
-
-#### Get Worktree Path
-
-```bash
+./scripts/manage-worktree.sh create 017 delta-version --branch claude/017-keywords
 ./scripts/manage-worktree.sh path 017 delta-version
-# Output: /mnt/mtwo/programming/ai-worktrees/dv/issue-017/delta-version
+# → /mnt/mtwo/programming/ai-worktrees/dv/issue-017/delta-version
+./scripts/manage-worktree.sh list [project]
+./scripts/manage-worktree.sh status
+./scripts/manage-worktree.sh remove 017 delta-version [--force]
 ```
 
-#### Remove a Worktree
+`status` shows, for each worktree, its branch or detached commit, how many
+commits it has that are not on `origin/main`, and its uncommitted changes.
 
-```bash
-./scripts/manage-worktree.sh remove 017 delta-version
-```
+`remove` refuses when the worktree has uncommitted changes, and when it is
+detached and holds commits that no branch holds (they would be lost). It
+never deletes a branch. `--force` removes the worktree anyway.
 
-**Note**: This will fail if there are uncommitted changes. Commit or stash first.
+A project is any top-level directory of the repository; there is no list to
+keep up to date.
 
-## Workflow for AI Agents
+## Workflow
 
-### Starting Work on an Issue
-
-1. **Check if worktree exists**:
+1. **Create the worktree**, on a branch if the work will be pushed:
    ```bash
-   cd /mnt/mtwo/programming/ai-stuff
-   ./delta-version/scripts/manage-worktree.sh list
+   ./delta-version/scripts/manage-worktree.sh create 017 delta-version --branch claude/017-keywords
    ```
-
-2. **Create worktree if needed**:
+2. **Work and commit** in `$(manage-worktree.sh path 017 delta-version)`.
+3. **Push the branch and open a pull request** against `main`:
    ```bash
-   ./delta-version/scripts/manage-worktree.sh create 017 delta-version
+   git push -u origin claude/017-keywords
    ```
-
-3. **Navigate to the worktree**:
-   ```bash
-   cd $(./delta-version/scripts/manage-worktree.sh path 017 delta-version)
-   # Now in: /mnt/mtwo/programming/ai-worktrees/dv/issue-017/delta-version/
-   ```
-
-4. **Work normally**: Edit files, run tests, etc.
-
-5. **Commit frequently**:
-   ```bash
-   git add -A
-   git commit -m "Description of changes"
-   ```
-
-### Completing an Issue
-
-1. **Ensure all changes are committed** in the worktree
-
-2. **From the main repository**, merge issue to master:
-   ```bash
-   cd /mnt/mtwo/programming/ai-stuff
-   git checkout master  # (already there, enforced by hook)
-   git merge dv/issue-017
-   ```
-
-3. **Remove the worktree**:
+4. **Remove the worktree** once the work is pushed:
    ```bash
    ./delta-version/scripts/manage-worktree.sh remove 017 delta-version
    ```
 
-4. **Optionally delete the branch**:
-   ```bash
-   git branch -d dv/issue-017
-   ```
-
-### Completing a Phase
-
-When all issues in a phase are merged to the project dev branch:
-
-1. **Merge dev to master**:
-   ```bash
-   cd /mnt/mtwo/programming/ai-stuff
-   git checkout master
-   git merge dv/dev
-   ```
-
-2. **Optionally tag the release**:
-   ```bash
-   git tag delta-version-phase-4
-   ```
-
-3. **Return to dev branch for continued work**:
-   ```bash
-   git checkout dv/dev
-   ```
-
-## Project Short Names
-
-| Full Name                   | Short Name | Dev Branch  |
-|-----------------------------|------------|-------------|
-| delta-version               | dv         | dv/dev      |
-| neocities-modernization     | neo        | neo/dev     |
-| world-edit-to-execute       | wete       | wete/dev    |
-
-## Important Rules
-
-### DO:
-- Always work in a worktree, never directly in the main repo for issue work
-- Commit frequently to preserve work
-- Check `manage-worktree.sh status` before major operations
-- Merge completed issues to the project dev branch promptly
-
-### DON'T:
-- Checkout branches directly in `/mnt/mtwo/programming/ai-stuff/` for development
-- Leave worktrees with uncommitted changes for extended periods
-- Create worktrees for the same issue multiple times (remove first)
-- Merge issue branches directly to master (go through project dev branch)
-- Create worktrees for sub-issues (see below)
+A detached worktree is for looking, testing or throwaway work. If you commit
+in one and want to keep it, put it on a branch first:
+`git switch -c claude/<name>`.
 
 ## Root Issues vs Sub-Issues
 
-Worktrees should only be created for **root issues**, not sub-issues.
-
-### What's the Difference?
-
-- **Root Issue**: A top-level issue like `041-git-worktree-architecture`
-- **Sub-Issue**: A breakdown of a root issue, like `041a-setup-script`, `041b-cleanup-script`, `041c-status-command`
-
-### The Rule
-
-| Issue Type | Example | Gets Worktree? |
-|------------|---------|----------------|
-| Root issue | `041` | ✓ Yes |
-| Sub-issue | `041a`, `041b`, `041c` | ✗ No |
-
-### Why This Matters
-
-1. **Avoids worktree sprawl**: A root issue with 5 sub-issues would create 5 worktrees unnecessarily
-2. **Reflects natural hierarchy**: Sub-issues are parts of the same feature, they belong together
-3. **Simplifies merging**: One branch per feature, not one per sub-task
-4. **Reduces confusion**: Agents know exactly where to find related work
-
-### Workflow for Sub-Issues
-
-When working on a feature with sub-issues:
-
-1. **Create worktree for the root issue**:
-   ```bash
-   ./scripts/manage-worktree.sh create 041 delta-version
-   cd $(./scripts/manage-worktree.sh path 041 delta-version)
-   ```
-
-2. **Work on sub-issues sequentially within that worktree**:
-   - Complete `041a`, commit: `git commit -m "Issue 041a: Add setup script"`
-   - Complete `041b`, commit: `git commit -m "Issue 041b: Add cleanup script"`
-   - Complete `041c`, commit: `git commit -m "Issue 041c: Add status command"`
-
-3. **When all sub-issues are done, complete the root issue**:
-   - Final commit for root issue if needed
-   - Merge to project dev branch
-   - Remove worktree
-
-### Commit Messages for Sub-Issues
-
-When committing sub-issue work, prefix with the sub-issue number:
+Make worktrees for **root issues** only (`041`), not their sub-issues
+(`041a`, `041b`). Work through the sub-issues in the root issue's worktree,
+one commit each, prefixed with the sub-issue number:
 
 ```bash
 git commit -m "Issue 041a: Implement worktree creation script"
 git commit -m "Issue 041b: Add cleanup and removal logic"
-git commit -m "Issue 041: Complete worktree architecture (closes 041a-c)"
 ```
 
-This keeps the git history clear about which sub-issue each commit addresses.
+`initialize-issue.sh` follows this rule itself: for a sub-issue it reuses,
+or makes, the root issue's worktree.
 
 ## Troubleshooting
 
 ### "Worktree has uncommitted changes"
 
-The remove command won't delete a worktree with uncommitted changes:
+Commit them (on a branch), or discard them with `remove --force`.
+
+### "Detached worktree has N commit(s) no branch holds"
+
 ```bash
-# Option 1: Commit the changes
-cd /mnt/mtwo/programming/ai-worktrees/dv/issue-017
-git add -A && git commit -m "Final changes"
-
-# Option 2: Stash the changes
-git stash
-
-# Option 3: Discard changes (caution!)
-git checkout -- .
+git -C <worktree> switch -c claude/<name>   # keep them on a branch
+./scripts/manage-worktree.sh remove <issue> <project>
 ```
 
 ### "Worktree already exists"
 
-Either the worktree exists and you should use it, or a previous worktree wasn't cleaned up:
-```bash
-# Check status
-./scripts/manage-worktree.sh status
+Use it, or remove it first. If its folder was deleted by hand, clear git's
+record of it with `git worktree prune`.
 
-# If stale, force prune
-git worktree prune
-```
+### "Could not fetch origin main"
 
-### Merge Conflicts
-
-Resolve in the main repo after merging:
-```bash
-cd /mnt/mtwo/programming/ai-stuff
-git checkout dv/dev
-git merge dv/issue-017
-# If conflicts:
-#   1. Edit conflicting files
-#   2. git add <resolved-files>
-#   3. git commit
-```
+The remote could not be reached. Try again, or pass `--no-fetch` to start
+from the `origin/main` you already have.
 
 ## Environment Variables
 
-The script supports these environment variables for customization:
-
-| Variable       | Default                                  | Description           |
-|----------------|------------------------------------------|-----------------------|
-| DIR            | /mnt/mtwo/programming/ai-stuff           | Main repository path  |
-| WORKTREE_ROOT  | /mnt/mtwo/programming/ai-worktrees       | Worktree storage path |
+| Variable       | Default                              | Description              |
+|----------------|--------------------------------------|--------------------------|
+| DIR            | /mnt/mtwo/programming/ai-stuff       | main repository path     |
+| WORKTREE_ROOT  | /mnt/mtwo/programming/ai-worktrees   | worktree storage path    |
+| REMOTE         | origin                               | remote to start from     |
+| MAIN_BRANCH    | main                                 | branch to start from     |
 
 ## Related Documents
 
-- [Issue 041: Git Worktree Multi-Agent Architecture](../issues/041-git-worktree-multi-agent-architecture.md)
+- [Issue 046: Simplify Branch Architecture](../issues/completed/046-simplify-branch-architecture.md)
+- [Issue 041: Git Worktree Multi-Agent Architecture](../issues/completed/041-git-worktree-multi-agent-architecture.md)
 - [Development Guide](development-guide.md)
-- [Issue 005: Configure Branch Isolation](../issues/005-configure-branch-isolation.md)
