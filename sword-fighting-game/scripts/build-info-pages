@@ -1,0 +1,123 @@
+#!/usr/bin/env luajit
+-- build-info-pages - writes the .info.md page beside every source file.
+--
+-- Each source file opens with a comment saying what it is, and every
+-- function carries a comment saying what it does. This reads those comments
+-- and writes them out as a page per file: what the file is for, the
+-- functions other files may call (with their arguments), the tables of rows
+-- it is built around, and its private helpers. Because the page is made from
+-- the source's own words, it cannot drift from the source: to change a page,
+-- change the comment and run this again.
+--
+-- Usage: scripts/build-info-pages [project-dir]    (--help for this text)
+--
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if arg[1] == "--help" then
+	print("scripts/build-info-pages [project-dir] - write src/*.info.md from the sources' comments")
+	os.exit(0)
+end
+DIR = arg[1] or DIR
+
+-- {{{ local function read_lines()
+local function read_lines(path)
+	local lines = {}
+	for l in io.lines(path) do lines[#lines + 1] = l end
+	return lines
+end
+-- }}}
+
+-- The file's opening comment, without its name line and licence line.
+-- {{{ local function header()
+local function header(lines)
+	local out = {}
+	for k = 2, #lines do
+		local l = lines[k]
+		if not l:match("^%-%-") then break end
+		if l:match("SPDX") or l:match("Copyright") or l:match("GNU") then break end
+		out[#out + 1] = (l:gsub("^%-%- ?", ""))
+	end
+	while out[#out] == "" do out[#out] = nil end
+	return table.concat(out, "\n")
+end
+-- }}}
+
+-- The comment lines directly above line k (and above its fold line).
+-- {{{ local function comment_above()
+local function comment_above(lines, k)
+	local j = k - 1
+	if lines[j] and lines[j]:match("^%s*%-%- {{{") then j = j - 1 end
+	local out = {}
+	while j > 0 and lines[j]:match("^%s*%-%-") and not lines[j]:match("}}}") do
+		table.insert(out, 1, (lines[j]:gsub("^%s*%-%- ?", "")))
+		j = j - 1
+	end
+	return table.concat(out, " ")
+end
+-- }}}
+
+-- Exported functions, tables of rows, and private helpers, in file order.
+-- {{{ local function scan()
+local function scan(lines)
+	local found = { exports = {}, tables = {}, locals = {} }
+	for k, l in ipairs(lines) do
+		local name, args = l:match("^function ([%w_]+[%.:][%w_]+)%((.-)%)")
+		if name then
+			found.exports[#found.exports + 1] = { name, args, comment_above(lines, k) }
+		end
+		local lname, largs = l:match("^local function ([%w_]+)%((.-)%)")
+		if lname then
+			found.locals[#found.locals + 1] = { lname, largs, comment_above(lines, k) }
+		end
+		local tname = l:match("^local (%u[%u_]+) = {") or l:match("^M%.(%u[%u_]+) = {")
+		if tname then
+			found.tables[#found.tables + 1] = { tname, "", comment_above(lines, k) }
+		end
+	end
+	return found
+end
+-- }}}
+
+-- {{{ local function section()
+local function section(out, title, rows, with_args)
+	if #rows == 0 then return end
+	out[#out + 1] = "\n## " .. title .. "\n"
+	if with_args then
+		out[#out + 1] = "| Name | Takes | What it does |\n| --- | --- | --- |"
+	else
+		out[#out + 1] = "| Name | What it is |\n| --- | --- |"
+	end
+	for _, r in ipairs(rows) do
+		local text = r[3] ~= "" and r[3] or "(no comment in the source)"
+		text = text:gsub("|", "\\|")
+		if with_args then
+			out[#out + 1] = string.format("| `%s` | %s | %s |", r[1],
+				r[2] ~= "" and ("`" .. r[2] .. "`") or "nothing", text)
+		else
+			out[#out + 1] = string.format("| `%s` | %s |", r[1], text)
+		end
+	end
+end
+-- }}}
+
+local p = io.popen('ls -1 "' .. DIR .. '/src" | grep "\\.lua$"')
+local count = 0
+for name in p:lines() do
+	local lines = read_lines(DIR .. "/src/" .. name)
+	local found = scan(lines)
+	local out = {
+		"<!-- made by scripts/build-info-pages from the comments in " .. name
+			.. "; change the comments and rebuild, not this page -->",
+		"# " .. name:gsub("%.lua$", ""), "", header(lines),
+	}
+	section(out, "Functions other files call", found.exports, true)
+	section(out, "Tables of rows", found.tables, false)
+	section(out, "Private helpers", found.locals, true)
+	local f = io.open(DIR .. "/src/" .. name:gsub("%.lua$", ".info.md"), "w")
+	f:write(table.concat(out, "\n"), "\n")
+	f:close()
+	count = count + 1
+end
+p:close()
+print(string.format("build-info-pages: %d pages written", count))

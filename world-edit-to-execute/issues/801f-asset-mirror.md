@@ -13,6 +13,20 @@
 
 Matchmaking server has no asset distribution capabilities. Players must download asset packs from individual hosts.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #310 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- A pack of 4 GiB or more (or a mirror contact over 1024 bytes) makes the server's advert fail to encode, and nothing catches it, so the whole daemon exits.
+- The new message (0x11) was added without raising the protocol version; clients built before it drop the connection right after joining.
+- A plain id-to-hash table holding a pack named "has" is mistaken for a registry and crashes (confirmed).
+- Adding a pack treats any read failure as end-of-file and ignores failed writes: adding a folder registers an empty pack (confirmed), and a full disk replaces a good pack with a cut-off one.
+- Symlinked packs are skipped by `find -type f` and not even listed as skipped.
+- The packs folder is read once at startup; added or removed packs are never noticed until restart.
+- A missing or unreadable folder silently becomes an empty mirror, and `find`/`sha256sum` errors are discarded.
+- Every pack is hashed one after another at startup, before the server listens.
+- A backslash or newline in the path makes `sha256sum` prefix its line, so every pack is skipped; size and hash are read separately and can belong to different moments.
+
 ## Intended Behavior
 
 > **Transport, 2026-09-23:** every asset transfer goes over rmail, "the only

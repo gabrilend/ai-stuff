@@ -13,6 +13,20 @@
 
 No lobby interface exists for pre-game coordination.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #309 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- A kick reuses the leave message with an optional field and the same protocol version: an older server reads it as the host leaving and closes the lobby, and an older client ignores being kicked.
+- The lobby's "closed" handler sends the player back to the browser even after the game has started, losing the host address at the moment it's needed.
+- Keyboard focus is stored as a position in the button list, which shifts when players join or leave, so Enter can kick the wrong player or start the game.
+- During a countdown the idle-lobby timeout still applies; a countdown as long as that timeout closes the lobby before the start.
+- Any player marking not-ready cancels the countdown, the host included, though the host's readiness isn't needed to start.
+- Players are told the countdown rounded up to whole seconds while the server uses the exact value.
+- A lobby update saying this player left is shown as "kicked by the host".
+- A countdown message with no seconds silently becomes 0.
+- New functions lack folds; the keyboard handler and the lobby-update handler are long if/else chains.
+
 ## Intended Behavior
 
 A multiplayer lobby UI that provides:
