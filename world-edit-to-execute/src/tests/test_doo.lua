@@ -173,22 +173,11 @@ end
 -- }}}
 
 -- {{{ build_special_doodad
--- Build a special doodad entry with item drops
+-- Build a special doodad entry: ID, an int32 (0 in the files), x and y
+-- (16 bytes, in versions 7 and 8 alike; issue 201f)
 local function build_special_doodad(sd)
-    local parts = {}
-
-    parts[#parts + 1] = pack_id(sd.id)
-    parts[#parts + 1] = pack_int32(#sd.item_sets)
-
-    for _, set in ipairs(sd.item_sets) do
-        parts[#parts + 1] = pack_int32(#set.items)
-        for _, item in ipairs(set.items) do
-            parts[#parts + 1] = pack_id(item.id)
-            parts[#parts + 1] = pack_int32(item.chance)
-        end
-    end
-
-    return table.concat(parts)
+    return pack_id(sd.id) .. pack_int32(sd.unknown1 or 0)
+        .. pack_int32(sd.x or 0) .. pack_int32(sd.y or 0)
 end
 -- }}}
 
@@ -206,12 +195,12 @@ local function build_doo_with_special(doodads, special_doodads, options)
 
     -- Doodad entries
     for _, d in ipairs(doodads) do
-        parts[#parts + 1] = build_doodad_entry(d)
+        parts[#parts + 1] = build_doodad_entry(d, options.version)
     end
 
     -- Special doodads section
     parts[#parts + 1] = pack_int32(0)  -- Special version
-    parts[#parts + 1] = pack_int32(#special_doodads)
+    parts[#parts + 1] = pack_int32(options.count or #special_doodads)
 
     for _, sd in ipairs(special_doodads) do
         parts[#parts + 1] = build_special_doodad(sd)
@@ -340,47 +329,43 @@ end
 -- }}}
 
 -- {{{ test_parse_special_doodads
+-- The section after the doodads is read the same in versions 7 and 8:
+-- 16 bytes per entry, no item drops (issue 201f)
 local function test_parse_special_doodads()
-    print("Testing special doodads (item drops)...")
+    print("Testing special doodads (versions 7 and 8)...")
 
-    local data = build_doo_with_special(
-        {
-            { id = "LTlt", creation_number = 1 },
-        },
-        {
-            {
-                id = "LTlt",
-                item_sets = {
-                    {
-                        items = {
-                            { id = "gold", chance = 50 },
-                            { id = "maap", chance = 25 },
-                        }
-                    },
-                    {
-                        items = {
-                            { id = "stwp", chance = 100 },
-                        }
-                    },
-                }
-            }
-        }
-    )
+    local specials = {
+        { id = "YCc1", x = 16, y = 219 },
+        { id = "LCc2", unknown1 = 0, x = 224, y = 50 },
+    }
+    for _, version in ipairs({ 7, 8 }) do
+        local data = build_doo_with_special(
+            { { id = "LTlt", creation_number = 1 } },
+            specials, { version = version })
+        local result, err = doo.parse(data)
+        assert(result, "version " .. version .. ": " .. tostring(err))
 
-    local result = doo.parse(data)
+        local sp = result.special_doodads
+        assert(sp.version == 0, "Special section version should be 0")
+        assert(#sp.doodads == 2, "Should have 2 special doodads in version " .. version)
+        assert(sp.doodads[1].id == "YCc1" and sp.doodads[1].x == 16 and sp.doodads[1].y == 219,
+            "First special doodad mismatch in version " .. version)
+        assert(sp.doodads[2].id == "LCc2" and sp.doodads[2].unknown1 == 0
+            and sp.doodads[2].x == 224 and sp.doodads[2].y == 50,
+            "Second special doodad mismatch in version " .. version)
+        assert(sp.doodads[1].item_sets == nil, "A special doodad has no item drops")
+        assert(#result.tail_raw == 8 + 16 * 2, "The section is 8 bytes and 16 per entry")
+        assert(doo.write(result) == data, "Version " .. version .. " doesn't write back byte for byte")
+        assert(doo.format(result):find("YCc1 at %(16, 219%)"), "format should list the special doodads")
 
-    assert(result.special_doodads, "Should have special_doodads")
-    assert(#result.special_doodads.doodads == 1, "Should have 1 special doodad")
-
-    local sd = result.special_doodads.doodads[1]
-    assert(sd.id == "LTlt", "Special doodad ID mismatch")
-    assert(#sd.item_sets == 2, "Should have 2 item sets")
-    assert(#sd.item_sets[1].items == 2, "Item set 1 should have 2 items")
-    assert(#sd.item_sets[2].items == 1, "Item set 2 should have 1 item")
-
-    assert(sd.item_sets[1].items[1].id == "gold", "Item 1 ID mismatch")
-    assert(sd.item_sets[1].items[1].chance == 50, "Item 1 chance mismatch")
-    assert(sd.item_sets[1].items[2].id == "maap", "Item 2 ID mismatch")
+        -- A count that doesn't fit the data is refused by name
+        local cut = build_doo_with_special(
+            { { id = "LTlt", creation_number = 1 } },
+            specials, { version = version, count = 3 })
+        local bad, msg = doo.parse(cut)
+        assert(bad == nil and tostring(msg):find("special doodad count 3"),
+            "A cut special section should be refused, got " .. tostring(msg))
+    end
 
     print("  PASS: Special doodad parsing works")
 end
@@ -622,7 +607,8 @@ local function test_real_maps()
         -- The entries read right (201e): the file writes back byte for
         -- byte, every creation number is its own and not negative, and
         -- what follows the last doodad is the special doodads section
-        -- (version, count, 16 bytes each)
+        -- (version, count, 16 bytes each), read as that and summarised
+        -- by doo.format (201f)
         do
             local problem
             local seen = {}
@@ -636,6 +622,13 @@ local function test_real_maps()
             local t = result.tail_raw
             if not problem and (#t < 8 or #t ~= 8 + 16 * compat.unpack_int32(t, 5)) then
                 problem = string.format("%d bytes after the last doodad", #t)
+            end
+            if not problem and #result.special_doodads.doodads ~= compat.unpack_int32(t, 5) then
+                problem = string.format("%d special doodads read of %d",
+                    #result.special_doodads.doodads, compat.unpack_int32(t, 5))
+            end
+            if not problem and not pcall(doo.format, result) then
+                problem = "doo.format failed"
             end
             if not problem and doo.write(result) ~= doo_data then
                 problem = "not written back byte for byte"

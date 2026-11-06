@@ -16,6 +16,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 |----|-------|--------|------------|
 | 201 | [Parse war3map.doo (Doodads/Trees)](./completed/201-parse-war3map-doo.md) | completed | 102 |
 | 201e | [A Doodad's Drops Come Before Its Creation Number](./completed/201e-doodad-drops-before-creation-number.md) | completed | — |
+| 201f | [The Special Doodads Section Is the Same in Versions 7 and 8](./completed/201f-special-doodads-same-in-v7-and-v8.md) | completed | 201e |
 | 202 | [Parse war3mapUnits.doo (Units/Buildings)](./completed/202-parse-war3map-units-doo.md) | completed | 102, 201 |
 | 202a | [Parse unitsdoo Header and Basic Fields](./completed/202a-parse-unitsdoo-header-and-basic-fields.md) | completed | 102, 201 |
 | 202b | [Parse unitsdoo Item Drops](./completed/202b-parse-unitsdoo-item-drops.md) | completed | 202a |
@@ -46,6 +47,6 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 208c | [Registry Integration Tests](./completed/208c-registry-integration-tests.md) | completed | 207, 208b |
 | 208d | [Phase 2 Demo Script](./completed/208d-phase2-demo-script.md) | completed | 208a, 208b, 208c |
 
-Completed 31, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 32, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->
