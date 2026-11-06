@@ -1,4 +1,4 @@
-#!/usr/bin/env lua
+#!/usr/bin/env luajit
 
 -- {{{ Pure HTML Project File Server Generator
 -- Generates a pure HTML interface for browsing programming projects.
@@ -6,11 +6,15 @@
 -- No CSS. No JavaScript. Just HTML.
 --
 -- Issue 007 RESOLVED: Converted to pure HTML output.
+--
+-- Every name read from the disk is treated as data: it is quoted before it
+-- goes to the shell (a folder called $(...) is not run), escaped before it
+-- goes into the page (a file called <script>.md shows as text and adds no
+-- script), and percent-encoded inside a file:// link (spaces, # and quotes
+-- do not break the link).
 -- }}}
 
--- Configure shared library path
 local SCRIPT_DIR = "/home/ritz/programming/ai-stuff"
-package.path = SCRIPT_DIR .. "/libs/lua/?.lua;" .. package.path
 
 -- Default scan directory - can be overridden via first argument
 local DIR = SCRIPT_DIR
@@ -23,6 +27,34 @@ local OUTPUT_PATH = SCRIPT_DIR .. "/project-file-server.html"
 if arg and arg[2] then
     OUTPUT_PATH = arg[2]
 end
+
+-- {{{ shell_quote
+-- Wraps a string in single quotes for the shell; a single quote inside it is
+-- closed, escaped and reopened, so nothing in it is expanded or run.
+local function shell_quote(text)
+    return "'" .. tostring(text):gsub("'", "'\\''") .. "'"
+end
+-- }}}
+
+-- {{{ html_escape
+-- Makes text safe to put in the page as text or inside a quoted attribute.
+local function html_escape(text)
+    return (tostring(text):gsub("[&<>\"']", {
+        ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;",
+        ['"'] = "&quot;", ["'"] = "&#39;",
+    }))
+end
+-- }}}
+
+-- {{{ file_url
+-- A file:// link to a path: every byte other than letters, digits, - . _ ~
+-- and / is percent-encoded, so the link names exactly that path.
+local function file_url(path)
+    return "file://" .. tostring(path):gsub("[^%w%-%._~/]", function(c)
+        return string.format("%%%02X", c:byte())
+    end)
+end
+-- }}}
 
 -- {{{ execute_command
 local function execute_command(cmd)
@@ -57,10 +89,10 @@ local function scan_directory_bash(path, max_depth, current_depth)
     end
 
     -- Use find command to list directories and files
-    local find_cmd = string.format('find "%s" -maxdepth 1 -type d -not -path "%s" -not -name ".*" 2>/dev/null | sort', path, path)
+    local find_cmd = string.format('find %s -mindepth 1 -maxdepth 1 -type d -not -name ".*" 2>/dev/null | sort', shell_quote(path))
     local dirs_output = execute_command(find_cmd)
 
-    local find_files_cmd = string.format('find "%s" -maxdepth 1 -type f -not -name ".*" 2>/dev/null | sort', path)
+    local find_files_cmd = string.format('find %s -mindepth 1 -maxdepth 1 -type f -not -name ".*" 2>/dev/null | sort', shell_quote(path))
     local files_output = execute_command(find_files_cmd)
 
     local items = {}
@@ -69,7 +101,7 @@ local function scan_directory_bash(path, max_depth, current_depth)
     for dir_path in dirs_output:gmatch("[^\n]+") do
         local dir_name = dir_path:match("([^/]+)$")
         if dir_name then
-            local size_cmd = string.format('du -sb "%s" 2>/dev/null | cut -f1', dir_path)
+            local size_cmd = string.format('du -sb %s 2>/dev/null | cut -f1', shell_quote(dir_path))
             local size_str = execute_command(size_cmd)
             -- Clean the string and convert to number
             size_str = size_str:gsub("%s+", "")
@@ -90,7 +122,7 @@ local function scan_directory_bash(path, max_depth, current_depth)
     for file_path in files_output:gmatch("[^\n]+") do
         local file_name = file_path:match("([^/]+)$")
         if file_name then
-            local size_cmd = string.format('stat -c%%s "%s" 2>/dev/null || echo "0"', file_path)
+            local size_cmd = string.format('stat -c%%s %s 2>/dev/null || echo "0"', shell_quote(file_path))
             local size_str = execute_command(size_cmd)
             -- Clean the string and convert to number
             size_str = size_str:gsub("%s+", "")
@@ -115,7 +147,7 @@ local function get_project_analysis(path)
 
     -- Count different file types
     local file_types = {}
-    local type_cmd = string.format('find "%s" -type f -name "*.*" 2>/dev/null | sed "s/.*\\.//" | sort | uniq -c | sort -nr | head -15', path)
+    local type_cmd = string.format('find %s -type f -name "*.*" 2>/dev/null | sed "s/.*\\.//" | sort | uniq -c | sort -nr | head -15', shell_quote(path))
     local type_output = execute_command(type_cmd)
 
     for line in type_output:gmatch("[^\n]+") do
@@ -126,15 +158,15 @@ local function get_project_analysis(path)
     end
 
     -- Get total file count
-    local file_count_cmd = string.format('find "%s" -type f 2>/dev/null | wc -l', path)
+    local file_count_cmd = string.format('find %s -type f 2>/dev/null | wc -l', shell_quote(path))
     local file_count = execute_command(file_count_cmd)
 
     -- Get directory count
-    local dir_count_cmd = string.format('find "%s" -type d 2>/dev/null | wc -l', path)
+    local dir_count_cmd = string.format('find %s -type d 2>/dev/null | wc -l', shell_quote(path))
     local dir_count = execute_command(dir_count_cmd)
 
     -- Get total size
-    local size_cmd = string.format('du -sh "%s" 2>/dev/null | cut -f1', path)
+    local size_cmd = string.format('du -sh %s 2>/dev/null | cut -f1', shell_quote(path))
     local total_size = execute_command(size_cmd)
 
     return {
@@ -187,20 +219,20 @@ local function generate_tree_html(items, level)
                 -- Use <details><summary> for collapsible directories
                 html = html .. indent .. "<details>\n"
                 html = html .. indent .. "<summary>"
-                html = html .. '<a href="file://' .. item.path .. '">' .. item.name .. '/</a>'
+                html = html .. '<a href="' .. html_escape(file_url(item.path)) .. '">' .. html_escape(item.name) .. '/</a>'
                 html = html .. " (" .. size_str .. ")"
                 html = html .. "</summary>\n"
                 html = html .. generate_tree_html(item.children, level + 1)
                 html = html .. indent .. "</details>\n"
             else
                 -- Empty directory - just a link
-                html = html .. indent .. '<a href="file://' .. item.path .. '">' .. item.name .. '/</a>'
+                html = html .. indent .. '<a href="' .. html_escape(file_url(item.path)) .. '">' .. html_escape(item.name) .. '/</a>'
                 html = html .. " (" .. size_str .. ")<br>\n"
             end
         else
             -- File - simple link
             local size_str = format_size(item.size)
-            html = html .. indent .. '<a href="file://' .. item.path .. '">' .. item.name .. '</a>'
+            html = html .. indent .. '<a href="' .. html_escape(file_url(item.path)) .. '">' .. html_escape(item.name) .. '</a>'
             html = html .. " (" .. size_str .. ")<br>\n"
         end
     end
@@ -222,7 +254,7 @@ local function generate_quick_links()
 
     local html = ""
     for _, link in ipairs(links) do
-        html = html .. string.format('  <a href="file://%s">%s</a>\n', link.path, link.name)
+        html = html .. string.format('  <a href="%s">%s</a>\n', html_escape(file_url(link.path)), html_escape(link.name))
     end
 
     return html
@@ -244,7 +276,7 @@ local function generate_html_page(tree_data, root_path, analysis)
                           PROJECT FILE SERVER
 ================================================================================
 
-  Root Path: ]] .. root_path .. [[
+  Root Path: ]] .. html_escape(root_path) .. [[
 
   Generated: ]] .. os.date("%Y-%m-%d %H:%M:%S") .. [[
 

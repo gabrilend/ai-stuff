@@ -27,10 +27,11 @@ Save the HTML file to a specific path.
 ```
 
 ### Interactive Mode
-Configure options interactively.
+A menu built with `lua-menu.sh` (see Interactive Mode Options below).
 
 ```bash
 ./project-file-server -I
+./project-file-server -I /path/to/projects
 ```
 
 ### View in Browser
@@ -53,22 +54,39 @@ python3 -m http.server 8080
 
 | Option | Description |
 |--------|-------------|
-| `[directory]` | Directory to scan (default: `/home/ritz/programming/ai-stuff`) |
-| `-I, --interactive` | Run in interactive mode |
+| `[directory]` | Directory to scan (default: `/home/ritz/programming/ai-stuff`); one that does not exist is refused |
+| `[output]` | Output HTML file, as a second word (same as `-o`) |
+| `-I, --interactive` | Open the menu, on the folder named (if any) |
 | `-o, --output <file>` | Specify output HTML file |
 | `-h, --help` | Show help message |
 
 ## Interactive Mode Options
 
-When run with `-I`:
+When run with `-I`, a menu opens. Pick from each section, then Go:
 
-1. **Generate file server HTML** - Create the HTML file
-2. **Start HTTP server (port 8080)** - Serve via Python
-3. **Start HTTP server (custom port)** - Choose your port
-4. **Open file server in browser** - Launch with xdg-open
-5. **Change directory to scan** - Modify source directory
-6. **Change output location** - Modify output path
-7. **Exit** - Quit interactive mode
+- **Do** - what Go does:
+  - **Generate the page** - scan the chosen folder and write the page. The
+    library's progress shows as it runs.
+  - **Serve the page over HTTP** - `python3 -m http.server` on the chosen
+    port, bound to 127.0.0.1 so only this machine can reach it. Ctrl+C stops
+    it and brings the menu back.
+  - **Open the page in a browser** - hands its `file://` address to
+    `xdg-open` (`open` on macOS).
+  - **Go into the folder** - makes the chosen folder the current one, so its
+    subfolders are listed next; writes nothing.
+- **Folder to scan** - the current folder, its parent (`../`), its subfolders
+  (`./name`, hidden ones left out), and "Another folder..." to type a path.
+- **Page goes to** - inside the scanned folder, or "Another file..." to type
+  a path (offered again next time; `-o` given with `-I` starts here).
+- **Serving** - the port, 1024-65535 (default 8080).
+
+The panel below the items shows the last lines of the last generation and a
+two-level tree of the folder under the cursor. After each step the menu opens
+again with a note of what happened in its title; `q` leaves. Its preview files
+go in a temporary folder under `$TMPDIR` (or `/tmp`), removed when it exits.
+
+Tests: `tests/test-project-file-server-interactive.sh` drives the menu in a
+pretend terminal; `tests/test-project-file-server.sh` checks the page itself.
 
 ## Capabilities
 
@@ -77,6 +95,9 @@ When run with `-I`:
 - **File Links**: Uses `file://` protocol for direct access
 - **Cross-Browser**: Works in Firefox, Chrome, and other modern browsers
 - **Offline Use**: No external dependencies after generation
+- **Names Are Data**: names are quoted for the shell, escaped in the page and
+  percent-encoded in links, so a file called `<script>.md` or a folder called
+  `$(...)` is listed as text and nothing in it runs
 
 ## Output Format
 

@@ -6,19 +6,30 @@
 # Uses native <details>/<summary> for collapsible folders - no JavaScript required.
 #
 # Issue 007 RESOLVED: Converted to pure HTML output.
+#
+# -I opens a menu (issue 014, phase 5): pick the folder (moving up and into
+# subfolders, with a tree of each in the preview panel), where the page goes
+# and the port, then generate the page, serve it on this machine, or open it.
 # }}}
 
 DIR="/home/ritz/programming/ai-stuff"
-if [ -n "$1" ] && [ "$1" != "-I" ]; then
-    DIR="$1"
-fi
 
-OUTPUT="$DIR/project-file-server.html"
-if [ -n "$2" ]; then
-    OUTPUT="$2"
-fi
+# The library is found beside this runner (following a symlink to it), not
+# under the folder being scanned, so any folder can be scanned.
+SCRIPTS_HOME="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+LIBRARY="$SCRIPTS_HOME/libs/project-file-server.lua"
 
+# The first word that is not an option is the folder to scan, the second the
+# output file; -o also names the output. With no output named, the page goes
+# into the scanned folder, worked out once every argument has been read.
+OUTPUT=""
+POSITIONAL=0
 INTERACTIVE=false
+
+# The menu's limits: how many subfolders it lists, and how many lines of a
+# folder's tree its preview panel holds.
+SUBFOLDER_LIMIT=60
+PREVIEW_LINES=200
 
 # {{{ parse_args
 while [[ $# -gt 0 ]]; do
@@ -32,13 +43,14 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            echo "Usage: project-file-server [DIRECTORY] [OPTIONS]"
+            echo "Usage: project-file-server [DIRECTORY] [OUTPUT] [OPTIONS]"
             echo ""
             echo "Generates a pure HTML file browser with collapsible directories."
             echo "No CSS. No JavaScript. Just HTML with <details>/<summary>."
             echo ""
             echo "Options:"
-            echo "  -I, --interactive    Run in interactive mode"
+            echo "  -I, --interactive    A menu: pick the folder, where the page goes and the"
+            echo "                       port; generate, serve or open the page"
             echo "  -o, --output FILE    Specify output HTML file"
             echo "  -h, --help           Show this help message"
             echo ""
@@ -55,104 +67,257 @@ while [[ $# -gt 0 ]]; do
             echo "  python3 -m http.server 8080"
             exit 0
             ;;
+        -*)
+            echo "project-file-server: unknown option $1 (see --help)" >&2
+            exit 1
+            ;;
         *)
-            if [ -d "$1" ]; then
+            POSITIONAL=$((POSITIONAL + 1))
+            if [ "$POSITIONAL" -eq 1 ]; then
                 DIR="$1"
+            elif [ "$POSITIONAL" -eq 2 ]; then
+                OUTPUT="$1"
             fi
             shift
             ;;
     esac
 done
+OUTPUT_GIVEN=""
+if [ -z "$OUTPUT" ]; then
+    OUTPUT="$DIR/project-file-server.html"
+else
+    OUTPUT_GIVEN=1
+fi
+if [ "$INTERACTIVE" != true ] && [ ! -d "$DIR" ]; then
+    echo "project-file-server: no such folder: $DIR" >&2
+    exit 1
+fi
+# }}}
+
+# {{{ tree_preview
+# Writes a short picture of a folder to a file, for the menu's preview panel:
+# two levels down, hidden entries left out, at most PREVIEW_LINES lines.
+# Names are printed as text; nothing in them is run.
+tree_preview() {
+    local folder="$1" file="$2" rel kind
+    {
+        printf '%s/\n' "$folder"
+        find "$folder" -mindepth 1 -maxdepth 2 \( -name '.*' -prune \) -o -printf '%P\t%y\n' 2>/dev/null \
+            | LC_ALL=C sort | head -n "$PREVIEW_LINES" \
+            | while IFS=$'\t' read -r rel kind; do
+                  if [[ "$rel" == */* ]]; then
+                      printf '      %s' "${rel##*/}"
+                  else
+                      printf '  %s' "$rel"
+                  fi
+                  [ "$kind" = "d" ] && printf '/'
+                  printf '\n'
+              done
+    } > "$file"
+}
+# }}}
+
+# {{{ fit_to_screen
+# Cuts a note to the terminal's width (less the menu's borders), so a long
+# path does not spill over the frame. Long notes keep their start.
+fit_to_screen() {
+    local text="$1" cols
+    cols="$(stty size </dev/tty 2>/dev/null | cut -d' ' -f2)"
+    [[ "$cols" =~ ^[0-9]+$ ]] || cols=80
+    local max=$(( cols - 4 ))
+    if (( ${#text} > max )); then
+        text="${text:0:max-3}..."
+    fi
+    echo "$text"
+}
+# }}}
+
+# {{{ open_in_browser
+# Hands the page to the desktop's opener and returns at once. On Linux that
+# is xdg-open; `open` is used only on macOS, because on Linux the same name
+# can be openvt, which starts a program on a virtual console. Returns 1 when
+# there is no opener.
+open_in_browser() {
+    local url="$1"
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$url" >/dev/null 2>&1 &
+    elif [ "$(uname -s)" = "Darwin" ] && command -v open >/dev/null 2>&1; then
+        open "$url" >/dev/null 2>&1 &
+    else
+        return 1
+    fi
+}
 # }}}
 
 # {{{ interactive_mode
+# The menu (issue 014, phase 5). A "Do" list picks what Go does: generate the
+# page, serve it over HTTP, open it in a browser, or go into the chosen
+# folder (to pick one of its subfolders next). Below it, the folder to scan:
+# the current one, its parent, its subfolders, and "Another folder..." to
+# type a path. Then where the page goes (inside the scanned folder, or a file
+# typed at a prompt) and the port to serve it on. The panel at the bottom
+# shows the end of the last run's output and a two-level tree of the folder
+# under the cursor. Generating shows the library's progress as it goes; then
+# the menu opens again with a note of how it went. q leaves.
 interactive_mode() {
-    echo "Project File Server - Interactive Mode"
-    echo "======================================="
-    echo
-    echo "Current settings:"
-    echo "  Directory: $DIR"
-    echo "  Output: $OUTPUT"
-    echo
-    echo "Select an action:"
-    echo "1) Generate file server HTML"
-    echo "2) Start HTTP server (port 8080)"
-    echo "3) Start HTTP server (custom port)"
-    echo "4) Open file server in browser"
-    echo "5) Change directory to scan"
-    echo "6) Change output location"
-    echo "7) Exit"
-    echo
-    read -p "Enter your choice (1-7): " choice
+    # shellcheck source=libs/lua-menu.sh
+    source "$SCRIPTS_HOME/libs/lua-menu.sh" || return 1
 
-    case $choice in
-        1)
-            echo "Generating file server HTML..."
-            lua "$DIR/scripts/libs/project-file-server.lua" "$DIR" "$OUTPUT"
-            ;;
-        2)
-            if [ -f "$OUTPUT" ]; then
-                echo "Starting HTTP server on port 8080..."
-                echo "Open: http://localhost:8080/$(basename "$OUTPUT")"
-                echo "Press Ctrl+C to stop"
-                cd "$(dirname "$OUTPUT")" && python3 -m http.server 8080
-            else
-                echo "Error: Output file not found. Generate it first (option 1)"
+    local chosen output="" note="" last_run="Nothing has run yet." port=8080
+    local -a folders=() labels=()
+    local i name choice="do_generate" folder page status line out_file
+    if [ ! -d "$DIR" ]; then
+        echo "project-file-server: no such folder: $DIR" >&2
+        return 1
+    fi
+    chosen="$(realpath "$DIR")"
+    [ -n "$OUTPUT_GIVEN" ] && output="$(realpath -m "$OUTPUT")"
+
+    PREVIEW_DIR="$(mktemp -d "${TMPDIR:-/tmp}/project-file-server-menu.XXXXXX")" || return 1
+    trap 'rm -rf "${PREVIEW_DIR:?}"' EXIT
+
+    while true; do
+        # the folders to offer: the current one, its parent, its subfolders
+        folders=("$chosen"); labels=("$chosen")
+        if [ "$chosen" != "/" ]; then
+            folders+=("$(dirname "$chosen")"); labels+=("../  ($(dirname "$chosen"))")
+        fi
+        while IFS= read -r name; do
+            folders+=("$chosen/$name"); labels+=("./$name")
+        done < <(find "$chosen" -mindepth 1 -maxdepth 1 -type d -not -name '.*' -printf '%f\n' 2>/dev/null \
+                 | LC_ALL=C sort | head -n "$SUBFOLDER_LIMIT")
+        page="${output:-$chosen/project-file-server.html}"
+
+        menu_init
+        menu_set_title "Project File Server" "$(fit_to_screen "${note:-Page: $page}")"
+        menu_add_section "todo" "single" "Do"
+        menu_add_item "todo" "do_generate" "Generate the page" "checkbox" \
+            "$([ "$choice" = do_generate ] && echo 1 || echo 0)" "Scan the chosen folder and write the page"
+        menu_add_item "todo" "do_serve" "Serve the page over HTTP" "checkbox" \
+            "$([ "$choice" = do_serve ] && echo 1 || echo 0)" "python3 -m http.server on the port below, on this machine only (127.0.0.1); Ctrl+C stops it"
+        menu_add_item "todo" "do_open" "Open the page in a browser" "checkbox" \
+            "$([ "$choice" = do_open ] && echo 1 || echo 0)" "Hand the page's file:// address to the desktop's opener"
+        menu_add_item "todo" "do_into" "Go into the folder" "checkbox" \
+            "$([ "$choice" = do_into ] && echo 1 || echo 0)" "Make the chosen folder the current one and list its subfolders; writes nothing"
+
+        menu_add_section "folder" "single" "Folder to scan"
+        for i in "${!folders[@]}"; do
+            menu_add_item "folder" "folder_$i" "${labels[$i]}" "checkbox" \
+                "$([ "$i" -eq 0 ] && echo 1 || echo 0)" "${folders[$i]}"
+            tree_preview "${folders[$i]}" "$PREVIEW_DIR/folder_$i.txt"
+            menu_set_item_filepath "folder_$i" "$PREVIEW_DIR/folder_$i.txt"
+        done
+        menu_add_item "folder" "folder_other" "Another folder..." "checkbox" "0" "Asks for a path once the menu closes"
+        menu_set_section_max_visible "folder" 6
+
+        menu_add_section "output" "single" "Page goes to"
+        menu_add_item "output" "out_inside" "Inside the scanned folder" "checkbox" \
+            "$([ -z "$output" ] && echo 1 || echo 0)" "<folder>/project-file-server.html"
+        if [ -n "$output" ]; then
+            menu_add_item "output" "out_chosen" "$output" "checkbox" "1" "The file named last time"
+        fi
+        menu_add_item "output" "out_other" "Another file..." "checkbox" "0" "Asks for a path once the menu closes"
+
+        menu_add_section "serve" "multi" "Serving"
+        menu_add_item "serve" "port" "Port" "flag" "${port}:5" "For 'Serve the page': 1024-65535"
+
+        menu_add_section "go" "multi" "Actions"
+        menu_add_item "go" "go" "Go" "action" "" "Do what is chosen above"
+
+        menu_add_content_source "text" "Last run" "$last_run"
+        menu_add_content_source "item_file" "" ""
+
+        menu_run || return 0
+        note=""
+
+        # what was chosen
+        for i in do_generate do_serve do_open do_into; do
+            [ "${MENU_VALUES[$i]:-0}" = "1" ] && choice="$i"
+        done
+        if [ "${MENU_VALUES[folder_other]:-0}" = "1" ]; then
+            read -r -e -p "Folder to scan: " folder
+            folder="${folder/#\~/$HOME}"
+            if [ ! -d "$folder" ] || [ ! -r "$folder" ]; then
+                note="Not a readable folder: $folder"
+                continue
             fi
-            ;;
-        3)
-            read -p "Enter port number: " port
-            if [ -f "$OUTPUT" ]; then
-                echo "Starting HTTP server on port $port..."
-                cd "$(dirname "$OUTPUT")" && python3 -m http.server "$port"
-            else
-                echo "Error: Output file not found. Generate it first (option 1)"
+            chosen="$(realpath "$folder")"
+        else
+            for i in "${!folders[@]}"; do
+                [ "${MENU_VALUES[folder_$i]:-0}" = "1" ] && chosen="${folders[$i]}"
+            done
+        fi
+        if [ "${MENU_VALUES[out_other]:-0}" = "1" ]; then
+            read -r -e -p "Write the page to: " page
+            page="${page/#\~/$HOME}"
+            if [ -z "$page" ]; then
+                note="Not done: no file was given"
+                continue
             fi
-            ;;
-        4)
-            if [ -f "$OUTPUT" ]; then
-                echo "Opening file server in browser..."
-                xdg-open "file://$OUTPUT" 2>/dev/null || open "file://$OUTPUT" 2>/dev/null || echo "Open manually: file://$OUTPUT"
-            else
-                echo "Error: Output file not found. Generate it first (option 1)"
-            fi
-            ;;
-        5)
-            read -p "Enter directory to scan: " new_dir
-            if [ -d "$new_dir" ]; then
-                DIR="$new_dir"
-                echo "Directory updated to: $DIR"
-            else
-                echo "Error: Directory does not exist"
-            fi
-            ;;
-        6)
-            read -p "Enter output file path: " new_output
-            OUTPUT="$new_output"
-            echo "Output updated to: $OUTPUT"
-            ;;
-        7)
-            echo "Goodbye!"
-            exit 0
-            ;;
-        *)
-            echo "Invalid choice. Please select 1-7."
-            ;;
-    esac
+            output="$(realpath -m "$page")"
+        elif [ "${MENU_VALUES[out_inside]:-0}" = "1" ]; then
+            output=""
+        fi
+        port="${MENU_VALUES[port]:-$port}"
+        page="${output:-$chosen/project-file-server.html}"
+
+        case "$choice" in
+            do_into)
+                note="Now in $chosen"
+                ;;
+            do_generate)
+                out_file="$PREVIEW_DIR/last-run.txt"
+                echo "Generating the page for $chosen"
+                luajit "$LIBRARY" "$chosen" "$page" 2>&1 | tee "$out_file"
+                status=${PIPESTATUS[0]}
+                # the library's progress, without the viewing advice it ends with
+                last_run="$(sed '/^To view in Firefox/,$d' "$out_file" | grep -v '^[[:space:]]*$' | tail -n 4)"
+                if [ "$status" -eq 0 ] && [ -s "$page" ]; then
+                    note="Wrote $page ($(stat -c %s "$page") bytes)"
+                else
+                    line="$(grep -v '^[[:space:]]*$' "$out_file" | tail -n 1)"
+                    note="Failed: ${line:-the library stopped with status $status}"
+                fi
+                ;;
+            do_serve)
+                if ! [[ "$port" =~ ^[0-9]+$ ]] || [ "$port" -lt 1024 ] || [ "$port" -gt 65535 ]; then
+                    note="Not done: the port must be 1024-65535 (got $port)"
+                elif [ ! -f "$page" ]; then
+                    note="Generate the page first: there is none at $page"
+                elif ! command -v python3 >/dev/null 2>&1; then
+                    note="Not done: serving needs python3, which is not installed"
+                else
+                    echo "Serving $(dirname "$page") at http://127.0.0.1:$port/$(basename "$page")"
+                    echo "Press Ctrl+C to stop and return to the menu."
+                    # Ctrl+C is caught here (not ignored, which the server
+                    # would inherit), so it stops the server and not the menu.
+                    trap ':' INT
+                    ( cd "$(dirname "$page")" && exec python3 -m http.server "$port" --bind 127.0.0.1 )
+                    trap - INT
+                    note="Stopped serving $page"
+                fi
+                ;;
+            do_open)
+                if [ ! -f "$page" ]; then
+                    note="Generate the page first: there is none at $page"
+                elif open_in_browser "file://$page"; then
+                    note="Asked the browser to open file://$page"
+                else
+                    note="No browser opener here; the page is at file://$page"
+                fi
+                ;;
+        esac
+    done
 }
 # }}}
 
 # {{{ main
 if [ "$INTERACTIVE" = true ]; then
-    while true; do
-        interactive_mode
-        echo
-        read -p "Press Enter to continue or Ctrl+C to exit..."
-        echo
-    done
+    interactive_mode
+    exit $?
 else
     # Default: generate file server
     echo "Generating Project File Server..."
-    lua "$DIR/scripts/libs/project-file-server.lua" "$DIR" "$OUTPUT"
+    luajit "$LIBRARY" "$DIR" "$OUTPUT"
 fi
 # }}}

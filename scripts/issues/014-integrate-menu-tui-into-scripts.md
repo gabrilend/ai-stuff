@@ -107,3 +107,48 @@ fi
 - `libs/lua-menu.sh` - TUI library documentation
 - `libs/README-lua-menu-user.md` - User guide
 - `libs/README-lua-menu-dev.md` - Developer guide
+
+## What Happened
+
+**2026-11-03: phase 5, project-file-server.** `project-file-server -I
+[folder]` now opens a menu built with `lua-menu.sh`, in place of the
+numbered prompt. A "Do" list chooses what Go does: generate the page, serve it
+over HTTP, open it in a browser, or go into the chosen folder. The folder
+section offers the current folder, its parent and its subfolders, plus
+"Another folder..." to type one; this is the issue's "directory selection".
+"Page goes to" offers the scanned folder or a typed file (the "output
+configuration"), and a Port field sets where it is served. The panel below
+the items shows a two-level tree of the folder under the cursor (the
+"directory tree preview") and the end of the last generation. While
+generating, the library's own progress lines show as it runs (the
+"generation progress"). After each step the menu opens again with a one-line
+note; q leaves. Tested by `tests/test-project-file-server-interactive.sh`
+(23 checks, a real menu in a pretend terminal, including serving on a random
+port until Ctrl+C).
+
+Decisions:
+
+- **One Go button and a "Do" list**, as in the other phases. `menu.lua` is
+  left alone.
+- **Stacked on PR #130 (issue 007).** On main the runner loads its library
+  from under the folder being scanned, so it can only scan the monorepo
+  itself. Choosing folders in a menu needs #130's fix.
+- **"Go into the folder" instead of a separate browser.** Picking a subfolder
+  and choosing Go into lists its own subfolders; the parent is always offered
+  to move back up.
+- **Serving binds to 127.0.0.1.** The old prompt served on every interface.
+  The page lists the folder's contents and the server shares the page's whole
+  folder, so other machines shouldn't reach it by default. Ctrl+C stops the
+  server and returns to the menu: the menu catches the signal rather than
+  ignoring it, since the server would inherit an ignored signal.
+- **The port must be 1024-65535,** since lower ports need root.
+- **`open` is used only on macOS.** On Linux the same name can be `openvt`.
+  The old prompt fell back to it on any system.
+- **The tree preview is two levels deep, hidden entries left out,** at most
+  200 lines, and lists at most 60 subfolders, so a big folder stays quick.
+  Names are printed as text and never run.
+
+Phase 1 (filesystem_scanner.sh) is PR #213, phase 3 (state-daemon.sh) is PR
+#211, phase 4 (backup-conversations) is PR #216, and phase 2's sync-visions
+viewer is PR #170 (issue 005). With all of them merged, every phase has been
+built.
