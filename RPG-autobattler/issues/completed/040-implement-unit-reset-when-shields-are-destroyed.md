@@ -518,8 +518,38 @@ end
 - Check statistics tracking and system integration
 
 ### Acceptance Criteria
-- [ ] Shield destruction triggers enemy unit reset
-- [ ] Reset process includes warning, collection, and removal phases
-- [ ] Visual effects clearly communicate reset progression
-- [ ] All enemy units are properly removed from map
-- [ ] Statistics and notifications track reset events
+- [x] Shield destruction triggers enemy unit reset
+- [x] Reset process includes warning, collection, and removal phases
+- [ ] Visual effects clearly communicate reset progression -- phase events and get_progress() exist for drawing; nothing is drawn yet
+- [x] All enemy units are properly removed from map
+- [x] Statistics and notifications track reset events
+## What Happened
+
+Built as `src/systems/unit_reset_system.lua`. It takes the events from
+`BaseHealthSystem:pop_events()` and starts a reset on each
+`shield_destroyed`. Warning (1 s, units still act), collection (1.5 s, every
+enemy unit is stopped and marked `being_reset`, checked each frame), then
+removal (0.5 s, after which every enemy unit still on the map is removed
+from the entity manager). Each phase is reported as an event
+(`reset_warning`, `reset_collection`, `reset_removal`, `reset_completed`)
+and `get_progress()` gives the phase and how far through it for drawing.
+Tested headlessly by `tests/test_unit_reset.lua` (six tests), which runs
+the base, shield and reset systems together frame by frame. Nothing was
+looked at on screen.
+
+### Decisions
+- **"Enemy units" means every unit not on the defending team**, alive or a
+  corpse, including units that spawn while the reset runs. The defenders'
+  own units and both bases are never touched.
+- **Resets queue instead of being dropped.** The issue's sketch ignored a
+  trigger that arrived mid-reset, which would let a shield fall with no
+  reset. With issue 039's 30-second seal this can only happen when both
+  sides lose a shield at once; the second reset then runs right after the
+  first, and is skipped if there is nothing left to remove.
+- **Safeguard against abuse** is issue 039's seal (no base can lose shields
+  faster than one per 30 seconds); no second cooldown was added here.
+- **No reward to the defender** (the sketch's `apply_reset_benefits`):
+  the vision only asks that the attackers be removed, and the economy does
+  not exist yet.
+- Units are removed with `EntityManager:remove_entity`; the turret's shots
+  at removed units simply fizzle (tested).

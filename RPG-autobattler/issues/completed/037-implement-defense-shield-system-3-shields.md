@@ -500,7 +500,7 @@ end
 ### Acceptance Criteria
 - [x] Three shields protect each base with substantial health
 - [x] Shields absorb incoming base damage (all of it, see Decisions)
-- [ ] Shield destruction triggers enemy unit reset -- the event is reported here; the reset itself is issue 040
+- [x] Shield destruction triggers enemy unit reset -- the event is reported here; the reset itself is issue 040
 - [x] Shields regenerate health when not under attack
 - [ ] Visual effects clearly communicate shield status -- status rows for drawing exist; nothing is drawn yet
 ## What Happened

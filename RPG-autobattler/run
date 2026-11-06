@@ -423,6 +423,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_shield_destruction').run_all()
     " 2>/dev/null && print_success "Shield destruction mechanics tests passed" || print_error "Shield destruction mechanics tests failed"
+    
+    # Test Unit reset (issue 040)
+    print_info "Testing Unit reset..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_unit_reset').run_all()
+    " 2>/dev/null && print_success "Unit reset tests passed" || print_error "Unit reset tests failed"
 }
 # }}}
 
