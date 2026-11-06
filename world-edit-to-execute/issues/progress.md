@@ -398,10 +398,10 @@ Phase 2 & 3 Complete
 | 501e | Create render events | Retired (superseded/) | — |
 | **502** | Implement terrain rendering | Re-cut 2026-09-26 | 508, 105, 501 |
 | 502a | Core terrain renderer | Re-cut 2026-09-26; partly built | 105 |
-| 502b | Height visualization | Re-cut 2026-09-26 | 502, 502e |
-| 502c | Water rendering | Re-cut 2026-09-26 | 502, 502e |
+| 502b | Height visualization | Re-cut 2026-09-26; partly built (517b) | 502, 502e |
+| 502c | Water rendering | Re-cut 2026-09-26; partly built (517b) | 502, 502e |
 | 502d | Fog of war integration | Re-cut 2026-09-26 | 502 |
-| 502e | Terrain optimization | Re-cut 2026-09-26 | 502a, 501d |
+| 502e | Terrain optimization | Re-cut 2026-09-26; partly built (517b) | 502a, 501d |
 | **503** | Build sprite/placeholder system | Re-cut 2026-09-26 | 508, 501 |
 | 503a | Core sprite system | Re-cut 2026-09-26; partly built | 508, 508b |
 | 503b | Unit visual mappings | Re-cut 2026-09-26 | 110, 112 |
