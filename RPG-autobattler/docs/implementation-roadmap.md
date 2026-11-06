@@ -93,7 +93,7 @@
 - [x] Design unit template data structure (Issue #057: priced templates, default per ability set)
 - [ ] Create point-based balancing system
 - [x] Implement template validation and constraints (Issue #059: errors and warnings from one constraints file)
-- [ ] Add template saving/loading system
+- [x] Add template saving/loading system (Issue #060: JSON files by category, backups, import/export, library)
 - [ ] Create default template sets for testing
 
 ### 5.2 Template Editor
