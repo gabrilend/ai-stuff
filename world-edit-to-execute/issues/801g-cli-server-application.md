@@ -13,6 +13,20 @@
 
 No command-line tool for running matchmaking server.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #311 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- After `assets add` or `assets remove` the tool sends SIGHUP to the process number in the state file, checking only that some process with that number is alive. If the server crashed and the number was reused, an unrelated program is killed (SIGHUP's default). `status` also reports it as running. Check `/proc/PID/cmdline` or store the start time.
+- The JSON writer turns empty lists into `{}`; scripts expecting arrays break.
+- Non-whole numbers are written with 6 significant digits, so server-clock times like 1793000123.456 come out as `1.793e+09`.
+- `--nat-alt-ip` is ignored when NAT comes from the config file rather than `--nat-port`, silently disabling full-cone detection.
+- The reload signal is sent even when the running server mirrors a different folder or none, while the tool says it reloaded.
+- `logs --follow` never notices the log was truncated (as logrotate's copytruncate, which the PR recommends, does).
+- `serve` accepts and ignores `--state` and `--json`; its flag is `--state-file`, so the state lands in the wrong place.
+- Flag overrides are applied after the config is checked, so most flags skip validation (`--nat-port 70000` fails later as a socket error).
+- The script can't be given its project folder as an argument, and falls back to a hard-coded path; the daemon keeps running without signal handling when it can't block signals, so SIGTERM leaves stale state and SIGHUP kills it.
+
 ## Intended Behavior
 
 A user-friendly CLI application for:

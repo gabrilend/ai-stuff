@@ -12,6 +12,19 @@
 
 No integration tests exist for the matchmaking system.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #312 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- The test starts a real server with no `--seconds` limit and nothing catches a crash, so any failure mid-run leaves the server running forever in its private network and leaves the temp folder (the sibling test passes `--seconds 60` for this).
+- The client library waits on select() before sending what is queued, so every blocking call loses about 10 ms first; the "about 11 ms" baseline recorded in this issue measures that delay, not the server. Send queued output before the select. (The fix belongs in 801c's client library.)
+- "Can't open a second lobby on one connection" only checks the client's own guard; the server's rejection is never reached.
+- The late-join check depends on the join landing within the one-second countdown; on a loaded machine it fails with "the game has started".
+- The log check for the ignored START_GAME searches the whole log, so an earlier line satisfies it.
+- A dead branch reads a field the client never sets (`close_reason`).
+- The utility block is copied from `test_matchmaking_cli.lua`; six matchmaking tests now keep their own quote, wait and spawn helpers.
+- Current Behavior still says no integration tests exist; fixed run numbers are written into the issue.
+
 ## Intended Behavior
 
 Comprehensive integration tests that verify:

@@ -26,6 +26,18 @@ holds four zero bytes there. The test now prints it escaped.)
 
 ---
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #324 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- The fix only helps tests started by the runner. Each test still falls back to the fixed `/mnt/mtwo/...` path when run alone (as its own header says to), so it can test an old copy and pass falsely, with no message. One shared "find the project from this script's own place" step (as `test_unit.lua` does), or a loud refusal when no folder is given, would replace the ~45 copied fallback lines.
+- Six tests (`test_mpq`, `test_w3c`, `test_w3r`, `test_w3i`, `test_wct`, `test_wtg_header`) put the project folder into an unquoted `ls`. Now that the folder comes from wherever the project sits, a space in its path finds no maps, and the real-map checks pass with nothing tested.
+- `test_309b`–`f` put the folder inside double quotes in a shell command, and `test_triggers.lua` uses Lua's `%q`, which is not shell quoting; a `$` or backtick in the path breaks them.
+- The runner no longer has a hard-coded project folder at its top (house rule), unlike its sibling `run-net-tests.sh`; started through a symlink it would pick the wrong project. `cd` can also print extra text when CDPATH is set, corrupting the folder it computes.
+- Nine tests are now known to fail (`test_309a`, `test_wct`, `test_unitsdoo`, `test_map_save`, `test_phase2_integration`, `test_j`, `test_new_map`, `test_anim`, `test_net_hosted`) with no issue tracking them, so the runner exits 1 on every run.
+- `test_triggers.lua` starts its child suites with `lua` (5.2 here), not `luajit`; `test_frames.lua` puts the project last on the module path, unlike the others.
+- The branch's note in this issue is a dated log with hand-counted totals; the options table and steps above it still describe the old runner.
+
 ## Intended Behavior
 
 A unified test runner script that:
@@ -197,3 +209,42 @@ Initial run on full test suite (104 test files):
 - 0: All tests passed
 - 1: One or more tests failed
 - 2: No tests found
+
+---
+
+## Note (2026-11-06): the runner tests the project it sits in
+
+**Found:** run without a `DIR`, most tests fall back to the fixed path
+`/mnt/mtwo/programming/ai-stuff/world-edit-to-execute`, and the runner
+gave them none. Where that path holds an older copy of the project (as it
+does in the container this was found in), the runner tested the old copy:
+traced through the runner, 107 of the 144 test files that load project code
+loaded it from the fixed path, not from the project the runner was run in.
+The runner's own default was the same fixed path.
+
+**Decision (2026-11-06):** follow the newer idiom, not the older one.
+The tests from 2026-09 take the project as `arg[1]` with the fixed path as
+the fallback (`local DIR = arg[1] or "..."`), and `run-net-tests.sh`
+(2026-09-25) passes `DIR` to each; the self-locating
+`debug.getinfo` tests are from December 2025. So:
+
+- `run-tests.sh` passes `$DIR` to every test, and its default `DIR` is the
+  project it sits in (`$(dirname "$0")/../..`, as `run_phase9.sh` does);
+  `-d` still names another.
+- The 38 tests that ignored `arg[1]` take it now (the one-word change to
+  `arg[1] or`), and `test_frames.lua` builds its path from `DIR`.
+- The aggregating tests that start other tests pass `DIR` on to them
+  (`test_309b` to `309f`, `test_triggers`).
+
+No test's expectations changed. With the fix, every test that loads
+project code loads it from the project being tested.
+
+**What newly fails** (it now reads this project's own `assets/`, which
+gained three maps on 2026-11-02 that the old copy lacks): `test_309a`,
+`test_wct`, `test_unitsdoo`, `test_map_save`, `test_phase2_integration`
+(the units, triggers and trigger-comments files of Conquest-v8-fix and
+Master-Crafters-Final-Conquest), `test_j` (two of the new maps hold
+`war3map.j`), `test_new_map` (Conquest-v8-fix's `war3map.w3i` doesn't write
+back byte for byte), `test_anim` (an imported model in
+War-in-the-Plaguelands). `test_net_hosted` fails as before (it needs effil).
+These are left failing for the parser issues; the runner now reports them.

@@ -143,3 +143,15 @@ One model's meshes and textures are shared by every unit that uses it.
 - `issues/W03-show-wow-models-with-wc3-unit-behavior.md`
 - `issues/603-fetch-maps-and-models-from-public-sites.md`
 - `docs/render-architecture.md`
+
+---
+
+## Progress (2026-11-06)
+
+Step 4's stand-in chooser is built with 504's override file:
+`src/assets/chooser.lua` (override, then the requested model, then a
+placeholder; each path chosen once; uses counted by source; every
+placeholder and failed override kept with its reason), tested headless in
+`src/tests/test_overrides.lua`. The decisions are in 504. Not yet called by
+the window: `A:model_for` handing its path to `chooser:choose` changes the
+map viewer, which waits on raylib. No box here is ticked for it.

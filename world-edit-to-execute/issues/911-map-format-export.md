@@ -342,3 +342,5 @@ EXPORT VALIDATION: WC3
    2026-10-01 and the owner chose the web session's text where they clashed,
    so this issue now carries both the answer that `.wex` is not built and
    the report that it is. (Asked 2026-10-01.)
+
+*(2026-11-05)* The reserved `wow/` folder is used now: issue W10a keeps WoW maps there at the client's own paths (`wow/World/Maps/<dir>/`), byte for byte, recorded in `wow/layer.lua`; `mapfile.validate(dir, "wow")` and `mapfile.build_wow` are its build. A WC3 build still leaves it out, now with one line a WoW map.
