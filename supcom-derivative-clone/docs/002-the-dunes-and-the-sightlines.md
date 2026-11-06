@@ -34,6 +34,15 @@ layers: a long, low swell that gives the field its large shapes; a shorter
 ridge-and-trough pattern laid across it at an angle, which is what makes a dune
 field read as dunes rather than hills; and a fine roughness so that no two
 crests are identical. Each layer's amplitude and wavelength is a shape parameter.
+Under all three lies a **causeway**: the ground is lifted along the diagonal
+that joins the two teams' starting corners and lowered toward the other two
+corners, so the sea gathers on the flanks and the two sides are nearly always
+joined by land. Without it, a third of all seeds drowned a starting corner or
+cut the two apart, and the validator refused them.
+
+Every layer is a hash of the seed and a cell's own coordinates, never a draw
+from a sequence, so a cell's height depends on nothing else and every cell can
+be raised at once.
 
 The tool validates what it raised before anything uses it, and refuses rather
 than repairs: the water must not cover the whole field, both teams' starting

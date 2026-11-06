@@ -14,8 +14,8 @@ blind.
 | Issue | | Status |
 | --- | --- | --- |
 | 101 | The project is built by its tools | built |
-| 102 | The dunes are raised by a tool | not started |
-| 103 | Sightlines are read off the dunes | not started |
+| 102 | The dunes are raised by a tool | built |
+| 103 | Sightlines are read off the dunes | built |
 | 104 | The world is flat arrays | not started |
 | 105 | The tick is a dispatch table | not started |
 | 106 | A periodic effect is a pair of integers | not started |

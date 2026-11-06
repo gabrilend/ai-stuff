@@ -104,10 +104,22 @@ harness.suite("a sightline is blocked by a crest and clear along a flat", functi
                 sightlines.can_see(field, 4, 8, 2, 28, 8, 2) == false)
   harness.check("two eyes on the same side of the ridge see each other",
                 sightlines.can_see(field, 4, 8, 2, 12, 8, 2) == true)
-  harness.check("a tall eye sees over the ridge",
-                sightlines.can_see(field, 4, 8, 25, 28, 8, 2) == true)
-  harness.check("a tall profile is seen over the ridge",
-                sightlines.can_see(field, 4, 8, 2, 28, 8, 25) == true)
+  -- A tall eye sees over the ridge when it stands close enough to it. As first
+  -- written these two claims stood the tall eye twelve cells short of the ridge
+  -- and the low target twelve beyond it, and that geometry is blocked: an eye at
+  -- 35 and a target at 12 meet the ridge's column halfway, at 23.5, under its
+  -- 30. So the claim was a bug in the test, not in the walk, and it is kept with
+  -- the tall end two cells from the ridge -- 35 falling to 12 over fourteen
+  -- cells crosses the ridge at about 31.7 -- and the far-off geometry is kept
+  -- too, asserting what it really shows.
+  harness.check("a tall eye close to the ridge sees over it",
+                sightlines.can_see(field, 14, 8, 25, 28, 8, 2) == true)
+  harness.check("a tall profile close to the ridge is seen over it",
+                sightlines.can_see(field, 4, 8, 2, 18, 8, 25) == true)
+  harness.check("a tall eye far behind the ridge does not see a low target far beyond it",
+                sightlines.can_see(field, 4, 8, 25, 28, 8, 2) == false)
+  harness.check("a low eye far behind the ridge does not see a tall profile far beyond it",
+                sightlines.can_see(field, 4, 8, 2, 28, 8, 25) == false)
   harness.check("seeing is symmetric when eye and profile are equal",
                 sightlines.can_see(field, 4, 8, 2, 28, 20, 2)
                 == sightlines.can_see(field, 28, 20, 2, 4, 8, 2))
@@ -115,6 +127,35 @@ harness.suite("a sightline is blocked by a crest and clear along a flat", functi
                 sightlines.can_see(field, 0, 0, 2, 15, size - 1, 2) == true)
   harness.check("the count of questions asked is reported",
                 type(sightlines.questions_asked()) == "number")
+end)
+
+harness.suite("the coarse pass never changes an answer", function()
+  local sightlines = harness.load("sightlines", "103")
+  local dunes = harness.load("the-dunes", "102")
+  -- The same raised ground twice: once with its coarse regions, once bare, so
+  -- the second is answered by the walk alone. Pairs of points come from a small
+  -- fixed congruential sequence, so the sample is the same on every run.
+  local field = dunes.raise(FIELD, SEED)
+  local bare = {size = field.size, height = field.height, water_line = field.water_line}
+  local state = 1
+  local function next_cell()
+    state = (state * 1103515245 + 12345) % 2147483648
+    return state % field.size, math.floor(state / field.size) % field.size
+  end
+  local disagree, asymmetric = 0, 0
+  for question = 1, 2000 do
+    local x1, y1 = next_cell()
+    local x2, y2 = next_cell()
+    local eye = question % 7
+    local coarse = sightlines.can_see(field, x1, y1, eye, x2, y2, eye)
+    if coarse ~= sightlines.can_see(bare, x1, y1, eye, x2, y2, eye) then disagree = disagree + 1 end
+    if coarse ~= sightlines.can_see(field, x2, y2, eye, x1, y1, eye) then asymmetric = asymmetric + 1 end
+  end
+  harness.check("a raised field and the same heights without regions agree", disagree == 0,
+                disagree .. " of 2000 disagree")
+  harness.check("every one of them is symmetric", asymmetric == 0, asymmetric .. " of 2000 are not")
+  sightlines.reset_questions()
+  harness.check("resetting the count clears it", sightlines.questions_asked() == 0)
 end)
 -- }}}
 

@@ -192,9 +192,10 @@ other.
 
 The dunes are raised by a tool from a seed, so two machines given one number
 raise the same field to the last grain. Long swells, ridges laid across them at
-an angle, fine roughness on top, a water line that makes the low places sea. The
-field is random every time, which is why its look is meant to be generated
-rather than drawn — a tileset from an image model, so that random dunes still
+an angle, fine roughness on top, a water line that makes the low places sea, and
+the ground lifted along the line between the two starting corners, so the sea
+gathers on the flanks and the two sides are joined by land. The field is random
+every time, which is why its look is meant to be generated rather than drawn — a tileset from an image model, so that random dunes still
 look like a place.
 
 The seed is the first thing the game reads, out of [input/seed](input/seed), and

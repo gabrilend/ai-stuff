@@ -5,14 +5,16 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 102 |
 | Blocks | 205 |
-| Reads | [the dunes and the sightlines](../docs/002-the-dunes-and-the-sightlines.md) |
+| Reads | [the dunes and the sightlines](../../docs/002-the-dunes-and-the-sightlines.md) |
 | Open questions | C2 |
 
 ## Current behavior
 
-Nothing. The question "can this point see that point" is described in the dunes
-document and answered by nothing. The phase 1 test program looks for a source
-file whose stem is `sightlines` and reports its absence by name.
+Built. `src/029-sightlines.lua` answers `can_see(field, x1, y1, eye, x2, y2,
+profile)` with a coarse pass over the field's regions and then a grid walk, and
+counts the questions it was asked. The phase 1 program's sightline suites hold,
+including a new one asserting that the coarse pass never changes an answer and
+that every answer is the same both ways round.
 
 ## Intended behavior
 
@@ -63,11 +65,35 @@ in the same order produce the same booleans on every machine.
 6. Fill the companion, and state in it that the endpoints themselves are never
    tested — a unit always sees its own cell.
 
+## What happened
+
+- **Two claims in the phase 1 test were geometrically impossible and were
+  corrected, not weakened.** The test stood a tall eye (25 above ground 10)
+  twelve cells short of a ridge of 30 and a low target (2 above 10) twelve
+  cells beyond it, and asserted the eye sees over. The straight segment from 35
+  to 12 crosses the ridge's column halfway, at 23.5, under the crest -- any
+  walk that honours the dunes document has to say no. The claims are kept with
+  the tall end two cells from the ridge, where the segment clears it at about
+  31.7, and the far-off geometry is asserted as what it really is: blocked. A
+  folded comment in the test says what went wrong.
+- **Symmetry by construction.** The walk always runs from the end that is first
+  in row order, swapping the heights with the ends, so the same question asked
+  the other way round is the same walk.
+- **A corner crossing visits both neighbours**, x first. Grazing two crests at
+  their shared corner is blocked by either; the cautious answer.
+- **A field without coarse regions is walked in full.** The test builds its
+  ridge by hand with no `tallest`; rather than invent one, the coarse pass is
+  skipped for such a field. A raised field always has regions (the dunes'
+  validator refuses one without), and the new test asserts the coarse pass and
+  the bare walk agree on two thousand pairs.
+- `reset_questions()` is added to the contract table in the tests document,
+  where the issue already named it.
+
 ## Related documents and tools
 
-- [The dunes and the sightlines](../docs/002-the-dunes-and-the-sightlines.md)
-- [A unit and what it carries](../docs/004-a-unit-and-what-it-carries.md)
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The dunes and the sightlines](../../docs/002-the-dunes-and-the-sightlines.md)
+- [A unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md)
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 
 ## Still open
 

@@ -5,15 +5,17 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 101 |
 | Blocks | 103, 110, 111, 112, 203, 602 |
-| Reads | [the dunes and the sightlines](../docs/002-the-dunes-and-the-sightlines.md) |
+| Reads | [the dunes and the sightlines](../../docs/002-the-dunes-and-the-sightlines.md) |
 | Open questions | B5 |
 
 ## Current behavior
 
-Nothing. The field exists as a description in the dunes document and nowhere
-else. The phase 1 test program looks for a source file whose stem is `the-dunes`
-and reports its absence by name. The file-making tools from issue 101 are in
-place, so the file can be claimed the moment somebody writes it.
+Built. `src/028-the-dunes.lua` raises the field from a seed and the six shape
+parameters, refusing a missing one by name; validates it before handing it out;
+and dumps it as text, one line per row, with the water marked and each team's
+start cell drawn as its number. `index(field, x, y)` is the one place a cell's
+index is computed and `cell_of` the one place a position becomes a cell. The
+phase 1 program's three dune suites hold on the pinned seed and on others.
 
 ## Intended behavior
 
@@ -80,11 +82,44 @@ water marked — so the dunes can be looked at before anything can draw them.
    tool takes a table.
 9. Fill the companion with the record's fields and the three exports.
 
+## What happened
+
+- **A fourth shape under the three layers: the causeway.** As the steps were
+  first written, about a third of seeds at the test's shape either drowned a
+  start corner or cut the two start cells apart, and the validator refused
+  them; tuning the water up or down only traded refusals for fields with no
+  sea at all. The ground is now lifted along the diagonal between the two
+  start corners and lowered toward the other two, a pure function of the cell's
+  place like everything else. Over a thousand seeds at the test's shape none is
+  refused and about one in thirty has no water; at a side of 128 none is dry.
+  The dunes document and the README say so.
+- **The swell multiplies the ridges**, so the sea is broad and flat and the
+  dunes stand tallest inland. The ratios that make a dune field out of the six
+  parameters are `SHAPE` in the source and a table in the companion; they are
+  the tool's shape, not balance numbers, so they are not in a catalogue.
+- **Positions put a cell's centre at its integer coordinates**: position (10,
+  10) is the middle of cell (10, 10). `cell_of` holds that rule and the
+  sightlines follow it.
+- **Smooth-step weights between lattice points**, not straight linear ones:
+  still the four surrounding values blended, but without a crease along every
+  lattice line, which read as a grid rather than as sand.
+- **Hydrocarbon is unsmoothed**: one hash per land cell against the rate, so the
+  share of pockets is the rate the parameter names.
+- **Start regions are a quarter of the side**, in the corner at the origin and
+  its mirror through the centre; the start cell is the highest land cell in
+  each, the first in row order on a tie.
+- **Field arrays are Lua arrays, not foreign ones.** The test reads
+  `#field.height` and writes `nil` into it, and the field is never written
+  after it is raised, so it is the world's per-tick state that lives in
+  foreign arrays, not the ground.
+- Not done here, as the steps say: reading `input/field` belongs to the runner
+  (issue 110).
+
 ## Related documents and tools
 
-- [The dunes and the sightlines](../docs/002-the-dunes-and-the-sightlines.md)
-- [The shape of the code](../docs/013-the-shape-of-the-code.md)
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The dunes and the sightlines](../../docs/002-the-dunes-and-the-sightlines.md)
+- [The shape of the code](../../docs/013-the-shape-of-the-code.md)
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 - `./new-source-file`, `./compile`
 
 ## Still open
