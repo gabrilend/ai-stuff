@@ -174,6 +174,44 @@ the panel (the device cleans its cache over the framebuffer so the
 display controller, which does not look in the cache, sees them; the
 twin counts a frame and may show or record it).
 
+### platform_card_blocks
+
+```c
+uint64_t platform_card_blocks(void)
+```
+
+### platform_card_read
+
+```c
+int platform_card_read(uint64_t block, uint32_t count, void *buffer)
+```
+
+### platform_card_write
+
+```c
+int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
+```
+
+### platform_compile
+
+```c
+void *platform_compile(const char *c_text, size_t length, const char *entry_name, void **entry, char *why, size_t why_size)
+```
+
+Compile one C text and load the result, answering an opaque handle
+and, through `entry`, the address of the function named `entry_name`
+in it — or NULL with the compiler's own words in `why`. The twin runs
+the laptop's C compiler and loads the result; the device has no
+compiler yet (issue 409's open question) and says so.
+
+### platform_unload
+
+```c
+void platform_unload(void *handle)
+```
+
+Unload code a platform_compile loaded. Nothing may be running in it.
+
 ### platform_guarded_call
 
 ```c
