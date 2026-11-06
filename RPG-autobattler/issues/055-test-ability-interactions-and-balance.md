@@ -759,14 +759,18 @@ Built here:
 - **A set is flagged only when its whole 95% interval lies past 65%
   (dominant) or 35% (weak),** so a lucky handful of battles isn't called
   a problem. Draws count half to each side.
+- **Balance numbers are not tuned against the harness's stand-in
+  walking.** Decided in Round 4 by the coordinating session, answering
+  the question this PR raised. Tuning waits until issue 067 puts ability
+  sets into real matches with lane movement. Until then, harness win
+  rates are provisional readings, not targets.
 - **Battles use straight-line walking toward the nearest enemy.** That's
   enough to bring melee into reach. Real lane movement comes with issue
   067 (match units with ability sets).
 
 ## Still To Do
-- [ ] Tune the sets until none is flagged. This needs a person's call on
-  whether to tune now against the stand-in walking, or after issue 067
-  puts ability sets into real matches.
+- [ ] Tune the sets until none is flagged, once issue 067 has put ability
+  sets into real matches (see the decision below).
 - [ ] Profile memory, not only time, in the 100-unit battle.
 - Balance judgements handed over from issues 051-054:
   - [ ] melee against ranged;
