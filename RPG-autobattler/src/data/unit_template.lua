@@ -8,7 +8,8 @@
 --                                 abilities, appearance}; anything left
 --                                 out takes the body's or a default value
 --   template:calculate_point_cost()  points used, with a breakdown
---   template:validate()           true, or false with validation_errors
+--   template:validate()           true, or false; errors and warnings
+--                                 (src/validators/template_validator.lua)
 --   template:ability_configs()    the abilities' configs, for
 --                                 UnitAbilities.attach
 --   template:create_unit(em, x, y, team)  a unit built to the design
@@ -82,7 +83,8 @@ function UnitTemplate.new(data)
         points_used = 0,
         breakdown = nil,
         is_valid = false,
-        validation_errors = {}
+        validation_errors = {},
+        validation_warnings = {}
     }
     for _, stat in ipairs(UnitTemplate.STAT_NAMES) do
         template.stats[stat] = stats_in[stat] or body[stat] or 0
@@ -205,7 +207,9 @@ function UnitTemplate:calculate_point_cost()
     local total = breakdown.body
     for _, stat in ipairs(UnitTemplate.STAT_NAMES) do
         local price = TemplateCosts.stats[stat]
-        local above = math.max(0, (self.stats[stat] or 0) - (body[stat] or 0))
+        -- A stat that isn't a number costs nothing; the validator reports it.
+        local value = tonumber(self.stats[stat]) or 0
+        local above = math.max(0, value - (body[stat] or 0))
         local points = UnitTemplate.round_up(above * price.per_unit)
         breakdown.stats[stat] = points
         total = total + points
@@ -229,51 +233,27 @@ end
 -- }}}
 
 -- {{{ UnitTemplate:validate
-function UnitTemplate:validate()
-    local errors = {}
-    if type(self.name) ~= "string" or self.name == "" then
-        table.insert(errors, "Must have a name")
-    end
-    if not TemplateCosts.bodies[self.unit_type] then
-        table.insert(errors, "Unknown unit type: " .. tostring(self.unit_type))
-    end
-    for _, stat in ipairs(UnitTemplate.STAT_NAMES) do
-        local value = self.stats[stat]
-        local limits = TemplateCosts.stats[stat]
-        if type(value) ~= "number" then
-            table.insert(errors, stat .. " must be a number")
-        elseif value < limits.min or value > limits.max then
-            table.insert(errors, string.format("%s must be %g-%g, not %g", stat, limits.min, limits.max, value))
-        end
-    end
-
-    local limits = TemplateCosts.abilities
-    if #self.abilities < limits.min_abilities then
-        table.insert(errors, "Must have at least " .. limits.min_abilities .. " ability")
-    elseif #self.abilities > limits.max_abilities then
-        table.insert(errors, "Cannot have more than " .. limits.max_abilities .. " abilities")
-    end
-    for index = 1, #self.abilities do
-        local config, problem = self:ability_config(index)
-        if not config then
-            table.insert(errors, string.format("Ability %d: %s", index, problem))
-        else
-            local ok, built = pcall(Ability.new, config)
-            if not ok then
-                table.insert(errors, string.format("Ability %d: %s", index, tostring(built):gsub("^.-:%d+: ", "")))
-            elseif index == 1 and built.type ~= "damage" and built.type ~= "heal" then
-                table.insert(errors, "Ability 1 (the primary) must deal damage or heal")
-            end
-        end
-    end
-
-    if self:calculate_point_cost() > self.point_budget then
-        table.insert(errors, string.format("Exceeds point budget: %d/%d", self.points_used, self.point_budget))
-    end
-
+-- Judges the template by src/validators/template_validator.lua (or the
+-- validator given). Sets is_valid, validation_errors and
+-- validation_warnings; returns is_valid, errors, warnings.
+function UnitTemplate:validate(validator)
+    validator = validator or UnitTemplate.default_validator()
+    local ok, errors, warnings = validator:validate_template(self)
     self.validation_errors = errors
-    self.is_valid = #errors == 0
-    return self.is_valid, errors
+    self.validation_warnings = warnings
+    self.is_valid = ok
+    return ok, errors, warnings
+end
+-- }}}
+
+-- {{{ UnitTemplate.default_validator
+-- One shared validator with the rules in src/data/template_constraints.lua.
+local shared_validator
+function UnitTemplate.default_validator()
+    if not shared_validator then
+        shared_validator = require("src.validators.template_validator"):new()
+    end
+    return shared_validator
 end
 -- }}}
 

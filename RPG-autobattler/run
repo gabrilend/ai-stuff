@@ -364,6 +364,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_unit_templates').run_all()
     " 2>/dev/null && print_success "Unit template tests passed" || print_error "Unit template tests failed"
+
+    # Test Template validation (issue 059)
+    print_info "Testing Template validation..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_template_validation').run_all()
+    " 2>/dev/null && print_success "Template validation tests passed" || print_error "Template validation tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."

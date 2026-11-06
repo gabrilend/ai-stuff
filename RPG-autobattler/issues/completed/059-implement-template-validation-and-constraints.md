@@ -493,9 +493,66 @@ return {
 ```
 
 ### Acceptance Criteria
-- [ ] All invalid templates are rejected with clear error messages
-- [ ] Warnings are provided for potentially problematic but legal templates
+- [x] All invalid templates are rejected with clear error messages
+- [x] Warnings are provided for potentially problematic but legal templates
 - [ ] Validation covers all critical game balance aspects
-- [ ] Error messages are specific and actionable
-- [ ] Validation performance is acceptable for real-time use
-- [ ] Constraint system is configurable and maintainable
+- [x] Error messages are specific and actionable
+- [x] Validation performance is acceptable for real-time use
+- [x] Constraint system is configurable and maintainable
+
+## What Happened
+
+Built as:
+- **`src/data/template_constraints.lua`:** every rule's numbers in one
+  place:
+  - name length and allowed characters, and description length;
+  - hard and comfortable ranges for each stat;
+  - ability limits (count, power, range, area, duration, cooldown, mana
+    rate, effects over time, zones, pierce, cleave);
+  - the thresholds for warnings.
+- **`src/validators/template_validator.lua`:**
+  - `validate_template` returns ok, errors and warnings.
+  - `validate_detailed` names each finding's rule and whether it's
+    critical.
+  - `add_rule` lets a game mode bring its own.
+- **Critical rules:** name, unit type, stat ranges, ability count, each
+  ability's limits and kind, and the point budget.
+- **Warnings:**
+  - stats outside the comfortable range;
+  - more than two abilities of one kind, or the same ability twice;
+  - long-reach damage on a melee or tank body, or heavy armor on a ranged
+    body;
+  - spending under half the budget.
+- **`UnitTemplate:validate(validator)`** now hands the work to the
+  validator and keeps `validation_warnings` beside `validation_errors`.
+  The stat ranges and ability-count limits moved out of
+  `template_costs.lua`, which now holds prices only.
+- **`tests/test_template_validation.lua`** (9 tests), added to `./run
+  <dir> unit`. A thousand validations of a four-ability template take
+  about 0.06 s under luajit and 0.12 s under lua5.4.
+
+Headless only. Nothing was seen.
+
+### Decisions
+- **Messages name the thing, the number, the limit and the fix.** For
+  example: "Ability 1 (primary_melee_attack): range 300 is over the limit
+  of 100; lower it".
+- **The criterion "covers all critical game balance aspects" stays
+  unticked.** The limits here keep templates legal and catch obvious
+  oddities. Whether a legal template is too strong is issue 058's job.
+  Tuning waits for issue 067 (the Round 4 decision recorded in 055 and
+  058).
+- **Limits are in this game's units:** a maximum reach of 100, where
+  ranged is about 30. The sketch's 250 was for its own distances.
+- **The sketch's "stat distribution" rule is replaced.** It compared
+  health, speed, armor and range by percentage of their sum, which mixes
+  units. Each stat now has its own comfortable range instead.
+- **No `effect_type` / `target_type` checks.** Templates use the ability
+  system's own kinds, and building each ability already proves it valid.
+  The kinds decide targeting, so a heal can't be aimed at an enemy.
+- **A buff or debuff with no duration is legal.** The kinds give it a
+  5-second default, so only the maximum is checked.
+- **Default templates may carry warnings.** The brute has three debuffs,
+  the skirmisher three damage abilities, and the berserker spends 41
+  points. They are legal; issue 061 revisits the defaults.
+

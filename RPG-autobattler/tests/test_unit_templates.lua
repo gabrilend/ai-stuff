@@ -84,14 +84,14 @@ end
 function TestSuite.test_validation()
     local rich = UnitTemplate.new({name = "Greedy", unit_type = "melee", stats = {health = 500, armor = 40},
         abilities = {"primary_melee_attack"}})
-    assert(not rich.is_valid and has_error(rich, "Exceeds point budget"), "Over budget is refused")
+    assert(not rich.is_valid and has_error(rich, "points of a 100 budget"), "Over budget is refused")
     assert(rich:points_left() < 0, "Points left goes negative")
 
     local none = UnitTemplate.new({name = "Empty", abilities = {}})
     assert(has_error(none, "at least 1 ability"), "No abilities is refused")
     local many = UnitTemplate.new({name = "Busy", point_budget = 1000,
         abilities = {"primary_melee_attack", "power_strike", "battle_fury", "focus", "minor_heal"}})
-    assert(has_error(many, "more than 4"), "Five abilities is refused")
+    assert(has_error(many, "limit of 4"), "Five abilities is refused")
 
     local unknown = UnitTemplate.new({name = "Typo", abilities = {"primery_melee_attack"}})
     assert(has_error(unknown, "unknown ability template"), "An unknown ability template is named")
@@ -103,7 +103,7 @@ function TestSuite.test_validation()
     local odd = UnitTemplate.new({name = "Odd", unit_type = "dragon", abilities = {"primary_melee_attack"}})
     assert(has_error(odd, "Unknown unit type"), "Unknown bodies are refused")
     local frail = UnitTemplate.new({name = "Frail", stats = {health = 10}, abilities = {"primary_melee_attack"}})
-    assert(has_error(frail, "health must be"), "Stats outside their range are refused")
+    assert(has_error(frail, "health 10 is below the minimum"), "Stats outside their range are refused")
     local nameless = UnitTemplate.new({name = "", abilities = {"primary_melee_attack"}})
     assert(has_error(nameless, "name"), "A name is needed")
     print("✓ Validation test passed")
