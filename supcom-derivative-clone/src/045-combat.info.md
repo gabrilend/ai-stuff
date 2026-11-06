@@ -26,11 +26,10 @@ Three of the tick's rows, in the order fire, land, die, after the aim pass
   shots in the same order. (The issue suggested moving the last row into the
   freed slot; that reorders the queue, so the compaction is a stable one.)
 - **Die** (one worker). Every live unit of a kind whose derived health is at or
-  below zero is released, in row order, which lowers the live count, and the
-  shots still flying at it are dropped, so a row handed out again is never hit
-  by a shell meant for the unit that held it. Issue 208 calls its
-  `leave` here.
-  A raw row with no kind is never killed.
+  below zero leaves its bones where it stands (`bones.leave`, issue 208) and is
+  released, in row order, which lowers the live count, and the shots still
+  flying at it are dropped, so a row handed out again is never hit by a shell
+  meant for the unit that held it. A raw row with no kind is never killed.
 
 **A shot follows its target** (open question A3's working ruling): it lands on
 the unit it was fired at, wherever that unit is by then. A shell that lands on
@@ -76,4 +75,5 @@ The shot queue, `world.shot` (a queue group in the world's layout): `shooter`,
 `target`, `damage`, `arrives`, all integers, with `count`. Its capacity is the
 world's `units` times the rules' `shots_per_unit`; a full queue refuses by name
 ("the shot queue is full") and never drops a shot. It writes `world.unit.health`,
-`health_at` and `reload_at`, and releases unit rows.
+`health_at` and `reload_at`, releases unit rows, and leaves bones through
+the bones module.

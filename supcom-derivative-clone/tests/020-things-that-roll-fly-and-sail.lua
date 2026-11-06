@@ -832,6 +832,79 @@ harness.suite("death leaves bones that carry mass", function()
 end)
 -- }}}
 
+-- {{{ bones, closer
+harness.suite("bones carry a share of what the unit cost, and only a death leaves them", function()
+  local units = harness.load("units", "201")
+  local combat = harness.load("combat", "206")
+  local bones = harness.load("bones", "208")
+  local rate = harness.load_asset("the-rules", "105").ticks_per_second
+  local tank = units.kind("tank")
+  harness.check("a tank's bones are its share of its mass cost, rounded down",
+                bones.mass_of("tank") == math.floor(tank.cost_mass * tank.bone_share)
+                and bones.mass_of("tank") > 0)
+  local raw = raw_catalogue()
+  raw.tank.bone_share = 1.5
+  local fine, message = pcall(units.validate_catalogue, raw, rate)
+  harness.check("a death never puts back more than the unit cost",
+                not fine and tostring(message):find("tank.bone_share", 1, true) ~= nil, message)
+  local world = level()
+  local truck = units.spawn(world, "command-truck", 1, 20, 20)
+  local heli = units.spawn(world, "helicopter", 2, 30, 30)
+  combat.hurt(world, truck, units.kind("command-truck").health)
+  combat.hurt(world, heli, units.kind("helicopter").health)
+  harness.check("both died", combat.die_pass(world) == 2)
+  harness.check("a kind that cost no mass leaves no bones; a plane leaves its share",
+                world.bone.count == 1 and world.bone.x[1] == 30 and world.bone.y[1] == 30
+                and world.bone.mass[1] == bones.mass_of("helicopter"), world.bone.count)
+  harness.check("the bones' total is what lies on the field", bones.total(world) == world.bone.mass[1])
+  harness.check("bones are left only where the field is",
+                not pcall(bones.leave_at, world, -3, 5, 10) and not pcall(bones.leave_at, world, 5, 64, 10))
+  harness.check("and only with a whole mass of at least one",
+                not pcall(bones.leave_at, world, 5, 5, 0) and not pcall(bones.leave_at, world, 5, 5, 2.5))
+  harness.check("a released row leaves no bones a second time",
+                not pcall(bones.leave, world, heli))
+end)
+
+harness.suite("bones are found near a point, eaten in order, and refused when full", function()
+  local units = harness.load("units", "201")
+  local bones = harness.load("bones", "208")
+  local the_world = harness.load("the-world", "104")
+  local snapshot = harness.load("snapshot", "109")
+  local viewer = harness.load("terminal-viewer", "111")
+  local world = level()
+  local eater = units.spawn(world, "enforcer", 1, 10, 10)
+  bones.leave_at(world, 10, 12, 30)
+  bones.leave_at(world, 40, 40, 20)
+  bones.leave_at(world, 11, 9, 10)
+  local near = bones.near(world, 10, 10, 2)
+  harness.check("near finds the bones within the radius, in queue order",
+                #near == 2 and near[1] == 1 and near[2] == 3, table.concat(near, ","))
+  local before = snapshot.hash(world)
+  harness.check("eating hands back the mass", bones.eat(world, eater, near[2]) == 10
+                and bones.eat(world, eater, near[1]) == 30)
+  harness.check("the queue closes up in order", world.bone.count == 1 and world.bone.mass[1] == 20
+                and world.bone.mass[2] == 0 and world.bone.x[3] == 0)
+  harness.check("the bones are part of the fingerprint", snapshot.hash(world) ~= before)
+  harness.check("there is nothing to eat past the queue", not pcall(bones.eat, world, eater, 2))
+  harness.check("a copy carries the bones", snapshot.copy(world).bone.mass[1] == 20)
+  local tank = units.spawn(world, "tank", 2, 40, 40)
+  bones.leave_at(world, 20, 30, 5)
+  local rows = {}
+  for line in viewer.draw(snapshot.copy(world)):gmatch("[^\n]+") do rows[#rows + 1] = line end
+  harness.check("the viewer draws bones where no unit stands",
+                rows[31]:sub(21, 21) == viewer.BONE, rows[31])
+  harness.check("and a unit over the bones it stands on",
+                rows[41]:sub(41, 41) == viewer.LETTERS[units.index_of("tank")], rows[41])
+  the_world.release(world, "unit", tank)
+  harness.check("a released row eats nothing", not pcall(bones.eat, world, tank, 1))
+  local small = the_world.allocate({field = FIELD, units = 1, teams = 2, seed = SEED})
+  for _ = 1, small.bone.capacity do bones.leave_at(small, 3, 3, 1) end
+  local ok, problem = pcall(bones.leave_at, small, 3, 3, 1)
+  harness.check("a full bone queue refuses, naming it",
+                not ok and tostring(problem):find("bone queue is full", 1, true) ~= nil, problem)
+end)
+-- }}}
+
 -- {{{ the thread pool
 harness.suite("the thread pool slices a range without gaps or overlaps", function()
   local pool = harness.load("thread-pool", "209")

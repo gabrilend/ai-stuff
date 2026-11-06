@@ -5,13 +5,16 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 206 |
 | Blocks | 211 |
-| Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) |
+| Reads | [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing. The test program `tests/020-things-that-roll-fly-and-sail.lua` names
-this issue, looks for the stem `bones`, and asserts that bones carry mass.
+Built. `src/046-bones.lua` keeps the world's bone queue (`x`, `y`, `mass`). The
+die pass calls `leave` for every unit it takes out, which leaves the kind's
+`bone_share` of its `cost_mass` where the unit stood; `near` and `eat` are there
+for the enforcer's eat pass. The hash and snapshots carry the bones, and the
+terminal viewer draws them as `x`.
 
 ## Intended behavior
 
@@ -56,10 +59,34 @@ read for where the fighting was.
    the hash includes them — a machine that forgot a bone would otherwise agree
    with one that did not.
 
+## What happened
+
+- **The share is a new catalogue field, `bone_share`**, one per kind, 0.5 for
+  every kind for now; the catalogue refuses a share above one, so a death never
+  puts back more than the unit cost. Logged in the balance updates.
+- **A kind whose share comes to nothing leaves no row.** The command truck cost
+  no mass, so its death leaves no bones, and the queue never holds a row with
+  nothing to eat.
+- **The bones are a queue group in the world's layout**, so the hash, the copy
+  and the validator take them up with everything else (step 6). Capacity is the
+  world's `units` times a new rule, `bones_per_unit = 8`; a full queue refuses
+  by name.
+- **Eating closes the queue up in order**, rather than moving the last row into
+  the freed slot as step 4 suggests: every queue in the world keeps its order,
+  and closing up costs only when something is eaten. An eat pass eats the rows
+  `near` gave it last first.
+- **`leave_at(world, x, y, mass)`**, which the enforcer's test uses, is the
+  building block `leave` calls; it refuses a position off the field and a mass
+  that is not a whole number from one. `mass_of` and `total` are exported for
+  reports.
+- **The viewer's mark for bones is `BONE = "x"`**, drawn where no live unit
+  stands.
+- Bones do not decay, as the issue says; nothing beyond its questions is open.
+
 ## Related documents and tools
 
-- [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) — the bones section
-- [enforcers and experimentals](../docs/009-enforcers-and-experimentals.md) — what eats them
+- [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) — the bones section
+- [enforcers and experimentals](../../docs/009-enforcers-and-experimentals.md) — what eats them
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

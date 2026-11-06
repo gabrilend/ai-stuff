@@ -26,6 +26,7 @@ from the snapshot's own arrays.
 | `LETTERS` | | a letter per unit kind, by the kind's catalogue number |
 | `UNKNOWN` | | the mark for a unit of a kind with no letter, `?` |
 | `SEEN` | | the sightline layer's mark, `!`, for a unit listed in `options.seen` |
+| `BONE` | | `x`, where bones lie and no live unit stands (issue 208) |
 | `COLOURS`, `RESET` | | each team's terminal colour code, and the reset |
 
 ## Data structures it owns

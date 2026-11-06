@@ -85,6 +85,7 @@ The groups:
 | `stream` | fixed | the names in `random-streams`' `STREAMS` | `state` (integer, never zero) |
 | `command` | queue | `commands` in the rules | `tick`, `verb`, `team`, `player` (integer); `argument1` to `argument4` (double) |
 | `shot` | queue | `units` times `shots_per_unit` in the rules | `shooter`, `target`, `damage`, `arrives` (integer): the shells in flight, appended in unit-row order within a tick and landed in queue order (issue 206) |
+| `bone` | queue | `units` times `bones_per_unit` in the rules | `x`, `y` (double); `mass` (integer, never zero): what dead units left, for an enforcer to eat (issue 208) |
 | `refusal` | ring | `refusals` in the rules | `tick`, `team`, `verb` (integer, zero for an unknown verb); `reason` (text) |
 
 The counters (`COUNTERS`): each row is a `path` from the world to the counter,

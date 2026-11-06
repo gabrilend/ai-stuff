@@ -70,6 +70,7 @@ local world_module = the_world()
 local units = world_module.load("units")
 local timers = world_module.load("timers")
 local targeting = world_module.load("targeting")
+local bones = world_module.load("bones")
 
 -- {{{ local function heal_counter()
 -- The heal counter of a unit's kind, and the kind's cap.
@@ -209,11 +210,11 @@ end
 
 -- {{{ function M.die_pass()
 -- The tick's `die` row, on one worker: every live unit whose derived health is
--- at or below zero is released, in row order, which lowers the live count, and
--- every shot still flying at it is dropped, so a row handed out again is never
--- hit by a shell meant for the unit that held it. Returns how many died.
--- Issue 208 calls its `leave` here, before the row is released. Allocates
--- nothing on a tick nobody dies.
+-- at or below zero leaves its bones (issue 208) where it stands and is
+-- released, in row order, which lowers the live count; every shot still flying
+-- at it is dropped, so a row handed out again is never hit by a shell meant for
+-- the unit that held it. Returns how many died. Allocates nothing on a tick
+-- nobody dies.
 function M.die_pass(world)
   local unit = world.unit
   local dead = nil
@@ -228,6 +229,7 @@ function M.die_pass(world)
   end
   local gone = {}
   for _, id in ipairs(dead) do
+    bones.leave(world, id)
     world_module.release(world, "unit", id)
     gone[id] = true
   end

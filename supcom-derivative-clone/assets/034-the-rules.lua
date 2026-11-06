@@ -51,6 +51,11 @@ return {
   -- name, never a dropped shot.
   shots_per_unit = 4,
 
+  -- How many bones may lie on the field at once, per unit the world holds. A
+  -- match that leaves more than this refuses by name: the parameter was wrong,
+  -- and forgetting the oldest bones would forget mass.
+  bones_per_unit = 8,
+
   -- The most units a match the headless runner plays may hold at once. A test
   -- that allocates its own world names its own; this is the runner's.
   units = 1024,

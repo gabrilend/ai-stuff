@@ -25,6 +25,7 @@ The file returns one table.
 | `commands` | integer | how many commands may wait in the queue at once |
 | `refusals` | integer | how many refusals the ring keeps for a viewer |
 | `shots_per_unit` | integer | how many shots may be in flight per unit the world holds; the shot queue's capacity is the units times this |
+| `bones_per_unit` | integer | how many bones may lie on the field per unit the world holds; the bone queue's capacity is the units times this |
 | `units` | integer | the unit capacity of a world the headless runner allocates |
 | `fingerprint_every` | integer | how often, in ticks, the snapshot row fingerprints the world; the replay log writes every fingerprint |
 
