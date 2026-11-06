@@ -69,7 +69,7 @@
 - [x] Create mana generation rules (primary vs secondary) (Issue #042)
 - [x] Add conditional mana generation (ranged standing still, melee in range) (Issue #043)
 - [x] Implement mana efficiency (proportional usage) (Issue #044)
-- [ ] Add mana bar UI rendering
+- [ ] Add mana bar UI rendering (Issue #045: drawn, open until seen on screen)
 
 ### 4.2 Ability Framework
 - [x] Create ability base class/component system (Issue #046)

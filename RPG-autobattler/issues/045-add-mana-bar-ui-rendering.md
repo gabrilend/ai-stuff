@@ -454,11 +454,79 @@ return AccessibilitySettings
 - Culling of off-screen mana bars
 
 ### Acceptance Criteria
-- [ ] All unit abilities display individual mana bars with distinct visual styles
-- [ ] Colorblind accessibility through patterns and shapes
-- [ ] Distance-based level of detail for performance
-- [ ] Ready abilities have clear visual indicators
-- [ ] Generating abilities show visual feedback
-- [ ] Mana efficiency effects are visually represented
-- [ ] UI scales appropriately with zoom levels
-- [ ] Minimal performance impact with 100+ units visible
+- [x] All unit abilities display individual mana bars with distinct visual styles
+      (drawn; not yet seen on screen)
+- [x] Colorblind accessibility through patterns and shapes (drawn; not yet
+      seen, so whether the patterns read at 3 pixels tall is unknown)
+- [x] Distance-based level of detail for performance (by zoom, see Decisions)
+- [ ] Ready abilities have clear visual indicators (a pulsing white border
+      is drawn; "clear" needs a person to look)
+- [ ] Generating abilities show visual feedback (a tick at the fill's edge
+      is drawn; not yet seen)
+- [ ] Mana efficiency effects are visually represented (the kept part of a
+      partly spent bar is outlined for 0.6 s; not yet seen)
+- [x] UI scales appropriately with zoom levels
+- [x] Minimal performance impact with 100+ units visible
+## What Happened
+
+This issue stays open, as 040c does for the match drawing, until someone
+has looked at the bars with LÖVE.
+
+Built as `src/systems/mana_bar_renderer.lua`:
+- `ManaBarRenderer.new(options)` makes the renderer, and `update(dt)`
+  advances its timers.
+- `notice(event)` takes an activation event to show kept mana.
+- `draw(g, entity_manager, view)` takes the graphics object to draw with,
+  so the drawing can be checked without a window.
+- Also `draw_unit`, `draw_bar`, `draw_dots`, `draw_pattern`, `draw_shape`
+  and `detail_for`.
+
+Each unit gets one thin bar per ability above it, the primary on top and a
+pixel taller:
+- **Type:** the fill takes the type's colour from `ManaSystem.TYPE_COLORS`,
+  a pattern over the fill and a shape mark to the right.
+- **Ready:** a pulsing white border.
+- **Charging:** a white tick at the fill's edge.
+- **Cooling down:** a dark cover over the share of the bar still waiting
+  (from the cooldowns of issue 050).
+- **Kept mana:** after a cast that spent part of the bar, the part kept is
+  outlined for 0.6 s (from the efficiency of issue 044).
+
+Tested headlessly by `tests/test_mana_bar_renderer.lua` (seven tests,
+including 150 units with four bars over 60 frames). The tests record the
+graphics calls instead of drawing. **Nothing has been seen on screen**:
+LÖVE isn't installed here, and no game state draws these bars yet.
+
+### Decisions
+- **A drawing module, not a system with `love.graphics` inside.** Like the
+  match renderer (#75), it takes the graphics object, so the tests can
+  record what it asks for.
+- **Level of detail follows the zoom, not the distance to the camera.** The
+  game is seen from above with no camera distance. At zoom 1 or more,
+  bars get patterns, shapes and indicators. From 0.5 they're plain bars,
+  and below that one dot per ability, filled when ready. Bars scale with
+  the zoom between 0.75x and 2x.
+- **Patterns:**
+  - damage: diagonal lines;
+  - heal: a cross hatch;
+  - buff: dots;
+  - debuff: upright lines;
+  - area: a centre line.
+- **Shapes** (as in the sketch, except heal):
+  - damage: a triangle;
+  - heal: an x, so it differs from buff's plus;
+  - buff: a plus;
+  - debuff: a minus;
+  - area: a ring.
+- **No separate "primary" colour.** The sketch coloured the primary bar
+  blue. Here every bar shows its ability's type, and the primary is marked
+  by being on top and taller.
+- **Units off screen are skipped** when the view gives a width and height,
+  and dead units get no bars.
+- **The sketch's camera and accessibility-settings changes are left out.**
+  There is no camera module to change yet. Patterns and shapes are always
+  on at full detail.
+- **Not wired into a game state yet.** No match spawns units with
+  abilities. Once that's decided, drawing the bars is one call,
+  `renderer:draw(love.graphics, entity_manager, view)`, after the units in
+  the match renderer (#75).
