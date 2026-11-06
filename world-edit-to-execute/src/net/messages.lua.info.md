@@ -13,6 +13,8 @@ description.
 - **`messages.f32(value)`**: a number as it comes back through a 32-bit
   float field (for comparisons in tests).
 - **`messages.names`**: every message name, in type order.
+- **`messages.descriptions`**: the descriptions themselves, read-only by
+  agreement; the C reader is generated from them (`messages-c.lua`).
 - **`messages.order_kind`**, **`messages.event_kind`**,
   **`messages.refusal`**: named numbers for the one-byte fields.
 
@@ -32,3 +34,4 @@ records). A unit record is 43 bytes.
 | 8 | tolerances | server → client | in_force_ms u32, players list of {player u8, ms u32} |
 | 9 | drop_vote | client → server | player u8 |
 | 10 | votes | server → client | needed u8, silent list of {player u8, votes u8} |
+| 11 | paths | server → client (for drawing only) | tick u32, stopped list of {id u32}, points list of {id u32, x y f32} (one flat list: each re-planned unit's points in order) |
