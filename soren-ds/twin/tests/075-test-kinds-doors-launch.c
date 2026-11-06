@@ -294,7 +294,8 @@ int main(void)
         snprintf(path, sizeof path, "%s/tmp/shared-memory/test-logs/075-halt.log", getenv("SOREN_DIR"));
         snprintf(errors, sizeof errors, "%s/tmp/shared-memory/test-logs/075-halt-stderr.log", getenv("SOREN_DIR"));
         remove(path);
-        freopen(errors, "w", stderr);
+        if (freopen(errors, "w", stderr) == NULL)
+            _exit(2);                          /* nowhere to put the halt message */
         /* Threads do not survive a fork: the child starts an engine of its own. */
         twin_engine_start(2, (size_t)64 << 20);
         engine_open_gate();

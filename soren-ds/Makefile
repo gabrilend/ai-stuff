@@ -10,6 +10,11 @@
 #
 # Invoked either directly with `make` from the project root or
 # through `scripts/build` from anywhere.
+#
+# On a machine without the GCC cross-compiler, LLVM can build the same
+# image: CC must be one program, so point it at a two-line wrapper that
+# runs `clang --target=aarch64-none-elf "$@"`, then
+#   make CC=/path/to/that-wrapper LD=ld.lld OBJCOPY=llvm-objcopy
 
 DIR ?= $(CURDIR)
 
@@ -80,7 +85,13 @@ endif
 # hosted programs that benefit from separating code and data into
 # distinct memory regions; for a freestanding kernel without
 # protection it is informational and not actionable.
-LDFLAGS := -T $(LINKER_SCRIPT) -nostdlib --no-warn-rwx-segments
+#
+# The flag only exists in GNU ld 2.39 and later; LLVM's ld.lld, which can
+# stand in for it (`make LD=ld.lld`, with clang as CC), has no such
+# warning and refuses the flag. Ask the linker in use whether it knows
+# the flag rather than assuming, so either linker links the image.
+RWX_FLAG := $(shell $(LD) --help 2>/dev/null | grep -q -- --no-warn-rwx-segments && echo --no-warn-rwx-segments)
+LDFLAGS := -T $(LINKER_SCRIPT) -nostdlib $(RWX_FLAG)
 
 # The generator rules below appear before `all`; name the default goal so
 # a plain `make` still builds the image.
