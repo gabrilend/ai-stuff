@@ -15,6 +15,8 @@
 #   state-daemon.sh list      # List all keys
 #   state-daemon.sh dump      # Dump all key=value pairs
 #   state-daemon.sh clear     # Clear all state
+#   state-daemon.sh watch     # Show every key, refreshed until a key is pressed
+#   state-daemon.sh -I        # Menu: browse keys, set, delete, clear, watch
 # }}}
 
 DIR="${STATE_DAEMON_DIR:-/tmp/state-daemon}"
@@ -68,10 +70,14 @@ daemon_loop() {
         echo "[$(date '+%H:%M:%S')] Loaded $(echo ${#STATE[@]}) keys from state file" >> "$LOG_FILE"
     fi
 
-    # Create request pipe
+    # Create request pipe. If that fails there is nothing to listen on, and
+    # the read loop below would spin on the missing pipe for ever, filling
+    # the log; so give up instead, and start_daemon reports the failure.
     rm -f "$REQUEST_PIPE"
-    mkfifo "$REQUEST_PIPE"
-    chmod 600 "$REQUEST_PIPE"
+    if ! mkfifo "$REQUEST_PIPE" || ! chmod 600 "$REQUEST_PIPE"; then
+        echo "[$(date '+%H:%M:%S')] Cannot create $REQUEST_PIPE; not starting" >> "$LOG_FILE"
+        exit 1
+    fi
 
     echo "[$(date '+%H:%M:%S')] Daemon started, listening on $REQUEST_PIPE" >> "$LOG_FILE"
     echo $$ > "$PID_FILE"
@@ -220,21 +226,31 @@ start_daemon() {
         rm -f "$PID_FILE"
     fi
 
-    # Start daemon in background
-    nohup bash "$0" _daemon >> "$LOG_FILE" 2>&1 &
+    # Start daemon in background. The folder goes with it: the daemon is a
+    # new run of this script, and without it the daemon would fall back on
+    # the default folder while this client talks to the one it was given.
+    STATE_DAEMON_DIR="$DIR" nohup bash "$0" _daemon >> "$LOG_FILE" 2>&1 &
     local daemon_pid=$!
 
-    # Wait a moment for startup
-    sleep 0.5
+    # Started means listening: the request pipe exists and the daemon has
+    # written its PID file. Wait up to two seconds for both.
+    local tries=0
+    while (( tries < 20 )); do
+        if ! kill -0 "$daemon_pid" 2>/dev/null; then
+            break
+        fi
+        if [ -p "$REQUEST_PIPE" ] && [ "$(cat "$PID_FILE" 2>/dev/null)" = "$daemon_pid" ]; then
+            echo "Daemon started (PID $daemon_pid)"
+            echo "Socket: $REQUEST_PIPE"
+            return 0
+        fi
+        sleep 0.1
+        tries=$((tries + 1))
+    done
 
-    if kill -0 "$daemon_pid" 2>/dev/null; then
-        echo "Daemon started (PID $daemon_pid)"
-        echo "Socket: $REQUEST_PIPE"
-        return 0
-    else
-        echo "Failed to start daemon"
-        return 1
-    fi
+    kill "$daemon_pid" 2>/dev/null
+    echo "Failed to start daemon (see $LOG_FILE)"
+    return 1
 }
 # }}}
 
@@ -285,6 +301,168 @@ check_status() {
 }
 # }}}
 
+# {{{ daemon_running
+# Whether the daemon named in the PID file is alive.
+daemon_running() {
+    local pid
+    pid="$(cat "$PID_FILE" 2>/dev/null)"
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null
+}
+# }}}
+
+# {{{ dump_pairs
+# Every key=value pair, sorted by key, one per line. Fails when the daemon
+# does not answer.
+dump_pairs() {
+    local result
+    result=$(send_command "DUMP" "")
+    [[ "$result" == OK:* ]] || return 1
+    echo -e "${result#OK:}" | sed '/^$/d' | sort
+}
+# }}}
+
+# {{{ watch_mode
+# Redraws every key and value every <interval> seconds (default 2) until a
+# key is pressed. With no terminal on standard input it keeps redrawing on
+# the interval until it is stopped (Ctrl-C, or kill), rather than spinning.
+watch_mode() {
+    local interval="${1:-2}" key rc
+    while true; do
+        printf '\033[H\033[2J'
+        echo "State daemon in $DIR    $(date '+%H:%M:%S')    (any key stops watching)"
+        echo ""
+        if daemon_running; then
+            dump_pairs || echo "(the daemon did not answer)"
+        else
+            echo "Daemon not running"
+        fi
+        read -rsn1 -t "$interval" key
+        rc=$?
+        if [ "$rc" -eq 0 ]; then
+            break
+        elif [ "$rc" -le 128 ]; then
+            # end of input rather than a timeout: wait out the interval here
+            sleep "$interval"
+        fi
+    done
+}
+# }}}
+
+# {{{ interactive_mode
+# A menu over the daemon (issue 014, phase 3). It lists every key with its
+# value; a "Do" list picks what Go does: refresh, set a key, delete the
+# checked keys, clear all, watch, or stop the daemon (or start it, when it is
+# not running). After each step the menu opens again with fresh values; q
+# leaves. Setting a key asks for the key and value at a plain prompt, since
+# the menu has no free-text field.
+interactive_mode() {
+    local libs_dir
+    libs_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/libs"
+    if [ ! -f "$libs_dir/lua-menu.sh" ]; then
+        echo "No menu library at $libs_dir/lua-menu.sh" >&2
+        return 1
+    fi
+    # shellcheck source=libs/lua-menu.sh
+    source "$libs_dir/lua-menu.sh"
+
+    local -a pairs=() keys=()
+    local i pair key value label choice item note=""
+    while true; do
+        menu_init
+        menu_add_section "todo" "single" "Do"
+        if daemon_running; then
+            mapfile -t pairs < <(dump_pairs)
+            keys=()
+            menu_set_title "State Daemon" "${note:-$DIR: ${#pairs[@]} key(s)}"
+            menu_add_item "todo" "do_refresh" "Refresh" "checkbox" "1" "Read the keys again"
+            menu_add_item "todo" "do_set" "Set a key" "checkbox" "0" "Asks for a key and a value once the menu closes"
+            menu_add_item "todo" "do_delete" "Delete the checked keys" "checkbox" "0" "Check keys below with space first"
+            menu_add_item "todo" "do_clear" "Clear all keys" "checkbox" "0" "Asks before clearing"
+            menu_add_item "todo" "do_watch" "Watch" "checkbox" "0" "Every key, redrawn every 2 seconds until a key is pressed"
+            menu_add_item "todo" "do_stop" "Stop the daemon" "checkbox" "0" "Saves its state to disk first"
+            menu_add_section "keys" "multi" "Keys (space checks one for deleting)"
+            if [ ${#pairs[@]} -eq 0 ]; then
+                menu_add_item "keys" "no_keys" "(no keys yet)" "checkbox" "0" "Choose 'Set a key' to add one"
+                menu_disable_item "no_keys"
+            fi
+            for i in "${!pairs[@]}"; do
+                pair="${pairs[$i]}"
+                key="${pair%%=*}"
+                value="${pair#*=}"
+                keys+=("$key")
+                label="$key = $value"
+                (( ${#label} > 60 )) && label="${label:0:57}..."
+                menu_add_item "keys" "key_$i" "$label" "checkbox" "0" "$key = $value"
+            done
+            menu_set_section_max_visible "keys" 10
+        else
+            menu_set_title "State Daemon" "${note:-$DIR: daemon not running}"
+            menu_add_item "todo" "do_start" "Start the daemon" "checkbox" "1" "Starts it in $DIR"
+        fi
+        menu_add_section "go" "multi" "Actions"
+        menu_add_item "go" "go" "Go" "action" "" "Do what is chosen above"
+
+        menu_run || return 0
+        note=""
+
+        choice=""
+        for item in do_refresh do_set do_delete do_clear do_watch do_stop do_start; do
+            if [ "${MENU_VALUES[$item]:-0}" = "1" ]; then
+                choice="$item"
+                break
+            fi
+        done
+
+        case "$choice" in
+            do_start)
+                start_daemon > /dev/null || note="The daemon did not start; see $LOG_FILE"
+                ;;
+            do_set)
+                read -r -p "Key (no spaces): " key
+                if [[ -z "$key" || "$key" == *[[:space:]=]* ]]; then
+                    note="Not set: a key is one word with no '='"
+                else
+                    read -r -p "Value for $key: " value
+                    if [[ "$(send_command "SET" "$key $value")" == OK:* ]]; then
+                        note="Set $key"
+                    else
+                        note="Could not set $key"
+                    fi
+                fi
+                ;;
+            do_delete)
+                local deleted=0
+                for i in "${!keys[@]}"; do
+                    if [ "${MENU_VALUES[key_$i]:-0}" = "1" ]; then
+                        [[ "$(send_command "DEL" "${keys[$i]}")" == OK:* ]] && deleted=$((deleted + 1))
+                    fi
+                done
+                if [ "$deleted" -eq 0 ]; then
+                    note="Nothing deleted: check keys with space first"
+                else
+                    note="Deleted $deleted key(s)"
+                fi
+                ;;
+            do_clear)
+                read -r -p "Clear all ${#keys[@]} key(s)? [y/N] " value
+                if [[ "$value" == [yY]* ]]; then
+                    send_command "CLEAR" "" > /dev/null
+                    note="Cleared"
+                else
+                    note="Not cleared"
+                fi
+                ;;
+            do_watch)
+                watch_mode 2
+                ;;
+            do_stop)
+                stop_daemon > /dev/null
+                ;;
+        esac
+    done
+}
+# }}}
+
 # {{{ usage
 usage() {
     cat << 'EOF'
@@ -309,6 +487,11 @@ Commands:
 
   save            Force save state to disk
   ping            Health check
+
+  watch [SECS]    Show every key, redrawn every SECS seconds (default 2),
+                  until a key is pressed
+  -I              Menu: browse keys with their values; set, delete, clear,
+                  watch, start or stop
 
 Options:
   DIR             Override state directory (default: /tmp/state-daemon)
@@ -412,6 +595,12 @@ case "$1" in
     save)
         result=$(send_command "SAVE" "")
         [[ "$result" == OK:* ]] && echo "State saved to disk"
+        ;;
+    watch)
+        watch_mode "${2:-2}"
+        ;;
+    -I|--interactive|interactive)
+        interactive_mode
         ;;
     ping)
         result=$(send_command "PING" "")

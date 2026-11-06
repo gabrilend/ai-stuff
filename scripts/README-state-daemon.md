@@ -56,6 +56,17 @@ Reset the state store.
 ./state-daemon.sh clear
 ```
 
+### Browse and Edit Interactively
+A menu lists every key with its value. Pick what Go does from the "Do" list:
+refresh, set a key (asked for at a prompt once the menu closes), delete the
+keys checked with space, clear all (asks first), watch, or stop the daemon.
+When the daemon is not running, the menu offers to start it.
+
+```bash
+./state-daemon.sh -I
+./state-daemon.sh watch 5      # every key, redrawn every 5 seconds; any key stops
+```
+
 ### Custom State Directory
 Use project-specific state.
 
@@ -80,6 +91,8 @@ Use project-specific state.
 | `clear` | Delete all keys |
 | `save` | Force save state to disk |
 | `ping` | Health check |
+| `watch [secs]` | Show every key, redrawn every `secs` seconds (default 2), until a key is pressed |
+| `-I` | Menu: browse keys, set, delete, clear, watch, start or stop |
 
 ## Capabilities
 
