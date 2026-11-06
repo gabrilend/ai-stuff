@@ -1,0 +1,125 @@
+#!/usr/bin/env luajit
+-- file-screenshots - files every new screenshot into development-history/.
+--
+-- The game drops its pictures into the RAM scratch folder while it runs.
+-- After it exits, this files each one under the next number in
+-- development-history/ (001-name.png, 002-name.png, ...), with a notes page
+-- beside it saying what made it and which source files changed since the
+-- previous picture. It knows what changed by keeping a fingerprint (a
+-- checksum of every source and settings file) beside each picture and
+-- comparing it with the one beside the previous picture. Nothing is thrown
+-- away: a wrong or empty picture is filed too. The two written sections of
+-- each notes page ("what it shows" and "the story so far") are left for a
+-- person or an agent to fill in.
+--
+-- Usage: scripts/file-screenshots [project-dir]    (--help for this text)
+--
+-- SPDX-License-Identifier: AGPL-3.0-or-later
+
+local DIR = "/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if arg[1] == "--help" then
+	print("scripts/file-screenshots [project-dir] - number new screenshots into development-history/")
+	os.exit(0)
+end
+DIR = arg[1] or DIR
+local INBOX = DIR .. "/tmp/shared-memory/screenshots"
+local HISTORY = DIR .. "/development-history"
+
+-- {{{ local function lines_of()
+local function lines_of(cmd)
+	local out = {}
+	local p = io.popen(cmd)
+	for l in p:lines() do out[#out + 1] = l end
+	p:close()
+	return out
+end
+-- }}}
+
+-- {{{ local function read_file()
+local function read_file(path)
+	local f = io.open(path, "r")
+	if not f then return nil end
+	local t = f:read("*a")
+	f:close()
+	return t
+end
+-- }}}
+
+-- One "checksum path" line per source and settings file, sorted.
+-- {{{ local function fingerprint()
+local function fingerprint()
+	local list = lines_of('cd "' .. DIR .. '" && find src assets mods main.lua conf.lua config.lua'
+		.. ' -type f 2>/dev/null | sort | xargs sha1sum')
+	return table.concat(list, "\n") .. "\n"
+end
+-- }}}
+
+-- {{{ local function parse_fingerprint()
+local function parse_fingerprint(text)
+	local t = {}
+	for sum, path in (text or ""):gmatch("(%x+)%s+([^\n]+)") do t[path] = sum end
+	return t
+end
+-- }}}
+
+-- The files added, removed or changed between two fingerprints.
+-- {{{ local function changes()
+local function changes(before, after)
+	local out = {}
+	for path, sum in pairs(after) do
+		if not before[path] then out[#out + 1] = "added: " .. path
+		elseif before[path] ~= sum then out[#out + 1] = "changed: " .. path end
+	end
+	for path in pairs(before) do
+		if not after[path] then out[#out + 1] = "removed: " .. path end
+	end
+	table.sort(out)
+	return out
+end
+-- }}}
+
+-- The highest number filed so far, and the stem of that picture.
+-- {{{ local function highest()
+local function highest()
+	local best, stem = 0, nil
+	for _, name in ipairs(lines_of('ls -1 "' .. HISTORY .. '"')) do
+		local n = tonumber(name:match("^(%d%d%d)%-.*%.png$"))
+		if n and n > best then best, stem = n, name:gsub("%.png$", "") end
+	end
+	return best, stem
+end
+-- }}}
+
+os.execute('mkdir -p "' .. HISTORY .. '"')
+local pictures = lines_of('ls -1 "' .. INBOX .. '" 2>/dev/null | grep "\\.png$"')
+if #pictures == 0 then
+	print("file-screenshots: no new screenshots")
+	os.exit(0)
+end
+local commit = lines_of('git -C "' .. DIR .. '" rev-parse --short HEAD')[1] or "none"
+local print_now = fingerprint()
+for _, png in ipairs(pictures) do
+	local number, previous = highest()
+	local stem_in = INBOX .. "/" .. png:gsub("%.png$", "")
+	local run = read_file(stem_in .. ".run") or ""
+	local name = run:match("name: ([^\n]+)") or png:gsub("%.png$", "")
+	local stem = string.format("%03d-%s", number + 1, name)
+	local before = parse_fingerprint(previous and read_file(HISTORY .. "/" .. previous .. ".fingerprint"))
+	local changed = changes(before, parse_fingerprint(print_now))
+	os.execute('mv "' .. INBOX .. "/" .. png .. '" "' .. HISTORY .. "/" .. stem .. '.png"')
+	os.remove(stem_in .. ".run")
+	local f = io.open(HISTORY .. "/" .. stem .. ".fingerprint", "w")
+	f:write(print_now)
+	f:close()
+	f = io.open(HISTORY .. "/" .. stem .. ".info.md", "w")
+	f:write("<!-- made by scripts/file-screenshots when the game exited, to keep every picture -->\n")
+	f:write(string.format("# %s\n\n## What made it\n\n- commit: %s\n", stem, commit))
+	for l in run:gmatch("[^\n]+") do f:write("- ", l, "\n") end
+	f:write(string.format("\n## What changed since the previous picture (%s)\n\n",
+		previous or "none: this is the first"))
+	if #changed == 0 then f:write("Nothing in the sources or settings.\n") end
+	for _, c in ipairs(changed) do f:write("- ", c, "\n") end
+	f:write("\n## What it shows\n\n(to be written)\n\n## The story so far\n\n(to be written)\n")
+	f:close()
+	print("file-screenshots: " .. stem .. ".png")
+end
