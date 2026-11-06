@@ -52,7 +52,36 @@ None yet.
 
 ## Open issues
 
-All of 701 through 711.
+Sorted by what each one waits on (scoped once phase 5's twin halves
+were built, against main as it stood then). "Unmerged" names the open
+pull request a blocker is waiting in.
+
+**Buildable on the twin now, against a stand-in link.** The radio and
+the USB functions are hardware, but what runs on top of them is
+portable, and the twin can hand datagrams between two programs the way
+it hands a test's buttons to the input map.
+
+- **703** — picking a link-local address and defending it; the probe
+  and the answer go over the stand-in.
+- **704** — the "I am here" datagram and its cadence.
+- **705** — the peer table and its aging.
+- **709** — the transport abstraction, once 703–705 are in, over the
+  stand-in in place of the radio and USB.
+
+**Blocked on an unmerged pull request.**
+
+- **708** — the USB inbox watcher reads through `list-directory` and
+  `read-path` (406 and 407, #35) and hands files on through links
+  (609, 610).
+- **710** — the rmail port keeps its identity in `/settings/` (408,
+  #48) and its history behind `read-path` (406, #35), on 709.
+
+**Needs the device.**
+
+- **701**, **702** — the WiFi controller and IBSS mode.
+- **706**, **707** — USB virtual ethernet and mass storage (on 109's
+  controller).
+- **711** — the demo is two handhelds and a laptop.
 
 ## Phase demo
 

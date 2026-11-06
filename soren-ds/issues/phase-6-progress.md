@@ -49,11 +49,51 @@ navigation primitives apps depend on.
 
 ## Completed issues
 
-None yet.
+Built as portable C and proven on the laptop twin, whose two screens
+stand in for the device's framebuffers.
+
+- **601** surfaces: a rectangle of one screen granted to one owner (a
+  station, or the system) where no other owner holds any of it; moved
+  and resized under the same check; back to front in the order granted;
+  handles that never reach a later grant in the same slot; pixels that
+  are retired, not freed, so a box still writing through them is safe.
+
+`src/system/104-surfaces.c`. Test: `twin/tests/105` (32 checks, four
+threads asking for overlapping rectangles among them).
 
 ## Open issues
 
-All of 601 through 611.
+Sorted by what each one waits on (scoped once phase 5's twin halves
+were built, against main as it stood then). "Unmerged" names the open
+pull request a blocker is waiting in.
+
+**Buildable on the twin now.** The compositor is portable: the twin's
+screens are memory a test can read back or save as a picture.
+
+- **602** — the damage bit, on 601's surfaces.
+- **603** — the compositor's tick, a timer like the input frame's,
+  copying damaged surfaces back to front; on the twin into its screens.
+- **604** — one foreground per screen, filtering 603's copy.
+- **606** — the drawer surface and its slide, once 601–603 are in.
+
+**Blocked on an unmerged pull request.**
+
+- **605** — reads the last foregrounds from `/settings/` (408, #48)
+  through `read-path` (406, #35).
+- **607** — the center buttons' events (502, #218) through the
+  drawer-swap setting (507, which itself waits on #48 and #35).
+- **608** — drawer contents present the radial menu (506, waiting on
+  #35) and hang off 607.
+- **609**, **610** — inter-app links, after 608.
+- **612** — looks: each app split into its state and a look the user
+  chooses (added on main 2026-10-18). Draws into 601's surfaces through
+  603; waits on 609 and on 409 and 411 (#69, #83, #92).
+
+**Needs the device.**
+
+- **611** — the demo is the handheld's two screens.
+- The device half of 603: copying into the framebuffers the display
+  controller scans out (111a–111d, still open).
 
 ## Phase demo
 

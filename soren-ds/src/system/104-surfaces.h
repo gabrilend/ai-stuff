@@ -1,0 +1,81 @@
+/*
+ * 104-surfaces.h — rectangles of a screen that one box owns (issue 601).
+ *
+ * General description: a surface is a rectangle of pixels on one of the
+ * two screens that exactly one owner may draw into. The owner is a
+ * station — the box's instance — or the system (SURFACE_SYSTEM) for what
+ * no app owns. Asking for one either grants it, with a handle and a
+ * buffer of pixels the owner writes and the compositor (603) reads, or
+ * refuses it because another owner already holds some of that rectangle
+ * on that screen. Moving and resizing are asked for the same way and
+ * checked the same way. Surfaces on a screen stack back to front in the
+ * order they were granted.
+ *
+ * A handle names one grant: it carries a count that changes every time
+ * its slot is reused, so a handle kept after its surface was released
+ * never reaches whatever was granted in that slot next.
+ *
+ * The pixel buffers are the engine's memory, and a buffer replaced by a
+ * resize or let go by a release is retired, not freed: a box that took
+ * the pointer during its run may finish writing through it.
+ */
+#ifndef SOREN_SURFACES_H
+#define SOREN_SURFACES_H
+
+#include <stdint.h>
+#include "058-draw.h"
+
+#define SURFACE_MAX     64          /* across both screens */
+#define SURFACE_SYSTEM  (-1)        /* the owner for what no app owns */
+
+/* Answers (negative), beside a handle (positive) or 0. */
+enum surface_answer {
+    SURFACE_OK          = 0,
+    SURFACE_TAKEN       = -1,       /* another owner holds part of that rectangle */
+    SURFACE_OFF_SCREEN  = -2,       /* not wholly on the screen, or empty, or no such screen */
+    SURFACE_NO_HANDLE   = -3,       /* the handle names nothing granted now */
+    SURFACE_FULL        = -4,       /* every slot is in use */
+    SURFACE_NO_MEMORY   = -5,       /* the pool could not give the pixels */
+    SURFACE_NOT_OWNER   = -6,       /* the handle is someone else's */
+};
+
+/* A surface as it stands, for the compositor and for tests. */
+struct surface_facts {
+    int      screen;
+    int      x, y, width, height;
+    int32_t  owner;
+    uint32_t z;                     /* larger is nearer the front */
+};
+
+/* Ask for a rectangle of `screen` (0 top, 1 bottom), owned by the station
+ * running this call, or by the system when no station is. Answers a
+ * handle (> 0) or a negative surface_answer. */
+int32_t surface_request(int screen, int x, int y, int width, int height);
+
+/* The same, for a named owner: a station, or SURFACE_SYSTEM. */
+int32_t surface_request_for(int32_t owner, int screen, int x, int y, int width, int height);
+
+/* Let a surface go: its pixels are no longer the owner's to write or the
+ * compositor's to read, and its rectangle is free for anyone. */
+int surface_release(int32_t handle);
+
+/* Grow or shrink it in place (its top-left corner stays put), or move it,
+ * under the same check as a request. A resize keeps the pixels the old
+ * and new rectangles share, and the rest of the new one starts clear. */
+int surface_resize(int32_t handle, int width, int height);
+int surface_set_position(int32_t handle, int x, int y);
+
+/* The pixels to draw into, as a canvas of the surface's own size (empty,
+ * with no pixels, for a handle that names nothing). Valid until the
+ * surface is resized or released, and through the end of the run it was
+ * taken in. */
+struct canvas surface_canvas(int32_t handle);
+
+/* Facts about one surface. Answers SURFACE_OK or SURFACE_NO_HANDLE. */
+int surface_facts(int32_t handle, struct surface_facts *out);
+
+/* Every surface on `screen`, back to front: up to `max` handles into
+ * `out`. Answers how many there are. */
+int surface_list(int screen, int32_t *out, int max);
+
+#endif

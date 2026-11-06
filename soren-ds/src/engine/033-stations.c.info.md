@@ -53,6 +53,18 @@ void scrap_sweep(struct core_ctx *c)
 void scrap_release_block(struct core_ctx *c, void *thing, int64_t arg)
 ```
 
+### engine_memory_take
+
+```c
+void *engine_memory_take(size_t bytes)
+```
+
+### engine_memory_retire
+
+```c
+void engine_memory_retire(void *memory)
+```
+
 ### scrap_waiting
 
 ```c
