@@ -11,12 +11,12 @@ A modular, high-performance threading library for general-purpose computation an
 ## Features
 
 ✨ **Modular Design** - Use only what you need (core, sync, updater, scheduler)
-⚡ **High Performance** - Lock-free where possible, atomic operations
+⚡ **High Performance** - Atomic load counters, idle workers sleep instead of polling
 🎯 **Load Balancing** - Weighted task distribution across worker threads
 🔄 **Self-Evaluating** - Updaters adapt to load automatically
 📅 **Time-Based Scheduling** - Deferred task execution with absolute tick times
 🎨 **Rendering-Ready** - Non-blocking pointer coordination for double-buffering
-✅ **Well-Tested** - 24 tests covering all modules
+✅ **Well-Tested** - 43 tests covering all modules, clean under ThreadSanitizer and AddressSanitizer
 
 ---
 
@@ -133,15 +133,25 @@ Covers:
 ### Run Tests
 
 ```bash
-cd tests
-make test
+make test        # or: cd tests && make test
+make sanitize    # the same tests under ThreadSanitizer, then AddressSanitizer + UBSan
 ```
 
-All 24 tests should pass:
-- ✅ Core module (6 tests)
-- ✅ Sync module (6 tests)
-- ✅ Updater module (5 tests)
-- ✅ Scheduler module (7 tests)
+All 43 tests should pass:
+- ✅ Core module (14 tests)
+- ✅ Sync module (8 tests)
+- ✅ Updater module (8 tests)
+- ✅ Scheduler module (13 tests)
+
+### Static Library
+
+```bash
+make             # builds build/libthreadpool.a with all four modules
+gcc your_app.c -Isrc -Lbuild -lthreadpool -pthread -o your_app
+```
+
+The linker takes only the modules your program calls, so only programs that
+use the scheduler need to define `g_current_tick`.
 
 ### Integration
 
@@ -188,8 +198,14 @@ Scheduler uses absolute tick times (not countdown timers):
 ### Non-Blocking Sync
 Watch list pattern for pointer coordination:
 - Workers set ready flag when done
-- Sync thread polls flags, swaps pointers atomically
-- Main thread always reads from safe buffer
+- Sync thread polls flags, writes the new pointer, then clears the flag
+- Main thread reads the pointer once it sees the flag clear
+
+### Ownership and Shutdown
+- Any thread may append to any worker; a task may append to its own worker
+- The context from `tp_updater_create()` is yours: `tp_updater_stop()` (or
+  `tp_pool_destroy()`), then `tp_updater_destroy()`
+- `tp_pool_destroy()` drops queued tasks without running them
 
 ---
 
@@ -232,6 +248,7 @@ threadpool/
 │   ├── test_sync.c             # Sync tests
 │   ├── test_updater.c          # Updater tests
 │   ├── test_scheduler.c        # Scheduler tests
+│   ├── test_common.h           # Assertions and WAIT_UNTIL
 │   └── Makefile
 ├── docs/                       # Documentation
 │   └── usage-guide.md          # Complete usage guide

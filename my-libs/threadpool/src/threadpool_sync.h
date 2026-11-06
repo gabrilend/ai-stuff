@@ -4,9 +4,14 @@
  * Optional module for coordinated pointer updates (watch list pattern).
  * Common use cases: double-buffering, render pipelines, producer-consumer patterns.
  *
- * The sync thread continuously polls ready flags and performs atomic pointer
- * swaps when ready. This non-blocking approach is more responsive than condition
+ * The sync thread continuously polls ready flags and performs pointer swaps
+ * when ready. This non-blocking approach is more responsive than condition
  * variables for high-frequency updates.
+ *
+ * Handoff rule: the sync thread writes *target_ptr and THEN clears ready_flag
+ * (an atomic store). A thread that reads *target_ptr after it has seen
+ * ready_flag go back to false is guaranteed to see the new pointer. Reading
+ * *target_ptr at any other time races with the swap.
  */
 
 #ifndef THREADPOOL_SYNC_H
@@ -39,9 +44,12 @@ typedef struct tp_sync_context {
     /* Lock for adding entries */
     pthread_spinlock_t watch_lock;
 
-    /* Stats */
-    uint64_t swaps_performed;
-    uint64_t idle_cycles;
+    /* Stats (written by the sync thread, read from anywhere) */
+    _Atomic uint64_t swaps_performed;
+    _Atomic uint64_t idle_cycles;
+
+    /* Optional logging callback copied from the config (NULL = silent) */
+    void (*log_fn)(const char* fmt, ...);
 } TpSyncContext;
 /* }}} */
 
@@ -62,7 +70,7 @@ TpSyncConfig tp_sync_config_default(void);
 
 /* {{{ Lifecycle */
 
-/* Create sync context with specified configuration
+/* Create sync context with specified configuration (NULL = defaults)
  * Returns NULL on allocation failure */
 TpSyncContext* tp_sync_create(TpSyncConfig* config);
 
@@ -85,7 +93,9 @@ bool tp_sync_add_watch(TpSyncContext* ctx,
 /* {{{ Thread Control */
 
 /* Spawn the sync thread
- * Returns thread handle (pthread_t) */
+ * Returns thread handle (pthread_t); join it with pthread_join() after
+ * tp_sync_stop(). If the thread cannot be started, logs and returns a
+ * zeroed handle, and the context stays usable for another try. */
 pthread_t tp_sync_spawn(TpSyncContext* ctx);
 
 /* Stop the sync thread (sets running flag to false)

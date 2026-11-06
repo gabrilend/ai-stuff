@@ -1,11 +1,16 @@
 # Threadpool Library Makefile
 #
-# Builds the core threadpool library and runs tests.
+# Builds the library as one static archive and runs the test suite.
+# Link with -lthreadpool -pthread; the linker pulls in only the modules a
+# program uses, so a program that never calls the scheduler need not define
+# g_current_tick.
 #
 # Usage:
-#   make          - Build library object file
-#   make test     - Build and run tests
-#   make clean    - Remove build artifacts
+#   make            - Build build/libthreadpool.a (core, sync, updater, scheduler)
+#   make test       - Build and run tests
+#   make sanitize   - Run tests under ThreadSanitizer and AddressSanitizer
+#   make debug      - Build the archive with debug symbols
+#   make clean      - Remove build artifacts
 
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c11 -pthread -O2 -D_GNU_SOURCE
@@ -16,16 +21,14 @@ TEST_DIR = tests
 BUILD_DIR = build
 
 # Source files
-CORE_SRC = $(SRC_DIR)/threadpool.c
-CORE_OBJ = $(BUILD_DIR)/threadpool.o
-
-# Test files
-TEST_POOL_SRC = $(TEST_DIR)/test_pool.c
-TEST_POOL_BIN = $(BUILD_DIR)/test_pool
+MODULES = threadpool threadpool_sync threadpool_updater threadpool_scheduler
+OBJS = $(addprefix $(BUILD_DIR)/,$(addsuffix .o,$(MODULES)))
+HEADERS = $(wildcard $(SRC_DIR)/*.h)
+LIB = $(BUILD_DIR)/libthreadpool.a
 
 # {{{ Default target
 .PHONY: all
-all: $(CORE_OBJ)
+all: $(LIB)
 # }}}
 
 # {{{ Build directory
@@ -33,35 +36,36 @@ $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 # }}}
 
-# {{{ Core library object
-$(CORE_OBJ): $(CORE_SRC) $(SRC_DIR)/threadpool.h $(SRC_DIR)/threadpool_config.h | $(BUILD_DIR)
-	$(CC) $(CFLAGS) -c $(CORE_SRC) -o $(CORE_OBJ)
-# }}}
+# {{{ Module objects and archive
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# {{{ Test binary
-$(TEST_POOL_BIN): $(TEST_POOL_SRC) $(CORE_SRC) | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(DEBUG_FLAGS) -I$(SRC_DIR) $(TEST_POOL_SRC) $(CORE_SRC) -o $(TEST_POOL_BIN)
+$(LIB): $(OBJS)
+	rm -f $@
+	ar rcs $@ $(OBJS)
 # }}}
 
 # {{{ Run tests
 .PHONY: test
-test: $(TEST_POOL_BIN)
-	@echo ""
-	@echo "Running tests..."
-	@echo ""
-	@./$(TEST_POOL_BIN)
+test:
+	$(MAKE) -C $(TEST_DIR) test CC=$(CC)
+
+.PHONY: sanitize
+sanitize:
+	$(MAKE) -C $(TEST_DIR) sanitize CC=$(CC)
 # }}}
 
 # {{{ Debug build
 .PHONY: debug
 debug: CFLAGS += $(DEBUG_FLAGS)
-debug: $(CORE_OBJ)
+debug: $(LIB)
 # }}}
 
 # {{{ Clean
 .PHONY: clean
 clean:
 	rm -rf $(BUILD_DIR)
+	$(MAKE) -C $(TEST_DIR) clean
 # }}}
 
 # {{{ Help
@@ -70,9 +74,10 @@ help:
 	@echo "Threadpool Library Build System"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all     - Build library object file (default)"
-	@echo "  test    - Build and run tests"
-	@echo "  debug   - Build with debug symbols"
-	@echo "  clean   - Remove build artifacts"
-	@echo "  help    - Show this help"
+	@echo "  all      - Build build/libthreadpool.a (default)"
+	@echo "  test     - Build and run tests"
+	@echo "  sanitize - Run tests under ThreadSanitizer and AddressSanitizer"
+	@echo "  debug    - Build with debug symbols"
+	@echo "  clean    - Remove build artifacts"
+	@echo "  help     - Show this help"
 # }}}
