@@ -36,6 +36,8 @@ name is where it lives.
 - docs/011-roadmap.md - the seven phases and their demos.
 - docs/067-datapath-the-studio.md - asset generation utilities: .png, .mp4,
   .txt, source files, in the owner's look; the pool and its cards.
+  - docs/paintbrush-png.md - the `.png` paintbrush: every word a canvas may
+    use and every field, generated from the wall's own table (802).
 - docs/068-datapath-the-switchboard.md - parcels of arbitrary inputs, routed
   by a light model, planned by shape; observations and adjustments.
 - docs/069-the-story.md - the ledger told back as a story; lessons;
