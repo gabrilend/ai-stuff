@@ -2,22 +2,23 @@
  * Test: Sync Module (Watch List)
  *
  * Verifies sync context creation, watch list management, and pointer swapping.
+ * Each test reads a swapped pointer only after it has seen the ready flag go
+ * back to false, which is the handoff rule the module documents.
  */
 
 #include "../src/threadpool_sync.h"
-#include <stdio.h>
+#include "test_common.h"
 #include <stdlib.h>
-#include <unistd.h>
 
-/* {{{ Test Macros */
-#define TEST_ASSERT(cond, msg) do { \
-    if (!(cond)) { \
-        fprintf(stderr, "FAIL: %s:%d: %s\n", __FILE__, __LINE__, msg); \
-        return 1; \
-    } \
-} while(0)
+/* {{{ Test State */
+static atomic_int g_log_calls = 0;
+/* }}} */
 
-#define TEST_PASS(name) printf("PASS: %s\n", name)
+/* {{{ test_logger */
+static void test_logger(const char* fmt, ...) {
+    (void)fmt;
+    atomic_fetch_add(&g_log_calls, 1);
+}
 /* }}} */
 
 /* {{{ test_sync_create_destroy */
@@ -69,21 +70,19 @@ static int test_sync_pointer_swap(void) {
     tp_sync_add_watch(ctx, &ready, &target, source);
 
     /* Spawn sync thread */
-    pthread_t thread = tp_sync_spawn(ctx);
+    tp_thread_t thread = tp_sync_spawn(ctx);
 
     /* Set ready flag */
     atomic_store(&ready, true);
 
-    /* Wait for swap to occur */
-    usleep(10000);  /* 10ms */
-
-    /* Verify swap occurred */
-    TEST_ASSERT(target == source, "target should point to source");
+    /* Wait for the sync thread to clear the flag; then target is ours */
+    WAIT_UNTIL(atomic_load(&ready) == false, 5000);
     TEST_ASSERT(atomic_load(&ready) == false, "ready flag should be cleared");
+    TEST_ASSERT(target == source, "target should point to source");
 
     /* Stop and join */
     tp_sync_stop(ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
 
     tp_sync_destroy(ctx);
     TEST_PASS("test_sync_pointer_swap");
@@ -112,19 +111,18 @@ static int test_sync_multiple_watches(void) {
     }
 
     /* Spawn sync thread */
-    pthread_t thread = tp_sync_spawn(ctx);
+    tp_thread_t thread = tp_sync_spawn(ctx);
 
     /* Set ready flags in sequence */
     for (int i = 0; i < NUM_WATCHES; i++) {
         atomic_store(&ready[i], true);
-        usleep(1000);  /* 1ms */
+        tp_sleep_us(1000);  /* 1ms */
     }
 
-    /* Wait for all swaps */
-    usleep(50000);  /* 50ms */
-
-    /* Verify all swaps occurred */
+    /* Wait for all swaps, then verify each flag cleared and target swapped */
+    WAIT_UNTIL(tp_sync_get_swaps(ctx) == NUM_WATCHES, 5000);
     for (int i = 0; i < NUM_WATCHES; i++) {
+        TEST_ASSERT(atomic_load(&ready[i]) == false, "all ready flags should be cleared");
         TEST_ASSERT(targets[i] == sources[i], "all targets should be swapped");
     }
 
@@ -134,7 +132,7 @@ static int test_sync_multiple_watches(void) {
 
     /* Stop and join */
     tp_sync_stop(ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
 
     tp_sync_destroy(ctx);
     TEST_PASS("test_sync_multiple_watches");
@@ -179,20 +177,86 @@ static int test_sync_statistics(void) {
     TEST_ASSERT(tp_sync_get_swaps(ctx) == 0, "initial swaps should be 0");
     TEST_ASSERT(tp_sync_get_idle_cycles(ctx) == 0, "initial idle_cycles should be 0");
 
-    pthread_t thread = tp_sync_spawn(ctx);
+    tp_thread_t thread = tp_sync_spawn(ctx);
 
     /* Let it idle for a bit */
-    usleep(10000);  /* 10ms */
+    WAIT_UNTIL(tp_sync_get_idle_cycles(ctx) > 0, 5000);
 
     /* Idle cycles should have increased */
     uint64_t idle = tp_sync_get_idle_cycles(ctx);
     TEST_ASSERT(idle > 0, "idle_cycles should be non-zero");
 
     tp_sync_stop(ctx);
-    pthread_join(thread, NULL);
+    tp_thread_join(thread);
     tp_sync_destroy(ctx);
 
     TEST_PASS("test_sync_statistics");
+    return 0;
+}
+/* }}} */
+
+/* {{{ test_sync_null_config_and_logging */
+static int test_sync_null_config_and_logging(void) {
+    /* Test: NULL config means defaults; a log callback receives the module's
+     * messages (the module itself prints nothing) */
+    TpSyncContext* ctx = tp_sync_create(NULL);
+    TEST_ASSERT(ctx != NULL, "NULL config should give a default context");
+    TEST_ASSERT(ctx->watch_capacity == 2048, "default capacity should be 2048");
+    tp_sync_destroy(ctx);
+
+    atomic_store(&g_log_calls, 0);
+    TpSyncConfig cfg = tp_sync_config_default();
+    cfg.log_fn = test_logger;
+    ctx = tp_sync_create(&cfg);
+    TEST_ASSERT(ctx != NULL, "sync context should not be NULL");
+    tp_thread_t thread = tp_sync_spawn(ctx);
+    tp_sync_stop(ctx);
+    tp_thread_join(thread);
+    tp_sync_destroy(ctx);
+    TEST_ASSERT(atomic_load(&g_log_calls) >= 3, "create, spawn and exit should log");
+
+    TEST_PASS("test_sync_null_config_and_logging");
+    return 0;
+}
+/* }}} */
+
+/* {{{ Handoff state
+ * A producer thread publishes a new frame through the watch list over and
+ * over; the consumer reads each one after seeing the flag clear. */
+#define HANDOFF_ROUNDS 200
+typedef struct handoff {
+    TpSyncContext* ctx;
+    atomic_bool ready;
+    void* front;
+    int frames[HANDOFF_ROUNDS];
+} Handoff;
+/* }}} */
+
+/* {{{ test_sync_repeated_handoff */
+static int test_sync_repeated_handoff(void) {
+    /* Test: many handoffs in a row each deliver exactly the new pointer */
+    Handoff h;
+    h.ctx = tp_sync_create(NULL);
+    TEST_ASSERT(h.ctx != NULL, "sync context should not be NULL");
+    atomic_init(&h.ready, false);
+    h.front = NULL;
+
+    tp_thread_t thread = tp_sync_spawn(h.ctx);
+    for (int i = 0; i < HANDOFF_ROUNDS; i++) {
+        h.frames[i] = i;
+        TEST_ASSERT(tp_sync_add_watch(h.ctx, &h.ready, &h.front, &h.frames[i]),
+                    "add_watch should succeed");
+        atomic_store(&h.ready, true);
+        WAIT_UNTIL(atomic_load(&h.ready) == false, 5000);
+        TEST_ASSERT(atomic_load(&h.ready) == false, "flag should clear");
+        TEST_ASSERT(h.front == &h.frames[i], "front should be the newest frame");
+    }
+    TEST_ASSERT(tp_sync_get_swaps(h.ctx) == HANDOFF_ROUNDS, "every round should swap once");
+
+    tp_sync_stop(h.ctx);
+    tp_thread_join(thread);
+    tp_sync_destroy(h.ctx);
+    TEST_PASS("test_sync_repeated_handoff");
     return 0;
 }
 /* }}} */
@@ -209,6 +273,8 @@ int main(void) {
     failures += test_sync_multiple_watches();
     failures += test_sync_watch_list_full();
     failures += test_sync_statistics();
+    failures += test_sync_null_config_and_logging();
+    failures += test_sync_repeated_handoff();
 
     printf("\n");
     if (failures == 0) {

@@ -3,7 +3,7 @@
 A modular, high-performance threading library for general-purpose computation and real-time rendering.
 
 **Version:** 1.0
-**Platform:** POSIX (Linux, macOS)
+**Platform:** POSIX (Linux, the BSDs, macOS); Win32 planned
 **License:** MIT (or your license)
 
 ---
@@ -11,12 +11,12 @@ A modular, high-performance threading library for general-purpose computation an
 ## Features
 
 ✨ **Modular Design** - Use only what you need (core, sync, updater, scheduler)
-⚡ **High Performance** - Lock-free where possible, atomic operations
+⚡ **High Performance** - Atomic load counters, idle workers sleep instead of polling
 🎯 **Load Balancing** - Weighted task distribution across worker threads
 🔄 **Self-Evaluating** - Updaters adapt to load automatically
 📅 **Time-Based Scheduling** - Deferred task execution with absolute tick times
 🎨 **Rendering-Ready** - Non-blocking pointer coordination for double-buffering
-✅ **Well-Tested** - 24 tests covering all modules
+✅ **Well-Tested** - 43 tests covering all modules, clean under ThreadSanitizer and AddressSanitizer
 
 ---
 
@@ -133,15 +133,26 @@ Covers:
 ### Run Tests
 
 ```bash
-cd tests
-make test
+make test        # or: cd tests && make test
+make sanitize    # the same tests under ThreadSanitizer, then AddressSanitizer + UBSan
+make check       # tests, both cond-variable clocks, and the platform-layer check
 ```
 
-All 24 tests should pass:
-- ✅ Core module (6 tests)
-- ✅ Sync module (6 tests)
-- ✅ Updater module (5 tests)
-- ✅ Scheduler module (7 tests)
+All 43 tests should pass:
+- ✅ Core module (14 tests)
+- ✅ Sync module (8 tests)
+- ✅ Updater module (8 tests)
+- ✅ Scheduler module (13 tests)
+
+### Static Library
+
+```bash
+make             # builds build/libthreadpool.a with all four modules
+gcc your_app.c -Isrc -Lbuild -lthreadpool -pthread -o your_app
+```
+
+The linker takes only the modules your program calls, so only programs that
+use the scheduler need to define `g_current_tick`.
 
 ### Integration
 
@@ -188,8 +199,14 @@ Scheduler uses absolute tick times (not countdown timers):
 ### Non-Blocking Sync
 Watch list pattern for pointer coordination:
 - Workers set ready flag when done
-- Sync thread polls flags, swaps pointers atomically
-- Main thread always reads from safe buffer
+- Sync thread polls flags, writes the new pointer, then clears the flag
+- Main thread reads the pointer once it sees the flag clear
+
+### Ownership and Shutdown
+- Any thread may append to any worker; a task may append to its own worker
+- The context from `tp_updater_create()` is yours: `tp_updater_stop()` (or
+  `tp_pool_destroy()`), then `tp_updater_destroy()`
+- `tp_pool_destroy()` drops queued tasks without running them
 
 ---
 
@@ -205,11 +222,22 @@ Benchmarks on 4-core system:
 ## Requirements
 
 - **C Standard:** C11 (for `<stdatomic.h>`)
-- **Platform:** POSIX (Linux, macOS)
+- **Platform:** POSIX (Linux, the BSDs, macOS)
 - **Compiler:** GCC 4.9+, Clang 3.6+
-- **Threading:** pthreads
+- **Threading:** pthreads, reached only through `src/threadpool_platform.h`
 
-**Windows support:** Planned (see `issues/800f-windows-support-planning.md`)
+### Platform Layer
+
+Every OS call (threads, mutexes, condition variables, the clock, sleeping,
+counting CPUs) lives in `src/threadpool_platform.h`, a header-only layer, so
+build lines are unchanged. The modules and tests use only its `tp_*` names,
+and `make check` fails if an OS call appears anywhere else. The sync
+module's spinlock is a C11 `atomic_flag`, since macOS has no
+`pthread_spinlock_t`; on macOS timed waits use the wall clock, a path `make
+check` also runs on Linux (`TP_COND_REALTIME`).
+
+**Windows support:** Planned. A Win32 build stops at a clear `#error`; the
+backend is specified in `issues/800i-win32-backend.md`.
 
 ---
 
@@ -221,6 +249,7 @@ threadpool/
 │   ├── threadpool.h            # Core module
 │   ├── threadpool.c
 │   ├── threadpool_config.h     # Configuration constants
+│   ├── threadpool_platform.h   # Every OS call (header-only)
 │   ├── threadpool_sync.h       # Sync module
 │   ├── threadpool_sync.c
 │   ├── threadpool_updater.h    # Updater module
@@ -232,6 +261,7 @@ threadpool/
 │   ├── test_sync.c             # Sync tests
 │   ├── test_updater.c          # Updater tests
 │   ├── test_scheduler.c        # Scheduler tests
+│   ├── test_common.h           # Assertions and WAIT_UNTIL
 │   └── Makefile
 ├── docs/                       # Documentation
 │   └── usage-guide.md          # Complete usage guide

@@ -5,25 +5,21 @@
  * See threadpool_config.h for configuration options.
  *
  * This implementation provides:
- * - Ring buffer task lists for workers
+ * - Ring buffer task lists for workers, safe for any number of producers
  * - Load-balanced task distribution
- * - Automatic ring buffer compaction
+ * - Idle workers that sleep on a condition variable until work arrives
  */
 
 #include "threadpool.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <time.h>
 #include <limits.h>
 
 /* {{{ tp_get_timestamp_us
  * Returns current time in microseconds (monotonic clock). */
 uint64_t tp_get_timestamp_us(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+    return tp_time_us();
 }
 /* }}} */
 
@@ -32,110 +28,95 @@ uint64_t tp_get_timestamp_us(void) {
  * Used as a placeholder or for testing. */
 void tp_sleep_task(void* context) {
     (void)context;  /* Unused */
-    usleep(1000);   /* 1ms yield */
+    tp_sleep_us(1000);  /* 1ms yield */
 }
 /* }}} */
 
 /* {{{ tp_relocate_task
- * Compacts the ring buffer by copying active tasks to the start.
- * Called when end_ptr approaches the buffer end. */
+ * Compacts the ring buffer: queued tp_sleep_task placeholders that have not
+ * started are dropped, and the tasks after them move up to close the gaps.
+ * The slot at start_ptr is never touched, because the worker may be running
+ * it (it may even be this very call, queued as a task). */
 void tp_relocate_task(void* context) {
     TpWorker* w = (TpWorker*)context;
+    if (!w) return;
 
-    /* Count active tasks (from current position to end) */
-    size_t active_count = 0;
-    size_t read_ptr = w->start_ptr;
+    tp_mutex_lock(&w->lock);
 
-    while (read_ptr != w->end_ptr) {
-        TpTask* task = &w->task_list[read_ptr];
-        if (task->execute != tp_sleep_task) {
-            active_count++;
+    size_t dropped = 0;
+    if (w->start_ptr != w->end_ptr) {
+        size_t read_ptr = (w->start_ptr + 1) % w->task_list_size;
+        size_t write_ptr = read_ptr;
+
+        while (read_ptr != w->end_ptr) {
+            TpTask* task = &w->task_list[read_ptr];
+            if (task->execute == tp_sleep_task) {
+                atomic_fetch_sub(&w->num_tasks, task->weight);
+                dropped++;
+            } else {
+                if (write_ptr != read_ptr) {
+                    w->task_list[write_ptr] = *task;
+                }
+                write_ptr = (write_ptr + 1) % w->task_list_size;
+            }
+            read_ptr = (read_ptr + 1) % w->task_list_size;
         }
-        read_ptr = (read_ptr + 1) % w->task_list_size;
-    }
 
-    /* If no active tasks, just reset to empty buffer */
-    if (active_count == 0) {
-        w->start_ptr = 0;
-        w->end_ptr = 0;
-        return;
-    }
-
-    /* Copy active tasks to temporary storage */
-    TpTask* temp = malloc(active_count * sizeof(TpTask));
-    if (!temp) {
-        TP_LOG(&w->pool->config, "[worker %d] relocate_task: malloc failed\n", w->worker_id);
-        return;
-    }
-
-    size_t write_idx = 0;
-    read_ptr = w->start_ptr;
-    while (read_ptr != w->end_ptr && write_idx < active_count) {
-        TpTask* task = &w->task_list[read_ptr];
-        if (task->execute != tp_sleep_task) {
-            temp[write_idx++] = *task;
+        /* Clear the slots freed at the tail */
+        for (size_t p = write_ptr; p != w->end_ptr; p = (p + 1) % w->task_list_size) {
+            memset(&w->task_list[p], 0, sizeof(TpTask));
         }
-        read_ptr = (read_ptr + 1) % w->task_list_size;
+        w->end_ptr = write_ptr;
     }
 
-    /* Copy back to start of buffer */
-    for (size_t i = 0; i < active_count; i++) {
-        w->task_list[i] = temp[i];
+    tp_mutex_unlock(&w->lock);
+
+    if (dropped > 0) {
+        TP_LOG(&w->pool->config, "[worker %d] Compacted ring, dropped %zu sleep placeholders\n",
+               w->worker_id, dropped);
     }
-    free(temp);
-
-    /* Reset pointers */
-    w->start_ptr = 0;
-    w->end_ptr = active_count;
-
-    TP_LOG(&w->pool->config, "[worker %d] Relocated %zu active tasks to buffer start\n",
-           w->worker_id, active_count);
 }
 /* }}} */
 
 /* {{{ tp_task_append
- * Appends a task to a worker's ring buffer.
- * Returns false if buffer is full. */
+ * Appends a copy of a task to a worker's ring buffer.
+ * Thread-safe: any thread may append to any worker, including a task running
+ * on that worker. Returns false if the buffer is full. */
 bool tp_task_append(TpWorker* w, TpTask* task) {
-    /* Calculate next position */
-    size_t next = (w->end_ptr + 1) % w->task_list_size;
+    if (!w || !task) return false;
 
-    /* Check if buffer is full */
+    tp_mutex_lock(&w->lock);
+
+    /* Calculate next position; one slot stays empty to tell full from empty */
+    size_t next = (w->end_ptr + 1) % w->task_list_size;
     if (next == w->start_ptr) {
+        tp_mutex_unlock(&w->lock);
         TP_LOG(&w->pool->config, "[worker %d] task_append: buffer full\n", w->worker_id);
         return false;
     }
 
-    /* Copy task to buffer */
+    /* Copy task to buffer; count its load before the worker can finish it */
     w->task_list[w->end_ptr] = *task;
     w->end_ptr = next;
-
-    /* Update load counter */
     atomic_fetch_add(&w->num_tasks, task->weight);
 
-    /* Check if approaching end of buffer - schedule relocate
-     * Trigger when less than 10% of buffer remains */
-    size_t remaining;
-    if (w->end_ptr >= w->start_ptr) {
-        remaining = w->task_list_size - w->end_ptr + w->start_ptr;
-    } else {
-        remaining = w->start_ptr - w->end_ptr;
-    }
-
-    if (remaining < w->task_list_size / 10) {
-        /* Append relocate task */
-        size_t reloc_next = (w->end_ptr + 1) % w->task_list_size;
-        if (reloc_next != w->start_ptr) {
-            w->task_list[w->end_ptr].execute = tp_relocate_task;
-            w->task_list[w->end_ptr].on_complete = NULL;
-            w->task_list[w->end_ptr].context = w;
-            w->task_list[w->end_ptr].weight = TP_WEIGHT_LIGHT;
-            w->task_list[w->end_ptr].repeat_count = 1;
-            w->end_ptr = reloc_next;
-        }
-    }
+    tp_cond_signal(&w->wake);
+    tp_mutex_unlock(&w->lock);
 
     return true;
+}
+/* }}} */
+
+/* {{{ tp_worker_queued
+ * Returns the number of tasks in the ring, counting the one running now. */
+size_t tp_worker_queued(TpWorker* w) {
+    if (!w) return 0;
+
+    tp_mutex_lock(&w->lock);
+    size_t queued = (w->end_ptr + w->task_list_size - w->start_ptr) % w->task_list_size;
+    tp_mutex_unlock(&w->lock);
+
+    return queued;
 }
 /* }}} */
 
@@ -175,7 +156,7 @@ TpWorker* tp_find_least_busy_excluding(TpPool* pool, int exclude_id) {
         if (pool->workers[i].worker_id == exclude_id) continue;
 
         unsigned int load = atomic_load(&pool->workers[i].num_tasks);
-        if (load < best_load) {
+        if (best == NULL || load < best_load) {
             best = &pool->workers[i];
             best_load = load;
         }
@@ -187,80 +168,120 @@ TpWorker* tp_find_least_busy_excluding(TpPool* pool, int exclude_id) {
 
 /* {{{ tp_worker_loop
  * Main loop for worker threads.
- * Executes tasks from the ring buffer.
+ * Takes the task at start_ptr, runs it until its repeat_count is spent, then
+ * calls on_complete and frees the slot.
  *
  * repeat_count behavior:
  *   N > 0: run N more times, then call on_complete and advance
  *   N <= 0: already done, skip this slot (-1 does NOT mean infinite)
  *   Use INT16_MAX for "essentially infinite" execution
+ *
+ * Shutdown is checked between runs, so a long-repeating task stops promptly;
+ * a task cut short by shutdown does not get its on_complete call.
  */
 void* tp_worker_loop(void* arg) {
     TpWorker* w = (TpWorker*)arg;
 
     TP_LOG(&w->pool->config, "[worker %d] Starting\n", w->worker_id);
 
+    tp_mutex_lock(&w->lock);
     while (atomic_load(&w->running)) {
-        /* Check if buffer is empty */
+        /* Sleep until a task arrives or shutdown is signalled */
         if (w->start_ptr == w->end_ptr) {
-            /* Buffer empty - brief yield and retry
-             * Use short sleep (100us) to reduce latency while avoiding busy-wait */
-            usleep(100);
+            tp_cond_wait(&w->wake, &w->lock);
             continue;
         }
 
-        /* Get current task */
-        TpTask* task = &w->task_list[w->start_ptr];
+        /* Copy the task out; its slot stays reserved until we advance */
+        TpTask task = w->task_list[w->start_ptr];
+        tp_mutex_unlock(&w->lock);
 
-        /* Handle based on repeat_count - treat <= 0 as completed */
-        if (task->execute == NULL || task->repeat_count <= 0) {
-            /* Task is empty or already done - advance to next */
-            w->start_ptr = (w->start_ptr + 1) % w->task_list_size;
-            continue;
-        }
-
-        /* Execute the task */
-        task->execute(task->context);
-
-        /* Decrement repeat_count */
-        task->repeat_count--;
-
-        if (task->repeat_count <= 0) {
-            /* Task is now complete */
-            if (task->on_complete) {
-                task->on_complete(task->context);
+        bool finished = false;
+        if (task.execute == NULL || task.repeat_count <= 0) {
+            /* Empty slot or already-done task: release its load and move on */
+            atomic_fetch_sub(&w->num_tasks, task.weight);
+            finished = true;
+        } else {
+            while (task.repeat_count > 0 && atomic_load(&w->running)) {
+                task.execute(task.context);
+                task.repeat_count--;
             }
 
-            /* Decrement load counter */
-            atomic_fetch_sub(&w->num_tasks, task->weight);
+            if (task.repeat_count <= 0) {
+                if (task.on_complete) {
+                    task.on_complete(task.context);
+                }
+                atomic_fetch_sub(&w->num_tasks, task.weight);
+                finished = true;
+            }
+        }
 
-            /* Clear the slot */
-            task->execute = NULL;
-            task->on_complete = NULL;
-            task->context = NULL;
-            task->weight = 0;
-
-            /* Advance to next slot */
+        tp_mutex_lock(&w->lock);
+        if (finished) {
+            memset(&w->task_list[w->start_ptr], 0, sizeof(TpTask));
             w->start_ptr = (w->start_ptr + 1) % w->task_list_size;
         }
-        /* If repeat_count > 0, don't advance - run again next iteration */
     }
+    tp_mutex_unlock(&w->lock);
 
     TP_LOG(&w->pool->config, "[worker %d] Exiting\n", w->worker_id);
     return NULL;
 }
 /* }}} */
 
+/* {{{ pool_free
+ * Frees a pool whose worker threads are not running (never started or joined).
+ * initialized: how many workers had their lock, cond and ring set up. */
+static void pool_free(TpPool* pool, int initialized) {
+    for (int i = 0; i < initialized; i++) {
+        tp_mutex_destroy(&pool->workers[i].lock);
+        tp_cond_destroy(&pool->workers[i].wake);
+        free(pool->workers[i].task_list);
+    }
+    free(pool->workers);
+    free(pool);
+}
+/* }}} */
+
+/* {{{ pool_stop_and_join
+ * Signals the first `started` workers to stop, wakes them, and joins them. */
+static void pool_stop_and_join(TpPool* pool, int started) {
+    atomic_store(&pool->running, false);
+    for (int i = 0; i < started; i++) {
+        TpWorker* w = &pool->workers[i];
+        tp_mutex_lock(&w->lock);
+        atomic_store(&w->running, false);
+        tp_cond_broadcast(&w->wake);
+        tp_mutex_unlock(&w->lock);
+    }
+
+    for (int i = 0; i < started; i++) {
+        tp_thread_join(pool->workers[i].thread);
+        TP_LOG(&pool->config, "[threadpool] Worker %d joined\n", i);
+    }
+}
+/* }}} */
+
 /* {{{ tp_pool_create
  * Creates a worker pool with the specified number of workers.
  * If worker_count is 0, auto-detects CPU cores.
- * If config is NULL, uses defaults. */
+ * If config is NULL, uses defaults.
+ * Returns NULL if memory runs out or a worker thread cannot be started; in
+ * that case any workers already started are stopped and joined first. */
 TpPool* tp_pool_create(TpConfig* config, int worker_count) {
     /* Use defaults if no config provided */
     TpConfig cfg = config ? *config : tp_config_default();
 
+    /* A ring needs one empty slot, so it must have room for at least two */
+    if (cfg.task_list_size < 2) {
+        TP_LOG(&cfg, "[threadpool] task_list_size %zu too small, need at least 2\n",
+               cfg.task_list_size);
+        return NULL;
+    }
+
     /* Auto-detect CPU cores if not specified */
     if (worker_count <= 0) {
-        worker_count = (int)sysconf(_SC_NPROCESSORS_ONLN);
+        worker_count = tp_cpu_count();
         if (worker_count <= 0) worker_count = 4;  /* Fallback */
     }
 
@@ -291,6 +312,8 @@ TpPool* tp_pool_create(TpConfig* config, int worker_count) {
         w->worker_id = i;
         w->pool = pool;
         w->task_list_size = cfg.task_list_size;
+        w->start_ptr = 0;
+        w->end_ptr = 0;
         atomic_store(&w->num_tasks, 0);
         atomic_store(&w->running, true);
 
@@ -298,29 +321,25 @@ TpPool* tp_pool_create(TpConfig* config, int worker_count) {
         w->task_list = calloc(cfg.task_list_size, sizeof(TpTask));
         if (!w->task_list) {
             TP_LOG(&pool->config, "[threadpool] Failed to allocate task list for worker %d\n", i);
-            /* Clean up already allocated workers */
-            for (int j = 0; j < i; j++) {
-                free(pool->workers[j].task_list);
-            }
-            free(pool->workers);
-            free(pool);
+            pool_free(pool, i);
             return NULL;
         }
 
-        /* Start with empty buffer - workers will sleep when no tasks */
-        w->start_ptr = 0;
-        w->end_ptr = 0;
+        tp_mutex_init(&w->lock);
+        tp_cond_init(&w->wake);
     }
 
     /* Spawn worker threads */
     for (int i = 0; i < worker_count; i++) {
-        int result = pthread_create(&pool->workers[i].thread, NULL,
-                                    tp_worker_loop, &pool->workers[i]);
+        int result = tp_thread_create(&pool->workers[i].thread,
+                                      tp_worker_loop, &pool->workers[i]);
         if (result != 0) {
             TP_LOG(&pool->config, "[threadpool] Failed to create worker %d\n", i);
-        } else {
-            TP_LOG(&pool->config, "[threadpool] Worker %d spawned\n", i);
+            pool_stop_and_join(pool, i);
+            pool_free(pool, worker_count);
+            return NULL;
         }
+        TP_LOG(&pool->config, "[threadpool] Worker %d spawned\n", i);
     }
 
     return pool;
@@ -328,32 +347,16 @@ TpPool* tp_pool_create(TpConfig* config, int worker_count) {
 /* }}} */
 
 /* {{{ tp_pool_destroy
- * Signals workers to stop, joins all threads, frees resources. */
+ * Signals workers to stop, joins all threads, frees resources.
+ * Tasks still queued are dropped without running; a task running now gets to
+ * finish its current run. */
 void tp_pool_destroy(TpPool* pool) {
     if (!pool) return;
 
     TP_LOG(&pool->config, "[threadpool] Destroying pool...\n");
 
-    /* Signal shutdown */
-    atomic_store(&pool->running, false);
-    for (int i = 0; i < pool->count; i++) {
-        atomic_store(&pool->workers[i].running, false);
-    }
-
-    /* Join all worker threads */
-    for (int i = 0; i < pool->count; i++) {
-        pthread_join(pool->workers[i].thread, NULL);
-        TP_LOG(&pool->config, "[threadpool] Worker %d joined\n", i);
-    }
-
-    /* Free task lists */
-    for (int i = 0; i < pool->count; i++) {
-        free(pool->workers[i].task_list);
-    }
-
-    /* Free workers array and pool */
-    free(pool->workers);
-    free(pool);
+    pool_stop_and_join(pool, pool->count);
+    pool_free(pool, pool->count);
 
     /* Note: can't log after free since config is inside pool */
 }

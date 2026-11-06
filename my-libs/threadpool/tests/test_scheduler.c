@@ -2,25 +2,15 @@
  * Test: Scheduler Module (Deferred Task Assignment)
  *
  * Verifies scheduler creation, task scheduling with absolute tick times,
- * and integration with updater pattern.
+ * interruptible sleeping, per-scheduler ready buffers, and integration with
+ * the updater pattern.
  */
 
 #include "../src/threadpool.h"
 #include "../src/threadpool_scheduler.h"
-#include <stdio.h>
+#include "../src/threadpool_updater.h"
+#include "test_common.h"
 #include <stdlib.h>
-#include <unistd.h>
-
-/* {{{ Test Macros */
-#define TEST_ASSERT(cond, msg) do { \
-    if (!(cond)) { \
-        fprintf(stderr, "FAIL: %s:%d: %s\n", __FILE__, __LINE__, msg); \
-        return 1; \
-    } \
-} while(0)
-
-#define TEST_PASS(name) printf("PASS: %s\n", name)
-/* }}} */
 
 /* {{{ Global tick counter
  * Required by scheduler module - must be defined by user application */
@@ -205,6 +195,13 @@ static int test_scheduler_earliest_ready_tick(void) {
 }
 /* }}} */
 
+/* {{{ context_matches
+ * remove_if predicate: true for tasks whose context is user_data. */
+static bool context_matches(TpTask* task, void* user_data) {
+    return task->context == user_data;
+}
+/* }}} */
+
 /* {{{ test_scheduler_remove_if */
 static int test_scheduler_remove_if(void) {
     /* Test: remove_if removes matching tasks */
@@ -226,13 +223,17 @@ static int test_scheduler_remove_if(void) {
     TEST_ASSERT(tp_scheduler_count(sched) == 3, "should have 3 tasks");
 
     /* Remove tasks with context == (void*)2 */
-    bool predicate(TpTask* task, void* user_data) {
-        return task->context == user_data;
-    }
-
-    tp_scheduler_remove_if(sched, predicate, (void*)2);
+    tp_scheduler_remove_if(sched, context_matches, (void*)2);
 
     TEST_ASSERT(tp_scheduler_count(sched) == 2, "should have 2 tasks after removal");
+    TEST_ASSERT(tp_scheduler_earliest_ready_tick(sched) == 10, "task 1 should remain");
+    atomic_store(&g_current_tick, 30);
+    TpTask* ready = NULL;
+    size_t n = 0;
+    tp_scheduler_get_ready(sched, &ready, &n);
+    TEST_ASSERT(n == 2, "two tasks should come out");
+    TEST_ASSERT(ready[0].context == (void*)1 && ready[1].context == (void*)3,
+                "the kept tasks should be 1 and 3, in order");
 
     tp_scheduler_destroy(sched);
     TEST_PASS("test_scheduler_remove_if");
@@ -266,6 +267,187 @@ static int test_scheduler_full(void) {
 }
 /* }}} */
 
+/* {{{ test_scheduler_null_config */
+static int test_scheduler_null_config(void) {
+    /* Test: NULL config means defaults */
+    TpScheduler* sched = tp_scheduler_create(NULL);
+    TEST_ASSERT(sched != NULL, "NULL config should give a default scheduler");
+    TEST_ASSERT(sched->capacity == 1024, "default capacity should be 1024");
+    TEST_ASSERT(sched->tick_us == 16000, "default tick should be 16ms");
+    tp_scheduler_destroy(sched);
+
+    TEST_PASS("test_scheduler_null_config");
+    return 0;
+}
+/* }}} */
+
+/* {{{ test_scheduler_sleep_ticks_sleeps */
+static int test_scheduler_sleep_ticks_sleeps(void) {
+    /* Test: sleep_ticks really sleeps about ticks * tick_us when nothing
+     * wakes it (it used to return at once: the timeout was measured on the
+     * monotonic clock but waited for on the wall clock) */
+    atomic_store(&g_current_tick, 0);
+    TpSchedulerConfig cfg = tp_scheduler_config_default();
+    cfg.tick_us = 2000;  /* 2ms ticks */
+    TpScheduler* sched = tp_scheduler_create(&cfg);
+    TEST_ASSERT(sched != NULL, "scheduler should not be NULL");
+
+    uint64_t start = test_now_ms();
+    tp_scheduler_sleep_ticks(sched, 25);  /* 50ms */
+    uint64_t took = test_now_ms() - start;
+    TEST_ASSERT(took >= 45, "sleep should last about 50ms");
+    TEST_ASSERT(took < 2000, "sleep should not last far longer than asked");
+
+    tp_scheduler_destroy(sched);
+    TEST_PASS("test_scheduler_sleep_ticks_sleeps");
+    return 0;
+}
+/* }}} */
+
+/* {{{ Sleeper thread
+ * Sleeps a long time on a scheduler and records how long it took. */
+typedef struct sleeper {
+    TpScheduler* sched;
+    uint64_t ticks;
+    _Atomic uint64_t took_ms;
+    atomic_bool done;
+} Sleeper;
+
+static void* sleeper_thread(void* arg) {
+    Sleeper* s = (Sleeper*)arg;
+    uint64_t start = test_now_ms();
+    tp_scheduler_sleep_ticks(s->sched, s->ticks);
+    atomic_store(&s->took_ms, test_now_ms() - start);
+    atomic_store(&s->done, true);
+    return NULL;
+}
+/* }}} */
+
+/* {{{ test_scheduler_sleep_wakes_on_add */
+static int test_scheduler_sleep_wakes_on_add(void) {
+    /* Test: adding a task ends a long sleep early */
+    atomic_store(&g_current_tick, 0);
+    TpSchedulerConfig cfg = tp_scheduler_config_default();
+    cfg.tick_us = 1000;  /* 1ms ticks */
+    TpScheduler* sched = tp_scheduler_create(&cfg);
+    TEST_ASSERT(sched != NULL, "scheduler should not be NULL");
+
+    Sleeper s = { .sched = sched, .ticks = 10000 };  /* 10 seconds */
+    atomic_init(&s.took_ms, 0);
+    atomic_init(&s.done, false);
+    tp_thread_t thread;
+    tp_thread_create(&thread, sleeper_thread, &s);
+
+    tp_sleep_us(30000);
+    TEST_ASSERT(!atomic_load(&s.done), "sleeper should still be asleep");
+    TpTask task = { .execute = mock_task_execute, .weight = TP_WEIGHT_LIGHT, .repeat_count = 1 };
+    tp_scheduler_add(sched, &task, 500);
+
+    tp_thread_join(thread);
+    TEST_ASSERT(atomic_load(&s.took_ms) < 5000, "an add should wake the sleeper early");
+
+    tp_scheduler_destroy(sched);
+    TEST_PASS("test_scheduler_sleep_wakes_on_add");
+    return 0;
+}
+/* }}} */
+
+/* {{{ test_scheduler_sleep_respects_earliest */
+static int test_scheduler_sleep_respects_earliest(void) {
+    /* Test: sleep returns at once when a task is ready, and never sleeps past
+     * the earliest scheduled task even when asked to */
+    atomic_store(&g_current_tick, 100);
+    TpSchedulerConfig cfg = tp_scheduler_config_default();
+    cfg.tick_us = 2000;  /* 2ms ticks */
+    TpScheduler* sched = tp_scheduler_create(&cfg);
+    TEST_ASSERT(sched != NULL, "scheduler should not be NULL");
+
+    TpTask task = { .execute = mock_task_execute, .weight = TP_WEIGHT_LIGHT, .repeat_count = 1 };
+
+    tp_scheduler_add(sched, &task, 5);  /* ready at 105, 10ms away */
+    uint64_t start = test_now_ms();
+    tp_scheduler_sleep_ticks(sched, 5000);  /* asked for 10 seconds */
+    TEST_ASSERT(test_now_ms() - start < 2000, "sleep should stop at the earliest task");
+
+    atomic_store(&g_current_tick, 105);
+    start = test_now_ms();
+    tp_scheduler_sleep_ticks(sched, 5000);
+    TEST_ASSERT(test_now_ms() - start < 1000, "a ready task should end sleep at once");
+
+    tp_scheduler_destroy(sched);
+    TEST_PASS("test_scheduler_sleep_respects_earliest");
+    return 0;
+}
+/* }}} */
+
+/* {{{ test_scheduler_buffers_independent */
+static int test_scheduler_buffers_independent(void) {
+    /* Test: two schedulers each keep their own ready buffer (they used to
+     * share one, so the second call overwrote the first one's tasks) */
+    atomic_store(&g_current_tick, 0);
+    TpScheduler* a = tp_scheduler_create(NULL);
+    TpScheduler* b = tp_scheduler_create(NULL);
+    TEST_ASSERT(a != NULL && b != NULL, "schedulers should not be NULL");
+
+    TpTask ta = { .execute = mock_task_execute, .context = (void*)0xA, .repeat_count = 1 };
+    TpTask tb = { .execute = mock_task_execute, .context = (void*)0xB, .repeat_count = 1 };
+    tp_scheduler_add(a, &ta, 0);
+    tp_scheduler_add(b, &tb, 0);
+
+    TpTask* out_a = NULL;
+    TpTask* out_b = NULL;
+    size_t na = 0, nb = 0;
+    tp_scheduler_get_ready(a, &out_a, &na);
+    tp_scheduler_get_ready(b, &out_b, &nb);
+    TEST_ASSERT(na == 1 && nb == 1, "each scheduler should hand out its task");
+    TEST_ASSERT(out_a != out_b, "buffers should differ");
+    TEST_ASSERT(out_a[0].context == (void*)0xA, "a's task should still be a's");
+    TEST_ASSERT(out_b[0].context == (void*)0xB, "b's task should be b's");
+
+    tp_scheduler_destroy(a);
+    tp_scheduler_destroy(b);
+    TEST_PASS("test_scheduler_buffers_independent");
+    return 0;
+}
+/* }}} */
+
+/* {{{ test_scheduler_with_updater */
+static int test_scheduler_with_updater(void) {
+    /* Test: an updater fed by a scheduler runs each task once, when its tick
+     * comes and not before */
+    atomic_store(&g_current_tick, 0);
+    atomic_store(&g_tasks_executed, 0);
+
+    TpPool* pool = tp_pool_create(NULL, 2);
+    TpScheduler* sched = tp_scheduler_create(NULL);
+    TEST_ASSERT(pool != NULL && sched != NULL, "pool and scheduler should exist");
+    TpUpdaterContext* upd = tp_updater_create(pool, NULL, tp_scheduler_get_ready, sched);
+    TEST_ASSERT(upd != NULL, "updater should not be NULL");
+    TEST_ASSERT(tp_updater_start(upd), "updater should start");
+
+    TpTask task = { .execute = mock_task_execute, .weight = TP_WEIGHT_LIGHT, .repeat_count = 1 };
+    for (int i = 0; i < 3; i++) tp_scheduler_add(sched, &task, 0);
+    for (int i = 0; i < 4; i++) tp_scheduler_add(sched, &task, 10);
+
+    WAIT_UNTIL(atomic_load(&g_tasks_executed) == 3, 5000);
+    TEST_ASSERT(atomic_load(&g_tasks_executed) == 3, "the three ready tasks should run");
+    tp_sleep_us(20000);
+    TEST_ASSERT(atomic_load(&g_tasks_executed) == 3, "delayed tasks must wait for their tick");
+
+    atomic_store(&g_current_tick, 10);
+    WAIT_UNTIL(atomic_load(&g_tasks_executed) == 7, 5000);
+    TEST_ASSERT(atomic_load(&g_tasks_executed) == 7, "all seven should run once");
+    TEST_ASSERT(tp_scheduler_count(sched) == 0, "scheduler should be empty");
+
+    tp_updater_stop(upd);
+    tp_updater_destroy(upd);
+    tp_pool_destroy(pool);
+    tp_scheduler_destroy(sched);
+    TEST_PASS("test_scheduler_with_updater");
+    return 0;
+}
+/* }}} */
+
 /* {{{ main */
 int main(void) {
     printf("=== Threadpool Scheduler Tests ===\n\n");
@@ -279,6 +461,12 @@ int main(void) {
     failures += test_scheduler_earliest_ready_tick();
     failures += test_scheduler_remove_if();
     failures += test_scheduler_full();
+    failures += test_scheduler_null_config();
+    failures += test_scheduler_sleep_ticks_sleeps();
+    failures += test_scheduler_sleep_wakes_on_add();
+    failures += test_scheduler_sleep_respects_earliest();
+    failures += test_scheduler_buffers_independent();
+    failures += test_scheduler_with_updater();
 
     printf("\n");
     if (failures == 0) {

@@ -20,11 +20,17 @@
  *   TpScheduler* sched = tp_scheduler_create(&cfg);
  *
  *   // Add tasks (ticks_delay: 0 = ASAP, N = ready in N ticks from now)
- *   scheduler_add(sched, &task, 0);      // Assign ASAP (next tick)
- *   scheduler_add(sched, &task, 100);    // Assign in 100 ticks
+ *   tp_scheduler_add(sched, &task, 0);      // Assign ASAP (next tick)
+ *   tp_scheduler_add(sched, &task, 100);    // Assign in 100 ticks
  *
- *   // Integrate with updater (use scheduler_get_ready as task source)
- *   TpUpdaterContext* updater = tp_updater_create(pool, scheduler_get_ready, sched);
+ *   // Integrate with updater (use tp_scheduler_get_ready as task source)
+ *   TpUpdaterContext* updater =
+ *       tp_updater_create(pool, NULL, tp_scheduler_get_ready, sched);
+ *
+ * One consumer: tp_scheduler_get_ready() hands back a buffer owned by the
+ * scheduler that stays valid until the next get_ready on the SAME scheduler.
+ * Let one thread (one primary updater, no helpers) take tasks from it. Adding,
+ * removing and counting are safe from any number of threads.
  */
 
 #ifndef THREADPOOL_SCHEDULER_H
@@ -34,7 +40,6 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <stdint.h>
-#include <pthread.h>
 
 /* {{{ Global tick counter
  * Incremented by game loop or timer thread (independent of scheduler/updater).
@@ -65,8 +70,16 @@ typedef struct tp_scheduler {
     size_t capacity;               /* Max tasks */
     size_t count;                  /* Current task count */
 
-    pthread_mutex_t lock;          /* Protects task array */
-    pthread_cond_t wake_signal;    /* Signal for new task arrivals */
+    tp_mutex_t lock;               /* Protects task array */
+    tp_cond_t wake_signal;         /* Signal for new task arrivals (monotonic clock) */
+    uint64_t add_generation;       /* Bumped on every add; lets a sleeper tell a
+                                      real wake from a spurious one */
+
+    TpTask* ready_buffer;          /* Returned by get_ready (one consumer) */
+    size_t ready_buffer_size;
+
+    uint64_t tick_us;              /* Length of one tick, for sleeping */
+    void (*log_fn)(const char* fmt, ...);
 
     atomic_bool running;           /* Shutdown flag */
 } TpScheduler;
@@ -76,6 +89,9 @@ typedef struct tp_scheduler {
  * Configuration for scheduler module. */
 typedef struct tp_scheduler_config {
     size_t capacity;               /* Max scheduled tasks (default: 1024) */
+    uint64_t tick_us;              /* One tick in microseconds, used only by
+                                      tp_scheduler_sleep_ticks (default: 16000,
+                                      62.5 Hz) */
     void (*log_fn)(const char* fmt, ...);  /* Optional logging callback */
 } TpSchedulerConfig;
 /* }}} */
@@ -89,11 +105,12 @@ TpSchedulerConfig tp_scheduler_config_default(void);
 
 /* {{{ Lifecycle */
 
-/* Create scheduler with specified configuration
+/* Create scheduler with specified configuration (NULL = defaults)
  * Returns NULL on allocation failure */
 TpScheduler* tp_scheduler_create(TpSchedulerConfig* config);
 
-/* Destroy scheduler (does not cancel pending tasks) */
+/* Destroy scheduler (does not run pending tasks)
+ * No thread may be inside a scheduler call, sleeping included. */
 void tp_scheduler_destroy(TpScheduler* sched);
 
 /* }}} */
@@ -133,7 +150,9 @@ uint64_t tp_scheduler_earliest_ready_tick(TpScheduler* sched);
 
 /* Sleep until earliest task or new task arrival (interruptible)
  * ticks_to_sleep: number of ticks to sleep (calculated externally: earliest_tick - g_current_tick)
- * Returns early if new task added (via pthread_cond_signal) */
+ * One tick lasts config.tick_us. Returns at once if a task is already ready,
+ * never sleeps past the earliest scheduled task (even one added after the
+ * caller looked), and returns early when a task is added. */
 void tp_scheduler_sleep_ticks(TpScheduler* sched, uint64_t ticks_to_sleep);
 
 /* }}} */

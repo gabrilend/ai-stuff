@@ -1,106 +1,140 @@
 # Threadpool Test Suite Makefile
+#
+# Builds each test file against only the modules it needs and runs them.
+# Binaries go in a build directory, never beside the sources.
+#
+# Usage:
+#   make test      - Build and run all tests
+#   make tsan      - Run all tests under ThreadSanitizer (data races)
+#   make asan      - Run all tests under AddressSanitizer + UBSan (memory, leaks)
+#   make sanitize  - Both of the above
+#   make realtime  - Run all tests with the wall-clock condition variable
+#                    fallback that macOS uses (TP_COND_REALTIME)
+#   make check-portable - Fail if any OS call appears outside
+#                    src/threadpool_platform.h
+#   make check     - check-portable, test and realtime together
+#   make CC=clang test  - Any of these with clang instead of gcc
+#   make clean     - Remove build artifacts
 
 CC = gcc
-CFLAGS = -Wall -Wextra -pthread -I../src -g -O0
-LDFLAGS = -pthread
+SAN_FLAGS ?=
+EXTRA_CFLAGS ?=
+CFLAGS = -Wall -Wextra -Werror -std=c11 -D_GNU_SOURCE -pthread -I../src -g -O1 $(SAN_FLAGS) $(EXTRA_CFLAGS)
+LDFLAGS = -pthread $(SAN_FLAGS)
 
-# Source directories
 SRC_DIR = ../src
-BUILD_DIR = build
+BUILD_DIR ?= build
 
-# Core module sources
+HEADERS = $(wildcard $(SRC_DIR)/*.h) test_common.h
+
 CORE_SRCS = $(SRC_DIR)/threadpool.c
-CORE_OBJS = $(BUILD_DIR)/threadpool.o
-
-# Sync module sources
 SYNC_SRCS = $(SRC_DIR)/threadpool_sync.c
-SYNC_OBJS = $(BUILD_DIR)/threadpool_sync.o
-
-# Updater module sources
 UPDATER_SRCS = $(SRC_DIR)/threadpool_updater.c
-UPDATER_OBJS = $(BUILD_DIR)/threadpool_updater.o
-
-# Scheduler module sources
 SCHEDULER_SRCS = $(SRC_DIR)/threadpool_scheduler.c
-SCHEDULER_OBJS = $(BUILD_DIR)/threadpool_scheduler.o
 
-# Test executables
 TESTS = test_pool test_sync test_updater test_scheduler
+TEST_BINS = $(addprefix $(BUILD_DIR)/,$(TESTS))
 
-.PHONY: all clean run test
+.PHONY: all run test tsan asan sanitize realtime check-portable check clean help
 
-all: $(BUILD_DIR) $(TESTS)
+# {{{ Default target
+all: $(TEST_BINS)
+# }}}
 
+# {{{ Build directory
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
+# }}}
 
-# Compile core module
-$(CORE_OBJS): $(CORE_SRCS)
-	$(CC) $(CFLAGS) -c $(CORE_SRCS) -o $(CORE_OBJS)
+# {{{ Test binaries
+# test_pool: core module only
+$(BUILD_DIR)/test_pool: test_pool.c $(CORE_SRCS) $(HEADERS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) test_pool.c $(CORE_SRCS) $(LDFLAGS) -o $@
 
-# Compile sync module
-$(SYNC_OBJS): $(SYNC_SRCS)
-	$(CC) $(CFLAGS) -c $(SYNC_SRCS) -o $(SYNC_OBJS)
+# test_sync: sync module only (it does not need the core)
+$(BUILD_DIR)/test_sync: test_sync.c $(SYNC_SRCS) $(HEADERS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) test_sync.c $(SYNC_SRCS) $(LDFLAGS) -o $@
 
-# Compile updater module
-$(UPDATER_OBJS): $(UPDATER_SRCS)
-	$(CC) $(CFLAGS) -c $(UPDATER_SRCS) -o $(UPDATER_OBJS)
+# test_updater: core + updater modules
+$(BUILD_DIR)/test_updater: test_updater.c $(CORE_SRCS) $(UPDATER_SRCS) $(HEADERS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) test_updater.c $(CORE_SRCS) $(UPDATER_SRCS) $(LDFLAGS) -o $@
 
-# Compile scheduler module
-$(SCHEDULER_OBJS): $(SCHEDULER_SRCS)
-	$(CC) $(CFLAGS) -c $(SCHEDULER_SRCS) -o $(SCHEDULER_OBJS)
+# test_scheduler: core + updater + scheduler (the last test feeds an updater)
+$(BUILD_DIR)/test_scheduler: test_scheduler.c $(CORE_SRCS) $(UPDATER_SRCS) $(SCHEDULER_SRCS) $(HEADERS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS) test_scheduler.c $(CORE_SRCS) $(UPDATER_SRCS) $(SCHEDULER_SRCS) $(LDFLAGS) -o $@
+# }}}
 
-# Build test_pool (core module only)
-test_pool: test_pool.c $(CORE_OBJS)
-	$(CC) $(CFLAGS) test_pool.c $(CORE_OBJS) $(LDFLAGS) -o test_pool
-
-# Build test_sync (core + sync modules)
-test_sync: test_sync.c $(CORE_OBJS) $(SYNC_OBJS)
-	$(CC) $(CFLAGS) test_sync.c $(CORE_OBJS) $(SYNC_OBJS) $(LDFLAGS) -o test_sync
-
-# Build test_updater (core + updater modules)
-test_updater: test_updater.c $(CORE_OBJS) $(UPDATER_OBJS)
-	$(CC) $(CFLAGS) test_updater.c $(CORE_OBJS) $(UPDATER_OBJS) $(LDFLAGS) -o test_updater
-
-# Build test_scheduler (core + scheduler modules)
-test_scheduler: test_scheduler.c $(CORE_OBJS) $(SCHEDULER_OBJS)
-	$(CC) $(CFLAGS) test_scheduler.c $(CORE_OBJS) $(SCHEDULER_OBJS) $(LDFLAGS) -o test_scheduler
-
-# Run all tests
+# {{{ Run all tests
 run: all
 	@echo "==================================================="
-	@echo "Running Threadpool Test Suite"
+	@echo "Running Threadpool Test Suite $(SAN_FLAGS) $(EXTRA_CFLAGS)"
 	@echo "==================================================="
 	@echo ""
-	@./test_pool && echo "" || exit 1
-	@./test_sync && echo "" || exit 1
-	@./test_updater && echo "" || exit 1
-	@./test_scheduler && echo "" || exit 1
+	@for t in $(TEST_BINS); do ./$$t || exit 1; echo ""; done
 	@echo "==================================================="
 	@echo "All test suites passed!"
 	@echo "==================================================="
 
 # Alias for run
 test: run
+# }}}
 
-# Clean build artifacts
+# {{{ Sanitizer runs
+# Each sanitizer builds into its own directory, so plain and sanitized
+# binaries never mix. halt_on_error makes any report fail the run.
+tsan:
+	TSAN_OPTIONS="halt_on_error=1 second_deadlock_stack=1" \
+	$(MAKE) run BUILD_DIR=build-tsan SAN_FLAGS="-fsanitize=thread"
+
+asan:
+	ASAN_OPTIONS="halt_on_error=1 detect_leaks=1" UBSAN_OPTIONS="halt_on_error=1 print_stacktrace=1" \
+	$(MAKE) run BUILD_DIR=build-asan SAN_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"
+
+sanitize: tsan asan
+# }}}
+
+# {{{ Portability checks
+# The macOS condition-variable path, exercised on any POSIX system
+realtime:
+	$(MAKE) run BUILD_DIR=build-realtime EXTRA_CFLAGS="-DTP_COND_REALTIME"
+
+# Every OS call belongs in the platform layer; a match anywhere else fails
+PORTABLE_PATTERN = pthread_|usleep|nanosleep|sysconf|clock_gettime|gettimeofday|sched_yield|<pthread\.h>|<unistd\.h>|<time\.h>|<sys/
+check-portable:
+	@if grep -nE '$(PORTABLE_PATTERN)' $(filter-out $(SRC_DIR)/threadpool_platform.h,$(wildcard $(SRC_DIR)/*.c $(SRC_DIR)/*.h)) *.c *.h; then \
+		echo "FAIL: OS calls outside src/threadpool_platform.h (listed above)"; exit 1; \
+	else \
+		echo "PASS: no OS calls outside src/threadpool_platform.h"; \
+	fi
+
+check: check-portable test realtime
+# }}}
+
+# {{{ Clean
 clean:
-	rm -rf $(BUILD_DIR)
-	rm -f test_pool test_sync test_updater test_scheduler
+	rm -rf build build-tsan build-asan build-realtime
 	@echo "Cleaned test build artifacts"
+# }}}
 
-# Help target
+# {{{ Help
 help:
 	@echo "Threadpool Test Suite Makefile"
 	@echo ""
 	@echo "Targets:"
 	@echo "  all        - Build all test executables"
 	@echo "  run/test   - Build and run all tests"
+	@echo "  tsan       - Run all tests under ThreadSanitizer"
+	@echo "  asan       - Run all tests under AddressSanitizer + UBSan"
+	@echo "  sanitize   - Run both sanitizer passes"
+	@echo "  realtime   - Run all tests with the wall-clock cond fallback"
+	@echo "  check-portable - Fail on OS calls outside the platform layer"
+	@echo "  check      - check-portable, test and realtime"
 	@echo "  clean      - Remove build artifacts"
 	@echo "  help       - Show this help message"
 	@echo ""
-	@echo "Individual tests:"
+	@echo "Test files:"
 	@echo "  test_pool      - Core threadpool tests"
 	@echo "  test_sync      - Sync module tests"
 	@echo "  test_updater   - Updater module tests"
 	@echo "  test_scheduler - Scheduler module tests"
+# }}}

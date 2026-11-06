@@ -131,7 +131,10 @@ Successfully extracted and modularized threading infrastructure into reusable li
 - Comprehensive test coverage
 
 **Remaining Work:**
-- 800f: Windows support planning (design doc, future work)
+- 800f: Windows support planning (done 2026-11-02): platform layer with POSIX backend
+- 800i: Win32 backend (needs a Windows toolchain to test)
+- 800h: Hardening (done 2026-11-02): races fixed, updater ownership and stop,
+  scheduler sleep fixed; 43 tests, clean under ThreadSanitizer and AddressSanitizer
 - Render migration: Moved to WETE issue 802 (project-specific validation)
 
 Library is ready for use and thoroughly tested.
