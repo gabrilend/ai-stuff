@@ -16,8 +16,8 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | ID | Title | Status | Depends on |
 |----|-------|--------|------------|
 | A03 | [Unified Test Runner](./completed/A03-unified-test-runner.md) | completed | — |
-| A06 | [Parser Coverage Report](./A06-parser-coverage-report.md) | open | — |
+| A06 | [Parser Coverage Report](./completed/A06-parser-coverage-report.md) | completed | — |
 
-Completed 1, open 1, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 2, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->
