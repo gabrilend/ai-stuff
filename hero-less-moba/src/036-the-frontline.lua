@@ -389,9 +389,9 @@ end
 -- turned out to be.
 --
 -- Applied through the same nudge every other correction goes through, which is what makes
--- it stick for both kinds of body: a guard's position is a node and an offset, a wave
--- body's is how far along and how far across its lane, and a push written straight into x
--- and y is undone by the next move pass for the second kind.
+-- it stick for both kinds of body: a guard's position is its own x and y, a wave body's is
+-- how far along and how far across its lane, and a push written straight into x and y is
+-- undone by the next move pass for the second kind.
 function M.push_out_of_stone(world)
   local soldier = world.soldier
   local node = world.map.node

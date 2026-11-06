@@ -122,8 +122,13 @@ local function make_soldier_arrays(capacity, kind_count)
   -- Where node_from sits in this lane's path array. Carried on the body rather
   -- than searched for, because the alternative is scanning the lane's path every
   -- time a body crosses a node -- which is a linear scan per arrival, per body,
-  -- forever. A body walking free of a lane (a guard on patrol) holds zero here
-  -- and is moved by its neighbour list instead.
+  -- forever. A body walking free of a lane (a guard on patrol) holds zero here.
+  --
+  -- **For a guard, the two nodes mean something different and simpler.** `node_from`
+  -- is the last node it reached and `node_to` is the node it is aiming at; neither
+  -- says where it *is*, which is its x and y. They are what the graph is consulted
+  -- with -- which neighbours are inside the leash -- and which stone it might be
+  -- walking into.
   soldier.path_index = zeroed(capacity)
   soldier.progress  = zeroed(capacity)
   soldier.x         = zeroed(capacity)
@@ -170,22 +175,15 @@ local function make_soldier_arrays(capacity, kind_count)
   -- wrong for a decision -- so nothing decides anything on it.
   soldier.gave_way      = zeroed(capacity)
 
-  -- How far this body stands from the line its graph position puts it on, in world
-  -- paces. **Only a body with no lane has one** -- a guard, and only a guard.
+  -- There used to be an `offset_x` and `offset_y` here: how far a guard stood from the
+  -- edge its graph position put it on. A guard's position was an edge and a fraction,
+  -- every correction written into its x and y was re-derived away on the next move pass,
+  -- and the offset was the second representation that made a correction stick.
   --
-  -- A body on a lane says where it is across the road with `lane_across`, and its
-  -- world position is derived from that against the lane's curve. A guard has no lane
-  -- and no across: its position is "on the edge between these two nodes, this far
-  -- along", which is a line with no width, and every guard on the same edge at the
-  -- same progress is at the same point.
-  --
-  -- That is why this exists rather than the rule simply writing x and y. It did, and
-  -- the correction lasted exactly one tick, because the next move pass re-derived the
-  -- position from the edge and put the guard back on top of whoever it had just
-  -- stepped away from. Two guards at one tower stood inside each other for the whole
-  -- match while the rule ran every tick and achieved nothing.
-  soldier.offset_x      = zeroed(capacity)
-  soldier.offset_y      = zeroed(capacity)
+  -- **A guard's position is now its x and y, like every other body's that has no lane**
+  -- (issue 216d), so there is nothing for an offset to be measured from and nothing for a
+  -- correction to be undone by. Deleted rather than left at zero: a field nothing reads is
+  -- a field somebody eventually starts writing again.
 
   -- Mind
   soldier.state             = zeroed(capacity)
@@ -236,7 +234,7 @@ local function make_soldier_arrays(capacity, kind_count)
   -- the formation in world coordinates instead would make a turning rank either
   -- break apart or scythe through the inside of the bend.
   --
-  -- A guard has no lane and does not use these; it walks the graph directly.
+  -- A guard has no lane and does not use these; its position is its x and y.
   soldier.lane_along        = zeroed(capacity)
   soldier.lane_across       = zeroed(capacity)
   -- This body's place in its wave's formation, as offsets from the wave's anchor.
@@ -608,8 +606,6 @@ function M.release(world, id)
   soldier.reach[id] = 0
   soldier.radius[id] = 0
   soldier.gave_way[id] = 0
-  soldier.offset_x[id] = 0
-  soldier.offset_y[id] = 0
   soldier.state[id] = 0
   soldier.incoming_dps[id] = 0
   soldier.target[id] = 0

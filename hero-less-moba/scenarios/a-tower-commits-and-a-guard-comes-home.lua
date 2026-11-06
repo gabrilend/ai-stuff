@@ -15,15 +15,22 @@
 -- around the tower it was meant to be denying quietly empties.
 --
 -- Across five thousand ticks of a real match, with four towers felled and forty bodies
--- fighting at the end of it, **no guard ever enters the leashing state.** The mechanism
--- is there and reads correctly -- the tower pass measures every guard against its leash
--- node each tick and flips the state when it is outside -- so the finding is not that it
--- is broken. It is that ordinary play never asks for it: a guard's reach and its wander
--- both keep it well inside the radius, and the rope is never pulled tight.
+-- fighting at the end of it, **no guard ever enters the leashing state.**
+--
+-- **The first explanation written here was wrong**, and it is worth recognising the kind
+-- of wrong it was. It said a guard's reach and its wander both kept it well inside the
+-- radius -- a reason, offered for a number nobody had looked behind. In fact no guard ever
+-- moved at all: each was put out on an edge whose two ends were the same node, and the walk
+-- stepped over an edge of length nought. Found by issue 216d, which made guards points.
+--
+-- Guards now walk, and the claim still holds, for a better reason: a guard chasing
+-- something aims at the end of its rope and no further, so it never walks past the line on
+-- purpose. Being dragged past it is tested directly in the invariants, which is where the
+-- leash is now covered.
 --
 -- That is left as a claim here rather than deleted, because a change that starts sending
 -- guards down the lane should be noticed by something, and this is the only thing
--- watching. But **it does not cover the leashing mechanic** and this file does not claim
+-- watching ordinary play for it. But **it does not cover the leashing mechanic** and this file does not claim
 -- to: an assertion that a state is never entered is not a demonstration that the state
 -- works.
 

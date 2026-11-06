@@ -39,11 +39,16 @@ gears deal with it.
 ### Why there is a conversion at all
 
 A body on a road keeps how far along its lane it has got and how far across it stands, and
-its world position is derived from those. A guard keeps a node, a fraction along an edge,
-and an offset in world paces. Every rule that ever wanted to move either one had to know
-which kind it was holding, **and two of them got it wrong** — writing a world position into
-a lane body, watching the next move pass re-derive it, and achieving nothing while firing
-every tick. Intentions are one currency now, and one function converts.
+its world position is derived from those. Anything with no lane — a guard, or a hero partway
+across a connector — keeps its world position and nothing else. Every rule that ever wanted
+to move a body had to know which kind it was holding, **and two of them got it wrong** —
+writing a world position into a lane body, watching the next move pass re-derive it, and
+achieving nothing while firing every tick. Intentions are one currency now, and one
+function converts.
+
+A guard used to be a third kind: a node, a fraction along an edge, and an offset in world
+paces to stand it clear of whoever else was at the same tower. [216d](../issues/216d-a-guard-is-still-an-edge-walker.md)
+made it a point, and the offset went with it.
 
 ### One thing that has not moved
 
@@ -56,12 +61,12 @@ also the risk, since nothing enforces it either.
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `step(world, id)` | | `true` if the body crossed at least one node. |
 | `place_on_lane(world, id, lane, path_index, facing)` | | — The one way a body enters a lane. |
-| `place_at_node(world, id, node, offset_x, offset_y)` | | — A body with no lane: a guard at its tower. The offset is required whenever more than one body is put at one node, because a node is a point and a point holds one body. |
+| `place_at_node(world, id, node, beside_x, beside_y)` | | — A body with no lane: a guard at its tower. It stands at the node plus the displacement given, which is required whenever more than one body is put at one node, because a node is a point and a point holds one body. Both of its graph nodes are set to this one. |
+| `arrived_at_node(world, id, node)` | | `true` once the body is within a body's room of the node — measured from the face of any live building standing on it. |
+| `next_patrol_node(world, id)` | a guard | A random neighbour of the node it last reached, inside its leash, from the wander stream. |
+| `round_the_stone(world, id, x, y)` | a goal | The same goal, or the side of a building to aim at first when the straight line to it runs through one. |
 | `clear_step(world, id, delta_along, delta_across)` | a step in lane coordinates | The same step, moved if it would end inside somebody. |
-| `mode_of(world, id)` | | Which of the four ways this body is moving. |
-| `position_of(world, id)` | | — Writes `x` and `y` from the edge it is on. |
 | `set_lane_position(world, id, along, across)` | | — Puts a body at a distance down a lane and an offset from its centre line. |
 | `project_onto_lane(world, lane, x, y, hint)` | | Where on that lane a point in the world is. |
 | `move_limited(world, id, along, across, allowance)` | | — A step capped by a distance **in the world**, so a body on the outside of a bend cannot buy ground by being offset. |
@@ -75,7 +80,6 @@ also the risk, since nothing enforces it either.
 | `step_toward_point(world, id, along, across)` | | — Closing on something, with no cohesion applied. |
 | `begin_crossing(world, id, connector, from_lane)` | | — Onto a connector between lanes. |
 | `step_crossing(world, id)` | | — Along one. |
-| `next_node` | *(table)* | The movement dispatch table. |
 
 ## The march pass, and why the loop is here
 
@@ -89,19 +93,36 @@ A body with no wave is a **stray**: nothing keeps it in a line and nothing comes
 collect it, so the pass steps over it. That is not an omission — a stray is the thing an
 army has to get past, and it has to be able to stand still to be one.
 
-## The four ways of moving
+## A guard, and the graph it consults
 
-Only *which node comes next* varies, and it is a dispatch on what the body is doing
-rather than a branch inside the move loop.
+A guard moves like everything else — its row in [the pattern table](072-the-movement-patterns.info.md)
+places a goal, and the step layer caps, clears and places — and the graph is a thing it
+*asks* rather than a thing it is on.
 
-| Mode | Used by | Next node is |
+| Row | Aims at | Asks the graph? |
 | --- | --- | --- |
-| `lane` | everything with a lane | the next entry in the lane's path array |
-| `wander` | a guard on patrol | a random neighbour still inside its leash |
-| `home` | a guard leashing | whichever neighbour is nearer its tower |
-| `toward` | a guard closing | whichever neighbour is nearer its target |
+| `patrol` | the next node of its wander, chosen at random from the neighbours inside its leash | yes, each time it reaches one |
+| `leash` | the node it is leashed to | no — it is never more than a leash radius from home |
+| `chase` | its target's skin, never past the rope | no — its target is inside its ground |
 
-All four are "read one number out of a table." None searches.
+`node_from` is the last node a guard reached and `node_to` the one it is aiming at. Neither
+says where it *is*; that is its x and y.
+
+**Reaching a node is "near enough", not "on it".** A guard aiming at its own tower's node can
+never stand there: the masonry is in the way, and the rule about standing in stone puts it
+back on the face every tick. So a node counts as reached from a body's room away, measured
+from the outside of whatever building stands on it. The same test is what *home* means for a
+guard walking back to its leash — which it was not, before: home was a fixed eighteen paces
+from the leash node, and a base guard, leashed to a library twenty-one paces in radius, could
+never get that close.
+
+**And a guard walks round its tower rather than into it.** One that has reached its tower's
+node, on the road, and picks the neighbour on the far side is standing dead in line with the
+tower and the place it wants to be. The step layer's correction runs along the line from the
+building's centre, and head-on that line has no sideways in it: the guard is put back where
+it started, every tick, for ever. `round_the_stone` aims it at the building's side first.
+Only stone — a building does not move, so going round it is a question about where to want
+to be. Bodies move, and whether one is in the way stays the step layer's question.
 
 ## Movement is capped by speed **in the world**
 
@@ -140,25 +161,11 @@ Team 1 walks **up** the path array and team 2 walks **down** it. `facing` is +1 
 than two. It is also why every "how far along am I" comparison in the project
 multiplies by facing.
 
-## Three details that are load-bearing
+## A guard used to stand still for the whole match
 
-**The remainder is carried.** A fast body on a short edge can cross more than one
-node in a tick; truncating at the first would make speed upgrades quietly stop
-paying above a threshold nobody wrote down.
-
-**The crossing loop is bounded** at eight steps rather than being a bare `while`. A
-body that somehow cannot advance would otherwise spin forever, and a frozen frame is
-a much worse symptom than a body that stops.
-
-**Reaching the end of a lane is not an error.** `next_along_lane` returns 0, which
-means the body is standing at the enemy library. It stops there and lets targeting
-find the structure.
-
-## Why a guard closing gets its own mode
-
-Without `toward`, a guard with a target would keep random-walking and reach its
-enemy only by luck — which reads as a guard that cannot see. The greedy
-nearest-neighbour step is correct here and would not be in general: a guard only
-ever chases inside its own leash radius, and the graph in there is a corridor. A
-guard that needed a real path search would already have wandered further from its
-tower than it is allowed to be.
+Worth writing down because nothing noticed. A guard's position was an edge and a fraction,
+and a guard was put out with **both ends of its edge on the tower's own node** — an edge of
+length nought, which the walk stepped over rather than divide by. It never crossed a node, so
+it never asked where to go next, so no guard ever patrolled and no guard ever closed on
+anything; the few that seemed to move were being shoved by the crowd. "No guard ever enters
+the leashing state", which a scenario recorded as a finding about ordinary play, was this.

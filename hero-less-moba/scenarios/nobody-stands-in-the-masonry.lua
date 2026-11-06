@@ -45,6 +45,23 @@
 -- walking it back in as fast as the push takes it out. The claim below is left stating
 -- the rule rather than the observed number, so this file keeps reporting it.
 --
+-- **Then guards started walking, and it is several.** Until issue 216d no guard moved at
+-- all -- each stood on an edge of length nought -- so the one wedged guard was a guard the
+-- crowd had shoved against a wall it never walked toward. Guards now patrol their ground,
+-- and their ground has a tower in the middle of it and, for a base guard, a library: with
+-- the pinned seed up to four are against masonry at once late in the match, and one base
+-- guard stays wedged against its library for over a thousand ticks while attackers press it
+-- there. Never by more than a little over half a pace. The same reading, measured strictly,
+-- said eighteen -- most of those were bodies the push had put exactly on the face, which
+-- floating point puts a hair either side of it; the reading now allows the hair the push
+-- itself allows, as the overlaps reading always has.
+--
+-- What is left is a body the crowd holds against a wall, which the separation pass says
+-- outright it lets stand until the next tick, and which a guard that keeps walking at its
+-- goal renews every tick. Going round a wall is solved for a guard walking on its own
+-- (issue 216d); being *pinned* to one by a crowd is the same question as a body changing
+-- file, and is open under that name (H18).
+--
 -- ## And the half that is not started at all
 --
 -- **Wave bodies still walk through towers.** The wider count is nought at the end of a

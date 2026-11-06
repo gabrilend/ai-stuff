@@ -10,7 +10,7 @@
 
 ## Current behavior
 
-**Two kinds of test, one front door, and fifty-nine of eighty mechanics named by one.**
+**Two kinds of test, one front door, and sixty-one of eighty mechanics named by one.**
 The shape is built and the census is being worked down. Twenty-five tests exist. Seventeen are read by a
 bench and eight by a person; two of the seventeen fail a claim, and both failures are
 findings rather than flakes.

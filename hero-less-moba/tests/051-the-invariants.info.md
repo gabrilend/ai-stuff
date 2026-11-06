@@ -55,6 +55,16 @@ The deeper formation work has its own suite, `060-the-formation-sandbox`, which
 measures a bend rather than asserting one property about it. These three are the
 cheap standing versions, kept here so a whole-match run notices.
 
+### Guards
+
+| Check | Fails the day somebody… |
+| --- | --- |
+| **A guard with nothing to do walks its ground, node after node, inside its leash** | …strands guards again. Until [216d](../issues/216d-a-guard-is-still-an-edge-walker.md) no guard in any match ever moved: each was put out on an edge whose two ends were the same node, the walk stepped over an edge of length nought, and nothing anywhere asked whether a guard had gone anywhere. |
+| A push written into a guard's position is its position, and the record has no second position | …brings back a representation that re-derives a guard's x and y and quietly undoes every correction to them. |
+| A guard chasing something past its rope aims at the end of the rope; inside its ground, at the target's skin | …lets a guard follow its target out, which turns the edge of a tower's ground from a hard line into a gradient. |
+| **A lane guard and a base guard dragged past their ropes turn, acquire nothing, and get home** | …breaks the refusal that makes a leash a leash, or the one definition of *home*. The base half is a fault this found: home was eighteen paces from a library twenty-one paces in radius. |
+| A guard dead in line with its tower and the node beyond walks round it | …lets a guard walk at its own tower head-on, where the push out of stone has no sideways in it and the guard stands at the wall for ever. |
+
 ### The opening
 
 | Check | Fails the day somebody… |
@@ -81,7 +91,7 @@ cheap standing versions, kept here so a whole-match run notices.
 | The stacked lane actually holds the upgrades, **and its frontline is further forward than the lanes beside it** | …breaks the premise, however well everything else runs. If stacking a lane does not move a frontline, none of the rest matters. |
 | A surge deals the whole holding to bodies in every lane, and takes nothing out of the slots to do it | …makes a surge spend the board instead of copying it. |
 | A match left alone reaches an ending, through three surges and three challenges; the first two monsters die and the third does not | …removes the deadline. Without it two even teams grind for as long as anybody will watch, which is not a stalemate the design wants — it is the absence of an ending. |
-| A match somebody plays is won rather than drawn, and the chest was actually used to do it | …makes playing indistinguishable from not playing. |
+| A match somebody plays is won rather than drawn, and most of the stones drawn left a chest | …makes playing indistinguishable from not playing. |
 
 ### The way in
 

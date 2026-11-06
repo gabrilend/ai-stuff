@@ -21,86 +21,141 @@
 -- How a body gets from one place to another.
 --
 -- There is no pathfinding in this game. No A*, no flow field, no per-tick search.
--- A body's position is always "on the edge between node 14 and node 15, 0.62 of
--- the way along," and advancing is: add speed divided by the edge's length to
--- progress; if it passes 1, step to the next node and carry the remainder. With
--- a thousand bodies on the map that difference is the whole frame budget.
+-- A body on a road keeps how far along its lane it has got and how far across it
+-- stands; everything else keeps a point. Neither ever searches for a route: every
+-- route anything could take was decided when the map was built.
 --
--- What varies is only **which node comes next**, and that is a dispatch on what
--- the body is doing rather than a branch inside the move loop:
+-- Everything moves the same way, in two layers. A movement pattern places a goal
+-- and a pace (072-the-movement-patterns); this file caps the step toward that goal
+-- at what the pace allows, moves it out of anybody standing on it, and places the
+-- body there through whichever representation its position lives in.
 --
---   along a lane   -- read the next entry out of the lane's path array
---   wandering      -- a guard, stepping to a random neighbour inside its leash
---   going home     -- a guard, stepping to whichever neighbour is nearer its tower
---
--- All three are "read one number out of a table." None of them searches.
+-- **A tower guard used to be the exception.** Its position was an edge and a
+-- fraction -- "between node 14 and node 15, 0.62 of the way along" -- plus an offset
+-- in world paces to stand it clear of whoever else was at the same tower, and it
+-- moved by advancing the fraction. Issue 216d made it a point like everything else:
+-- the graph is now a thing a guard *consults* about where to aim, not a thing it
+-- lives on.
 
 local M = {}
 
--- {{{ local function position_of()
--- Writes a body's x and y from the edge it is on. Derived every move pass; the
--- renderer reads these and nothing else does.
-local function position_of(world, id)
-  local soldier = world.soldier
-  local node = world.map.node
-  local from = node[soldier.node_from[id]]
-  local to   = node[soldier.node_to[id]]
-  local u = soldier.progress[id]
-  -- The offset is what makes an edge a corridor rather than a line. It is zero for
-  -- everything on a lane, which says where it stands across the road a different way.
-  soldier.x[id] = from.x + (to.x - from.x) * u + soldier.offset_x[id]
-  soldier.y[id] = from.y + (to.y - from.y) * u + soldier.offset_y[id]
-end
--- }}}
-
-M.position_of = position_of
-
--- {{{ local function edge_length()
--- How long the edge a body is standing on is.
+-- {{{ function M.arrived_at_node()
+-- Whether a body standing off the graph has got to a node, near enough to count.
 --
--- A body walking a lane reads the precomputed step length; a body walking free
--- of a lane -- a guard on patrol -- has no path index, so its edge is measured.
--- The measurement is the uncommon case: there are at most a couple of dozen
--- guards on the map against hundreds of lane bodies.
-local function edge_length(world, id)
+-- **Near enough, not on it.** A guard aiming at a node can very often never stand on
+-- it: a tower is standing there, or a library, or the other guard of the same tower
+-- got there first. A body walking at a building is put back onto its face every tick
+-- by the rule about standing in masonry, so "within a pace of the centre" is a
+-- condition it can never meet -- and a guard waiting to arrive somewhere it cannot
+-- arrive is a guard that has stopped patrolling.
+--
+-- So the node counts as reached from one body's room away, measured from the outside
+-- of whatever stone stands on it rather than from its centre. This is also the one
+-- definition of "home" for a guard that is walking back to its leash: it used to be a
+-- fixed eighteen paces from the leash node, which a base guard -- leashed to a library
+-- twenty-one paces in radius -- could not get inside of by any amount of walking.
+function M.arrived_at_node(world, id, node_id)
   local soldier = world.soldier
-  local index = soldier.path_index[id]
-  if index > 0 then
-    local lane = world.map.lane[soldier.lane[id]]
-    local step = index
-    if soldier.facing[id] < 0 then
-      step = index - 1
-    end
-    local length = lane.step_length[step]
-    if length ~= nil then
-      return length
+  local node = world.map.node[node_id]
+  local room = world.parameters.shape.personal_space
+
+  -- A live building on the node moves the threshold out to its face. Rubble is walked
+  -- over, so a fallen tower's node is reached the same way as an empty one.
+  local stone = node.structure
+  if stone ~= nil and stone ~= 0 then
+    local building = world.structure[stone]
+    if building ~= nil and building.alive == 1 then
+      room = room + building.radius + soldier.radius[id]
     end
   end
+
+  local dx = node.x - soldier.x[id]
+  local dy = node.y - soldier.y[id]
+  return dx * dx + dy * dy <= room * room
+end
+-- }}}
+
+-- {{{ function M.round_the_stone()
+-- Where to aim instead, when the straight line to a goal runs through a building.
+--
+-- **Only stone, never bodies.** Bodies move, and whether one is in the way is the step
+-- layer's question, asked one pace at a time. A building does not move, and walking at
+-- one head-on is a question the step layer *cannot* answer: it puts a body back onto the
+-- face along the line from the building's centre, and head-on that line has no sideways
+-- in it, so the body is put back exactly where it started and stands there forever. That
+-- is H18's stall, and for a body against a body it is open; against a building there is
+-- only one sensible answer, which is to walk round it.
+--
+-- This is what made it matter. A guard that has reached its tower's node -- against the
+-- face, on the road -- and picks the neighbour on the far side is standing dead in line
+-- with the tower and the place it wants to be. Before guards were points, it was carried
+-- through the masonry by the edge it walked; as a point aiming at a point, it stood at the
+-- wall for three thousand ticks.
+--
+-- Asked about the two buildings the step layer itself knows about, on the nodes this body
+-- came from and is going to. A body **behind** a building -- on the far side of its centre
+-- from the goal -- whose straight line would touch it aims first at the building's side,
+-- level with its centre, on whichever side it already is. Once level, the straight line
+-- leads away from the centre and any contact slides off.
+function M.round_the_stone(world, id, goal_x, goal_y)
+  local soldier = world.soldier
   local node = world.map.node
-  local from = node[soldier.node_from[id]]
-  local to   = node[soldier.node_to[id]]
-  return math.sqrt((to.x - from.x) ^ 2 + (to.y - from.y) ^ 2)
-end
--- }}}
+  local x, y = soldier.x[id], soldier.y[id]
 
--- {{{ local function next_along_lane()
--- The next node for a body following its lane. Returns 0 when the body has
--- reached the far end -- which means it is standing at the enemy library, and
--- there is nowhere further to walk.
-local function next_along_lane(world, id)
-  local soldier = world.soldier
-  local lane = world.map.lane[soldier.lane[id]]
-  local index = soldier.path_index[id] + soldier.facing[id]
-  if index < 1 or index > #lane.path then
-    return 0, index
+  for _, end_id in ipairs({soldier.node_from[id], soldier.node_to[id]}) do
+    local here = node[end_id]
+    local stone = here ~= nil and here.structure or 0
+    if stone ~= nil and stone ~= 0 then
+      local building = world.structure[stone]
+      if building ~= nil and building.alive == 1 then
+        local room = building.radius + soldier.radius[id]
+
+        -- The axis runs from the building's centre toward the goal. A goal at the
+        -- building's own centre is the building's own node, which is arrived at from
+        -- outside the wall and never walked through.
+        local ax, ay = goal_x - here.x, goal_y - here.y
+        local reach = math.sqrt(ax * ax + ay * ay)
+        if reach > room then
+          ax, ay = ax / reach, ay / reach
+          local px, py = x - here.x, y - here.y
+          local level = px * ax + py * ay        -- along the axis: negative is behind
+          local aside = px * (-ay) + py * ax     -- across it, signed
+
+          if level < 0 then
+            -- How near the straight line from here to the goal passes the centre: the
+            -- segment's closest point, clamped to its ends.
+            local sx, sy = goal_x - x, goal_y - y
+            local length2 = sx * sx + sy * sy
+            local u = 0
+            if length2 > 0 then
+              u = -(px * sx + py * sy) / length2
+              if u < 0 then u = 0 elseif u > 1 then u = 1 end
+            end
+            local cx, cy = px + sx * u, py + sy * u
+            if cx * cx + cy * cy < room * room then
+              -- Round on the side it is already on. Dead on the line is a tie with no
+              -- side to it; it is broken by the slot number, which is arbitrary and is
+              -- the same on every machine, which is all a tie-break here has to be.
+              local side = 1
+              if aside < 0 or (aside == 0 and id % 2 == 0) then
+                side = -1
+              end
+              local clear = room + world.parameters.shape.personal_space * 0.25
+              return here.x + (-ay) * side * clear, here.y + ax * side * clear
+            end
+          end
+        end
+      end
+    end
   end
-  return lane.path[index], index
+  return goal_x, goal_y
 end
 -- }}}
 
--- {{{ local function next_while_wandering()
--- A guard's next step. It picks a neighbour at random from those still inside
--- its leash, using the wander stream.
+-- {{{ function M.next_patrol_node()
+-- Where a patrolling guard aims next, once it has reached where it was aiming: a
+-- neighbour of the node it reached, chosen at random from those still inside its
+-- leash, using the wander stream.
 --
 -- Random, and from the *wander* stream specifically, so that changing how guards
 -- move can never change which upgrades a team draws. That separation is the
@@ -109,15 +164,19 @@ end
 -- A guard is area denial, not a push. It never advances with a wave and never
 -- follows a retreating enemy down the lane; it is the reason the ground *around*
 -- a tower is dangerous rather than just the tower's own tile.
-local function next_while_wandering(world, id)
+--
+-- **This used to be one row of four**, in a table that said which node a body
+-- stepped to next: along its lane, wandering, going home, closing on a target. The
+-- lane row had stopped being read once everything on a road placed goals, and going
+-- home and closing on a target aim straight at where they are going now (see the
+-- patterns), so this is the one question left that the graph answers. M6 in issue
+-- 216d is why it still answers it.
+function M.next_patrol_node(world, id)
   local soldier = world.soldier
   local node = world.map.node
   local here = node[soldier.node_from[id]]
   local leash = node[soldier.leash_node[id]]
-  local tower = world.structure[soldier.guard_of[id]]
-  local radius = (tower ~= nil and tower.kind == 2)
-    and world.parameters.structure.tower.base_leash_radius
-    or world.parameters.structure.tower.leash_radius
+  local radius = world.structures.leash_radius(world, id)
 
   local candidates = {}
   for _, neighbour_id in ipairs(here.neighbour) do
@@ -128,10 +187,10 @@ local function next_while_wandering(world, id)
     end
   end
 
-  -- Standing on the leash node itself with nowhere inside the radius to go
-  -- cannot happen on a built map -- the leash radius is far wider than the node
-  -- spacing -- but a guard with no candidates would freeze, so it is checked
-  -- and named rather than left as a silent stall.
+  -- Standing on a node with nowhere inside the radius to go cannot happen on a built
+  -- map -- the leash radius is far wider than the node spacing -- but a guard with no
+  -- candidates would freeze, so it is checked and named rather than left as a silent
+  -- stall.
   if #candidates == 0 then
     error("guard " .. id .. " at node " .. here.id ..
           " has no neighbour inside its leash radius -- the map spacing and the " ..
@@ -139,189 +198,6 @@ local function next_while_wandering(world, id)
   end
 
   return candidates[world.stream.wander:next_below(#candidates)]
-end
--- }}}
-
--- {{{ local function next_toward_home()
--- A leashing guard's next step: whichever neighbour is nearer its tower.
---
--- Greedy rather than a path search, which is correct here and would not be in
--- general: a guard is never more than a couple of nodes from its leash and the
--- graph between them is a corridor, so "downhill" always arrives.
-local function next_toward_home(world, id)
-  local soldier = world.soldier
-  local node = world.map.node
-  local here = node[soldier.node_from[id]]
-  local leash = node[soldier.leash_node[id]]
-
-  local best, best_distance = 0, math.huge
-  for _, neighbour_id in ipairs(here.neighbour) do
-    local neighbour = node[neighbour_id]
-    local dx, dy = neighbour.x - leash.x, neighbour.y - leash.y
-    local distance = dx * dx + dy * dy
-    if distance < best_distance then
-      best, best_distance = neighbour_id, distance
-    end
-  end
-  return best
-end
--- }}}
-
--- {{{ local function next_toward_target()
--- A guard closing on something. It steps to whichever neighbour is nearest its
--- target's position.
---
--- Greedy, like going home, and correct for the same reason: a guard only ever
--- chases inside its own leash radius, and the graph in there is a corridor. A
--- guard that needed a real path search would already have wandered further from
--- its tower than it is allowed to be.
-local function next_toward_target(world, id)
-  local soldier = world.soldier
-  local node = world.map.node
-  local here = node[soldier.node_from[id]]
-
-  local target = soldier.target[id]
-  local goal_x, goal_y
-  if target ~= 0 and soldier.alive[target] == 1 then
-    goal_x, goal_y = soldier.x[target], soldier.y[target]
-  elseif soldier.target_structure[id] ~= 0 then
-    local structure_node = node[world.structure[soldier.target_structure[id]].node]
-    goal_x, goal_y = structure_node.x, structure_node.y
-  else
-    -- Nothing to close on any more. Stand still and let the brain notice next
-    -- tick, rather than picking a direction that means nothing.
-    return soldier.node_from[id]
-  end
-
-  local best, best_distance = 0, math.huge
-  for _, neighbour_id in ipairs(here.neighbour) do
-    local neighbour = node[neighbour_id]
-    local dx, dy = neighbour.x - goal_x, neighbour.y - goal_y
-    local distance = dx * dx + dy * dy
-    if distance < best_distance then
-      best, best_distance = neighbour_id, distance
-    end
-  end
-  return best
-end
--- }}}
-
--- {{{ M.next_node
--- The dispatch. Indexed by how the body is moving, not by what it is.
-M.next_node = {
-  lane    = next_along_lane,
-  wander  = next_while_wandering,
-  home    = next_toward_home,
-  toward  = next_toward_target,
-}
--- }}}
-
--- {{{ function M.mode_of()
--- Which of the four ways of moving this body is using.
---
--- A guard heading home is leashing; a guard with something to chase is closing on it;
--- a guard otherwise is wandering; everything else follows its lane. The four cases are
--- named here so that the move pass itself contains no test at all.
-function M.mode_of(world, id)
-  local soldier = world.soldier
-  if soldier.flavour[id] == 3 then
-    -- Leashing: walk back to the tower, refusing everything on the way.
-    if soldier.state[id] == 4 then
-      return "home"
-    end
-    -- Closing on something inside the leash: approach it rather than wander.
-    -- Without this a guard with a target would keep random-walking and would
-    -- reach its enemy only by luck, which reads as a guard that cannot see.
-    if soldier.state[id] == 2 then
-      return "toward"
-    end
-    return "wander"
-  end
-  return "lane"
-end
--- }}}
-
--- {{{ function M.step()
--- Advances one body by one tick. Returns true if it crossed at least one node,
--- which the caller uses to know when to re-read milestones.
---
--- The remainder is carried rather than dropped. A fast body on a short edge can
--- cross more than one node in a tick, and truncating at the first would make
--- speed upgrades quietly stop paying above a threshold nobody wrote down.
-function M.step(world, id)
-  local soldier = world.soldier
-  local crossed = false
-  local remaining = soldier.speed[id]
-
-  -- Bounded rather than a bare while loop. A body that somehow cannot advance --
-  -- a zero-length edge, a corrupt index -- would otherwise spin here forever, and
-  -- a frozen frame is a much worse symptom than a body that stops.
-  for _ = 1, 8 do
-    if remaining <= 0 then
-      break
-    end
-    local length = edge_length(world, id)
-    if length <= 0 then
-      break
-    end
-
-    local advance = remaining / length
-    local progress = soldier.progress[id] + advance
-    if progress < 1 then
-      soldier.progress[id] = progress
-      remaining = 0
-    else
-      -- Arrived. Step across and carry what is left of this tick's movement.
-      remaining = (progress - 1) * length
-      soldier.node_from[id] = soldier.node_to[id]
-      soldier.progress[id] = 0
-      crossed = true
-
-      local mode = M.mode_of(world, id)
-      local next_id, next_index = M.next_node[mode](world, id)
-
-      if mode == "lane" then
-        soldier.path_index[id] = next_index
-      end
-
-      if next_id == 0 then
-        -- Nowhere left to walk. The body is standing at the enemy library, which
-        -- is the end of its lane and the end of the game if it lives long
-        -- enough. It stops here and lets targeting find the structure.
-        soldier.node_to[id] = soldier.node_from[id]
-        soldier.progress[id] = 0
-        remaining = 0
-      else
-        soldier.node_to[id] = next_id
-      end
-    end
-  end
-
-  position_of(world, id)
-
-  -- A body walking the graph rather than a lane -- a guard, and only a guard -- has
-  -- no waypoint in lane coordinates to check, because it has no lane. Its waypoint is
-  -- simply where this step landed it, so the rule is applied to that: if it walked
-  -- into somebody, it is put back onto their near face.
-  --
-  -- Kept as an **offset** rather than written into x and y, because x and y are
-  -- derived from the graph and are rewritten from scratch by the next move pass. A
-  -- correction written into them lasts one tick and then the guard is standing on top
-  -- of whoever it stepped away from again.
-  --
-  -- The offset is added to, not replaced, so a body squeezed out of two crowds in a
-  -- row keeps both nudges. Nothing pulls it back to zero: a guard nudged off its edge
-  -- is still on its edge as far as everything else is concerned, and that is right --
-  -- it is patrolling a piece of ground, not following a line. What bounds the drift is
-  -- the leash, which measures from the tower and is already watching.
-  local moved_x, moved_y =
-    world.frontline.clear_of_bodies(world, id, soldier.x[id], soldier.y[id])
-  soldier.offset_x[id] = soldier.offset_x[id] + moved_x - soldier.x[id]
-  soldier.offset_y[id] = soldier.offset_y[id] + moved_y - soldier.y[id]
-  soldier.x[id] = moved_x
-  soldier.y[id] = moved_y
-
-  return crossed
 end
 -- }}}
 
@@ -570,15 +446,15 @@ end
 -- conversion in `clear_step` is sound -- a nudge is at most about a body's width, and
 -- over that distance a lane is straight.
 --
--- For a body with no lane -- a guard standing at its tower -- the truth is the node plus
--- an offset, so the nudge goes into the offset and into the world position together.
+-- For a body with no lane -- a guard, or a hero partway across a connector -- the truth
+-- is the world position itself, so the nudge is simply added to it.
 function M.nudge(world, id, dx, dy)
   local soldier = world.soldier
   local lane = world.map.lane[soldier.lane[id]]
 
+  -- No lane: a guard, or a hero partway across a connector. Its x and y *are* where it
+  -- is, so the nudge is written straight into them and nothing will re-derive it away.
   if lane == nil then
-    soldier.offset_x[id] = soldier.offset_x[id] + dx
-    soldier.offset_y[id] = soldier.offset_y[id] + dy
     soldier.x[id] = soldier.x[id] + dx
     soldier.y[id] = soldier.y[id] + dy
     return
@@ -600,11 +476,12 @@ end
 -- Put a body on a world point, through whichever representation its position lives in.
 --
 -- **This is the one conversion.** A body on a road keeps how far along its lane it has got
--- and how far across it stands, and its world position is derived from those; a guard
--- keeps a node, a progress along an edge, and an offset in world paces. Every rule that
--- ever wanted to move either one had to know which kind it was holding, and two of them
--- got it wrong -- writing a world position into a lane body, watching the next move pass
--- re-derive it, and achieving nothing while firing every tick.
+-- and how far across it stands, and its world position is derived from those; anything
+-- with no lane keeps its world position and nothing else. Every rule that ever wanted to
+-- move a body used to have to know which kind it was holding -- a guard was a third kind
+-- once, an edge and a fraction and an offset -- and two of them got it wrong, writing a
+-- world position into a lane body, watching the next move pass re-derive it, and achieving
+-- nothing while firing every tick.
 function M.place_at(world, id, x, y)
   local soldier = world.soldier
   M.nudge(world, id, x - soldier.x[id], y - soldier.y[id])
@@ -845,24 +722,30 @@ end
 -- }}}
 
 -- {{{ function M.place_at_node()
--- Puts a body at a node with no lane -- a guard at its tower. It holds a zero
+-- Puts a body beside a node with no lane -- a guard at its tower. It holds a zero
 -- path index for its whole life, which is how everything else knows it is not
 -- walking a lane.
-function M.place_at_node(world, id, node_id, offset_x, offset_y)
+--
+-- The node is where it last was and where it is aiming, both, so that its first
+-- patrol step asks the graph from here. Where it actually *stands* is the node plus
+-- the displacement given -- written once into its position, which is the truth from
+-- then on.
+--
+-- A node is a point, and a point holds one body. Whoever is putting a second one
+-- there has to say where beside it, or they are asking for two bodies in the same
+-- place -- which the rule about bodies not overlapping cannot undo afterwards,
+-- because there is no direction to push them apart along.
+function M.place_at_node(world, id, node_id, beside_x, beside_y)
   local soldier = world.soldier
+  local node = world.map.node[node_id]
   soldier.lane[id] = 0
   soldier.facing[id] = 0
   soldier.path_index[id] = 0
   soldier.node_from[id] = node_id
   soldier.node_to[id] = node_id
   soldier.progress[id] = 0
-  -- A node is a point, and a point holds one body. Whoever is putting a second one
-  -- there has to say where beside it, or they are asking for two bodies in the same
-  -- place -- which the rule about bodies not overlapping cannot undo afterwards,
-  -- because there is no direction to push them apart along.
-  soldier.offset_x[id] = offset_x or 0
-  soldier.offset_y[id] = offset_y or 0
-  position_of(world, id)
+  soldier.x[id] = node.x + (beside_x or 0)
+  soldier.y[id] = node.y + (beside_y or 0)
 end
 -- }}}
 

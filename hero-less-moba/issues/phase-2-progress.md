@@ -33,7 +33,7 @@ problem statement, rendered, and phase 4's demo is the answer to it.
 | 216a | A goal, and a step | built |
 | 216b | Every way of moving is a row | built for everything on a road |
 | 216c | Three paces, and hurry is faster than marching | built — M5 open |
-| 216d | A guard is still an edge walker | not started |
+| 216d | A guard is still an edge walker | built — and no guard had ever moved |
 
 **Blocking:** nothing.
 
@@ -200,3 +200,30 @@ two rules are not versions of each other: one asks *may I stand here* about ever
 on the field at two bodies' widths, and the other asks *should I push past the man in
 front of me* about my own side at a rank's spacing. The first cannot make a rank and the
 second cannot stop a body standing inside a monster.
+
+## A guard is a point, and it turns out no guard had ever moved
+
+**216d is built**, and the step layer is now universal: a guard's position is its x and y,
+and its three ways of moving — `patrol`, `leash`, `chase` — are rows in the pattern table
+like every other body's. The offset that stood a guard clear of its neighbours is deleted;
+there is nothing for it to be measured from.
+
+Building it found that **no guard in any match had ever moved.** A guard was put out on an
+edge whose two ends were both its tower's node, and the walk stepped over an edge of length
+nought rather than divide by it — so it never crossed a node and never asked where to go
+next. Guards were statues that fought whatever walked into their reach, and the scenario
+that recorded "no guard ever leashes" as a fact about ordinary play was recording this.
+
+Guards walking turned up three more things, all fixed: home was unreachable for a base guard
+(eighteen paces from a library twenty-one in radius); a guard that picked the node on the far
+side of its own tower walked at the wall head-on and stood there; and the reading that counts
+bodies inside stone was stricter than the rule it measures.
+
+**What it does to a match is noise, not a direction.** Over eight seeds with the bots playing,
+the mean length went from about 9,600 ticks to about 10,700 and the winners moved around as a
+chaotic system's do. The pinned test seed is one that moved the wrong way: its match now ends
+at tick 7,246 instead of 14,484, before the bots have placed sixty upgrades, so the
+invariants' "the chest was actually used" claim fails on it — as it does on main for four of
+those eight seeds. And guards now press against masonry in crowds where they used to stand
+clear of it, so the masonry scenario's claim, already failing by one, fails by four.
+

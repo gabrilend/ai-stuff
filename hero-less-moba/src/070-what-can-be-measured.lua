@@ -820,7 +820,14 @@ local function counting_inside_stone(name, wanted)
           local building = stone[which]
           if building.alive == 1 then
             local here = node[building.node]
-            local room = soldier.radius[id] + building.radius
+            -- **Less the same hair the rule leaves**, for the reason the overlaps reading
+            -- gives: the push out of stone puts a body exactly on the face, exactly is a
+            -- few parts in ten thousand million either side in floating point, and the
+            -- push does not fire for less than this. Measured strictly, a body the rule
+            -- had just put against the wall read as inside it -- which is how a guard that
+            -- walked up to its own tower first showed up here, once guards walked at all.
+            local slack = world.frontline ~= nil and world.frontline.SEPARATION_SLACK or 0
+            local room = soldier.radius[id] + building.radius - slack
             local dx = soldier.x[id] - here.x
             local dy = soldier.y[id] - here.y
             if dx * dx + dy * dy < room * room then

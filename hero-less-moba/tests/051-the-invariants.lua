@@ -18,8 +18,8 @@
 
 -- 051-the-invariants.lua
 --
--- covers: 101, 102, 105, 107, 110, 201, 204, 210, 211c, 211d, 404, 412,
---         502, 503, 508, 601, 602, 603, 605, 608, 707, 708
+-- covers: 101, 102, 105, 107, 110, 201, 204, 210, 211c, 211d, 216d, 304, 404,
+--         412, 502, 503, 508, 601, 602, 603, 605, 608, 707, 708
 --
 -- **Under-claimed on purpose.** The line above names the mechanics this file can be
 -- shown to demonstrate by reading it, and no others. Several of its checks are about
@@ -149,10 +149,12 @@ local function test_a_played_match_is_decisive()
     end
   end
 
-  local placed = 0
+  -- Every stone the two teams ever drew, and how many of them left a chest.
+  local placed, drawn = 0, 0
   for team = 1, 2 do
     local _, in_lanes, in_stone = world.chest.total_held(world, team)
     placed = placed + in_lanes + in_stone
+    drawn = drawn + #world.stone[team]
   end
 
   -- **A library fell.** That is the contrast this test exists to draw, against the
@@ -169,9 +171,16 @@ local function test_a_played_match_is_decisive()
         world.winner == 1 or world.winner == 2 or world.winner == 3,
         string.format("still running at tick %d", world.tick))
 
+  -- **Used, as a share of what there was to use.** This was `placed > 60`, a count
+  -- that only described one match of one length: when guards began to move, the same
+  -- seed's match ended at tick 7246 instead of 14484 with the bots placing at the same
+  -- rate, and the count failed on a match in which four stones in five left a chest.
+  -- What the check means is that the bots spend what they are dealt, so it asks for
+  -- most of it -- and asks that there was something to spend, since a share of
+  -- nothing is not a finding. A bot that hoards fails it however long the match runs.
   check("and the chest was actually used to do it",
-        placed > 60,
-        string.format("only %d upgrades ever left a chest", placed))
+        drawn >= 20 and placed * 2 > drawn,
+        string.format("%d of the %d stones drawn ever left a chest", placed, drawn))
 end
 -- }}}
 
@@ -1742,6 +1751,249 @@ local function test_a_rank_fans_and_concentrates()
 end
 -- }}}
 
+-- {{{ local function a_guard_of()
+-- The first guard standing at a tower of this kind -- 1 for a lane tower, 2 for a base
+-- tower -- on team one, and the tower.
+local function a_guard_of(world, kind)
+  for _, structure in ipairs(world.structure) do
+    if structure.team == 1 and structure.kind == kind and structure.alive == 1 then
+      for _, id in ipairs(structure.guard_slot) do
+        if world.soldier.alive[id] == 1 then
+          return id, structure
+        end
+      end
+    end
+  end
+  return 0, nil
+end
+-- }}}
+
+-- {{{ local function distance_from_leash()
+local function distance_from_leash(world, id)
+  local soldier = world.soldier
+  local leash = world.map.node[soldier.leash_node[id]]
+  local dx, dy = soldier.x[id] - leash.x, soldier.y[id] - leash.y
+  return math.sqrt(dx * dx + dy * dy)
+end
+-- }}}
+
+-- {{{ local function test_a_guard_is_a_point()
+-- A guard moves the way everything else moves: a row in the pattern table places a goal,
+-- and the step layer gets it there. Issue 216d.
+--
+-- **It used to stand still for the whole match**, and nothing said so. Its position was an
+-- edge and a fraction, and a guard was put out with both ends of its edge on the tower's
+-- own node: an edge of length nought, which the walk stepped over rather than divide by.
+-- So no guard ever patrolled and no guard ever closed on anything; the ones that seemed to
+-- move were being shoved. The first claim below is the one that would have caught it.
+local function test_a_guard_is_a_point()
+  local world, modules = fresh_world(tick_module)
+  world.bot = {}
+  local soldier = world.soldier
+  local id, tower = a_guard_of(world, 1)
+  check("a lane tower has a guard standing at the first tick", id ~= 0)
+  if id == 0 then return end
+
+  local start_x, start_y = soldier.x[id], soldier.y[id]
+  local radius = modules.structures.leash_radius(world, id)
+  local patrol = 0
+  for index, name in ipairs(modules.patterns.order) do
+    if name == "patrol" then patrol = index end
+  end
+
+  -- Long enough to cross a few nodes and short of the first wave reaching any tower, so
+  -- nothing here is chasing anything.
+  local furthest, outside, wrong_row, nodes_reached = 0, 0, 0, 0
+  local last_from = soldier.node_from[id]
+  for _ = 1, 900 do
+    tick_module.advance(world)
+    if soldier.alive[id] ~= 1 then break end
+    local dx, dy = soldier.x[id] - start_x, soldier.y[id] - start_y
+    furthest = math.max(furthest, math.sqrt(dx * dx + dy * dy))
+    if distance_from_leash(world, id) > radius then outside = outside + 1 end
+    if soldier.state[id] == 1 and soldier.pattern[id] ~= patrol then
+      wrong_row = wrong_row + 1
+    end
+    if soldier.node_from[id] ~= last_from then
+      nodes_reached = nodes_reached + 1
+      last_from = soldier.node_from[id]
+    end
+  end
+
+  check("a guard with nothing to do walks its ground", furthest > 26,
+        string.format("furthest from where it was put out: %.1f paces", furthest))
+  check("and reaches node after node of it, asking the graph at each",
+        nodes_reached >= 3, nodes_reached .. " nodes reached in 900 ticks")
+  check("and never further from its tower than its leash", outside == 0,
+        outside .. " ticks outside a radius of " .. radius)
+  check("and the row it is walking by is patrol", wrong_row == 0,
+        wrong_row .. " ticks on another row while wandering")
+
+  -- **A correction written into its position stays.** This is what the offset existed
+  -- for: a guard's x and y used to be re-derived from its edge on every move, and a push
+  -- written into them was gone a tick later.
+  local before_x = soldier.x[id]
+  modules.walking.nudge(world, id, 5, 0)
+  check("a push written into a guard's position is its position",
+        math.abs(soldier.x[id] - before_x - 5) < 0.000001)
+  check("and the record carries no second position to undo it with",
+        soldier.offset_x == nil and soldier.offset_y == nil)
+end
+-- }}}
+
+-- {{{ local function test_a_guard_chases_to_the_end_of_its_rope()
+-- The chase row, asked one placement at a time: with a target inside its ground it aims
+-- at that target's skin; with a target beyond it, it aims at the end of its rope and no
+-- further. "A guard will not follow it out" -- issue 304 -- is a statement about where it
+-- wants to be, so it is tested as one.
+local function test_a_guard_chases_to_the_end_of_its_rope()
+  local world, modules, parameters = fresh_world(tick_module)
+  local soldier = world.soldier
+  local id = a_guard_of(world, 1)
+  if id == 0 then
+    check("a lane tower has a guard to chase with", false)
+    return
+  end
+
+  -- Anybody on the other team will do as a target; every enemy guard is standing at the
+  -- far end of the map at the first tick, which is well past any rope.
+  local enemy = 0
+  for other = 1, world.high_water do
+    if soldier.alive[other] == 1 and soldier.team[other] == 2 then
+      enemy = other
+      break
+    end
+  end
+  soldier.target[id] = enemy
+  soldier.state[id] = 2
+  local chase = modules.patterns.pattern.chase
+  local rope = modules.structures.leash_radius(world, id) - parameters.shape.personal_space
+  local leash = world.map.node[soldier.leash_node[id]]
+
+  chase.place(world, id)
+  local gx, gy = soldier.goal_x[id] - leash.x, soldier.goal_y[id] - leash.y
+  check("a guard chasing something past its rope aims at the end of the rope",
+        math.abs(math.sqrt(gx * gx + gy * gy) - rope) < 0.001,
+        string.format("goal %.1f paces from its tower, rope %.1f",
+                      math.sqrt(gx * gx + gy * gy), rope))
+  check("and runs to it", soldier.goal_pace[id] == parameters.unit.PACE_HURRY)
+
+  -- Bring the enemy inside its ground: forty paces from the guard, on the side away from
+  -- its tower, so the strike point is well inside the rope.
+  local ax, ay = soldier.x[id] - leash.x, soldier.y[id] - leash.y
+  local along = math.sqrt(ax * ax + ay * ay)
+  modules.walking.place_at(world, enemy, soldier.x[id] + ax / along * 40,
+                                         soldier.y[id] + ay / along * 40)
+  chase.place(world, id)
+  local tx = soldier.x[enemy] - soldier.goal_x[id]
+  local ty = soldier.y[enemy] - soldier.goal_y[id]
+  local reach = modules.targeting.reach_to(world, id, enemy)
+  check("and with its target inside its ground, it aims at that target's skin",
+        math.abs(math.sqrt(tx * tx + ty * ty) - reach) < 0.001,
+        string.format("goal %.2f from the target, reach %.2f",
+                      math.sqrt(tx * tx + ty * ty), reach))
+end
+-- }}}
+
+-- {{{ local function test_a_guard_past_its_rope_walks_home()
+-- The leash, which ordinary play had never once pulled. Issue 304's own test: a guard
+-- dragged past the end of its rope turns round, refuses everything it passes, and gets
+-- home -- and a base guard, leashed to a library, gets home too.
+--
+-- The second half is a fault this found. Home was a fixed eighteen paces from the leash
+-- node; a library is twenty-one in radius, so the rule about standing in masonry held a
+-- base guard twenty-five out and it walked at the wall for ever.
+local function test_a_guard_past_its_rope_walks_home()
+  for _, kind in ipairs({1, 2}) do
+    local world, modules = fresh_world(tick_module)
+    world.bot = {}
+    local soldier = world.soldier
+    local id = a_guard_of(world, kind)
+    local which = (kind == 1) and "a lane guard" or "a base guard"
+    if id == 0 then
+      check(which .. " exists to be dragged", false)
+    else
+      local radius = modules.structures.leash_radius(world, id)
+      local leash = world.map.node[soldier.leash_node[id]]
+
+      -- Out along the line from its leash node through where it stands, to a third
+      -- again past the end of its rope.
+      local ax, ay = soldier.x[id] - leash.x, soldier.y[id] - leash.y
+      local along = math.sqrt(ax * ax + ay * ay)
+      modules.walking.place_at(world, id, leash.x + ax / along * radius * 1.35,
+                                          leash.y + ay / along * radius * 1.35)
+
+      local leashed, acquired, home_at = false, 0, 0
+      for tick = 1, 1200 do
+        tick_module.advance(world)
+        if soldier.alive[id] ~= 1 then break end
+        if soldier.state[id] == 4 then
+          leashed = true
+          if soldier.target[id] ~= 0 or soldier.target_structure[id] ~= 0 then
+            acquired = acquired + 1
+          end
+        elseif leashed then
+          home_at = tick
+          break
+        end
+      end
+
+      check(which .. " dragged past its rope turns for home", leashed)
+      check("and acquires nothing on the way", acquired == 0,
+            acquired .. " ticks walking home with a target")
+      check("and gets there, and goes back to its patrol", home_at > 0,
+            string.format("still %.1f paces out after 1200 ticks",
+                          distance_from_leash(world, id)))
+    end
+  end
+end
+-- }}}
+
+-- {{{ local function test_a_guard_walks_round_its_tower()
+-- A guard against its own tower's face, dead in line with the tower and the node on its
+-- far side, gets past it.
+--
+-- The step layer puts a body walking into a building back onto the face along the line
+-- from the building's centre, and head-on that line has no sideways in it: the body is put
+-- back exactly where it started. That was three thousand ticks of one guard standing at a
+-- wall, the first time guards were points.
+local function test_a_guard_walks_round_its_tower()
+  local world, modules = fresh_world(tick_module)
+  world.bot = {}
+  local soldier = world.soldier
+  local id, tower = a_guard_of(world, 1)
+  if id == 0 then
+    check("a lane tower has a guard to walk round it", false)
+    return
+  end
+
+  -- The tower's node and one of its neighbours along the road.
+  local here = world.map.node[tower.node]
+  local far = here.neighbour[2]
+  local b = world.map.node[far]
+  local room = tower.radius + soldier.radius[id]
+
+  -- Against the face on the near side, exactly on the line through the far neighbour.
+  local bx, by = b.x - here.x, b.y - here.y
+  local blen = math.sqrt(bx * bx + by * by)
+  modules.walking.place_at(world, id, here.x - bx / blen * room, here.y - by / blen * room)
+  soldier.node_from[id] = tower.node
+  soldier.node_to[id] = far
+
+  local got_there = false
+  for _ = 1, 300 do
+    tick_module.advance(world)
+    if soldier.node_from[id] == far then
+      got_there = true
+      break
+    end
+  end
+  check("a guard dead in line with its tower and the node beyond walks round it",
+        got_there, string.format("still %.1f paces from the far node",
+          math.sqrt((soldier.x[id] - b.x) ^ 2 + (soldier.y[id] - b.y) ^ 2)))
+end
+-- }}}
+
 print("")
 print("the invariants")
 print("")
@@ -1756,6 +2008,10 @@ test_a_hero_obeys_one_signpost()
 test_no_nil_fields()
 test_a_friend_blocks_the_view()
 test_a_rank_fans_and_concentrates()
+test_a_guard_is_a_point()
+test_a_guard_chases_to_the_end_of_its_rope()
+test_a_guard_past_its_rope_walks_home()
+test_a_guard_walks_round_its_tower()
 test_a_death_takes_two_seconds()
 test_a_death_is_paid_for_when_it_is_certain()
 test_formation_turns_a_corner()
