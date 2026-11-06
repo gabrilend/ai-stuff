@@ -218,7 +218,7 @@ transcript's header line is `# Conversation Summary: agent-<that id>`. So:
 - `libs/conversation-parser.lua` — reads one log, writes one transcript.
 - `libs/transcript-discovery.sh` — owns the collision-suffix rules the helper
   naming depends on.
-- `issues/034-export-only-the-session-that-stopped.md` — the Stop-hook mode
+- `issues/completed/034-export-only-the-session-that-stopped.md` — the Stop-hook mode
   that exports one session and its helpers, and the end of silent failures.
 - `issues/completed/020-transcript-export-race-guard-and-single-naming-authority.md`
   — the exporter is the sole naming authority; nothing here changes that.
