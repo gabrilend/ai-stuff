@@ -127,6 +127,43 @@ void platform_set_last_words(void (*words)(void))
 void platform_halt(const char *why)
 ```
 
+### platform_card_blocks
+
+```c
+uint64_t platform_card_blocks(void)
+```
+
+### platform_card_read
+
+```c
+int platform_card_read(uint64_t block, uint32_t count, void *buffer)
+```
+
+One block at a time through phase 1's driver; the multi-block DMA path
+it also has (110m) is left for when a measurement asks for it.
+
+### platform_card_write
+
+```c
+int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
+```
+
+### platform_compile
+
+```c
+void *platform_compile(const char *c_text, size_t length, const char *entry_name, void **entry, char *why, size_t why_size)
+```
+
+The device has no C compiler yet. Which one to embed is issue 409's
+open question; until it is answered this refuses, in so many words,
+rather than pretending.
+
+### platform_unload
+
+```c
+void platform_unload(void *handle)
+```
+
 ### platform_screen
 
 ```c

@@ -80,11 +80,51 @@ described and never rebuilt.
 
 ## Completed issues
 
-None yet.
+Built as portable C in `src/system/` and proven on the laptop twin
+against cards a laptop's tools would make. Counts:
+`progress-dashboard.lua <project> -m`.
+
+- **402** the partition table and the FAT32 boot block, at block zero or
+  with no partition table at all; FAT16, exFAT and boot blocks whose
+  numbers do not add up refused with a line saying why.
+- **403** directories walked with long names assembled; entries added,
+  updated in place, removed; directories made. Every entry gets its own
+  short name however crowded the directory.
+- **404** the whole table in memory, chains followed and freed, a write
+  always a new chain; flushed to every copy with FSInfo kept current. A
+  damaged chain is an end, never a step outside the table.
+- **405** paths from the root, `.` and `..`, any case; the device's
+  symlinks followed at every component, relative or absolute, with loops
+  ending in an error. The one mounted card and its lock, and every
+  whole-file operation the boxes of 406 and 407 will call: read a slice,
+  replace atomically (making directories on the way), list, delete, ask,
+  link, make a directory.
+- **406** `read_path`, `read_slice` and `write_path`, passing `struct
+  path` and `struct file_bytes`; a read wired into a write is a copy.
+- **407** `list_directory` (in a pinned layout, the names that do not fit
+  counted), `delete_path`, `path_exists`, `make_symlink`; and `text_path`
+  and `path_join` to build a path from text.
+
+402–404 live in `src/system/077-fat.c`, 405 in `src/system/078-files.c`,
+the boxes of 406 and 407 in `src/boxes/082-files.c`.
+Tests: `twin/tests/079` (118 checks, on one-sector and eight-sector
+clusters; `fsck.fat` checks every card it writes and a `mkfs.fat` card
+gets the writing checks, where the laptop has those tools) and `081` (56
+checks, four threads at once among them) and `083` (37 checks, every box
+placed in a map and fed through its doors), all on cards
+`twin/tests/080-card-image.h` lays out the way a laptop does, with phases
+2 and 3's still passing.
 
 ## Open issues
 
-All of 401 through 412.
+- **401** — the card's block calls exist on both sides of the platform
+  seam (the twin's disk image, the device's phase-1 driver from 110f);
+  the device side is unverified.
+- **408** — the settings module is built and proven on the twin
+  (`src/system/084-settings.c`, `twin/tests/085`, 22 checks): four
+  settings, defaults written at first boot, laptop edits tolerated or put
+  back. Calling it from the device's boot waits on 201/202 and 401.
+- **409** through **412**.
 
 ## Phase demo
 

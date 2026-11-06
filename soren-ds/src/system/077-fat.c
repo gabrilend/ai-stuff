@@ -22,6 +22,9 @@
 
 #define SLOT_BYTES 32
 #define BLOCK 512
+/* FAT's own limit on one directory: 65536 entries (2 MB). A walk stops
+ * there even if a damaged chain loops, rather than walking forever. */
+#define DIR_MAX_SLOTS 65536u
 
 /* {{{ fat_error_text */
 const char *fat_error_text(int error)
@@ -30,7 +33,7 @@ const char *fat_error_text(int error)
         "ok", "no card", "a card transfer failed", "not a FAT32 filesystem (FAT16 and exFAT are refused)",
         "not found", "not a directory", "is a directory", "the directory is not empty", "the card is full",
         "that name cannot be written on a FAT card", "that name already exists", "a symlink chain too long, or a loop",
-        "out of memory",
+        "out of memory", "a path too long, or too many directories deep",
     };
     int i = -error;
     return i >= 0 && i < (int)(sizeof text / sizeof text[0]) ? text[i] : "an unknown filesystem error";
@@ -52,9 +55,23 @@ static uint32_t *entry_at(const struct fat_volume *v, uint32_t cluster)
 }
 /* }}} */
 
+/* {{{ in_volume */
+/* Is this a data cluster of this volume? A chain on a damaged card can
+ * name a cluster past the end of the table; following it would read
+ * memory the table does not own, so every walk asks this first and
+ * treats anything else as the end of the chain. */
+static int in_volume(const struct fat_volume *v, uint32_t cluster)
+{
+    return cluster >= 2 && cluster < v->total_clusters + 2;
+}
+/* }}} */
+
 /* {{{ fat_next */
 uint32_t fat_next(const struct fat_volume *v, uint32_t cluster)
 {
+    if (!in_volume(v, cluster)) {
+        return 0x0FFFFFFFu;                    /* outside the table: an end, never a step */
+    }
     return *entry_at(v, cluster) & 0x0FFFFFFFu;
 }
 /* }}} */
@@ -111,6 +128,16 @@ int fat_mount(struct fat_volume *v, int owner)
             say_line("fat: partition %d is exFAT (or NTFS), which this device refuses — reformat the card as FAT32", i + 1);
         }
     }
+    /* No partition table at all: a card formatted whole, its boot block
+     * at block zero (some laptops format a card that way). Only looked
+     * for when no partition entry claimed FAT32, so a partition table
+     * always wins. */
+    if (!found && (block[0] == 0xEB || block[0] == 0xE9) && le16(block + 11) == BLOCK &&
+        le16(block + 22) == 0 && bytes_equal(block + 82, "FAT32   ", 8)) {
+        say_line("fat: the card has no partition table; its first block is a FAT32 boot block");
+        v->partition_lba = 0;
+        found = 1;
+    }
     if (!found) {
         say_line("fat: no FAT32 partition on the card");
         return FAT_NOT_FAT32;
@@ -137,23 +164,51 @@ int fat_mount(struct fat_volume *v, int owner)
     uint32_t total_sectors = le16(block + 19) ? le16(block + 19) : le32(block + 32);
     bytes_copy(v->label, block + 71, 11);
     v->label[11] = 0;
+    for (int i = 10; i >= 0 && v->label[i] == ' '; i--) v->label[i] = 0;   /* the field is space-padded */
+    /* Every number below divides by, or is sized from, these; a boot
+     * block that gets them wrong is refused rather than believed. */
+    uint64_t overhead = (uint64_t)v->reserved_sectors + (uint64_t)v->n_fats * v->fat_sectors;
+    if (v->sectors_per_cluster == 0 || (v->sectors_per_cluster & (v->sectors_per_cluster - 1)) ||
+        v->reserved_sectors == 0 || v->n_fats == 0 || v->fat_sectors == 0 || overhead >= total_sectors) {
+        say_line("fat: the boot block's layout does not add up (%u sectors per cluster, %u reserved, %u tables of %u sectors, %u in all)",
+                 v->sectors_per_cluster, v->reserved_sectors, v->n_fats, v->fat_sectors, total_sectors);
+        return FAT_NOT_FAT32;
+    }
     v->fat_lba = v->partition_lba + v->reserved_sectors;
     v->data_lba = v->fat_lba + (uint64_t)v->n_fats * v->fat_sectors;
-    v->total_clusters = (total_sectors - v->reserved_sectors - v->n_fats * v->fat_sectors) / v->sectors_per_cluster;
+    v->total_clusters = (uint32_t)((total_sectors - overhead) / v->sectors_per_cluster);
+    /* The table must have an entry for every cluster (Linux refuses a
+     * card whose table is too short, and so does this), and the cluster
+     * numbers must stop below the ones FAT32 keeps for bad clusters and
+     * chain ends. */
+    if ((uint64_t)v->fat_sectors * (BLOCK / 4) < (uint64_t)v->total_clusters + 2 ||
+        v->total_clusters == 0 || v->total_clusters > 0x0FFFFFF5u) {
+        say_line("fat: %u clusters do not fit a table of %u sectors", v->total_clusters, v->fat_sectors);
+        return FAT_NOT_FAT32;
+    }
+    if (!in_volume(v, v->root_cluster)) {
+        say_line("fat: the root directory's cluster %u is not on the volume", v->root_cluster);
+        return FAT_NOT_FAT32;
+    }
 
     /* The table, into page-sized pieces. */
     uint32_t entries = v->total_clusters + 2;
     v->n_pieces = (entries + FAT_PIECE_ENTRIES - 1) / FAT_PIECE_ENTRIES;
     uint32_t list_pages = (uint32_t)((v->n_pieces * sizeof(uint32_t *) + PAGE_BYTES - 1) / PAGE_BYTES);
     v->pieces = pages_alloc_run(owner, (int)list_pages);
+    if (v->pieces) {
+        bytes_zero(v->pieces, v->n_pieces * sizeof(uint32_t *));   /* so a failure below frees only what it took */
+    }
     v->dirty = pages_alloc_run(owner, (int)((v->n_pieces + PAGE_BYTES - 1) / PAGE_BYTES));
     if (!v->pieces || !v->dirty) {
+        fat_unmount(v);
         return FAT_NO_MEMORY;
     }
     bytes_zero(v->dirty, v->n_pieces);
     for (uint32_t i = 0; i < v->n_pieces; i++) {
         v->pieces[i] = page_alloc(owner);
         if (!v->pieces[i]) {
+            fat_unmount(v);
             return FAT_NO_MEMORY;
         }
         /* One piece is 8 sectors of the table; the last may be partial. */
@@ -162,6 +217,7 @@ int fat_mount(struct fat_volume *v, int owner)
         if (first_sector + count > v->fat_sectors) count = v->fat_sectors - first_sector;
         bytes_zero(v->pieces[i], PAGE_BYTES);
         if (count && platform_card_read(v->fat_lba + first_sector, count, v->pieces[i])) {
+            fat_unmount(v);
             return FAT_IO;
         }
     }
@@ -170,7 +226,25 @@ int fat_mount(struct fat_volume *v, int owner)
         if (fat_next(v, c) == FAT_FREE) v->free_clusters++;
     }
     v->next_free_hint = 2;
+    say_line("fat: FAT32 volume \"%s\", %u-byte clusters, data from block %u, %u of %u clusters free",
+             v->label, v->cluster_bytes, (uint32_t)v->data_lba, v->free_clusters, v->total_clusters);
     return FAT_OK;
+}
+/* }}} */
+
+/* {{{ fat_unmount */
+void fat_unmount(struct fat_volume *v)
+{
+    if (v->pieces) {
+        for (uint32_t i = 0; i < v->n_pieces; i++) {
+            if (v->pieces[i]) page_free(v->owner, v->pieces[i]);
+        }
+        pages_free_run(v->owner, v->pieces, (int)((v->n_pieces * sizeof(uint32_t *) + PAGE_BYTES - 1) / PAGE_BYTES));
+    }
+    if (v->dirty) {
+        pages_free_run(v->owner, v->dirty, (int)((v->n_pieces + PAGE_BYTES - 1) / PAGE_BYTES));
+    }
+    bytes_zero(v, sizeof *v);
 }
 /* }}} */
 
@@ -210,7 +284,7 @@ int fat_flush(struct fat_volume *v)
 uint32_t fat_chain_length(const struct fat_volume *v, uint32_t first)
 {
     uint32_t n = 0;
-    for (uint32_t c = first; c >= 2 && c < FAT_END && n <= v->total_clusters; c = fat_next(v, c)) n++;
+    for (uint32_t c = first; in_volume(v, c) && n <= v->total_clusters; c = fat_next(v, c)) n++;
     return n;
 }
 /* }}} */
@@ -223,12 +297,12 @@ int fat_chain_read(struct fat_volume *v, uint32_t first, uint32_t offset, void *
     uint32_t skip = offset / v->cluster_bytes;
     uint32_t within = offset % v->cluster_bytes;
     for (uint32_t i = 0; i < skip; i++) {
-        if (c < 2 || c >= FAT_END) return FAT_IO;
+        if (!in_volume(v, c)) return FAT_IO;
         c = fat_next(v, c);
     }
     uint8_t block[BLOCK];
     while (length) {
-        if (c < 2 || c >= FAT_END) return FAT_IO;
+        if (!in_volume(v, c)) return FAT_IO;
         /* Within one cluster, a block at a time. */
         uint32_t sector = within / BLOCK;
         uint32_t in_block = within % BLOCK;
@@ -268,7 +342,7 @@ int fat_chain_free(struct fat_volume *v, uint32_t first)
 {
     uint32_t c = first;
     uint32_t guard = 0;
-    while (c >= 2 && c < FAT_END && guard++ <= v->total_clusters) {
+    while (in_volume(v, c) && guard++ <= v->total_clusters) {
         uint32_t next = fat_next(v, c);
         set_next(v, c, FAT_FREE);
         c = next;
@@ -321,9 +395,10 @@ static int slot_block(struct fat_volume *v, uint32_t dir_cluster, uint32_t slot,
 {
     uint32_t per_cluster = v->cluster_bytes / SLOT_BYTES;
     uint32_t c = dir_cluster;
+    if (!in_volume(v, c)) return 0;
     for (uint32_t i = 0; i < slot / per_cluster; i++) {
         c = fat_next(v, c);
-        if (c < 2 || c >= FAT_END) return 0;
+        if (!in_volume(v, c)) return 0;
     }
     uint32_t byte = (slot % per_cluster) * SLOT_BYTES;
     *block = fat_cluster_block(v, c) + byte / BLOCK;
@@ -407,7 +482,7 @@ int fat_dir_walk(struct fat_volume *v, uint32_t dir_cluster,
     uint8_t long_sum = 0;
     uint32_t long_first = 0;
     bytes_zero(long_name, sizeof long_name);
-    for (uint32_t slot = 0;; slot++) {
+    for (uint32_t slot = 0; slot < DIR_MAX_SLOTS; slot++) {
         int r = read_slot(v, dir_cluster, slot, e);
         if (r < 0) return r;
         if (r == 0 || e[0] == 0x00) return FAT_OK;    /* past the chain, or the end marker */
@@ -452,6 +527,7 @@ int fat_dir_walk(struct fat_volume *v, uint32_t dir_cluster,
         slot_block(v, dir_cluster, slot, &out.location_block, &out.location_offset);
         if (visit(&out, ctx)) return FAT_OK;
     }
+    return FAT_OK;
 }
 /* }}} */
 
@@ -498,39 +574,52 @@ static int valid_name(const char *name)
 }
 /* }}} */
 
-struct short_names {
-    uint8_t taken[64][11];
-    int     n;
-};
+/* Short-name tails are looked for a window at a time: one pass over the
+ * directory marks which numbers in the window are taken, and the first
+ * free one is used. A window of 4096 costs 512 bytes of stack; a
+ * directory needs a second pass only once it holds 4095 names that
+ * shorten alike (a folder of messages named message-0001.txt onward
+ * is exactly that). */
+#define TAIL_WINDOW 4096u
+#define TAIL_LIMIT  1000000u           /* "~999999" is the longest tail that fits */
 
-/* {{{ collect_short */
-static int collect_short(struct fat_volume *v, uint32_t dir_cluster, struct short_names *s)
+/* {{{ tail_of */
+/* If a short entry reads PREFIX~DIGITS.EXT, where PREFIX is exactly what
+ * make_short_name keeps of `base` beside that many digits and EXT is
+ * `ext3`, answer its number; anything else answers 0. Only names of that
+ * shape can equal a name make_short_name would write, so marking these
+ * is the whole of the uniqueness check. */
+static uint32_t tail_of(const uint8_t *e, const char *base, int nb, const uint8_t *ext3)
 {
-    uint8_t e[SLOT_BYTES];
-    s->n = 0;
-    for (uint32_t slot = 0;; slot++) {
-        int r = read_slot(v, dir_cluster, slot, e);
-        if (r < 0) return r;
-        if (r == 0 || e[0] == 0) return FAT_OK;
-        if (e[0] == 0xE5 || (e[11] & 0x3F) == FAT_ATTR_LONG_NAME) continue;
-        if (s->n < 64) bytes_copy(s->taken[s->n++], e, 11);
-    }
+    if (!bytes_equal(e + 8, ext3, 3)) return 0;
+    int tilde = -1;
+    for (int i = 0; i < 8 && tilde < 0; i++) if (e[i] == '~') tilde = i;
+    if (tilde < 1 || tilde + 1 >= 8 || e[tilde + 1] < '1' || e[tilde + 1] > '9') return 0;
+    uint32_t n = 0;
+    int i = tilde + 1;
+    for (; i < 8 && e[i] >= '0' && e[i] <= '9'; i++) n = n * 10 + (uint32_t)(e[i] - '0');
+    for (int k = i; k < 8; k++) if (e[k] != ' ') return 0;
+    int digits = i - tilde;                     /* the '~' and its number */
+    int keep = 8 - digits < nb ? 8 - digits : nb;
+    if (tilde != keep || !bytes_equal(e, base, (size_t)keep)) return 0;
+    return n;
 }
 /* }}} */
 
 /* {{{ make_short_name */
 /* A short name no other entry here has: up to six characters of the long
  * name's base, "~N", and up to three of its extension, upper-cased. The
- * long name is what everybody reads; this is only what FAT requires. */
+ * long name is what everybody reads; this is only what FAT requires.
+ * Every short name in the directory is looked at, however many there
+ * are: two entries sharing one short name is a damaged directory as far
+ * as a laptop's checker is concerned. */
 static int make_short_name(struct fat_volume *v, uint32_t dir_cluster, const char *name, uint8_t *out)
 {
-    struct short_names taken;
-    int r = collect_short(v, dir_cluster, &taken);
-    if (r < 0) return r;
     const char *dot = (const char *)0;
     for (const char *p = name; *p; p++) if (*p == '.') dot = p;
     if (dot == name) dot = (const char *)0;
-    char base[7] = { 0 }, ext[4] = { 0 };
+    char base[7] = { 0 };
+    uint8_t ext[3] = { ' ', ' ', ' ' };
     int nb = 0, ne = 0;
     for (const char *p = name; *p && (!dot || p < dot) && nb < 6; p++) {
         char c = *p;
@@ -541,21 +630,29 @@ static int make_short_name(struct fat_volume *v, uint32_t dir_cluster, const cha
     for (const char *p = dot ? dot + 1 : ""; *p && ne < 3; p++) {
         char c = *p;
         if (c >= 'a' && c <= 'z') c = (char)(c - 'a' + 'A');
-        if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) ext[ne++] = c;
+        if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) ext[ne++] = (uint8_t)c;
     }
-    for (int tail = 1; tail < 1000000; tail++) {
-        char digits[8];
-        int nd = text_format(digits, sizeof digits, "~%d", tail);
-        int keep = 8 - nd < nb ? 8 - nd : nb;
-        uint8_t candidate[11];
-        for (int i = 0; i < 11; i++) candidate[i] = ' ';
-        for (int i = 0; i < keep; i++) candidate[i] = (uint8_t)base[i];
-        for (int i = 0; i < nd; i++) candidate[keep + i] = (uint8_t)digits[i];
-        for (int i = 0; i < ne; i++) candidate[8 + i] = (uint8_t)ext[i];
-        int clash = 0;
-        for (int i = 0; i < taken.n && !clash; i++) clash = bytes_equal(taken.taken[i], candidate, 11);
-        if (!clash) {
-            bytes_copy(out, candidate, 11);
+    for (uint32_t window = 0; window < TAIL_LIMIT; window += TAIL_WINDOW) {
+        uint8_t taken[TAIL_WINDOW / 8];
+        bytes_zero(taken, sizeof taken);
+        uint8_t e[SLOT_BYTES];
+        for (uint32_t slot = 0; slot < DIR_MAX_SLOTS; slot++) {
+            int r = read_slot(v, dir_cluster, slot, e);
+            if (r < 0) return r;
+            if (r == 0 || e[0] == 0) break;
+            if (e[0] == 0xE5 || (e[11] & 0x3F) == FAT_ATTR_LONG_NAME) continue;
+            uint32_t t = tail_of(e, base, nb, ext);
+            if (t >= window && t < window + TAIL_WINDOW) taken[(t - window) / 8] |= (uint8_t)(1u << ((t - window) % 8));
+        }
+        for (uint32_t t = window ? window : 1; t < window + TAIL_WINDOW && t < TAIL_LIMIT; t++) {
+            if (taken[(t - window) / 8] & (1u << ((t - window) % 8))) continue;
+            char digits[8];
+            int nd = text_format(digits, sizeof digits, "~%u", t);
+            int keep = 8 - nd < nb ? 8 - nd : nb;
+            for (int i = 0; i < 11; i++) out[i] = ' ';
+            for (int i = 0; i < keep; i++) out[i] = (uint8_t)base[i];
+            for (int i = 0; i < nd; i++) out[keep + i] = (uint8_t)digits[i];
+            bytes_copy(out + 8, ext, 3);
             return FAT_OK;
         }
     }
@@ -568,7 +665,11 @@ static int make_short_name(struct fat_volume *v, uint32_t dir_cluster, const cha
 static int extend_directory(struct fat_volume *v, uint32_t dir_cluster)
 {
     uint32_t last = dir_cluster;
-    while (fat_next(v, last) >= 2 && fat_next(v, last) < FAT_END) last = fat_next(v, last);
+    uint32_t guard = 0;
+    while (in_volume(v, fat_next(v, last))) {
+        last = fat_next(v, last);
+        if (++guard > v->total_clusters) return FAT_IO;   /* the chain loops back on itself */
+    }
     uint32_t c = take_free_cluster(v);
     if (!c) return FAT_NO_SPACE;
     set_next(v, c, 0x0FFFFFFFu);
@@ -601,6 +702,7 @@ int fat_dir_add(struct fat_volume *v, uint32_t dir_cluster, const char *name, ui
     int run = 0;
     uint32_t slot = 0;
     for (;; slot++) {
+        if (slot >= DIR_MAX_SLOTS) return FAT_NO_SPACE;   /* FAT's limit on one directory */
         r = read_slot(v, dir_cluster, slot, e);
         if (r < 0) return r;
         if (r == 0) {
