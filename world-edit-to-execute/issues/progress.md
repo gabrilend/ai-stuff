@@ -250,6 +250,7 @@ Phase 1 Complete (102 MPQ Parser)
 | 301e | Parse WTG parameters | **Completed** | 301d |
 | 302 | Parse war3map.wct (custom text triggers) | **Completed** | 102, 301 |
 | 303 | Parse war3map.j (JASS script) | **Completed** | 102 |
+| 303d | Every test map's script read (`scripts\war3map.j` too), lone-CR lines and constant functions analysed | **Completed** 2026-11-06 | 303 |
 | 304 | Build JASS lexer | **Completed** | 303 |
 | 304a | Lexer core infrastructure | **Completed** | 303 |
 | 304b | Lexer keywords/identifiers/operators | **Completed** | 304a |

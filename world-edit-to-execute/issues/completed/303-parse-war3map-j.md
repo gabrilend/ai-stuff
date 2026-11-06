@@ -366,3 +366,15 @@ print(j.format(parsed))
 
 ### Note on Test Maps
 All 16 test maps are minimal maps without triggers or custom JASS code. The parser was tested with synthetic JASS data that mimics real WC3 map scripts.
+
+---
+
+## Note (2026-11-06): the test maps do have scripts
+
+The finding above, that the test maps hold no `war3map.j`, was mistaken:
+each keeps its script as `scripts\war3map.j`, which `j.extract` didn't
+read, and two maps added on 2026-11-02 hold `war3map.j`. `test_j` had
+turned the finding into an assertion, which those maps broke. Issue 303d
+(`303d-every-map-script-read.md`) reads both names, analyses scripts whose
+lines end in a lone CR and `constant function`s, and tests every map's
+script instead.

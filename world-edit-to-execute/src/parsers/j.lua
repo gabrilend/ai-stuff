@@ -35,13 +35,18 @@ function j.extract(archive)
         return nil, "No archive provided"
     end
 
-    if not archive:has("war3map.j") then
+    -- the game reads scripts\war3map.j when there is no war3map.j, and
+    -- protected maps keep it there (issue 303d); the editor and the scene
+    -- loader look in the same two places
+    local name = archive:has("war3map.j") and "war3map.j"
+        or (archive:has("scripts\\war3map.j") and "scripts\\war3map.j")
+    if not name then
         return nil, "war3map.j not found in archive"
     end
 
-    local data = archive:extract("war3map.j")
+    local data = archive:extract(name)
     if not data then
-        return nil, "Failed to extract war3map.j"
+        return nil, "Failed to extract " .. name
     end
 
     return data, nil
@@ -117,6 +122,10 @@ local function find_functions(text)
         -- Match function declaration pattern:
         -- function <name> takes <args> returns <type>
         local name, takes, returns = line:match("^function%s+([%w_]+)%s+takes%s+(.-)%s+returns%s+([%w_]+)%s*$")
+        if not name then
+            -- "constant function" declares a function too (issue 303d)
+            name, takes, returns = line:match("^constant%s+function%s+([%w_]+)%s+takes%s+(.-)%s+returns%s+([%w_]+)%s*$")
+        end
 
         if name then
             -- Find the matching endfunction
@@ -249,8 +258,14 @@ function j.parse(text)
         }
     end
 
+    -- Lines may end in LF, CRLF or a lone CR (protected maps' scripts end
+    -- most lines with a lone CR, issue 303d). The analysis reads a copy in
+    -- which a lone CR is an LF: the same length, so positions hold in raw.
+    local raw = text
+    text = text:gsub("\r\n?", function(m) return #m == 2 and m or "\n" end)
+
     local result = {
-        raw = text,
+        raw = raw,
         line_count = select(2, text:gsub("\n", "\n")) + 1,
         errors = {},
     }
@@ -334,12 +349,13 @@ function j.validate(parsed)
             globals_count, endglobals_count)
     end
 
-    -- Count "function" at start of line
+    -- Count "function" (or "constant function", issue 303d) at start of line
     local func_count = 0
-    if parsed.raw:match("^function%s+") then
+    if parsed.raw:match("^function%s+") or parsed.raw:match("^constant%s+function%s+") then
         func_count = func_count + 1
     end
     func_count = func_count + select(2, parsed.raw:gsub("[\r\n]function%s+", ""))
+        + select(2, parsed.raw:gsub("[\r\n]constant%s+function%s+", ""))
 
     -- Count "endfunction" at start of line
     local endfunc_count = 0
