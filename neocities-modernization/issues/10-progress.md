@@ -110,12 +110,17 @@ Phase 10 focuses on improving the developer experience through enhanced tooling,
 | 10-049 | Replace Ollama with llama.cpp (last leftovers removed) | Completed | 2026-10-22 |
 | 10-075 | Every run keeps a log in RAM (terminal, log or both, one output function) | Completed | 2026-10-23 |
 | 10-069 | One pre-flight gate: every cheap check a selected stage can fail, before any stage | Completed | 2026-10-25 |
+| 10-062 | Chronological image gallery: newest-first view and 10-page pagination | Completed | 2026-11-02 |
 | 10-076 | Every program names its folders by flags (--dir, --assets); a stray word stops it; no folder is assumed | Completed | 2026-11-03 |
 
 These tables are hand-kept and fall behind. For current done and open counts per
 phase, run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua <project> -m`.
 
 ## Issue Details
+
+**10-062: Chronological Image Gallery Pagination** - COMPLETED (2026-11-02)
+- `gallery/chronological-NN.html` (oldest first) and `chronological-reverse-NN.html` (newest first), 10 pages each (`config.pagination.gallery_chronological_pages`), with a page-number jump bar and a direction toggle; `chronological.html` stays as a copy of page 01
+- `src/gallery-pages.lua` decides a picture's page from its position in the catalog's time order; the gallery and the poem pages' picture links both call it, so no earlier stage records anything
 
 **10-003: Consolidate Config Files** - COMPLETED (umbrella issue)
 - Split into sub-issues for tracking:

@@ -59,6 +59,33 @@ check("total poems is 3 (1 + tagged 4 + appended 5)", #poems.poems == 3)
 R.inject_pseudo_poems(poems, manifest)
 check("idempotent: no duplicate append", #poems.poems == 3)
 
+-- Issue 10-062: the gallery is paginated, so a picture's title links to its
+-- page. Before the gallery index is loaded, drawing a gallery picture is a
+-- wiring mistake and stops the build.
+check("drawing a gallery picture before the gallery index is loaded is refused",
+    not pcall(R.format_image_entry, p5))
+
+-- A catalog of 25 my-art pictures, one a minute; the one hashed "abc123" is the
+-- 13th. Ten pages -> 3 per page -> it is on page floor(12 / 3) + 1 = 5. A
+-- fediverse-media picture is not in the gallery and does not shift anything.
+local catalog = { images = { { source_name = "fediverse-media", hash = "zzz", modification_time = 0 } } }
+for i = 1, 25 do
+    catalog.images[#catalog.images + 1] = {
+        source_name = "my-art", modification_time = i * 60,
+        hash = (i == 13) and "abc123" or string.format("h%02d", i),
+        relative_path = string.format("/p/input/images/my-art/%02d.png", i),
+    }
+end
+local read_calls = 0
+local function fake_read(path)
+    read_calls = read_calls + 1
+    return path == "catalog.json" and catalog or nil
+end
+local index = R.load_gallery_index("catalog.json", fake_read, 10)
+check("the gallery index counts only the gallery's pictures", index.total == 25 and index.page_size == 3)
+R.load_gallery_index("catalog.json", fake_read, 10)
+check("the gallery index is read once per process", read_calls == 1)
+
 -- format_image_entry: self-contained image box built from the injected attachment.
 local html = R.format_image_entry(p5)
 check("format includes the title", html:find("my%-art: factory%-cube%.png", 1) ~= nil)
@@ -69,8 +96,13 @@ check("format namespaces art src under its source (relative)", html:find("%.%./m
 check("format carries width/height hints", html:find('width="100"') ~= nil and html:find('height="80"') ~= nil)
 check("format is css-free (no class= attrs)", html:find('class=') == nil)
 check("class-3 pseudo-poem carries gallery_anchor", p5.gallery_anchor == "img-abc123")
-check("title deep-links to the chronological gallery anchor",
-    html:find("gallery/chronological%.html#img%-abc123", 1) ~= nil)
+check("title deep-links to the picture's page of the chronological gallery",
+    html:find('<a href="../gallery/chronological-05.html#img-abc123">', 1, true) ~= nil)
+-- A picture the gallery does not show gets no link rather than a dead one.
+local html_gone = R.format_image_entry({ display_title = "not in gallery", gallery_anchor = "img-nowhere",
+    attachments = {} })
+check("a picture the gallery does not show is not linked", html_gone:find("<a ", 1, true) == nil
+    and html_gone:find("not in gallery", 1, true) ~= nil)
 -- An image-only post (no gallery_anchor) keeps a plain title (no gallery link).
 local html2 = R.format_image_entry({ display_title = "image post", attachments = {} })
 check("image-only title is not gallery-linked", html2:find("chronological%.html", 1) == nil)
@@ -82,6 +114,14 @@ do
     check("text+image link targets the media file (relative)", link:find("%.%./media/photo%.jpg", 1) ~= nil)
     check("pure-text poem gets no link", R.text_image_link({ content = "just words" }) == "")
 end
+
+-- No catalog at all: no gallery, so nothing is linked, and nothing fails.
+R.reset_cache()
+R.load_gallery_index("missing.json", fake_read, 10)
+check("with no catalog, a gallery picture is drawn unlinked",
+    R.format_image_entry(p5):find("<a ", 1, true) == nil)
+R.reset_cache()
+check("a bad page count is refused", not pcall(R.load_gallery_index, "catalog.json", fake_read, 0))
 
 -- What a screen reader hears for a picture in the box: its own description,
 -- else the box title (2026-10-22: every picture used to read as the title,

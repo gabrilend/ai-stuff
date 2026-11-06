@@ -837,6 +837,8 @@ end
 -- is its own Lua state). Callers add the fields their jobs need.
 --   dir, output_dir      : strings, the project and the site folder
 --   image_manifest_path  : string, the picture pseudo-poem manifest (Issue 9-013)
+--   image_catalog_path, gallery_page_count : the picture catalog and the
+--                          chronological gallery's page count (Issue 10-062)
 --   embeddings_dir       : string, the selected model's folder (poem colours)
 --   palette, boost_palette : the colour tables from config.lua (Issue 8-058)
 --   layout               : the widths the drawer needs
@@ -846,6 +848,12 @@ local function worker_config(output_dir)
         dir = DIR,
         output_dir = output_dir,
         image_manifest_path = utils.embeddings_dir() .. "/image-manifest.json",
+        -- Issue 10-062: the catalog the chronological gallery's pages are laid
+        -- out from, and how many pages it has each way, so a picture's title
+        -- links to the gallery page it is on
+        image_catalog_path = DIR .. "/assets/image-catalog.json",
+        gallery_page_count = unified_config.pagination
+            and unified_config.pagination.gallery_chronological_pages,
         -- the selected model's folder, named here because a worker cannot
         -- see which model this program was told to use
         embeddings_dir = utils.embeddings_dir(),
@@ -930,6 +938,8 @@ local function run_page_workers(num_threads, config, jobs)
             end
             t_image_render.inject_pseudo_poems(poems_data,
                 t_image_render.load_manifest(config.image_manifest_path, t_utils.read_json_file))
+            t_image_render.load_gallery_index(config.image_catalog_path, t_utils.read_json_file,
+                config.gallery_page_count)
 
             -- Build poem lookup by poem_index
             local poem_lookup = {}

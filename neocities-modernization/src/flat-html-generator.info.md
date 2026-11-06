@@ -233,6 +233,8 @@ What every page worker is handed when it starts (plain values only: a worker
 is its own Lua state). Callers add the fields their jobs need.
   dir, output_dir      : strings, the project and the site folder
   image_manifest_path  : string, the picture pseudo-poem manifest (Issue 9-013)
+  image_catalog_path, gallery_page_count : the picture catalog and the
+                         chronological gallery's page count (Issue 10-062)
   embeddings_dir       : string, the selected model's folder (poem colours)
   palette, boost_palette : the colour tables from config.lua (Issue 8-058)
   layout               : the widths the drawer needs
