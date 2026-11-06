@@ -4,9 +4,12 @@ Every asset ever made, kept, each beside a `.card`: what, category, each paramet
 
 ## Current Behavior
 
-809a is built (issues/completed/809a-card-schema.md): the card schema and a
-single write. 809b (concurrent append), 809c (the count utility) and 809d
-(floors) are not yet built.
+809a, 809b and 809c are built (issues/completed/809a-card-schema.md,
+809b-concurrent-append.md, 809c-count-utility.md): a card beside every
+asset; ratings appended one line at a time beside it, safe under two
+writers at once, resolving to one tier (a person's latest, else a
+machine's); and counts per category and per tier, read from cards and
+ratings alone. 809d (floors) is not yet built.
 
 ## Intended Behavior
 
