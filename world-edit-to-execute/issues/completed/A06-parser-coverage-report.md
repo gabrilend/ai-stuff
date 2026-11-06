@@ -340,6 +340,9 @@ of the test maps).
   (`war3map.wpm`) and the minimap icons (`war3map.mmp`), all present in
   every map; one MP3; and 45 unnamed files StormLib couldn't guess a type
   for.
+  *(2026-11-02: issue 119 added readers for those three; the report now
+  reads 2,713 files, and 46 have no reader: the MP3 and the 45 unnamed
+  files.)*
 - **In none of the 16 maps:** regions, cameras, sounds, the World
   Editor's trigger files (`.wtg`, `.wct`), a root-level `war3map.j` and
   `war3map.imp`. The DAoW maps are protected, and protecting a map strips

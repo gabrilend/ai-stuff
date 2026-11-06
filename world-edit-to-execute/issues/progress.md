@@ -143,6 +143,7 @@ lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt/mtwo/pro
 | 115 | Balance history explorer: every stock number across every version, as a page | **Completed** 2026-09-25 | 112b, 112d |
 | 116 | Read WC3 models (.mdx) | Pending | — |
 | 117 | Read WC3 textures (BLP1) | Pending | — |
+| 119 | Readers for the pathing map, shadow map and minimap icons (found by A06) | **Completed** 2026-11-02 | — |
 | 115a | What each patch changed: the explorer's patch view | **Completed** 2026-09-25 | 115 |
 | 115b | Patch notes for the versions the project doesn't read, marked not supported | **Completed** 2026-09-25 | 115a |
 

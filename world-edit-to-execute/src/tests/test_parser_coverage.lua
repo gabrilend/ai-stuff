@@ -38,7 +38,7 @@ test("the archive's own files aren't counted", cov.kind_of("(listfile)") == nil 
 print("\n=== Reading one file ===")
 local status, err = cov.read_file("war3map.w3e", "W3E!\1\0\0\0")
 test("a damaged terrain file is a failure, with its error", status == "fail" and err ~= nil, tostring(err))
-status = cov.read_file("war3map.shd", "anything")
+status = cov.read_file("war3map.imp", "anything")
 test("a kind with no reader says so", status == "no_parser")
 status, err = cov.read_file("*.txt", "[hfoo]\nArt=x.blp\n")
 test("a readable file is a success", status == "success", tostring(err))
@@ -53,7 +53,10 @@ local w3i = r.kinds["war3map.w3i"]
 test("map info read in both", w3i.parser and w3i.maps_with == 2 and w3i.maps_ok == 2 and w3i.maps_failed == 0)
 test("terrain read in both", r.kinds["war3map.w3e"].maps_ok == 2)
 local shd = r.kinds["war3map.shd"]
-test("the shadow map is listed as having no reader", shd and not shd.parser and shd.files == 2)
+test("the shadow, pathing and minimap files are read in both (issue 119)", shd and shd.parser and shd.maps_ok == 2
+    and r.kinds["war3map.wpm"].maps_ok == 2 and r.kinds["war3map.mmp"].maps_ok == 2)
+local imp = r.kinds["war3map.imp"]
+test("the import list is listed as having no reader, though neither map has one", imp and not imp.parser and imp.files == 0)
 test("every map data file is listed, present or not", r.kinds["war3map.imp"] ~= nil and r.kinds["war3map.w3c"] ~= nil)
 test("the map data files come first, in their order", r.order[1] == "war3map.w3i" and r.order[2] == "war3map.wts")
 local t = r.totals
@@ -61,7 +64,8 @@ test("totals add up", t.files == t.files_read + t.files_failed + t.files_without
     string.format("%d = %d + %d + %d", t.files, t.files_read, t.files_failed, t.files_without_parser))
 test("nothing fails on these maps", t.files_failed == 0, tostring(t.files_failed))
 test("status per map: read, no reader, not in the map",
-    cov.status(r.maps[1], "war3map.w3i") == "success" and cov.status(r.maps[1], "war3map.shd") == "no_parser"
+    cov.status(r.maps[1], "war3map.w3i") == "success"
+    and cov.status({ kinds = { ["*.mp3"] = { files = 1, ok = 0, failed = 0 } } }, "*.mp3") == "no_parser"
     and cov.status(r.maps[1], "war3map.imp") == "missing")
 
 local only = cov.report({ maps[1] }, { ["war3map.w3e"] = true })
@@ -114,5 +118,5 @@ for _ in pairs(layouts) do distinct = distinct + 1 end
 test("terminal: the table's columns line up", lines > 10 and distinct == 1, distinct .. " layouts")
 -- }}}
 
-print(string.format("\n%d passed, %d failed", pass, fail))
+print(string.format("\nTests: %d passed, %d failed", pass, fail))
 os.exit(fail == 0 and 0 or 1)
