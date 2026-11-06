@@ -120,3 +120,13 @@ The `-I` flag now launches a full TUI with:
 - `/mnt/mtwo/programming/ai-stuff/neocities-modernization/run.sh` (implemented)
 
 ---
+
+## What Happened
+
+**2026-11-03: moved into `completed/`.** The status above has said
+COMPLETED since 2025-12-23, and `10-progress.md` lists it as completed, but
+the file had stayed in `issues/`. Checked before moving: the scripts half,
+`menu_set_command_config` in `libs/lua-menu.sh` and the command preview in
+`libs/menu.lua`, is on main. The `run.sh` half lives in
+neocities-modernization, whose issue 10-005 notes that this issue was moved
+here to scripts.
