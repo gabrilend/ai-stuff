@@ -29,6 +29,14 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   right form) — a word-boundary check keeps "promptly" from misreading as
   a broken tag.
 
-903b and 903d, 901c-d, 902b-c and 905b-d remain: the needs check and
-confinement; number issuance and reuse refusal; structured and remaining
-types; shortest-chain search, joint checking and plan execution.
+- 901c number issuance — the next free tag number is one more than the
+  highest recorded across every case's ledger (`src/117-tag-numbers.lua`);
+  `machine number` prints it, recording nothing.
+- 901d reuse refusal — a parcel's fresh number is recorded once, as a new
+  `numbered` ledger line; a reused one is refused, naming its first use
+  (case and ledger line), and one the machine has not given yet is
+  refused too. 901 (tags and parcels) is whole and closed.
+
+903b and 903d, 902b-c and 905b-d remain: the needs check and confinement;
+structured and remaining types; shortest-chain search, joint checking and
+plan execution.

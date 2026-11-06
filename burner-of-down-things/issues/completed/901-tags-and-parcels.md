@@ -4,11 +4,17 @@ What arrives at the switchboard, and how it asks ([068](../docs/068-datapath-the
 
 ## Current Behavior
 
-901a and 901b are built (issues/completed/901a-parcel-folder.md,
-901b-tag-parsing.md): a folder of files reads as one parcel, and its tag
-(if any) reads as a well-formed number and wish, no tag at all, or a
-malformed finding. 901c (number issuance) and 901d (reuse refusal) are not
-yet built.
+Built, in four pieces (issues/completed/901a-901d): a folder of files
+reads as one parcel (`079-the-parcel.lua`'s `read`); its first line reads
+as a well-formed tag's number and wish, no tag at all, or a malformed
+finding naming the right form (`tag`); numbers are given by the machine,
+one more than the highest recorded across every case's ledger
+(`117-tag-numbers.lua`'s `next_free`, `machine number`); and a parcel's
+fresh number is recorded once as a `numbered` ledger line, while a reused
+one is refused, naming its first use (`accept`). Both of this issue's
+tests hold: `tests/101-checking-tag-parsing.lua`,
+`tests/119-checking-number-issuance.lua`,
+`tests/120-checking-reuse-refusal.lua`.
 
 ## Intended Behavior
 
