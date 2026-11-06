@@ -40,6 +40,10 @@ supcom-derivative-clone/
 ├── run-headless .............................. Plays one match with no window and
 │                                               prints its report; replays a log
 │                                               and names a mismatched tick.
+├── report-catalogue .......................... Prints the unit catalogue, validated,
+│                                               and each kind's hits to kill in tank
+│                                               shells. Documents point here rather
+│                                               than quote a number.
 ├── new-source-file ........................... The only sanctioned way to bring a
 │                                               source file in. Claims the next
 │                                               index, stamps the licence, writes

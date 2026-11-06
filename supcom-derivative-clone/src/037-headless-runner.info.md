@@ -45,8 +45,12 @@ Nothing here draws; the caller hands `report.world` to a viewer as a copy.
 | `REPORT` | | the order `lines` writes |
 
 Options: `ticks` (a whole number, required unless replaying), `seed`, `field`
-(a shape table beating `input/field`), `units`, `replay` (a log's path), `bots`
-(reserved for issue 901; nothing reads it yet).
+(a shape table beating `input/field`), `units`, `fingerprint_every` (ticks
+between fingerprints, beating the rules'; one narrows a desync to its exact
+tick), `replay` (a log's path; a replay always fingerprints at the interval its
+log was recorded at, and refuses a different one asked for), `bots` (reserved
+for issue 901; nothing reads it yet). `./run-headless --fingerprint-every N`
+passes the interval through.
 
 ## Data structures it owns
 

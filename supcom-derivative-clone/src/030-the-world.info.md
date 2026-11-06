@@ -32,7 +32,7 @@ because a file cannot use the loader to find the loader.
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
-| `allocate(parameters)` | `field` (the dunes' shape table), `units` and `teams` (whole numbers of at least one), `seed` (a whole number; absent means zero) | a world: the field raised and validated, every group zeroed, every counter made, every stream seeded |
+| `allocate(parameters)` | `field` (the dunes' shape table), `units` and `teams` (whole numbers of at least one), `seed` (a whole number; absent means zero), and optionally `fingerprint_every` (a whole number of at least one, beating the rules') | a world: the field raised and validated, every group zeroed, every counter made (the rules' and the unit catalogue's heal and recharge counters), every stream seeded |
 | `validate(world)` | a world | nothing; raises naming the group and field of a wrong type, length or slot, a live count outside the capacity, a counter that is not whole numbers, or a stream at state zero; also validates the field |
 | `claim(world, group)` | a world; a pool's name | the id of a row now alive: the last released one, or the next never used; raises past the capacity, naming the group |
 | `release(world, group, id)` | a world; a pool's name; a live id | nothing; zeroes every field of the row and stacks the id for reuse; raises on a row that is not alive |
@@ -78,7 +78,7 @@ The groups:
 
 | Group | Kind | Capacity | Fields |
 | --- | --- | --- | --- |
-| `unit` | pool | `units` | `alive`, `kind`, `team` (integer); `x`, `y` (double); `domain` (integer); `altitude` (double); `health`, `health_at`, `reload_at`, `pattern`, `leg`, `mission`, `target`, `damage`, `falloff` (integer); `eye`, `profile` (double); `shield`, `shield_at`, `eaten` (integer); `eat_share`, `strength` (double); `in_round` (integer); `goal_x`, `goal_y` (double) |
+| `unit` | pool | `units` | `alive`, `kind`, `team` (integer); `x`, `y` (double); `domain` (integer); `altitude` (double); `health`, `health_at`, `reload_at`, `pattern`, `leg`, `mission`, `target`, `damage`, `falloff` (integer); `eye`, `profile` (double); `claim_radius` (integer); `shield`, `shield_at`, `eaten` (integer); `eat_share`, `strength` (double); `in_round` (integer); `goal_x`, `goal_y` (double) |
 | `cell` | fixed | the field's cells | `owner`, `claim_by`, `claim_began`, `claim_seen`, `improvement`, `mark` (integer) |
 | `marked` | queue | the field's cells | `cell` (integer): the cells some unit marked this tick, emptied by the claim pass (issue 112) |
 | `team` | fixed | `teams` | `mass`, `energy`, `thorns` (double); `energy_level` (integer) |
@@ -88,11 +88,15 @@ The groups:
 
 The counters (`COUNTERS`): each row is a `path` from the world to the counter,
 the rule holding its period in `seconds`, and `extra` integers copied from the
-rules.
+rules. The unit catalogue's rows are added at allocation, through `units.counters()`,
+carrying their period already in `ticks`; `world.layout.counters` is the whole
+list, and it is what the tick, the hash and the validator walk.
 
 | Counter | Period | Extra |
 | --- | --- | --- |
 | `world.claim` | `claim_seconds` | `increments_to_claim` from `claim_increments` |
+| `world.heal.<kind>`, one per catalogue kind | the kind's `heal_period` | none |
+| `world.recharge.<kind>`, one per kind with a shield | the kind's `shield_seconds` | none |
 
 Groups and fields other issues need -- patterns, shots, bones, factories and
 so on -- are added here by the issue that builds them, under

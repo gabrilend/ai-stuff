@@ -114,6 +114,7 @@ M.LAYOUT = {
     {"falloff", "integer"},     -- which falloff curve, copied at birth
     {"eye", "double"},          -- how high it looks from
     {"profile", "double"},      -- how tall it looks
+    {"claim_radius", "integer"}, -- cells of territory it claims, copied at birth; zero claims none
     {"shield", "integer"},      -- the enforcer's shield pair; zero for everything else
     {"shield_at", "integer"},
     {"eaten", "integer"},       -- mass an enforcer has consumed
@@ -169,6 +170,9 @@ M.SCALARS = {pool = {"count", "top", "released"}, fixed = {}, queue = {"count"},
 -- Every periodic effect's counter, as a place in the world and where its period
 -- and any extra integers come from in the rules. Adding an effect is adding a
 -- row. The tick brings every counter up to the tick before it walks its systems.
+-- These are the rules' counters; the unit catalogue adds one heal counter per
+-- kind and one recharge counter per shielded kind at allocation (rows carrying
+-- `ticks`, already converted), and `world.layout.counters` is the whole list.
 M.COUNTERS = {
   {path = {"claim"}, seconds = "claim_seconds",
    extra = {{"increments_to_claim", "claim_increments"}}},
@@ -344,24 +348,41 @@ function M.allocate(parameters)
   local streams = M.load("random-streams")
   local rules = M.load_asset("the-rules")
 
+  local units = M.load("units")
+
   local field = dunes.raise(parameters.field, seed)
   local sizes = capacities(parameters, field, streams, rules)
+  local counters = {}
+  for _, row in ipairs(M.COUNTERS) do
+    counters[#counters + 1] = row
+  end
+  for _, row in ipairs(units.counters()) do
+    counters[#counters + 1] = row
+  end
   -- `fingerprint` is the last hash the snapshot row took and `fingerprint_tick`
   -- the tick it took it in; `record_path` is where the replay log goes, empty
   -- when nothing is being recorded. None of them is part of what the hash folds.
   local world = {tick = 0, seed = seed, field = field, rule = {}, fingerprint = 0,
                  fingerprint_tick = 0, record_path = "",
                  parameters = copy_tree(parameters, "parameters"),
-                 layout = {groups = M.LAYOUT, counters = M.COUNTERS, scalars = M.SCALARS}}
+                 layout = {groups = M.LAYOUT, counters = counters, scalars = M.SCALARS}}
   world.parameters.seed = seed
   for name, value in pairs(rules) do
     world.rule[name] = value
   end
+  -- How often the world is fingerprinted is the rules' unless the parameters
+  -- say otherwise: one, to narrow a desync down to its exact tick. It is kept
+  -- in the parameters either way, so a replay is stamped with what it ran at.
+  if parameters.fingerprint_every ~= nil then
+    world.rule.fingerprint_every = whole(parameters, "fingerprint_every")
+  end
+  world.parameters.fingerprint_every = world.rule.fingerprint_every
   for _, row in ipairs(M.LAYOUT) do
     world[row.group] = allocate_group(row, sizes[row.capacity])
   end
-  for _, row in ipairs(M.COUNTERS) do
-    local counter = timers.counter(timers.ticks_of(rules[row.seconds], rules.ticks_per_second))
+  for _, row in ipairs(counters) do
+    local period = row.ticks or timers.ticks_of(rules[row.seconds], rules.ticks_per_second)
+    local counter = timers.counter(period)
     for _, extra in ipairs(row.extra) do
       counter[extra[1]] = rules[extra[2]]
     end
@@ -457,8 +478,11 @@ function M.validate(world)
       end
     end
   end
-  for _, row in ipairs(M.COUNTERS) do
+  for _, row in ipairs(world.layout.counters) do
     local counter = M.counter_at(world, row)
+    if type(counter) ~= "table" then
+      error("the world: counter " .. table.concat(row.path, ".") .. " is not there", 2)
+    end
     for _, name in ipairs({"period", "increment", "next"}) do
       local value = counter[name]
       if type(value) ~= "number" or value ~= math.floor(value) then
@@ -471,6 +495,11 @@ function M.validate(world)
     if world.stream.state[row] == 0 then
       error("the world: stream row " .. row .. " has a state of zero, which never leaves zero", 2)
     end
+  end
+  -- The unit rows' own check: kinds the catalogue has, domains that agree.
+  local ok, problem = pcall(M.load("units").validate, world)
+  if not ok then
+    error("the world: " .. tostring(problem), 2)
   end
 end
 -- }}}

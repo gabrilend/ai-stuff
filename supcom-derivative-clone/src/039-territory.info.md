@@ -41,7 +41,7 @@ The claim writes shared cell state, so its row in the tick is not sliced.
 | Function | Arguments | Returns |
 | --- | --- | --- |
 | `claim(world, team, x, y, radius)` | a world; a team from 1; a position in cells; a radius in cells, from zero | nothing; marks every land cell whose centre is within `radius` of the cell the position stands in. The primitive the tests call directly |
-| `claim_pass(world)` | a world | nothing; the tick's `claim` row: brings the claim counter up to the tick, marks around every live unit with the rules' `claim_radius`, resolves, and sweeps on the tick the counter fires |
+| `claim_pass(world)` | a world | nothing; the tick's `claim` row: brings the claim counter up to the tick, marks around every live unit with the `claim_radius` it was born with (a unit with zero, a plane, claims nothing), resolves, and sweeps on the tick the counter fires |
 | `owner(world, cell)` | a world; a cell index | zero, or the team holding it; raises on an index off the field |
 | `percent(world, team)` | a world; a team, or zero for nobody | the team's owned land cells over all land cells, from 0 to 100, as a double |
 | `land(world)` | a world | how many land cells its field has, counted once per field |
@@ -63,6 +63,6 @@ And `world.marked`, a queue of cell indices with the field's area as its
 capacity: the cells marked this tick, emptied by the resolution. Between passes
 both are empty, so a fingerprint never sees them half-done.
 
-A kind's own claim radius (the enforcer's larger one, a plane's none) arrives
-with the unit catalogue; until then every unit claims with `claim_radius` from
-the rules.
+Each unit claims with its own `claim_radius`, copied from its kind's catalogue
+row at birth (issue 202): two cells for most kinds, four for the enforcer, and
+none for a plane.

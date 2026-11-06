@@ -285,6 +285,9 @@ end
 --   seed    -- beats input/seed (the environment's SDC_SEED beats both)
 --   field   -- a shape table that beats input/field
 --   units   -- the unit capacity, beating the rules' `units`
+--   fingerprint_every -- ticks between fingerprints, beating the rules'; one
+--              narrows a desync to its exact tick. A replay always uses the
+--              interval its log was recorded at.
 --   replay  -- a replay log's path: play its commands and compare its hashes,
 --              instead of recording a new one
 --   bots    -- reserved for the bot (issue 901); nothing reads it yet
@@ -317,8 +320,16 @@ function M.run(root, options)
   local field = options.field or read_field(root)
   local _, teams = read_players(root)
   local rules = world_module.load_asset("the-rules")
+  local every = options.fingerprint_every
+  if log ~= nil then
+    if every ~= nil and every ~= log.every then
+      error("the headless runner: asked to fingerprint every " .. every .. " ticks, and the replay"
+            .. " was recorded every " .. log.every, 2)
+    end
+    every = log.every
+  end
   local world = the_tick.assemble({}, {field = field, units = options.units or rules.units,
-                                       teams = teams, seed = seed})
+                                       teams = teams, seed = seed, fingerprint_every = every})
 
   sightlines.reset_questions()
   local report = {seed = seed, ended = "", replay = "", replay_checked = 0, mismatch_tick = 0,

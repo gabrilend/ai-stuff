@@ -33,12 +33,11 @@ return {
   ticks_per_second = 10,
 
   -- Open question B6's working ruling: a claim completes after a small number of
-  -- claim increments of uninterrupted presence, within two cells of a unit. The
-  -- claim counter fires once a claim_seconds; an enforcer's larger radius is its
-  -- own catalogue row's business.
+  -- claim increments of uninterrupted presence. The claim counter fires once a
+  -- claim_seconds. How far around itself a unit claims is its kind's, in the unit
+  -- catalogue's claim_radius.
   claim_seconds = 1,
   claim_increments = 3,
-  claim_radius = 2,
 
   -- How many commands may wait in the queue at once, and how many refusals the
   -- ring keeps for a viewer to show. These are sizes, not balance: a full queue

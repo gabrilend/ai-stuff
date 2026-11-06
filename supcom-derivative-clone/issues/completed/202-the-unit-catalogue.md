@@ -5,16 +5,17 @@
 | Phase | 2 — Things That Roll, Fly, and Sail |
 | Blocked by | 201 |
 | Blocks | 205, 306, 501, 608 |
-| Reads | [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) |
+| Reads | [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) |
 | Open questions | B1, B2 |
 
 ## Current behavior
 
-Nothing. `assets/` holds only its placeholder. The test program
-`tests/020-things-that-roll-fly-and-sail.lua` names this issue, looks for a
-table with the stem `unit-catalogue`, and asserts the *relations* between its
-rows — hits-to-kill in tank shells, the cost ratios by alignment — rather than
-any magnitude.
+Built. `assets/040-unit-catalogue.lua` holds one row per demo kind, keyed by
+name, every field a number or a name. `units.catalogue()` loads it once,
+refuses a bad row by its name and field, and converts every time in seconds to
+ticks at the rules' rate. Kinds have indices (`index_of`, `name_of`), each kind
+heals on a counter of its own, and each claims territory with its own radius.
+`./report-catalogue` prints every row and the hits to kill in tank shells.
 
 ## Intended behavior
 
@@ -72,11 +73,43 @@ ever multiplies by a rate.
 5. Write a reporter — the tool the documents point at instead of quoting a
    number — that prints every row and the hits-to-kill relation in tank shells.
 
+## What happened
+
+- **The asset is data only; the loader lives in the units module.** The
+  phase 2 test walks every entry of the asset as a row, so the table cannot
+  carry functions. `catalogue()`, `validate_catalogue(raw, rate)`, `kind`,
+  `index_of` and `name_of` are exports of `units`, and the contract table in
+  the tests document now lists them.
+- **`heal_period` is the field's name, in seconds**, because the tests
+  document and the test use that name; the other times keep the issue's
+  `*_seconds`. Each becomes a `*_ticks` field at load.
+- **Each row carries `index` and `name`**, so a unit row's `kind` is an
+  integer and the order of kinds never depends on how a table iterates.
+- **A weapon comes all of a piece.** Damage above zero needs a non-empty
+  reach, a shell speed and a reload; a kind with no damage (the command truck)
+  must reach nothing. That replaces "reaches is a non-empty bit set", which the
+  truck could not meet.
+- **Other refusals added:** a field the catalogue does not know, a zero
+  health, a shield without a recharge period or the reverse, and an altitude on
+  anything but a plane. Zero-length times stay zero rather than one tick, since
+  a truck has no reload.
+- **Per-kind claim radius (B6):** two cells for the tank, the anti-air gun,
+  the frigate and the truck, four for the enforcer, and zero for the
+  helicopter, which claims nothing. The rules' single `claim_radius` is gone
+  and the claim pass reads each unit's own; the balance ledger records the move.
+- **B1 and B2 stay open, with working values.** A shell is worth 25; the
+  helicopter takes two and the frigate eight. Costs follow the vision's
+  ratios: ten to one mass for land, the reverse for air, equal for the sea and
+  for the anti-air gun.
+- **The viewer's letters follow the catalogue's index**: T, A, H, F, C, E. A
+  phase 2 test holds the two together, since the viewer may not load the
+  catalogue.
+
 ## Related documents and tools
 
-- [a unit and what it carries](../docs/004-a-unit-and-what-it-carries.md)
-- [territory, mass, and energy](../docs/005-territory-mass-and-energy.md) — the cost table's shape, asserted by issue 306
-- [the balance ledger](../docs/balance-updates.md)
+- [a unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md)
+- [territory, mass, and energy](../../docs/005-territory-mass-and-energy.md) — the cost table's shape, asserted by issue 306
+- [the balance ledger](../../docs/balance-updates.md)
 - `tests/020-things-that-roll-fly-and-sail.lua`
 
 ## Still open

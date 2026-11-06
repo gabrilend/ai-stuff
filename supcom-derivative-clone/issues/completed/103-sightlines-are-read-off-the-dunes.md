@@ -75,7 +75,8 @@ in the same order produce the same booleans on every machine.
   walk that honours the dunes document has to say no. The claims are kept with
   the tall end two cells from the ridge, where the segment clears it at about
   31.7, and the far-off geometry is asserted as what it really is: blocked. A
-  folded comment in the test says what went wrong.
+  folded comment in the test says what went wrong. Ritz reviewed this and kept
+  it: the old geometry made the claim impossible.
 - **Symmetry by construction.** The walk always runs from the end that is first
   in row order, swapping the heights with the ends, so the same question asked
   the other way round is the same walk.

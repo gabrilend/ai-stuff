@@ -25,6 +25,8 @@
 #   ./run-headless --draw                -- and draw the last tick as text
 #   ./run-headless --colour --draw       -- with each team's ground tinted
 #   ./run-headless --replay <log>        -- replay a log and check its hashes
+#   ./run-headless --fingerprint-every 1 -- fingerprint every tick, to find the
+#                                           exact tick two machines part ways
 #   ./run-headless /path/to/project ...  -- against a checkout elsewhere
 #
 # The environment's SDC_SEED beats --seed, which beats input/seed.
@@ -43,6 +45,7 @@ SEED=""
 DRAW="false"
 COLOUR="false"
 REPLAY=""
+EVERY=""
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -51,9 +54,11 @@ while [ "$#" -gt 0 ]; do
         --replay) REPLAY="$2" ; TICKS="" ; shift 2 ;;
         --draw)   DRAW="true" ; shift ;;
         --colour) COLOUR="true" ; shift ;;
+        --fingerprint-every) EVERY="$2" ; shift 2 ;;
         *)
             echo "run-headless: unknown option '$1'"
-            echo "Options are --ticks <n>, --seed <n>, --replay <log>, --draw, --colour."
+            echo "Options are --ticks <n>, --seed <n>, --replay <log>, --draw, --colour,"
+            echo "and --fingerprint-every <n>."
             exit 1
             ;;
     esac
@@ -80,7 +85,7 @@ SNAPSHOT="$(only_one snapshot)"
 # The options travel as plain words in the environment rather than being spliced
 # into Lua source, so nothing typed on the command line is ever run as code.
 export SDC_RUN_TICKS="${TICKS}" SDC_RUN_SEED="${SEED}" SDC_RUN_REPLAY="${REPLAY}"
-export SDC_RUN_DRAW="${DRAW}" SDC_RUN_COLOUR="${COLOUR}"
+export SDC_RUN_DRAW="${DRAW}" SDC_RUN_COLOUR="${COLOUR}" SDC_RUN_EVERY="${EVERY}"
 
 exec luajit - "${DIR}" "${RUNNER}" "${VIEWER}" "${SNAPSHOT}" <<'LUA'
 local root, runner_path, viewer_path, snapshot_path = ...
@@ -101,7 +106,8 @@ local function number_or_nothing(name)
 end
 -- }}}
 
-local options = {ticks = number_or_nothing("SDC_RUN_TICKS"), seed = number_or_nothing("SDC_RUN_SEED")}
+local options = {ticks = number_or_nothing("SDC_RUN_TICKS"), seed = number_or_nothing("SDC_RUN_SEED"),
+                 fingerprint_every = number_or_nothing("SDC_RUN_EVERY")}
 if os.getenv("SDC_RUN_REPLAY") ~= "" then
   options.replay = os.getenv("SDC_RUN_REPLAY")
 end

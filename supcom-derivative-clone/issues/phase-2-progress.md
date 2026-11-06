@@ -11,8 +11,8 @@ one in a trough, and the ridge losing — because it was seen first.
 
 | Issue | | Status |
 | --- | --- | --- |
-| 201 | A unit is one record | not started |
-| 202 | The unit catalogue | not started |
+| 201 | A unit is one record | built |
+| 202 | The unit catalogue | built |
 | 203 | Three domains on one field | not started |
 | 204 | Movement follows a pattern | not started |
 | 205 | Nothing is out of range | not started |

@@ -6,7 +6,7 @@
 | Blocked by | 102, 104, 106 |
 | Blocks | 211, 301, 303, 309, 310, 404, 602 |
 | Reads | [territory mass and energy](../../docs/005-territory-mass-and-energy.md) |
-| Open questions | B6, C4 |
+| Open questions | B6 |
 
 ## Current behavior
 
@@ -91,6 +91,8 @@ direction.
   `world.marked`, a queue of cell indices, holds the cells marked this tick in
   the order first marked, so resolution walks only them. Both are empty
   between passes, so a fingerprint never sees half a pass.
+- **C4 is answered: pause** (Ritz, after this was built). The question is
+  closed in docs/016 and no longer cited above.
 - **C4, pause, built as a real pause.** The working ruling said the start
   increment is kept while contested; kept unmoved, the contest's time would
   count and the claim would finish the moment the contest ended. So the start
