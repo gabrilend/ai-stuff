@@ -3,7 +3,7 @@
 -- Tests for dispatch table setters with validation, events, and transactions.
 -- Run with: lua src/tests/test_setters.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local schema_module = require("libs.attributes.schema")

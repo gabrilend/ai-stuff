@@ -3,7 +3,7 @@
 -- Tests parsing against synthetic JASS data since test maps lack war3map.j files.
 -- Run from project root: luajit src/tests/test_j.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local j = require("parsers.j")

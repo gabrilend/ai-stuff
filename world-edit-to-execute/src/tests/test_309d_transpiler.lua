@@ -15,7 +15,7 @@ print("===========================================================\n")
 
 -- Run the existing meta-test runner from 306f
 local test_path = DIR .. "/src/tests/test_transpiler.lua"
-local handle = io.popen(string.format('luajit "%s" 2>&1', test_path))
+local handle = io.popen(string.format('luajit "%s" "%s" 2>&1', test_path, DIR))
 if not handle then
     print("ERROR: Could not run transpiler tests")
     os.exit(1)

@@ -2,7 +2,7 @@
 -- Tests parameter parsing, formatting, and validation for WTG trigger parameters.
 -- Run from project root: luajit src/tests/test_wtg_params.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local wtg = require("parsers.wtg")
