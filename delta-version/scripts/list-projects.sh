@@ -316,16 +316,18 @@ function load_external_directories() {
 # -- {{{ get_all_project_directories
 function get_all_project_directories() {
     # Discovers projects in both main and external directories
-    # Arguments: output_format, include_external (true/false)
+    # Arguments: output_format, include_external (true/false), base directory
+    # (the main repository to scan; defaults to DIR)
     local format="${1:-names}"
     local include_external="${2:-true}"
+    local base_dir="${3:-$DIR}"
 
     local all_projects=()
 
     # Get main repository projects
     while IFS= read -r project; do
         [[ -n "$project" ]] && all_projects+=("$project")
-    done < <(get_project_list_for_integration "abs-paths" "$DIR")
+    done < <(get_project_list_for_integration "abs-paths" "$base_dir")
 
     # Get external projects if enabled
     if [[ "$include_external" == "true" ]]; then
@@ -836,7 +838,9 @@ function main() {
         get_non_project_directories "$output_format" "$base_directory"
     elif [[ "$include_external" == "true" ]]; then
         # List all projects including external directories
-        get_all_project_directories "$output_format" "true"
+        # The directory named on the command line, if any, is the main
+        # repository; without passing it on it was silently ignored here.
+        get_all_project_directories "$output_format" "true" "$base_directory"
     else
         # List only main repository projects
         get_project_list_for_integration "$output_format" "$base_directory"

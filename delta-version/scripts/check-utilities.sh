@@ -11,6 +11,21 @@
 # Set DIR to script's parent directory
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# The monorepo holding delta-version and its sibling projects, and the shared
+# scripts folder at its top. The --transcripts and --issue-standards audits call
+# tools from there rather than keeping second copies of their rules.
+PROJECTS_ROOT="$(dirname "$DIR")"
+SHARED_SCRIPTS="${PROJECTS_ROOT}/scripts"
+
+# Where Claude Code keeps conversation records, one folder per working
+# directory. The same variable the shared filing check reads, so a test can
+# point both at a pretend record store.
+SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-${HOME}/.claude/projects}"
+
+# How many findings per project the --issue-standards audit prints before it
+# summarises the rest; every finding is still counted.
+ISSUE_FINDINGS_SHOWN=10
+
 # Color codes for output
 # -- {{{ COLORS
 RED='\033[0;31m'
@@ -42,11 +57,13 @@ CHECK_DEPENDENCIES=false
 CHECK_STRUCTURE=false
 CHECK_METADATA=false
 CHECK_SYMLINKS=false
-CHECK_TUI_AUDIT=false
 CHECK_TRANSCRIPTS=false
 CHECK_ISSUE_STANDARDS=false
 ALL_PROJECTS=false
 SPECIFIC_PROJECTS=()
+# Where an issue filed for a problem goes: the project being audited while
+# audit_project runs, delta-version itself otherwise.
+ISSUE_TARGET_DIR=""
 # }}}
 
 # -- {{{ show_help
@@ -75,9 +92,11 @@ ${BOLD}DELTA-VERSION CHECKS:${NC}
 ${BOLD}PROJECT INTEGRATION CHECKS:${NC}
     --metadata             Check for project.meta.json
     --symlinks             Check for shared utility symlinks
-    --tui-audit            Find TUI scripts not using menu library
-    --transcripts          Check LLM transcript registration
-    --issue-standards      Check issue file format compliance
+    --transcripts          Projects with conversations keep them exported
+                           in llm-transcripts/, filed with the right project
+                           (report only)
+    --issue-standards      Issue files pass the shared validator
+                           (scripts/validate-issues; report only)
 
 ${BOLD}ACTIONS:${NC}
     -i, --interactive      Prompt for each issue (default)
@@ -94,8 +113,11 @@ ${BOLD}EXAMPLES:${NC}
     check-utilities.sh --all-projects --metadata
         Check all projects for project.meta.json
 
-    check-utilities.sh --project world-edit-to-execute --tui-audit
-        Audit TUI scripts in specific project
+    check-utilities.sh --project world-edit-to-execute --issue-standards
+        Check one project's issue files against the house rules
+
+    check-utilities.sh --all-projects --transcripts -q
+        List projects whose conversations are not exported or misfiled
 
     check-utilities.sh --all-projects --fix-all --symlinks
         Auto-fix all symlink issues in all projects
@@ -156,10 +178,6 @@ parse_args() {
                 CHECK_SYMLINKS=true
                 shift
                 ;;
-            --tui-audit)
-                CHECK_TUI_AUDIT=true
-                shift
-                ;;
             --transcripts)
                 CHECK_TRANSCRIPTS=true
                 shift
@@ -180,6 +198,13 @@ parse_args() {
                 SPECIFIC_PROJECTS+=("$2")
                 shift 2
                 ;;
+            -*)
+                # An unknown option is refused rather than taken as a project
+                # name, so a mistyped or retired flag (--tui-audit) says so
+                # instead of quietly checking a project that does not exist.
+                echo -e "${RED}Error: unknown option $1 (see --help)${NC}" >&2
+                exit 1
+                ;;
             *)
                 # Treat as project name
                 SPECIFIC_PROJECTS+=("$1")
@@ -190,7 +215,7 @@ parse_args() {
 
     # Default to utilities check if no checks specified
     if ! $CHECK_UTILITIES && ! $CHECK_DEPENDENCIES && ! $CHECK_STRUCTURE && \
-       ! $CHECK_METADATA && ! $CHECK_SYMLINKS && ! $CHECK_TUI_AUDIT && \
+       ! $CHECK_METADATA && ! $CHECK_SYMLINKS && \
        ! $CHECK_TRANSCRIPTS && ! $CHECK_ISSUE_STANDARDS; then
         CHECK_UTILITIES=true
         CHECK_DEPENDENCIES=true
@@ -228,6 +253,7 @@ declare -a DEPENDENCY_REGISTRY=(
     "bash|All scripts|bash --version"
     "git|Repository operations|git --version"
     "jq|JSON processing|jq --version"
+    "luajit|Issue standards check (validate-issues)|luajit -v"
     "find|File discovery|find --version"
     "stat|File metadata|stat --version"
 )
@@ -463,8 +489,7 @@ prompt_for_action() {
     fi
 
     if $CREATE_ALL; then
-        # Extract project_dir (last argument) for issue creation
-        local project_dir="${DIR}"
+        local project_dir="${ISSUE_TARGET_DIR:-$DIR}"
         create_issue_for_problem "$problem" "${fix_args[0]}" "$problem" "$project_dir"
         return $?
     fi
@@ -497,13 +522,13 @@ prompt_for_action() {
             if [[ "$can_auto_fix" == "true" ]]; then
                 $fix_function "${fix_args[@]}"
             else
-                local project_dir="${DIR}"
+                local project_dir="${ISSUE_TARGET_DIR:-$DIR}"
                 create_issue_for_problem "$problem" "${fix_args[0]}" "$problem" "$project_dir"
             fi
             ;;
         2)
             if [[ "$can_auto_fix" == "true" ]]; then
-                local project_dir="${DIR}"
+                local project_dir="${ISSUE_TARGET_DIR:-$DIR}"
                 create_issue_for_problem "$problem" "${fix_args[0]}" "$problem" "$project_dir"
             else
                 ((ISSUES_SKIPPED++))
@@ -885,6 +910,198 @@ audit_project_symlinks() {
 }
 # }}}
 
+# -- {{{ session_key_for
+session_key_for() {
+    # The folder name Claude Code gives a working directory's conversation
+    # records: the absolute path with every character that is not a letter,
+    # digit or dash turned into a dash (/a/b-c.d becomes -a-b-c-d).
+    printf '%s' "$1" | sed 's|[^A-Za-z0-9-]|-|g'
+}
+# }}}
+
+# -- {{{ project_session_keys
+project_session_keys() {
+    # The record folders a project's conversations can be under: its folder
+    # as written and with symlinks resolved, since the monorepo is reached
+    # through more than one path (/home/ritz/... and /mnt/mtwo/...). One key
+    # per line, no repeats.
+    local project_dir="$1"
+    local real_dir
+    real_dir="$(cd "$project_dir" 2>/dev/null && pwd -P)"
+
+    session_key_for "$project_dir"; echo
+    if [[ -n "$real_dir" && "$real_dir" != "$project_dir" ]]; then
+        session_key_for "$real_dir"; echo
+    fi
+}
+# }}}
+
+# -- {{{ count_project_conversations
+count_project_conversations() {
+    # Conversations recorded with the project's own folder as the working
+    # directory. Sessions started in a subfolder, or at the monorepo top, are
+    # not counted: their records do not say which project they were for.
+    local project_dir="$1"
+    local key total=0
+
+    while IFS= read -r key; do
+        [[ -d "${SESSIONS_ROOT}/${key}" ]] || continue
+        total=$((total + $(find "${SESSIONS_ROOT}/${key}" -maxdepth 1 -name '*.jsonl' | wc -l)))
+    done < <(project_session_keys "$project_dir")
+    echo "$total"
+}
+# }}}
+
+# -- {{{ audit_project_transcripts
+audit_project_transcripts() {
+    # A project with conversations on record keeps them exported in a
+    # non-empty llm-transcripts/ folder, and each export there is filed with
+    # the project it came from. The filing half is the shared check
+    # (scripts/check-transcripts-are-filed-right) run on this one project.
+    # Report only: the exporter is the one program that writes and names
+    # transcripts, so nothing here creates, moves or files anything.
+    local project_name="$1"
+    local project_dir
+    project_dir=$(get_project_path "$project_name")
+    local transcripts_dir="${project_dir}/llm-transcripts"
+
+    if [[ ! -d "$SESSIONS_ROOT" ]]; then
+        if ! $QUIET; then
+            echo -e "  [${CYAN}INFO${NC}] ${project_name}: no conversation records at ${SESSIONS_ROOT}; transcript check skipped"
+        fi
+        return 0
+    fi
+
+    local conversations
+    conversations=$(count_project_conversations "$project_dir")
+
+    if (( conversations > 0 )); then
+        local problem=""
+        if [[ ! -d "$transcripts_dir" ]]; then
+            problem="${conversations} conversation(s) on record but no llm-transcripts/ folder"
+        elif [[ -z "$(ls -A "$transcripts_dir" 2>/dev/null)" ]]; then
+            problem="${conversations} conversation(s) on record but llm-transcripts/ is empty"
+        fi
+        if [[ -n "$problem" ]]; then
+            ((ISSUES_FOUND++))
+            ((ISSUES_SKIPPED++))
+            if ! $QUIET; then
+                echo -e "  [${YELLOW}WARN${NC}] ${project_name}: ${problem}"
+                echo -e "         export them with scripts/claude-conversation-exporter.sh run from the project folder"
+            fi
+        fi
+    fi
+
+    [[ -d "$transcripts_dir" ]] || return 0
+
+    local filing_check="${SHARED_SCRIPTS}/check-transcripts-are-filed-right"
+    if [[ ! -x "$filing_check" ]]; then
+        if ! $QUIET; then
+            echo -e "  [${CYAN}INFO${NC}] ${project_name}: ${filing_check} not found; filing check skipped"
+        fi
+        return 0
+    fi
+
+    # Given the project folder as its root, the shared check finds exactly
+    # this project's llm-transcripts/ and nothing else. It reports each
+    # misfiled export in three lines (name, where filed, where recorded). It
+    # knows the folder only as written, so an export recorded under the
+    # folder's other path (symlinks resolved) is this project's own and is
+    # not counted.
+    local own_keys line name="" holder misfiled=0
+    own_keys="$(project_session_keys "$project_dir")"
+    while IFS= read -r line; do
+        if [[ "$line" == MISFILED* ]]; then
+            name="${line#MISFILED  }"
+            continue
+        fi
+        [[ -n "$name" && "$line" == *"recorded under "* ]] || continue
+        holder="${line##*recorded under }"
+        if ! grep -qxF -- "$holder" <<< "$own_keys"; then
+            ((misfiled++))
+            ((ISSUES_FOUND++))
+            ((ISSUES_SKIPPED++))
+            if ! $QUIET; then
+                echo -e "  [${YELLOW}WARN${NC}] ${project_name}: misfiled transcript ${name} (recorded under ${holder})"
+            fi
+        fi
+        name=""
+    done < <(CLAUDE_SESSIONS_ROOT="$SESSIONS_ROOT" "$filing_check" "$project_dir" 2>/dev/null)
+
+    if (( misfiled > 0 )) && ! $QUIET; then
+        echo -e "         see: ${filing_check} ${project_dir}"
+    fi
+}
+# }}}
+
+# -- {{{ audit_project_issue_standards
+audit_project_issue_standards() {
+    # Every issue file has a name of the house shape and the three required
+    # sections, ids are not claimed twice, sub-issues have parents and links
+    # agree on both sides. All of that is the shared validator's job
+    # (scripts/validate-issues); this only runs it on the project and counts
+    # what it says. Report only: the fix is an edit to the issue files.
+    local project_name="$1"
+    local project_dir
+    project_dir=$(get_project_path "$project_name")
+    local validator="${SHARED_SCRIPTS}/validate-issues"
+
+    if [[ ! -x "$validator" ]]; then
+        if ! $QUIET; then
+            echo -e "  [${CYAN}INFO${NC}] ${project_name}: ${validator} not found; issue check skipped"
+        fi
+        return 0
+    fi
+
+    local output status
+    output=$("$validator" "$project_dir" 2>&1)
+    status=$?
+
+    case "$status" in
+        0)
+            return 0
+            ;;
+        2)
+            # No issues/ folder: nothing to hold to the rules.
+            if ! $QUIET; then
+                echo -e "  [${CYAN}INFO${NC}] ${project_name}: no issues/ folder"
+            fi
+            return 0
+            ;;
+        1)
+            ;;
+        *)
+            ((ISSUES_FOUND++))
+            ((ISSUES_SKIPPED++))
+            if ! $QUIET; then
+                echo -e "  [${RED}ERROR${NC}] ${project_name}: validate-issues failed (exit ${status})"
+                printf '%s\n' "$output" | head -3 | sed 's/^/         /'
+            fi
+            return 0
+            ;;
+    esac
+
+    # The validator prints one line per finding, a blank line, then its
+    # totals; only the lines above the blank one are findings.
+    local findings=()
+    mapfile -t findings < <(printf '%s\n' "$output" | sed '/^$/q' | sed '/^$/d')
+
+    ISSUES_FOUND=$((ISSUES_FOUND + ${#findings[@]}))
+    ISSUES_SKIPPED=$((ISSUES_SKIPPED + ${#findings[@]}))
+
+    if ! $QUIET; then
+        local i
+        for (( i = 0; i < ${#findings[@]} && i < ISSUE_FINDINGS_SHOWN; i++ )); do
+            echo -e "  [${YELLOW}WARN${NC}] ${project_name}: ${findings[$i]}"
+        done
+        if (( ${#findings[@]} > ISSUE_FINDINGS_SHOWN )); then
+            echo -e "         ... and $(( ${#findings[@]} - ISSUE_FINDINGS_SHOWN )) more"
+        fi
+        echo -e "         see: ${validator} ${project_dir}"
+    fi
+}
+# }}}
+
 # -- {{{ audit_project
 audit_project() {
     local project_name="$1"
@@ -895,6 +1112,9 @@ audit_project() {
         echo "──────────────────────────────────────────────────────────"
     fi
 
+    # Issues filed while auditing a project belong in that project.
+    ISSUE_TARGET_DIR="$(get_project_path "$project_name")"
+
     if $CHECK_METADATA; then
         audit_project_metadata "$project_name"
     fi
@@ -903,12 +1123,15 @@ audit_project() {
         audit_project_symlinks "$project_name"
     fi
 
-    # TODO: Implement TUI audit, transcript cataloging, issue standards
-    if $CHECK_TUI_AUDIT || $CHECK_TRANSCRIPTS || $CHECK_ISSUE_STANDARDS; then
-        if ! $QUIET; then
-            echo -e "  [${YELLOW}TODO${NC}] TUI/transcript/issue checks not yet implemented"
-        fi
+    if $CHECK_TRANSCRIPTS; then
+        audit_project_transcripts "$project_name"
     fi
+
+    if $CHECK_ISSUE_STANDARDS; then
+        audit_project_issue_standards "$project_name"
+    fi
+
+    ISSUE_TARGET_DIR=""
 }
 # }}}
 
@@ -984,7 +1207,7 @@ main() {
     fi
 
     # Run project integration checks
-    if $CHECK_METADATA || $CHECK_SYMLINKS || $CHECK_TUI_AUDIT || \
+    if $CHECK_METADATA || $CHECK_SYMLINKS || \
        $CHECK_TRANSCRIPTS || $CHECK_ISSUE_STANDARDS; then
         local projects=()
 
@@ -992,7 +1215,10 @@ main() {
         if $ALL_PROJECTS; then
             # Use list-projects.sh if available
             if [[ -x "${DIR}/scripts/list-projects.sh" ]]; then
-                mapfile -t projects < <("${DIR}/scripts/list-projects.sh" --names 2>/dev/null)
+                # Named explicitly: list-projects.sh otherwise scans its own
+                # hard-coded default, which is not this monorepo when the
+                # checker runs from a worktree or another machine.
+                mapfile -t projects < <("${DIR}/scripts/list-projects.sh" --names "$PROJECTS_ROOT" 2>/dev/null)
             else
                 echo -e "${RED}Error: list-projects.sh not found${NC}" >&2
                 return 1
