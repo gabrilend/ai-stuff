@@ -17,7 +17,8 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 |----|-------|--------|------------|
 | A03 | [Unified Test Runner](./completed/A03-unified-test-runner.md) | completed | — |
 | A06 | [Parser Coverage Report](./completed/A06-parser-coverage-report.md) | completed | — |
+| A06a | [The Coverage Report Names a Protected Map's Placeholders](./completed/A06a-coverage-names-protected-files.md) | completed | A06, 302a |
 
-Completed 2, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 3, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

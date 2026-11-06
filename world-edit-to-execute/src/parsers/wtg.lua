@@ -54,6 +54,27 @@ end
 -- }}}
 -- }}}
 
+-- {{{ protected
+-- Says whether war3map.wtg looks emptied or replaced by a map protector,
+-- as released maps often are (issue 302a): a file of no bytes, or one that
+-- doesn't start with "WTG!" (Master-Crafters-Final-Conquest's holds a line
+-- of text). The game never reads this file, so a protector can put
+-- anything there. Returns the reason, or nil for a file that starts as a
+-- trigger file (which must then parse).
+function wtg.protected(data)
+    if not data then return nil end
+    if #data == 0 then
+        return "protected map: war3map.wtg is empty (its triggers were removed)"
+    end
+    if data:sub(1, 4) ~= "WTG!" then
+        local start = data:sub(1, 4):gsub("[^%w%p ]", "?")
+        return string.format("protected map: war3map.wtg is not a trigger file "
+            .. "(it starts with '%s', not 'WTG!')", start)
+    end
+    return nil
+end
+-- }}}
+
 -- {{{ parse_header
 -- Parses the WTG file header and validates magic bytes and version.
 -- Returns: { version, _offset }, error_message
@@ -861,9 +882,16 @@ end
 -- options: optional table with parsing options
 --   - parse_eca: boolean, whether to parse ECA structures (default: true)
 --
--- Returns: structured trigger data table, or nil and error message
+-- Returns: structured trigger data table, or nil and error message (for a
+-- protected map's emptied or replaced file, the reason wtg.protected gives)
 function wtg.parse(data, options)
     options = options or {}
+
+    -- an emptied or replaced file (a protected map): say so (issue 302a)
+    local protected = wtg.protected(data)
+    if protected then
+        return nil, protected
+    end
 
     if not data or #data < 8 then
         return nil, "Invalid data: too short or nil"

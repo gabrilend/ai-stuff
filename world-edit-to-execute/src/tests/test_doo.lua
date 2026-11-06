@@ -3,7 +3,7 @@
 -- Tests parsing against both synthetic data and real map files.
 -- Run from project root: luajit src/tests/test_doo.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local doo = require("parsers.doo")

@@ -197,3 +197,42 @@ Initial run on full test suite (104 test files):
 - 0: All tests passed
 - 1: One or more tests failed
 - 2: No tests found
+
+---
+
+## Note (2026-11-06): the runner tests the project it sits in
+
+**Found:** run without a `DIR`, most tests fall back to the fixed path
+`/mnt/mtwo/programming/ai-stuff/world-edit-to-execute`, and the runner
+gave them none. Where that path holds an older copy of the project (as it
+does in the container this was found in), the runner tested the old copy:
+traced through the runner, 107 of the 144 test files that load project code
+loaded it from the fixed path, not from the project the runner was run in.
+The runner's own default was the same fixed path.
+
+**Decision (2026-11-06):** follow the newer idiom, not the older one.
+The tests from 2026-09 take the project as `arg[1]` with the fixed path as
+the fallback (`local DIR = arg[1] or "..."`), and `run-net-tests.sh`
+(2026-09-25) passes `DIR` to each; the self-locating
+`debug.getinfo` tests are from December 2025. So:
+
+- `run-tests.sh` passes `$DIR` to every test, and its default `DIR` is the
+  project it sits in (`$(dirname "$0")/../..`, as `run_phase9.sh` does);
+  `-d` still names another.
+- The 38 tests that ignored `arg[1]` take it now (the one-word change to
+  `arg[1] or`), and `test_frames.lua` builds its path from `DIR`.
+- The aggregating tests that start other tests pass `DIR` on to them
+  (`test_309b` to `309f`, `test_triggers`).
+
+No test's expectations changed. With the fix, every test that loads
+project code loads it from the project being tested.
+
+**What newly fails** (it now reads this project's own `assets/`, which
+gained three maps on 2026-11-02 that the old copy lacks): `test_309a`,
+`test_wct`, `test_unitsdoo`, `test_map_save`, `test_phase2_integration`
+(the units, triggers and trigger-comments files of Conquest-v8-fix and
+Master-Crafters-Final-Conquest), `test_j` (two of the new maps hold
+`war3map.j`), `test_new_map` (Conquest-v8-fix's `war3map.w3i` doesn't write
+back byte for byte), `test_anim` (an imported model in
+War-in-the-Plaguelands). `test_net_hosted` fails as before (it needs effil).
+These are left failing for the parser issues; the runner now reports them.

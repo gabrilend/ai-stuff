@@ -3,8 +3,8 @@
 --
 -- In plain terms: opens every test map in assets/ (or the maps named),
 -- runs the project's parser on each file it has one for, and prints how
--- each kind of file fared across the maps: read, failed, not in the map, or
--- no parser yet. It reads the maps only; it writes nothing unless asked to
+-- each kind of file fared across the maps: read, protected (a protected
+-- map's placeholder, issue A06a), failed, not in the map, or no parser yet. It reads the maps only; it writes nothing unless asked to
 -- (--markdown FILE).
 --
 -- Usage:
@@ -17,7 +17,8 @@
 --     --json             JSON instead of text
 --     --markdown FILE    also write the report as Markdown to FILE
 --
--- Exit: 0 when no file failed, 1 when any failed or a map would not open,
+-- Exit: 0 when no file failed (protected files are not failures), 1 when
+-- any failed or a map would not open,
 -- 2 on a usage error or no maps.
 --
 -- Issue: issues/completed/A06-parser-coverage-report.md

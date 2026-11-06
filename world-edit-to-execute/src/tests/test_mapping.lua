@@ -2,7 +2,7 @@
 -- Test suite for cross-system attribute mapping
 -- Tests parallel conversions, semantic mappings, and conversion profiles.
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 -- {{{ Test Framework

@@ -30,7 +30,7 @@ local function run_test_suite(name, path)
     end
     f:close()
 
-    local handle = io.popen(string.format('luajit "%s" 2>&1', full_path))
+    local handle = io.popen(string.format('luajit "%s" "%s" 2>&1', full_path, DIR))
     if not handle then
         print("FAIL (could not run)")
         failed_suites = failed_suites + 1

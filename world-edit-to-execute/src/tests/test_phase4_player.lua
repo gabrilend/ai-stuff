@@ -7,7 +7,7 @@ Tests for runtime player-related systems:
 - Player State (407): players, alliances, state transitions, victory conditions
 ]]
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local resources = require("runtime.resources")
