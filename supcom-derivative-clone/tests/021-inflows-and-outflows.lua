@@ -141,6 +141,46 @@ harness.suite("the energy menu is four levels and never a fifth", function()
 end)
 -- }}}
 
+-- {{{ the four levels, closer
+harness.suite("the menu splits engineers in exact thirds, pressed at the stamped tick", function()
+  local menu = harness.load("energy-menu", "302")
+  local commands = harness.load("commands", "108")
+  local world = fresh()
+  local names = {}
+  for index, row in ipairs(menu.LEVELS) do names[index] = row.name .. "=" .. row.thirds end
+  harness.check("the four levels are none, a third, two thirds and all",
+                table.concat(names, ", ") == "none=0, a third=1, two thirds=2, all=3", table.concat(names, ", "))
+  local energy, build = menu.split(world, 1, 12)
+  harness.check("with no button pressed yet, nobody is on energy",
+                world.team.energy_level[1] == 0 and energy == 0 and build == 12)
+  local found = {}
+  for level = 1, 4 do
+    menu.set_level(world, 1, level)
+    local on, off = menu.split(world, 1, 10)
+    found[#found + 1] = on .. "+" .. off
+  end
+  harness.check("ten engineers split, rounding the energy share down",
+                table.concat(found, " ") == "0+10 3+7 6+4 10+0", table.concat(found, " "))
+  harness.check("an engineer count is a whole number from zero",
+                not pcall(menu.split, world, 1, -1) and not pcall(menu.split, world, 1, 2.5))
+  for _, bad in ipairs({0, 5, 2.5}) do
+    local ok, problem = pcall(menu.set_level, world, 1, bad)
+    harness.check("button " .. bad .. " is refused by its number",
+                  not ok and tostring(problem):find("no button " .. bad, 1, true) ~= nil, problem)
+  end
+  harness.check("a team the match does not have is refused", not pcall(menu.set_level, world, 3, 2))
+  menu.set_level(world, 1, 1)
+  harness.check("the door takes a press for a later tick",
+                commands.queue(world, {verb = "set-energy-level", tick = 2, team = 1, level = 3}) == nil)
+  world.tick = 1
+  commands.apply_due(world)
+  harness.check("and nothing changes before it", menu.level(world, 1) == 1)
+  world.tick = 2
+  harness.check("at the stamped tick the level is pressed",
+                commands.apply_due(world) == 1 and menu.level(world, 1) == 3)
+end)
+-- }}}
+
 -- {{{ energy on the ground
 harness.suite("energy is built on the ground and lost with it", function()
   local economy = harness.load("economy", "303")

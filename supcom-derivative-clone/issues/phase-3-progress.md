@@ -12,7 +12,7 @@ infirmary, and the report says which dune decided it.
 | Issue | | Status |
 | --- | --- | --- |
 | 301 | Territory implies mass | built |
-| 302 | The energy menu is four buttons | not started |
+| 302 | The energy menu is four buttons | built |
 | 303 | Energy is built on the ground and lost with it | not started |
 | 304 | Builders are cheap and engineers are not | not started |
 | 305 | Construction is a stream, not a purchase | not started |

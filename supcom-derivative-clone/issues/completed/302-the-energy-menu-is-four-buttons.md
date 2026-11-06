@@ -5,22 +5,17 @@
 | Phase | 3 — Inflows and Outflows |
 | Blocked by | 108, 304 |
 | Blocks | 303, 604 |
-| Reads | [territory mass and energy](../docs/005-territory-mass-and-energy.md) |
+| Reads | [territory mass and energy](../../docs/005-territory-mass-and-energy.md) |
 | Open questions | D1 |
 
 ## Current behavior
 
-Nothing. There is no notion of an engineer being assigned to anything; the
-roster (issue 304) is counts with health, and the command door (issue 108)
-accepts commands but knows no verb for an assignment level.
-
-What exists that bears on this: `tests/021-inflows-and-outflows.lua` names this
-issue and asserts that there are exactly four levels, that each level splits a
-roster of engineers into an energy share and a build share in the documented
-proportions (none, a third, two thirds, all), that the split is applied at the
-tick the command is stamped for and not before, and that a fifth level is
-refused by name. The economy document describes the menu and says it must never
-grow.
+Built. `src/051-energy-menu.lua` holds the four levels as whole thirds, presses
+a team's level by number and refuses a fifth, and splits an engineer count into
+energy and build duty. The door's `set-energy-level` verb goes through it, so a
+level is applied at its stamped tick. Test 021's suite for this issue reads the
+split through the roster's `on_energy`, which issue 304 builds; until then that
+suite reports the roster absent.
 
 ## Intended behavior
 
@@ -70,10 +65,30 @@ does not notice because a menu press was never instantaneous.
 6. Add the claims to `tests/021-inflows-and-outflows.lua`: four rows, the split
    for each, applied at the stamped tick, a fifth index refused.
 
+## What happened
+
+- **The verb already existed.** Issue 108 built `set-energy-level`; it now goes
+  through `refusal` and `set_level`, so the menu alone decides what the buttons
+  are. No `energy-level` verb was added. Phase 1's door tests are unchanged and
+  pass, including the "button 5" reason.
+- **`split` takes the engineer count as an argument**, `split(world, team,
+  engineers)`, because the roster (304) does not exist yet. Its `on_energy`
+  will pass its count here, so the fraction is still computed in one place.
+  The 302 suite in test 021 calls `roster.on_energy` and turns green with 304.
+- **Zero is "no button pressed yet"**, as phase 1's layout comment says, and
+  reads as level 1 (nobody on energy). The validator does not refuse a zero:
+  a team that never touches the menu is a fair state, and phase 1's tests
+  allocate worlds with zero.
+- **`refusal` is exported** so the door can return a reason without catching an
+  error. `set_level` raises the same reason.
+- **The module loads nothing**, so it has no world bootstrap.
+- D1, and gradual changes (the working ruling is "at once"), stay as the issue
+  rules them.
+
 ## Related documents and tools
 
-- [territory, mass, and energy](../docs/005-territory-mass-and-energy.md) — the menu and why it never grows
-- [factories and patterns in the sand](../docs/006-factories-and-patterns-in-the-sand.md) — the queue invariant every command obeys
+- [territory, mass, and energy](../../docs/005-territory-mass-and-energy.md) — the menu and why it never grows
+- [factories and patterns in the sand](../../docs/006-factories-and-patterns-in-the-sand.md) — the queue invariant every command obeys
 - `tests/021-inflows-and-outflows.lua`
 - issue 108 — the door this command enters by
 - issue 304 — the roster whose engineers are split

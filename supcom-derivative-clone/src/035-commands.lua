@@ -65,6 +65,7 @@ end
 
 local world_module = the_world()
 local snapshot = world_module.load("snapshot")
+local menu = world_module.load("energy-menu")
 local truck = world_module.load("command-truck")
 
 -- The most arguments a verb may name: the command record has this many slots.
@@ -85,15 +86,15 @@ end
 -- }}}
 
 -- {{{ M.VERBS["set-energy-level"]
--- Presses one of the energy menu's four buttons for a team. What each button
--- means -- how many engineers go to energy -- is the menu's (issue 302); the
--- door holds only the rule that there are four of them and never a fifth.
+-- Presses one of the energy menu's four buttons for a team, through the menu
+-- (issue 302), which alone decides what the buttons are and that there is
+-- never a fifth. A level it will not take is a refused command.
 M.VERBS["set-energy-level"] = function(world, command)
-  local level = command.level
-  if level ~= math.floor(level) or level < 1 or level > 4 then
-    return "the energy menu has four buttons, and there is no button " .. level
+  local reason = menu.refusal(world, command.team, command.level)
+  if reason ~= nil then
+    return reason
   end
-  world.team.energy_level[command.team] = level
+  menu.set_level(world, command.team, command.level)
 end
 -- }}}
 
