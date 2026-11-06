@@ -418,11 +418,11 @@ Phase 2 & 3 Complete
 | 505f | Debug overlays | Re-cut 2026-09-26 | 501 |
 | **506** | Build UI framework | Re-cut 2026-09-26 | 501, 501d |
 | 506a | UI component system | Re-cut 2026-09-26 | 501 |
-| 506b | Layout system | Re-cut 2026-09-26 | 506a |
-| 506c | Input handling | Re-cut 2026-09-26 | 506b |
+| 506b | Layout system | Anchors and the console as data built (Lua, 2026-11-05); not yet switched on in the hud | 506a |
+| 506c | Input handling | Hit testing and states built (Lua, 2026-11-05); not yet wired | 506b |
 | 506d | Core UI elements | Re-cut 2026-09-26 | 506a, 506b, 506c |
-| 506e | Command button grid | Re-cut 2026-09-26 | 506c, 506d, 110 |
-| 506f | Tooltip system | Re-cut 2026-09-26 | 506c, 506d, 104 |
+| 506e | Command button grid | Filled by 518b; its elements added 2026-11-05 | 506c, 506d, 110 |
+| 506f | Tooltip system | Built (Lua, 2026-11-05); not yet wired | 506c, 506d, 104 |
 | **507** | Create minimap renderer | Re-cut 2026-09-26 | 501, 501d, 502 |
 | 507a | Minimap module | Re-cut 2026-09-26 | 506a, 501d |
 | 507b | Terrain texture | Re-cut 2026-09-26 | 507a, 502 |

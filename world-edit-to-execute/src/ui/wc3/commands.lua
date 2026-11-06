@@ -245,6 +245,27 @@ function commands.card(unit, db, mode)
 end
 -- }}}
 
+-- {{{ commands.elements
+-- The card's buttons as interface elements for ui/hit.lua (issue 506e):
+-- one for each filled slot, at `rects[slot]` (layout.compute's or
+-- console_frames.compute's `card`), with the button's hotkey, disabled
+-- when the button is, and the button itself as `button`. A click or the
+-- hotkey then reaches the same press (hud:press), so both give the same
+-- order. `order` defaults to 3, above the console's panels.
+function commands.elements(card, rects, order)
+    local out = {}
+    for s = 1, 12 do
+        local b, r = card[s], rects[s]
+        if b and r then
+            out[#out + 1] = { id = "card" .. s, kind = "button", x = r.x, y = r.y, w = r.w, h = r.h,
+                              order = order or 3, hotkey = b.hotkey, disabled = b.disabled or nil,
+                              button = b, slot = s }
+        end
+    end
+    return out
+end
+-- }}}
+
 -- {{{ commands.find_hotkey
 -- The slot whose hotkey is key ("M", "ESCAPE"), or nil
 function commands.find_hotkey(card, key)
