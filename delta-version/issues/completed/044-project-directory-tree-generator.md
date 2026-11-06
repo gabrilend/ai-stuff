@@ -475,16 +475,16 @@ Alternative formats considered:
 
 ## Acceptance Criteria
 
-- [ ] Generates master file with all project trees
-- [ ] Uses `][ name ][` separation markers
-- [ ] Respects .gitignore (uses git ls-files)
-- [ ] Creates/updates DIRECTORY_STRUCTURE.txt in each project
-- [ ] Includes shared utilities section in each project file
-- [ ] Handles projects without git repos gracefully
-- [ ] Supports --dry-run mode
-- [ ] Supports single-project generation
-- [ ] Generates clean, readable tree format
-- [ ] Help text documents all options
+- [x] Generates master file with all project trees
+- [x] Uses `][ name ][` separation markers
+- [x] Respects .gitignore (uses git ls-files)
+- [x] Creates/updates DIRECTORY_STRUCTURE.txt in each project
+- [x] Includes shared utilities section in each project file
+- [x] Handles projects without git repos gracefully
+- [x] Supports --dry-run mode
+- [x] Supports single-project generation
+- [x] Generates clean, readable tree format
+- [x] Help text documents all options
 
 ## Metadata
 
@@ -504,3 +504,42 @@ This tool provides a "map" for each project, helping developers and AI agents qu
 The separation marker system enables programmatic parsing, making it easy to extract specific project sections or update individual projects without regenerating everything.
 
 The use of `git ls-files` ensures we only show tracked files, keeping the output clean and relevant (no build artifacts, temp files, or ignored directories).
+
+---
+
+## What Happened (2026-11-02)
+
+Built as `delta-version/scripts/generate-directory-trees.lua`, with
+`generate-directory-trees.info.md` and `test-generate-directory-trees.sh`
+(43 checks, run as `scripts/test-generate-directory-trees.sh <monorepo>`).
+Every acceptance box above is met by the tool. It was **not run across the
+monorepo** as part of building it: a real run writes `DIRECTORY_STRUCTURE.txt`
+into every project folder, which is the owner's call to make and commit.
+Run it with no arguments (or `--dry-run` first to see the master file at
+`assets/master-directory-structure.txt`).
+
+**Decisions:**
+- **Lua, not bash.** Folding paths into a tree is a few lines with tables and
+  awkward in bash; the more recent delta-version tools (census, compository)
+  are LuaJIT. The name changes from the planned `.sh` to `.lua` accordingly.
+- **What git would keep**: `git ls-files --cached --others --exclude-standard`
+  less deleted files, so new files show up before they are committed and
+  ignored ones never do. Outside a git work tree, every file on disk.
+- **Crowded and deep folders are counted, not listed**: at most 25 files per
+  folder (`--max-entries`), then `… and N more files`; folders past five
+  levels (`--max-depth`) show as `name/  (N files)`. On this monorepo the
+  master file is about 5,500 lines with the limits and 8,700 without; the
+  difference is mostly long folders of transcripts and generated files.
+- **Projects** come from `list-projects.sh --exclude-external` (external
+  folders are not in this repository), plus delta-version itself, which the
+  lister leaves out as tooling but which the issue's example includes.
+- **Shared scripts listed are the runnable files** in the two `scripts/`
+  folders (not tests), each with the first sentence of its header comment --
+  rather than a hand-kept list of four, which would go stale.
+- **The project files are cut out of the master by its markers** (the master
+  is the one source), and one is only rewritten when its map changed, so a
+  daily run does not churn every project with a new date. This is the
+  "diff detection" advanced feature; watch mode, per-project config and
+  HTML/markdown output were left out as optional.
+- The "Worktrees:" configuration line is dropped: worktrees are retired (046).
+
