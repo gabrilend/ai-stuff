@@ -31,6 +31,67 @@ a message through the host (803), sent only to allies.
 - [ ] An ally sees another player's ping
 - [ ] A trigger's ping shows
 
+## Progress (2026-11-06)
+
+Built and tested without a window (`src/tests/test_pings.lua`, 92
+checks); the drawing is not built:
+
+- Step 1: `ping` (12, client to server) and `pinged` (13, server to client)
+  in `net/messages.lua`; the server's `takes.ping` sends each ping at once
+  to the pinger and their allies; `link.ping(x, y)` in
+  `net/renderer_link.lua` for the renderer.
+- Step 3: the `PingMinimap` natives (`PingMinimap`, `PingMinimapEx`,
+  `PingMinimapForForce`, `PingMinimapLocForForce`, `PingMinimapForForceEx`)
+  are no longer no-ops; they keep pings on the VM as `V.pings`, which
+  `V:tick` drops when their time is up.
+- Step 2, the part with no drawing: `ui/wc3/pings.lua` keeps the players'
+  pings heard from `pinged` messages and says, for every ping showing
+  (trigger or player), its point, colour, how faded it is and how far its
+  ring has spread. Drawing it on the minimap (507a's module, PR #316) and
+  in the world view needs raylib and is left for that wiring; the sound
+  waits on 508.
+
+Neither box is ticked: both say a player *sees* the ping, which needs the
+drawing.
+
+### Decisions (2026-11-06)
+
+- **The messages carry only the point.** `ping` is `{x, y}` in world
+  units; `pinged` adds the tick it was made on and who pinged. There are
+  no ping kinds (the January design's alert/attack/defend/retreat): the
+  game has one player ping, and a trigger's colour comes with its native.
+- **Allies are the game's to say.** The server asks the simulation's
+  optional `sim.allied(a, b)`. A game that has no such function sends a
+  ping back to its own player only, so no position reaches an enemy by
+  default. Dropped players hear nothing.
+- **At most one ping every 250 ms per player** (`server.PING_EVERY_MS`).
+  Faster ones are refused and recorded in `server.refused` like any other
+  refused message; a refused ping doesn't restart the wait.
+- **Pings go through while the game is paused**, unlike orders: talking
+  to allies is most of what a paused player can do.
+- **A ping at a point that isn't a finite number is refused**, so a
+  NaN or infinity never reaches another player's minimap.
+- **A player's ping shows for 3 seconds, in yellow**, as the January
+  notes have the game's ("Yellow animated marker", "Disappears after ~3
+  seconds"). Showing it in the pinger's colour instead is a one-line
+  change (`pings.PLAYER_COLOUR`) if Ritz prefers.
+- **Trigger pings follow Blizzard.j.** `PingMinimap` and `PingMinimapEx`
+  ping the local minimap (every player's game runs them); the ForForce
+  ones only when the local player is in the force. `PingMinimap` is
+  yellow. Ex colours are held to 0-255; ForForceEx's percent colours are
+  turned to 0-255 by `percent * 255 / 100`, rounded. Style 0 is simple, 1
+  flashy, 2 attack (pure red whatever colour is given), and a pure red
+  simple or flashy ping is made 254 red so it doesn't become an attack
+  ping, as Blizzard.j does.
+- **An attack ping is pure red and not flashing**, as in the game, and is
+  marked `attack` for the drawing side to give it its own look.
+- **The look:** solid, then fading over its last half second; an
+  expanding ring every second (every half second when flashy). These are
+  `pings.FADE_SECONDS`, `RING_SECONDS` and `FLASHY_RING_SECONDS`.
+- **At most 16 pings are kept** on the VM (`vm.PINGS_KEPT`) and among
+  heard player pings (`pings.KEPT`); the oldest goes first. A ping given
+  no time shows for 3 seconds (`vm.PING_SECONDS`).
+
 ---
 
 ## Earlier Design (January 2026, for a Lua renderer interface)

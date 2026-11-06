@@ -46,6 +46,8 @@ vm.NATIVE_MODULES = { "jass.natives.core", "jass.natives.world", "jass.natives.i
                       "jass.natives.camera" }
 vm.RECT_CHECK_EVERY = 0.1    -- seconds between enter/leave rect checks
 vm.MAX_TIMER_FIRES = 50      -- per timer per tick (a 0-period timer can't hang a tick)
+vm.PING_SECONDS = 3          -- a ping given no time (issue 507f)
+vm.PINGS_KEPT = 16           -- the most pings showing at once; the oldest goes first
 
 local V_mt = {}
 V_mt.__index = V_mt
@@ -145,6 +147,7 @@ function vm.new(world, opts)
     V.watched_rects = {}      -- enter/leave registrations
     V.rect_clock = 0
     V.messages = {}           -- { text, ends, at } shown to the local player
+    V.pings = {}              -- { x, y, at, ends, r, g, b, flashy } on the local player's minimap (issue 507f)
     V.dialogs = {}            -- every dialog made
     V.timer_dialogs = {}
     V.quests = {}
@@ -619,6 +622,15 @@ function V_mt:tick(dt)
         if m.ends > self.time then keep[#keep + 1] = m end
     end
     self.messages = keep
+
+    -- pings whose time is up
+    if #self.pings > 0 then
+        local still = {}
+        for _, p in ipairs(self.pings) do
+            if p.ends > self.time then still[#still + 1] = p end
+        end
+        self.pings = still
+    end
 end
 -- }}}
 
@@ -714,6 +726,19 @@ function V_mt:message(text, seconds)
     if #self.messages > 40 then table.remove(self.messages, 1) end
     self.log = self.log or {}
     if #self.log < 2000 then self.log[#self.log + 1] = { time = self.time, text = text } end
+end
+-- }}}
+
+-- {{{ V:ping
+-- A point pinged on the local player's minimap by a trigger (issue 507f).
+-- Colour is 0-255 each, yellow when not given; seconds is how long it
+-- shows. The oldest goes when more than vm.PINGS_KEPT are showing.
+function V_mt:ping(x, y, seconds, r, g, b, flashy)
+    local p = { x = x or 0, y = y or 0, at = self.time, ends = self.time + (seconds or vm.PING_SECONDS),
+                r = r or 255, g = g or 255, b = b or 0, flashy = flashy and true or false }
+    self.pings[#self.pings + 1] = p
+    if #self.pings > vm.PINGS_KEPT then table.remove(self.pings, 1) end
+    return p
 end
 -- }}}
 

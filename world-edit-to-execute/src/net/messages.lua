@@ -145,6 +145,17 @@ local descriptions = {
         { "stopped", "list", { { "id", "u32" } } },
         { "points", "list", { { "id", "u32" }, { "x", "f32" }, { "y", "f32" } } },
     } },
+    -- client -> server: a player pings a point on the map (issue 507f).
+    { 12, "ping", {
+        { "x", "f32" }, { "y", "f32" },   -- world units
+    } },
+    -- server -> client: a ping, sent only to the pinging player's allies
+    -- (and the player): who, where, and the tick it was made on.
+    { 13, "pinged", {
+        { "tick", "u32" },
+        { "player", "u8" },
+        { "x", "f32" }, { "y", "f32" },
+    } },
 }
 
 -- Two ways in: by number (decoding) and by name (encoding).

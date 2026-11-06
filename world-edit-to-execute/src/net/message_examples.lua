@@ -30,6 +30,8 @@ local examples = {
     drop_vote = { player = 3 },
     votes = { needed = 2, silent = { { player = 3, votes = 1 } } },
     paths = { tick = 900, stopped = { { id = 4 } }, points = { { id = 12, x = 1.5, y = 2.5 }, { id = 12, x = 2.5, y = 2.5 } } },
+    ping = { x = -1536.5, y = 2048.25 },
+    pinged = { tick = 950, player = 2, x = -1536.5, y = 2048.25 },
 }
 
 return examples

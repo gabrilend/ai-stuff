@@ -19,6 +19,8 @@ C calls, all from the one receiving thread:
   link.silence_stand_in(on)  the stand-in stops (or resumes) saying heard
   link.tolerance(ms)         this player's slider
   link.vote(player)          this player's drop vote
+  link.ping(x, y)            this player pings a point (issue 507f); it
+                             comes back as a pinged message
   link.stop()                -> ticks the server ran
 ]]
 
@@ -97,6 +99,12 @@ end
 -- {{{ function link.vote(player)
 function link.vote(player)
     me:send(messages.encode("drop_vote", { player = player }))
+end
+-- }}}
+
+-- {{{ function link.ping(x, y)
+function link.ping(x, y)
+    me:send(messages.encode("ping", { x = x, y = y }))
 end
 -- }}}
 

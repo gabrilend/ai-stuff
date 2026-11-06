@@ -32,3 +32,5 @@ records). A unit record is 43 bytes.
 | 8 | tolerances | server → client | in_force_ms u32, players list of {player u8, ms u32} |
 | 9 | drop_vote | client → server | player u8 |
 | 10 | votes | server → client | needed u8, silent list of {player u8, votes u8} |
+| 12 | ping | client → server | x f32, y f32 (a point in world units; issue 507f) |
+| 13 | pinged | server → client | tick u32, player u8, x f32, y f32 (sent only to the pinger and their allies) |

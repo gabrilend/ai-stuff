@@ -35,6 +35,34 @@ return function(V, N, T)
     N.ClearTextMessages = function() V.messages = {} end
     -- }}}
 
+    -- {{{ Minimap pings (issue 507f)
+    -- PingMinimap and PingMinimapEx are run by every player's game, so
+    -- they always ping the local minimap; the ForForce ones (Blizzard.j's)
+    -- ping only when the local player is in the force. Colours come in
+    -- 0-255 to the Ex native and in percent to the BJ. As in Blizzard.j, a
+    -- pure red simple or flashy ping is turned to 254 red, since pure red
+    -- unflashing is the attack ping (style 2).
+    local ATTACK = 2
+    local function c255(n)
+        n = math.floor((tonumber(n) or 0) + 0.5)
+        return n < 0 and 0 or n > 255 and 255 or n
+    end
+    local function pct(n) return c255((tonumber(n) or 0) * 255 / 100) end
+    N.PingMinimap = function(x, y, t) V:ping(x, y, t) end
+    N.PingMinimapEx = function(x, y, t, r, g, b, flashy) V:ping(x, y, t, c255(r), c255(g), c255(b), flashy) end
+    N.PingMinimapForForce = function(f, x, y, t) if for_me(f) then V:ping(x, y, t) end end
+    N.PingMinimapLocForForce = function(f, l, t)
+        if for_me(f) then V:ping(l and l.x or 0, l and l.y or 0, t) end
+    end
+    N.PingMinimapForForceEx = function(f, x, y, t, style, r, g, b)
+        if not for_me(f) then return end
+        if style == ATTACK then return V:ping(x, y, t, 255, 0, 0, false) end
+        r, g, b = pct(r), pct(g), pct(b)
+        if r == 255 and g == 0 and b == 0 then r = 254 end
+        V:ping(x, y, t, r, g, b, style == 1)
+    end
+    -- }}}
+
     -- {{{ Dialogs
     N.DialogCreate = function()
         local d = V:handle({ kind = "dialog", message = "", buttons = {}, shown = {} })
@@ -175,7 +203,6 @@ return function(V, N, T)
       .. "SetTerrainFogEx ResetTerrainFog EnableWorldFogBoundary "
       .. "SetUnitTypeSlots AddWeatherEffect EnableWeatherEffect RemoveWeatherEffect "
       .. "SetTerrainType SetTerrainTypeBJ SetTerrainPathable "
-      .. "PingMinimap PingMinimapEx PingMinimapLocForForce PingMinimapForForce PingMinimapForForceEx "
       .. "SetTextTagText SetTextTagPos SetTextTagPosUnit SetTextTagColor SetTextTagVelocity SetTextTagVisibility "
       .. "SetTextTagSuspended SetTextTagPermanent SetTextTagAge SetTextTagLifespan SetTextTagFadepoint DestroyTextTag "
       .. "CinematicModeBJ CinematicModeExBJ CinematicFadeBJ CinematicFilterGenericBJ ShowInterface EnableUserControl "

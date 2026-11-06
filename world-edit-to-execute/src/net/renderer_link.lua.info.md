@@ -13,3 +13,5 @@ stand-in (1) that only says "heard".
   both ways, live.
 - **`link.silence_stand_in(on)`**, **`link.tolerance(ms)`**,
   **`link.vote(player)`**, **`link.stop() -> ticks`.**
+- **`link.ping(x, y)`:** this player pings a point (issue 507f). The crossing
+  game says nothing of allies, so the ping comes back to this player only.

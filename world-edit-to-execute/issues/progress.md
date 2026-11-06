@@ -429,7 +429,7 @@ Phase 2 & 3 Complete
 | 507c | Unit dots | Re-cut 2026-09-26 | 507a |
 | 507d | Camera viewport | Re-cut 2026-09-26 | 507a, 501d |
 | 507e | Minimap interaction | Re-cut 2026-09-26 | 507a, 505c, 506c |
-| 507f | Ping system | Re-cut 2026-09-26 | 507a, 803 |
+| 507f | Ping system | Messages, server, natives and look built 2026-11-06; drawing waits on raylib | 507a, 803 |
 | **508** | **Vertical slice testing room** | **Completed** | 501f |
 | 508a | Threading infrastructure | **Completed** | 501a |
 | 508b | Entity render slots | **Completed** | 508a |
