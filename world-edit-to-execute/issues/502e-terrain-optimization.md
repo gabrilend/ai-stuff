@@ -34,6 +34,39 @@ after on the test maps, with the profiler (511).
 - [ ] Terrain draws in one call per visible chunk
 - [ ] Frame time and draw calls, before and after, recorded in this issue
 
+## Status Note (2026-11-06)
+
+The text above was written at the 2026-09-26 re-cut and not updated after
+issue 517b (2026-09-29), which built chunked terrain in a second render
+path: `src/render/landscape.c`, used by the scene viewer (`run-map`) and
+the editor. The vertical slice's `terrain.c` still draws a call per tile,
+as described above.
+
+Done (read from the code, 2026-11-06):
+
+- Step 1: chunk meshes built once at map load (`render.land_build`), 32x32
+  cells a chunk rather than 16x16: one land mesh, one water mesh, and since
+  issue 526 up to 16 textured ground-layer meshes per chunk. Static
+  doodads are baked into chunk meshes the same way (`render.geo_bake`, 16
+  tiles a side).
+- Step 2, partly: chunks are culled by distance from the camera's focus
+  (a radius from the camera's distance), not by the camera's view
+  rectangle (501d).
+
+Left:
+
+- Culling by the view rectangle, once 501d's camera model is in.
+- A visible chunk costs one land call plus one per ground-texture layer it
+  holds plus one for water, so "one call per visible chunk" holds only for
+  untextured land.
+- The chunk list does not go on the page; `landscape_draw` is called
+  directly by the scene viewer.
+- Step 3: no terrain before/after frame time or draw counts are recorded.
+  517 recorded only the whole scene: DAoW 5.4b, 225 land chunks, 8-11 FPS
+  under software GL in the container.
+
+Boxes left unticked for the reasons above.
+
 ---
 
 ## Earlier Design (January 2026, for a Lua renderer interface)

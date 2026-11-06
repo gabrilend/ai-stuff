@@ -1,0 +1,13 @@
+# cloud-session-projects - which project a cloud session's transcript is
+# filed under, by the repository the session worked in. Copy this file to
+# cloud-session-projects (beside it) and edit; fetch-cloud-conversations reads
+# that copy. One line per repository: its name as GitHub shows it, then the
+# project folder on this computer. "~" means your home folder. Sessions with
+# no repository named here go to CLOUD_TRANSCRIPT_PROJECT (your home folder,
+# whose transcripts land in ~/ai/llm-transcripts).
+#
+# repository        project folder
+ai-stuff            /mnt/mtwo/programming/ai-stuff
+r-mail              /mnt/mtwo/programming/r-mail
+rao-chat            /mnt/mtwo/programming/rao-chat
+wow-chat-2026       /mnt/mtwo/programming/wow-chat-2026
