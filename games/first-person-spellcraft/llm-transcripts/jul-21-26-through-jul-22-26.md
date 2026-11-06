@@ -1731,10 +1731,10 @@ sounds great to me
 > only my files and leaves everything else staged exactly as it was. Doing that,
 > then verifying the commit touched only my files and their ~380 remain staged:
 
-*[commit] 7c2c86ae - first-person-spellcraft: lay the dataflow substrate — wires, threads, a self-turning graph*
+*[commit] 86349708 - first-person-spellcraft: lay the dataflow substrate — wires, threads, a self-turning graph*
 
 > Caught at the verification step — and handled cleanly. The commit
-> **`7c2c86ae`** contains exactly my **17 files** and nothing else; the other
+> **`86349708`** contains exactly my **17 files** and nothing else; the other
 > **381 staged entries** (the double-gitters' in-progress work across the
 > monorepo) are untouched, still staged for their own commit. A quick scoped
 > confirmation that my project's boundary is clean:
@@ -1743,7 +1743,7 @@ Clean boundary confirmed. Issue **102a is complete and committed**.
 
 ## Checkpoint landed
 
-- **`7c2c86ae`** — the dataflow substrate (slots + pool + dispatch + tests +
+- **`86349708`** — the dataflow substrate (slots + pool + dispatch + tests +
   `.info.md` + the 102a issue in `completed/` + the phase-1 progress index).
   **Only my 17 files**, staged by explicit path and committed via pathspec.
 - **Left staged and untouched:** the ~381 concurrent-work entries across the
@@ -1811,7 +1811,7 @@ great can we start working on it?
 > Two things — the transcript rule first, then we build.
 >
 > **"llm-transcripts in every commit"** — noted, and I'll fold the project's
-> `llm-transcripts/` into every commit's pathspec from here on. Since `7c2c86ae`
+> `llm-transcripts/` into every commit's pathspec from here on. Since `86349708`
 > already went out without it, let me catch it up now. But first let me see
 > what's actually in there (and check raylib, since it's about to be our first
 > real dependency):
@@ -1829,9 +1829,9 @@ great can we start working on it?
 > Right — `git commit -- <pathspec>` can't reach *untracked* files; they have
 > to be staged first. Staging just the transcripts, then committing only them:
 
-*[commit] 458d7ee6 - first-person-spellcraft: capture session transcripts through the substrate work*
+*[commit] cf809318 - first-person-spellcraft: capture session transcripts through the substrate work*
 
-> Transcripts in (`458d7ee6`), only mine, the 381 others untouched. Now
+> Transcripts in (`cf809318`), only mine, the 381 others untouched. Now
 > verifying raylib actually links and a window can open here before I build the
 > Platform seam on it:
 
@@ -1906,21 +1906,21 @@ please continue
 > scoped-verifying before committing:
 
 > Exactly my 10 files — no `output/goodbye`, no `datapath`, no `101`. (The
-> transcripts didn't re-stage because they're unchanged since `458d7ee6` —
+> transcripts didn't re-stage because they're unchanged since `cf809318` —
 > already in history, so "every commit" is satisfied.) Committing via pathspec:
 
-*[commit] 5168ec71 - first-person-spellcraft: the substrate becomes a window you can run (102b)*
+*[commit] 806ed46a - first-person-spellcraft: the substrate becomes a window you can run (102b)*
 
-Committed clean: **`5168ec71`** — exactly my 10 runnable-loop files, the 381
+Committed clean: **`806ed46a`** — exactly my 10 runnable-loop files, the 381
 concurrent entries still staged and untouched. (`run` even carried its
 executable bit.)
 
 ## Where phase 1 stands
 
 Three scoped commits landed this session, each only my files:
-- **`7c2c86ae`** — the dataflow substrate (102a)
-- **`458d7ee6`** — session transcripts
-- **`5168ec71`** — the runnable loop (102b)
+- **`86349708`** — the dataflow substrate (102a)
+- **`cf809318`** — session transcripts
+- **`806ed46a`** — the runnable loop (102b)
 
 And the result is real: **`./run` opens a window and shows a rectangle the
 dataflow graph pushes across the room, then writes `goodbye` on close.** The
@@ -2047,9 +2047,9 @@ various lesson directories.
 > concern) and the runtime `output/goodbye`. Committing via pathspec, including
 > both sides of the 103 rename:
 
-*[commit] dda0bff9 - first-person-spellcraft: the room takes shape — the world model, seen top-down (103)*
+*[commit] 27f5f813 - first-person-spellcraft: the room takes shape — the world model, seen top-down (103)*
 
-Committed clean: **`dda0bff9`** — 17 files, all mine (including the 103 rename
+Committed clean: **`27f5f813`** — 17 files, all mine (including the 103 rename
 into `completed/`), the 381 concurrent entries untouched.
 
 ## This turn's work: issue 103 complete
@@ -2087,8 +2087,8 @@ earned a rename or delete yet.
 | `105`/`106` | movement / platforming | seeded (bounce collision) |
 | `107` | capstone demo | open |
 
-Four clean commits landed this session (`7c2c86ae`, `458d7ee6`, `5168ec71`,
-`dda0bff9`), each only my files. Still pending on purpose: the `101` +
+Four clean commits landed this session (`86349708`, `cf809318`, `806ed46a`,
+`27f5f813`), each only my files. Still pending on purpose: the `101` +
 `datapath` architecture-decision edits (their own commit when you're ready).
 
 The natural next piece is **104 — the real first-person renderer** (raylib

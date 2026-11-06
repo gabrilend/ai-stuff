@@ -15,9 +15,15 @@
 local M = {}
 
 -- {{{ M.CPATH_ENTRY
--- Where the LuaJIT build of effil is compiled to.  "?" is Lua's placeholder
--- for the module name, so this matches .../build/effil.so.
-M.CPATH_ENTRY = "/home/ritz/programming/ai-stuff/libs/lua/effil-jit/build/?.so"
+-- Where the LuaJIT build of effil is compiled to, from config.lua
+-- libraries.effil_cpath (it is outside the project, so it depends on the
+-- machine; Issue 10-071).  "?" is Lua's placeholder for the module name, so
+-- it matches .../build/effil.so.  A missing setting is an error.
+do
+    local libraries = require("config-loader").load().libraries
+        or error("config.lua has no libraries section")
+    M.CPATH_ENTRY = libraries.effil_cpath or error("config.lua libraries.effil_cpath is missing")
+end
 -- }}}
 
 -- {{{ function M.try_load
