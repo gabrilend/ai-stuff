@@ -22,6 +22,7 @@ The file returns one table.
 | `ticks_per_second` | integer | the beat (open question B4's working ruling) |
 | `claim_seconds` | double | the claim counter's period |
 | `claim_increments` | integer | claim increments of uninterrupted presence a claim takes (B6) |
+| `launch_seconds` | double | the launch counter's period; a command truck launches its plane at most once an increment (issue 210) |
 | `commands` | integer | how many commands may wait in the queue at once |
 | `refusals` | integer | how many refusals the ring keeps for a viewer |
 | `shots_per_unit` | integer | how many shots may be in flight per unit the world holds; the shot queue's capacity is the units times this |

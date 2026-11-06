@@ -20,7 +20,7 @@ one in a trough, and the ridge losing — because it was seen first.
 | 207 | Health comes back on a shared timer | built |
 | 208 | Death leaves bones | built |
 | 209 | The thread pool slices the tick | not started |
-| 210 | The command truck moves and dies in one hit | not started |
+| 210 | The command truck moves and dies in one hit | built |
 | 211 | The enforcer walks forward and eats | not started |
 
 **Blocking:** A3 (tracking or ballistic shells) sits under 205 and 206 and is the

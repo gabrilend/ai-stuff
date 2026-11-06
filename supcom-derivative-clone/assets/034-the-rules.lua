@@ -39,6 +39,11 @@ return {
   claim_seconds = 1,
   claim_increments = 3,
 
+  -- A command truck may launch its plane once a launch counter's increment: the
+  -- counter fires once a launch_seconds, and a team that launched waits for the
+  -- next increment (issue 210).
+  launch_seconds = 15,
+
   -- How many commands may wait in the queue at once, and how many refusals the
   -- ring keeps for a viewer to show. These are sizes, not balance: a full queue
   -- is a refusal, never a resize, so they are set well above what a match sends.
