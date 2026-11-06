@@ -191,6 +191,7 @@ padded with a zero byte.
 | 202c | Parse unitsdoo abilities | **Completed** | 202a |
 | 202d | Parse unitsdoo hero data | **Completed** | 202a |
 | 202e | Parse unitsdoo random/waygate | **Completed** | 202a |
+| 202f | Unit entries read in the order the editor writes them (gold, hero section for all, custom color) | **Completed** 2026-11-06 | 202a-202e |
 | 203 | Parse war3map.w3r (regions) | **Completed** | 102 |
 | 204 | Parse war3map.w3c (cameras) | **Completed** | 102 |
 | 205 | Parse war3map.w3s (sounds) | **Completed** | 102 |

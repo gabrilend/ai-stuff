@@ -44,14 +44,16 @@ sections like item drops, abilities, and hero data.
 
 ### Unit Entry (Variable Length)
 
-Each unit entry contains fixed fields followed by optional variable-length sections.
+Every entry has every part below, in this order; only the counts make an
+entry longer. This is the order the World Editor writes (issue 202f): it
+reads every byte of the test maps' files, 347 units in all, versions 7 and
+8, ending exactly at the end of each file.
 
 #### Fixed Fields
 
 | Type | Field | Description |
 |------|-------|-------------|
 | char(4) | TypeID | Unit type (e.g., "hfoo" = Footman) |
-| char(4) | SkinID | Skin override (Reforged only, if version >= 11) |
 | int32 | Variation | Visual variation index |
 | float32 | X | X coordinate |
 | float32 | Y | Y coordinate |
@@ -67,11 +69,14 @@ Each unit entry contains fixed fields followed by optional variable-length secti
 | int32 | HP | Hit points (-1 = default) |
 | int32 | MP | Mana points (-1 = default) |
 
-#### Item Drop Table (Optional)
+Reforged (1.32+) adds a char(4) SkinID after TypeID; no test map has it,
+and the parser doesn't read it.
+
+#### Item Drops
 
 | Type | Field | Description |
 |------|-------|-------------|
-| int32 | TablePointer | -1 = none, else table index |
+| int32 | TablePointer | Version 8 with subversion 11+ only: -1 = none, else the map's item table |
 | int32 | SetCount | Number of item sets |
 
 For each item set:
@@ -87,12 +92,34 @@ For each item:
 | char(4) | ItemID | Item type (e.g., "ratc") |
 | int32 | Chance | Drop chance percentage (0-100) |
 
-#### Gold/Lumber (Buildings Only)
+#### Gold and Target Acquisition
+
+Every entry, not only buildings:
 
 | Type | Field | Description |
 |------|-------|-------------|
-| int32 | Gold | Gold in building (-1 = default) |
-| float32 | TargetAcq | Target acquisition range (-1.0 = default) |
+| int32 | Gold | Gold held (a gold mine's; 12500 by default) |
+| float32 | TargetAcq | Target acquisition range (-1 = normal, -2 = camp) |
+
+#### Hero Section
+
+Every entry, hero or not (a non-hero has level 1, or 0 for a start
+location, and no bonuses); a non-hero can carry items too.
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | Level | Hero level |
+| int32 | StrBonus | Version 8 only: strength bonus (from tomes) |
+| int32 | AgiBonus | Version 8 only: agility bonus |
+| int32 | IntBonus | Version 8 only: intelligence bonus |
+| int32 | ItemCount | Inventory item count |
+
+For each inventory item:
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | Slot | Inventory slot (0-5) |
+| char(4) | ItemID | Item type |
 
 #### Modified Abilities
 
@@ -108,44 +135,42 @@ For each ability:
 | int32 | Autocast | 1 = autocast enabled |
 | int32 | Level | Ability level |
 
-#### Hero Data (Heroes Only)
-
-Present only if TypeID starts with capital letter (hero unit).
-
-| Type | Field | Description |
-|------|-------|-------------|
-| int32 | Level | Hero level |
-| int32 | StrBonus | Strength bonus (from tomes) |
-| int32 | AgiBonus | Agility bonus |
-| int32 | IntBonus | Intelligence bonus |
-| int32 | ItemCount | Inventory item count |
-
-For each inventory item:
-
-| Type | Field | Description |
-|------|-------|-------------|
-| int32 | Slot | Inventory slot (0-5) |
-| char(4) | ItemID | Item type |
-
 #### Random Unit Data
 
 | Type | Field | Description |
 |------|-------|-------------|
-| int32 | RandomFlag | 0=normal, 1=random level, 2=random group |
+| int32 | RandomFlag | 0 = any of a level, 1 = from a random group, 2 = from its own table |
 
-If RandomFlag == 1 (random from level):
+If RandomFlag == 0 (every entry that isn't random has this too):
 
 | Type | Field | Description |
 |------|-------|-------------|
-| char(3) | Prefix | "YYU" for unit, "YYI" for item |
-| byte | LevelChar | '0'-'9' or 'A'-'Z' (level 0-35) |
+| byte(3) | Level | A 24-bit level (-1 = any) |
+| byte | ItemClass | Item class of a random item (0 = any) |
 
-If RandomFlag == 2 (random from group):
+If RandomFlag == 1 (from a random group in war3map.w3i):
 
 | Type | Field | Description |
 |------|-------|-------------|
 | int32 | GroupIndex | Random group table index |
-| int32 | Position | Position within group |
+| int32 | Position | Position (column) within the group |
+
+If RandomFlag == 2 (from a table of its own):
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | Count | Number of choices |
+
+For each choice: char(4) type ID, int32 chance.
+
+A random object's type ID says what it stands for: uDNR (unit), bDNR
+(building), iDNR (item); older maps use YYU/YYI placeholders.
+
+#### Custom Color
+
+| Type | Field | Description |
+|------|-------|-------------|
+| int32 | CustomColor | -1 = the owner's color, else a player color |
 
 #### Waygate Destination
 
@@ -237,7 +262,8 @@ Examples:
 
 ## Random Level Encoding
 
-Level character maps to numeric level:
+The YYU/YYI placeholders of older maps carry a level character
+(`unitsdoo.decode_random_level`):
 
 | Char | Level | Char | Level |
 |------|-------|------|-------|
@@ -253,9 +279,9 @@ Level character maps to numeric level:
 
 | Version | Format |
 |---------|--------|
-| 7 | Reign of Chaos base format |
-| 8 | The Frozen Throne format (most common) |
-| 11+ | Reforged format (adds SkinID field) |
+| 7 (subversion 9) | Reign of Chaos: no item table pointer, no stat bonuses |
+| 8 (subversion 11) | The Frozen Throne (most common) |
+| 8, game 1.32+ | Reforged: adds SkinID after TypeID (not read) |
 
 ---
 

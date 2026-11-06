@@ -130,19 +130,6 @@ local function read_float32(data, pos)
 end
 -- }}}
 
--- {{{ read_byte
-local function read_byte(data, pos)
-    return data:byte(pos), pos + 1
-end
--- }}}
-
--- {{{ read_id
-local function read_id(data, pos)
-    -- Read 4-character ID string
-    return data:sub(pos, pos + 3), pos + 4
-end
--- }}}
-
 -- {{{ is_hero
 -- Check if a unit type ID represents a hero (capital first letter).
 -- Excludes random unit placeholders (YYU*, YYI*) which start with Y but aren't heroes.
@@ -164,119 +151,147 @@ end
 -- }}}
 -- }}}
 
+-- {{{ Reader
+-- A unit entry is read through a reader that checks every read against the
+-- end of the data (issue 202f): a file cut short, or one whose counts don't
+-- fit it, stops the reading with an error naming the place, which
+-- unitsdoo.parse turns into nil and that message.
+local Reader = {}
+Reader.__index = Reader
+
+local function new_reader(data, pos)
+    return setmetatable({ data = data, pos = pos }, Reader)
+end
+
+function Reader:need(n, what)
+    if self.pos + n - 1 > #self.data then
+        error({ unitsdoo = string.format("%s runs past the end of the data (byte %d of %d)",
+            what, self.pos - 1, #self.data) }, 0)
+    end
+end
+
+function Reader:i32(what)
+    self:need(4, what)
+    local v = read_int32(self.data, self.pos)
+    self.pos = self.pos + 4
+    return v
+end
+
+function Reader:f32(what)
+    self:need(4, what)
+    local v = read_float32(self.data, self.pos)
+    self.pos = self.pos + 4
+    return v
+end
+
+function Reader:u8(what)
+    self:need(1, what)
+    local v = self.data:byte(self.pos)
+    self.pos = self.pos + 1
+    return v
+end
+
+function Reader:id(what)
+    self:need(4, what)
+    local v = self.data:sub(self.pos, self.pos + 3)
+    self.pos = self.pos + 4
+    return v
+end
+
+-- a count, refused when negative or when even its smallest entries
+-- (min_size bytes each) can't fit in what is left
+function Reader:count(min_size, what)
+    local n = self:i32(what)
+    if n < 0 or n * min_size > #self.data - self.pos + 1 then
+        error({ unitsdoo = string.format("%s: %d doesn't fit the data (byte %d of %d)",
+            what, n, self.pos - 5, #self.data) }, 0)
+    end
+    return n
+end
+-- }}}
+
 -- {{{ parse_item_drops
 -- Parse the item drop table section of a unit entry.
--- Returns the item_drops structure and the new position.
 -- Structure:
 --   item_drops = {
---       table_pointer = -1,  -- -1 if none, else index into external table
+--       table_pointer = -1,  -- -1 if none, else index into the map's item tables
 --       sets = {
 --           { items = { { id = "ratc", chance = 100, name = "Claws..." }, ... } },
 --           ...
 --       }
 --   }
-local function parse_item_drops(data, pos)
-    local item_drops = {
-        table_pointer = -1,
-        sets = {}
-    }
+-- The table pointer is in the file only from subversion 11 on (TFT); older
+-- files have none and read as -1.
+local function parse_item_drops(r, has_pointer)
+    local item_drops = { table_pointer = -1, sets = {} }
 
-    -- Item table pointer (-1 = none, >= 0 = external table index)
-    item_drops.table_pointer = read_int32(data, pos); pos = pos + 4
+    if has_pointer then
+        item_drops.table_pointer = r:i32("item table pointer")
+    end
 
     -- Number of item sets dropped (one random set chosen on death)
-    local num_item_sets = read_int32(data, pos); pos = pos + 4
-
-    -- Parse each item set
+    local num_item_sets = r:count(4, "item set count")
     for i = 1, num_item_sets do
         local item_set = { items = {} }
-
-        -- Number of items in this set
-        local num_items = read_int32(data, pos); pos = pos + 4
-
-        -- Parse each item (4 bytes ID + 4 bytes chance)
+        local num_items = r:count(8, "item count")
         for j = 1, num_items do
             local item = {}
-
-            -- Item type ID (4 chars, e.g., "ratc")
-            item.id, pos = read_id(data, pos)
+            item.id = r:id("dropped item")
             item.name = COMMON_ITEMS[item.id]  -- May be nil for unknown items
-
-            -- Drop chance percentage (0-100)
-            item.chance = read_int32(data, pos); pos = pos + 4
-
+            item.chance = r:i32("drop chance")
             item_set.items[j] = item
         end
-
         item_drops.sets[i] = item_set
     end
 
-    return item_drops, pos
-end
--- }}}
-
--- {{{ parse_abilities
--- Parse the modified abilities section.
--- Returns the abilities array and the new position.
-local function parse_abilities(data, pos)
-    local abilities = {}
-
-    -- Number of modified abilities
-    local num_abilities = read_int32(data, pos); pos = pos + 4
-
-    -- Parse each ability entry (4 bytes ID + 4 bytes autocast + 4 bytes level = 12 bytes each)
-    for i = 1, num_abilities do
-        local ability = {}
-
-        -- Ability ID (4 chars, e.g., "AHbz" = Blizzard)
-        ability.id, pos = read_id(data, pos)
-
-        -- Autocast enabled (0 = off, 1 = on)
-        local autocast_raw = read_int32(data, pos); pos = pos + 4
-        ability.autocast = (autocast_raw ~= 0)
-
-        -- Ability level (1+)
-        ability.level = read_int32(data, pos); pos = pos + 4
-
-        abilities[i] = ability
-    end
-
-    return abilities, pos
+    return item_drops
 end
 -- }}}
 
 -- {{{ parse_hero_data
--- Parse the hero-specific data section.
--- Only call this for hero units (capital first letter in type ID).
--- Returns hero_data table and the new position after parsing.
--- Hero data includes level, stat bonuses from tomes, and inventory items.
-local function parse_hero_data(data, pos)
+-- Parse the hero section. Every entry has it, hero or not (non-heroes
+-- carry level 1 or 0 and no bonuses); the stat bonuses are TFT only
+-- (version 8 on). The inventory can hold items for a non-hero too.
+-- Inventory slots are 0-5, laid out as:
+--   [0] [1]
+--   [2] [3]
+--   [4] [5]
+local function parse_hero_data(r, has_stats)
     local hero_data = {}
 
-    -- Hero level (1+)
-    hero_data.level = read_int32(data, pos); pos = pos + 4
-
-    -- Stat bonuses from tomes
-    hero_data.str_bonus = read_int32(data, pos); pos = pos + 4
-    hero_data.agi_bonus = read_int32(data, pos); pos = pos + 4
-    hero_data.int_bonus = read_int32(data, pos); pos = pos + 4
-
-    -- Number of items in inventory
-    local num_items = read_int32(data, pos); pos = pos + 4
-
-    -- Parse inventory items
-    -- Inventory slots are 0-5, laid out as:
-    --   [0] [1]
-    --   [2] [3]
-    --   [4] [5]
-    hero_data.inventory = {}
-    for i = 1, num_items do
-        local slot = read_int32(data, pos); pos = pos + 4
-        local item_id, new_pos = read_id(data, pos); pos = new_pos
-        hero_data.inventory[slot] = item_id
+    hero_data.level = r:i32("hero level")
+    if has_stats then
+        hero_data.str_bonus = r:i32("strength bonus")
+        hero_data.agi_bonus = r:i32("agility bonus")
+        hero_data.int_bonus = r:i32("intelligence bonus")
+    else
+        hero_data.str_bonus, hero_data.agi_bonus, hero_data.int_bonus = 0, 0, 0
     end
 
-    return hero_data, pos
+    local num_items = r:count(8, "inventory count")
+    hero_data.inventory = {}
+    for _ = 1, num_items do
+        local slot = r:i32("inventory slot")
+        hero_data.inventory[slot] = r:id("inventory item")
+    end
+
+    return hero_data
+end
+-- }}}
+
+-- {{{ parse_abilities
+-- Parse the modified abilities section (12 bytes each: id, autocast, level).
+local function parse_abilities(r)
+    local abilities = {}
+    local num_abilities = r:count(12, "ability count")
+    for i = 1, num_abilities do
+        local ability = {}
+        ability.id = r:id("ability")
+        ability.autocast = (r:i32("autocast") ~= 0)
+        ability.level = r:i32("ability level")
+        abilities[i] = ability
+    end
+    return abilities
 end
 -- }}}
 
@@ -295,137 +310,152 @@ local function decode_random_level(char)
 end
 -- }}}
 
+-- {{{ random_kind
+-- What a placed random object stands for, from its type ID: the editor's
+-- random unit, building and item (uDNR, bDNR, iDNR), and the older
+-- YYU/YYI placeholders. nil for every other type.
+local RANDOM_IDS = { uDNR = "unit", bDNR = "building", iDNR = "item" }
+
+local function random_kind(type_id)
+    if RANDOM_IDS[type_id] then return RANDOM_IDS[type_id] end
+    if type_id:sub(1, 3) == "YYU" then return "unit" end
+    if type_id:sub(1, 3) == "YYI" then return "item" end
+    return nil
+end
+-- }}}
+
 -- {{{ parse_random_unit
--- Parse the random unit/item data section.
--- Returns the random_unit structure (or nil) and the new position.
--- Structure:
+-- Parse the random unit/item section. Every entry has its flag:
+--   0  any object of a level: 3 bytes level (a 24-bit number, -1 = any)
+--      and 1 byte item class (0 = any). Every non-random entry has flag 0
+--      and these 4 bytes too.
+--   1  from one of the map's random groups (war3map.w3i): group index and
+--      the position (column) in that group
+--   2  from a table of its own: a count, then a type ID and a chance each
+-- Returns the random_unit structure (nil for an entry that isn't random)
+-- and errors on an unknown flag, whose length can't be known.
 --   random_unit = {
---       flag = 0/1/2,           -- 0=not random, 1=from level, 2=from group
---       type = "unit"/"item",   -- Only for flag=1
---       level = N,              -- Only for flag=1
---       group_index = N,        -- Only for flag=2
---       position = N,           -- Only for flag=2
+--       flag = 0/1/2,
+--       type = "unit"/"building"/"item",  -- flag 0, from the type ID
+--       level = N, item_class = N,        -- flag 0
+--       group_index = N, position = N,    -- flag 1
+--       choices = { { id, chance }, ... } -- flag 2
 --   }
-local function parse_random_unit(data, pos)
-    -- Random unit flag (0=not random, 1=random from level, 2=random from group)
-    local random_flag = read_int32(data, pos); pos = pos + 4
+local function parse_random_unit(r, type_id)
+    local flag = r:i32("random flag")
 
-    if random_flag == 0 then
-        -- Not random, no additional data
-        return nil, pos
+    if flag == 0 then
+        r:need(4, "random level")
+        local b1, b2, b3, class = r.data:byte(r.pos, r.pos + 3)
+        r.pos = r.pos + 4
+        local kind = random_kind(type_id)
+        if not kind then return nil end
+        local level = b1 + b2 * 256 + b3 * 65536
+        if level >= 8388608 then level = level - 16777216 end
+        return { flag = 0, type = kind, level = level, item_class = class }
 
-    elseif random_flag == 1 then
-        -- Random from level: 4 bytes = 3 char prefix + 1 level char
-        local prefix = data:sub(pos, pos + 2)  -- "YYU" or "YYI"
-        local level_char = data:sub(pos + 3, pos + 3)
-        pos = pos + 4
+    elseif flag == 1 then
+        local group_index = r:i32("random group")
+        local position = r:i32("random group position")
+        return { flag = 1, group_index = group_index, position = position }
 
-        local random_unit = {
-            flag = 1,
-            type = (prefix:sub(3, 3) == "I") and "item" or "unit",
-            level = decode_random_level(level_char),
-        }
-        return random_unit, pos
-
-    elseif random_flag == 2 then
-        -- Random from group: 4 bytes group index + 4 bytes position
-        local group_index = read_int32(data, pos); pos = pos + 4
-        local group_position = read_int32(data, pos); pos = pos + 4
-
-        local random_unit = {
-            flag = 2,
-            group_index = group_index,
-            position = group_position,
-        }
-        return random_unit, pos
-
-    else
-        -- Unknown flag, skip nothing and return nil
-        return nil, pos
+    elseif flag == 2 then
+        local n = r:count(8, "random choice count")
+        local choices = {}
+        for i = 1, n do
+            local id = r:id("random choice")
+            choices[i] = { id = id, chance = r:i32("random choice chance") }
+        end
+        return { flag = 2, choices = choices }
     end
+
+    error({ unitsdoo = string.format("unknown random flag %d (byte %d of %d)",
+        flag, r.pos - 5, #r.data) }, 0)
 end
 -- }}}
 
 -- {{{ parse_unit_entry
--- Parses a single unit entry.
--- Returns the unit table and the next read position.
-local function parse_unit_entry(data, pos, version)
+-- Parses a single unit entry; returns the unit table and the next read
+-- position. The order of the parts, as the World Editor writes them
+-- (issue 202f, checked against every byte of the test maps' files):
+--   type, variation, position, angle, scale, flags, player, 2 unknown
+--   bytes, hp, mp; item drops (the table pointer from subversion 11 on);
+--   gold, target acquisition; hero section (level, then from version 8
+--   the three stat bonuses, then the inventory); modified abilities;
+--   random section; custom color; waygate; creation number.
+local function parse_unit_entry(data, pos, version, subversion)
+    local r = new_reader(data, pos)
     local unit = {}
 
     -- Type ID (4 chars)
-    unit.id, pos = read_id(data, pos)
+    unit.id = r:id("type ID")
     unit.name = COMMON_UNITS[unit.id]  -- May be nil for unknown types
     unit.is_hero = is_hero(unit.id)
 
-    -- Variation index
-    unit.variation = read_int32(data, pos); pos = pos + 4
+    unit.variation = r:i32("variation")
 
     -- Position (X, Y, Z floats)
-    unit.position = {
-        x = read_float32(data, pos),
-        y = read_float32(data, pos + 4),
-        z = read_float32(data, pos + 8),
-    }
-    pos = pos + 12
+    local x, y, z = r:f32("position"), r:f32("position"), r:f32("position")
+    unit.position = { x = x, y = y, z = z }
 
     -- Rotation angle in radians
-    unit.angle = read_float32(data, pos); pos = pos + 4
+    unit.angle = r:f32("angle")
 
     -- Scale (X, Y, Z floats)
-    unit.scale = {
-        x = read_float32(data, pos),
-        y = read_float32(data, pos + 4),
-        z = read_float32(data, pos + 8),
-    }
-    pos = pos + 12
+    local sx, sy, sz = r:f32("scale"), r:f32("scale"), r:f32("scale")
+    unit.scale = { x = sx, y = sy, z = sz }
 
-    -- Flags (1 byte)
-    unit.flags, pos = read_byte(data, pos)
+    unit.flags = r:u8("flags")
 
-    -- Player number (4 bytes)
-    unit.player = read_int32(data, pos); pos = pos + 4
+    unit.player = r:i32("player")
     unit.player_name = PLAYERS[unit.player]
 
-    -- Unknown bytes (2 bytes)
-    unit.unknown1, pos = read_byte(data, pos)
-    unit.unknown2, pos = read_byte(data, pos)
+    unit.unknown1 = r:u8("unknown byte")
+    unit.unknown2 = r:u8("unknown byte")
 
-    -- Hit points (-1 = default)
-    unit.hp = read_int32(data, pos); pos = pos + 4
+    -- Hit points and mana (-1 = default)
+    unit.hp = r:i32("hit points")
+    unit.mp = r:i32("mana")
 
-    -- Mana points (-1 = default)
-    unit.mp = read_int32(data, pos); pos = pos + 4
+    -- Item drops (variable length)
+    unit.item_drops = parse_item_drops(r, version >= 8 and subversion >= 11)
 
-    -- Item drop table (variable length)
-    unit.item_drops, pos = parse_item_drops(data, pos)
+    -- Gold held (a gold mine's; 12500 by default) and target acquisition
+    -- range (-1 = normal, -2 = camp)
+    unit.gold = r:i32("gold")
+    unit.target_acquisition = r:f32("target acquisition")
+
+    -- The hero section: every entry has it; only a hero keeps it as
+    -- hero_data. Any unit's inventory is unit.inventory.
+    local hero = parse_hero_data(r, version >= 8)
+    unit.inventory = hero.inventory
+    unit.hero_data = unit.is_hero and hero or nil
 
     -- Modified abilities (variable length)
-    unit.abilities, pos = parse_abilities(data, pos)
+    unit.abilities = parse_abilities(r)
 
-    -- Hero-specific data (conditional - only for heroes)
-    if unit.is_hero then
-        unit.hero_data, pos = parse_hero_data(data, pos)
-    else
-        unit.hero_data = nil
-    end
+    -- Random unit/item (variable length)
+    unit.random_unit = parse_random_unit(r, unit.id)
 
-    -- Random unit data (variable length - parsed in 202e)
-    unit.random_unit, pos = parse_random_unit(data, pos)
+    -- Custom color (-1 = the player's own)
+    unit.custom_color = r:i32("custom color")
 
     -- Waygate destination (-1 = inactive, else region creation number)
-    unit.waygate_dest = read_int32(data, pos); pos = pos + 4
+    unit.waygate_dest = r:i32("waygate")
 
     -- Creation number (unique editor ID)
-    unit.creation_number = read_int32(data, pos); pos = pos + 4
+    unit.creation_number = r:i32("creation number")
 
-    return unit, pos
+    return unit, r.pos
 end
 -- }}}
 
 -- {{{ unitsdoo.parse
 -- Parses a war3mapUnits.doo file.
 -- data: raw binary data string
--- Returns: structured unit table, or nil and error message
+-- Returns: structured unit table, or nil and error message. An entry that
+-- runs past the end of the data, a count that doesn't fit, or an unknown
+-- random flag gives nil and a message naming the unit and the place.
 function unitsdoo.parse(data)
     if not data or #data < 16 then
         return nil, "Invalid data: too short (need at least 16 bytes for header)"
@@ -456,19 +486,18 @@ function unitsdoo.parse(data)
             "Unexpected unitsdoo version %d (expected 7 or 8)", result.version)
     end
 
+    if unit_count < 0 then
+        return nil, string.format("Invalid unit count %d", unit_count)
+    end
+
     -- Parse unit entries
     result.units = {}
     for i = 1, unit_count do
-        -- Check minimum remaining bytes (basic fields without variable sections)
-        -- 4 (id) + 4 (var) + 12 (pos) + 4 (angle) + 12 (scale) + 1 (flags) +
-        -- 4 (player) + 2 (unknown) + 4 (hp) + 4 (mp) = 51 bytes minimum
-        if pos + 50 > #data then
-            return nil, string.format(
-                "Unexpected end of data at unit %d/%d (pos %d, size %d)",
-                i, unit_count, pos, #data)
+        local ok, unit, new_pos = pcall(parse_unit_entry, data, pos, result.version, result.subversion)
+        if not ok then
+            local msg = type(unit) == "table" and unit.unitsdoo or tostring(unit)
+            return nil, string.format("war3mapUnits.doo: unit %d/%d: %s", i, unit_count, msg)
         end
-
-        local unit, new_pos = parse_unit_entry(data, pos, result.version)
         -- its bytes as read, for writing back (issue 911a)
         unit.raw = data:sub(pos, new_pos - 1)
         result.units[i] = unit
@@ -626,12 +655,15 @@ function unitsdoo.format(result)
         end
         -- Show random unit info if present (202e)
         if u.random_unit then
-            if u.random_unit.flag == 1 then
+            if u.random_unit.flag == 0 then
                 lines[#lines + 1] = string.format("      random: %s level %d",
                     u.random_unit.type, u.random_unit.level)
-            elseif u.random_unit.flag == 2 then
+            elseif u.random_unit.flag == 1 then
                 lines[#lines + 1] = string.format("      random: group %d pos %d",
                     u.random_unit.group_index, u.random_unit.position)
+            elseif u.random_unit.flag == 2 then
+                lines[#lines + 1] = string.format("      random: one of %d",
+                    #u.random_unit.choices)
             end
         end
         -- Show waygate if active (202e)
