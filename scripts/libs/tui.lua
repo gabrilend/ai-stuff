@@ -230,8 +230,14 @@ if tty_in then
     tty_in:setvbuf("no")
 end
 
+-- When set, present() hands its output to this function instead of the
+-- terminal (see tui.set_output).
+local output_fn = nil
+
 local function write_raw(s)
-    if tty_out then
+    if output_fn then
+        output_fn(s)
+    elseif tty_out then
         tty_out:write(s)
     else
         io.stdout:write(s)
@@ -239,7 +245,9 @@ local function write_raw(s)
 end
 
 local function flush()
-    if tty_out then
+    if output_fn then
+        return
+    elseif tty_out then
         tty_out:flush()
     else
         io.stdout:flush()
@@ -844,6 +852,298 @@ function tui.draw_hline(row, start_col, end_col, char)
         tui.set_cell(row, x, char)
     end
 end
+-- }}}
+
+-- {{{ tui.display_width
+-- How many terminal columns a UTF-8 string takes, for lining text up:
+-- 0 for control characters, combining marks and zero-width characters,
+-- 2 for wide characters (CJK, Hangul, full-width forms, most emoji),
+-- 1 for everything else.
+-- #str counts bytes, which is wrong for "└─" (6 bytes, 2 columns).
+-- Note that the screen grid still holds one character per cell, so a wide
+-- character drawn with set_cell pushes the rest of its row one column
+-- right; this measures, it does not change how cells are drawn.
+local ZERO_WIDTH = {
+    {0x0300, 0x036F}, {0x0483, 0x0489}, {0x0591, 0x05BD}, {0x0610, 0x061A},
+    {0x064B, 0x065F}, {0x200B, 0x200F}, {0x202A, 0x202E}, {0x2060, 0x2064},
+    {0x20D0, 0x20FF}, {0xFE00, 0xFE0F}, {0xFE20, 0xFE2F}, {0xFEFF, 0xFEFF},
+    {0x1F3FB, 0x1F3FF}, {0xE0100, 0xE01EF},
+}
+local DOUBLE_WIDTH = {
+    {0x1100, 0x115F}, {0x231A, 0x231B}, {0x2329, 0x232A}, {0x23E9, 0x23EC},
+    {0x23F0, 0x23F0}, {0x23F3, 0x23F3}, {0x25FD, 0x25FE}, {0x2614, 0x2615},
+    {0x2648, 0x2653}, {0x267F, 0x267F}, {0x2693, 0x2693}, {0x26A1, 0x26A1},
+    {0x26AA, 0x26AB}, {0x26BD, 0x26BE}, {0x26C4, 0x26C5}, {0x26CE, 0x26CE},
+    {0x26D4, 0x26D4}, {0x26EA, 0x26EA}, {0x26F2, 0x26F5}, {0x26FA, 0x26FA},
+    {0x26FD, 0x26FD}, {0x2705, 0x2705}, {0x270A, 0x270B}, {0x2728, 0x2728},
+    {0x274C, 0x274C}, {0x274E, 0x274E}, {0x2753, 0x2755}, {0x2757, 0x2757},
+    {0x2795, 0x2797}, {0x27B0, 0x27B0}, {0x27BF, 0x27BF}, {0x2B1B, 0x2B1C},
+    {0x2B50, 0x2B50}, {0x2B55, 0x2B55}, {0x2E80, 0x303E}, {0x3041, 0x33FF},
+    {0x3400, 0x4DBF}, {0x4E00, 0x9FFF}, {0xA000, 0xA4CF}, {0xA960, 0xA97F},
+    {0xAC00, 0xD7A3}, {0xF900, 0xFAFF}, {0xFE10, 0xFE19}, {0xFE30, 0xFE6F},
+    {0xFF00, 0xFF60}, {0xFFE0, 0xFFE6}, {0x1F004, 0x1F004}, {0x1F0CF, 0x1F0CF},
+    {0x1F18E, 0x1F18E}, {0x1F191, 0x1F19A}, {0x1F200, 0x1F251},
+    {0x1F300, 0x1F320}, {0x1F32D, 0x1F335}, {0x1F337, 0x1F37C},
+    {0x1F37E, 0x1F393}, {0x1F3A0, 0x1F3CA}, {0x1F3CF, 0x1F3D3},
+    {0x1F3E0, 0x1F3F0}, {0x1F3F4, 0x1F3F4}, {0x1F3F8, 0x1F43E},
+    {0x1F440, 0x1F440}, {0x1F442, 0x1F4FC}, {0x1F4FF, 0x1F53D},
+    {0x1F54B, 0x1F54E}, {0x1F550, 0x1F567}, {0x1F57A, 0x1F57A},
+    {0x1F595, 0x1F596}, {0x1F5A4, 0x1F5A4}, {0x1F5FB, 0x1F64F},
+    {0x1F680, 0x1F6C5}, {0x1F6CC, 0x1F6CC}, {0x1F6D0, 0x1F6D2},
+    {0x1F6D5, 0x1F6D7}, {0x1F6EB, 0x1F6EC}, {0x1F6F4, 0x1F6FC},
+    {0x1F7E0, 0x1F7EB}, {0x1F90C, 0x1F93A}, {0x1F93C, 0x1F945},
+    {0x1F947, 0x1F9FF}, {0x1FA70, 0x1FAFF}, {0x20000, 0x2FFFD},
+    {0x30000, 0x3FFFD},
+}
+
+local function in_ranges(cp, ranges)
+    -- Binary search: the ranges are sorted and do not overlap.
+    local lo, hi = 1, #ranges
+    while lo <= hi do
+        local mid = math.floor((lo + hi) / 2)
+        local r = ranges[mid]
+        if cp < r[1] then hi = mid - 1
+        elseif cp > r[2] then lo = mid + 1
+        else return true end
+    end
+    return false
+end
+
+local function codepoint(ch)
+    local b1, b2, b3, b4 = ch:byte(1, 4)
+    if b1 < 0x80 then return b1 end
+    if b1 < 0xE0 then return (b1 - 0xC0) * 64 + ((b2 or 0x80) - 0x80) end
+    if b1 < 0xF0 then
+        return ((b1 - 0xE0) * 64 + ((b2 or 0x80) - 0x80)) * 64 + ((b3 or 0x80) - 0x80)
+    end
+    return (((b1 - 0xF0) * 64 + ((b2 or 0x80) - 0x80)) * 64
+        + ((b3 or 0x80) - 0x80)) * 64 + ((b4 or 0x80) - 0x80)
+end
+
+-- tui.char_width(ch): the columns one character takes (0, 1 or 2).
+function tui.char_width(ch)
+    local cp = codepoint(ch)
+    if cp < 0x20 or (cp >= 0x7F and cp < 0xA0) then return 0 end
+    if cp < 0x300 then return 1 end
+    if in_ranges(cp, ZERO_WIDTH) then return 0 end
+    if in_ranges(cp, DOUBLE_WIDTH) then return 2 end
+    return 1
+end
+
+function tui.display_width(str)
+    local width = 0
+    for ch in str:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        width = width + tui.char_width(ch)
+    end
+    return width
+end
+-- }}}
+
+-- {{{ Panels
+-- A panel is a rectangle of the screen with its own coordinates: row 1,
+-- column 1 is the panel's top-left corner, wherever the panel sits.  A
+-- program lays out a header, a list and a footer once, as panels, and then
+-- writes "row 2 of the list" instead of working out the screen row each
+-- time.  Panels are thin: every write goes through tui.set_cell, so the
+-- dirty tracking above sees panel writes exactly as it sees any other.
+--
+-- Rules (issue 048, from delta-version issue 067):
+--   * Anything outside the panel is dropped, so a long string stops at the
+--     panel's right edge and row 10 of a 3-row panel writes nothing.
+--     Anything outside the screen is dropped too, so a panel that hangs off
+--     a small terminal draws only the part that fits.
+--   * Style is the one global style: panel:set_fg is tui.set_fg.
+--   * Panels do not overlap or draw borders; the program keeps them apart
+--     and draws boxes with tui.draw_box_* if it wants them.
+--   * row, col, width and height are fields to read.  To move or resize a
+--     panel (after a terminal resize, say), make a new one.
+local Panel = {}
+Panel.__index = Panel
+
+-- {{{ tui.create_panel
+-- row, col: the screen cell of the panel's top-left corner (1-based; it may
+-- lie off the screen).  width, height: whole numbers, at least 1.
+function tui.create_panel(row, col, width, height)
+    local function whole(name, v, least)
+        if type(v) ~= "number" or v ~= math.floor(v) or (least and v < least) then
+            error("tui.create_panel: " .. name .. " must be a whole number"
+                .. (least and (" of at least " .. least) or "")
+                .. ", got " .. tostring(v), 3)
+        end
+    end
+    whole("row", row)
+    whole("col", col)
+    whole("width", width, 1)
+    whole("height", height, 1)
+    return setmetatable({ row = row, col = col, width = width, height = height }, Panel)
+end
+-- }}}
+
+-- {{{ Panel:to_screen
+-- Panel position to screen position.  No bounds check: it is arithmetic.
+function Panel:to_screen(panel_row, panel_col)
+    return self.row + panel_row - 1, self.col + panel_col - 1
+end
+-- }}}
+
+-- {{{ Panel:from_screen
+-- Screen position to panel position, and whether it lies inside the panel.
+function Panel:from_screen(screen_row, screen_col)
+    local r = screen_row - self.row + 1
+    local c = screen_col - self.col + 1
+    local inside = r >= 1 and r <= self.height and c >= 1 and c <= self.width
+    return r, c, inside
+end
+-- }}}
+
+-- {{{ local function visible_rect
+-- The panel's rows that are on the screen, as screen rows (first, last),
+-- and the screen columns likewise.  Returns nil when no part is visible.
+local function visible_rect(panel)
+    local r1 = math.max(1, panel.row)
+    local r2 = math.min(rows, panel.row + panel.height - 1)
+    local c1 = math.max(1, panel.col)
+    local c2 = math.min(cols, panel.col + panel.width - 1)
+    if r1 > r2 or c1 > c2 then return nil end
+    return r1, c1, r2, c2
+end
+-- }}}
+
+-- {{{ Panel:set_cell
+function Panel:set_cell(row, col, char)
+    if row < 1 or row > self.height or col < 1 or col > self.width then return end
+    tui.set_cell(self.row + row - 1, self.col + col - 1, char)
+end
+-- }}}
+
+-- {{{ Panel:write_str
+-- One cell per character, as tui.write_str.  Stops at the panel's right
+-- edge.  Returns the panel column after the last character written.
+function Panel:write_str(row, col, str)
+    local x = col
+    for c in str:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        if x > self.width then break end
+        self:set_cell(row, x, c)
+        x = x + 1
+    end
+    return x
+end
+-- }}}
+
+-- {{{ local function blank_rect
+-- Puts plain spaces in the back buffer over a screen rectangle (already
+-- clipped to the screen) and marks it dirty.  The drawing style is left
+-- alone: a blank cell is always plain, whatever the style.
+local function blank_rect(r1, c1, r2, c2)
+    for y = r1, r2 do
+        local line = back_buffer[y]
+        if line then
+            for x = c1, c2 do
+                line[x] = make_cell(" ")
+            end
+        end
+    end
+    tui.invalidate_region(r1, c1, r2, c2)
+end
+-- }}}
+
+-- {{{ Panel:clear
+function Panel:clear()
+    local r1, c1, r2, c2 = visible_rect(self)
+    if r1 then blank_rect(r1, c1, r2, c2) end
+end
+-- }}}
+
+-- {{{ Panel:clear_row
+function Panel:clear_row(row)
+    if row < 1 or row > self.height then return end
+    local r1, c1, r2, c2 = visible_rect(self)
+    local y = self.row + row - 1
+    if r1 and y >= r1 and y <= r2 then blank_rect(y, c1, y, c2) end
+end
+-- }}}
+
+-- {{{ Panel:fill
+-- Puts char (a space if left out) in every visible cell of the panel, in
+-- the current style: set a background colour first and the panel becomes a
+-- coloured block.  Panel:clear, by contrast, always leaves plain blanks.
+-- Asked for by delta-version's history viewer (#189).
+function Panel:fill(char)
+    char = char or " "
+    local r1, c1, r2, c2 = visible_rect(self)
+    if not r1 then return end
+    for y = r1, r2 do
+        for x = c1, c2 do
+            tui.set_cell(y, x, char)
+        end
+    end
+end
+-- }}}
+
+-- {{{ Panel:invalidate
+-- Marks the panel's cells for the next present().  A panel as wide as the
+-- screen marks whole rows; a narrower one marks only its own cells, so the
+-- rest of each row is not sent again.
+function Panel:invalidate()
+    local r1, c1, r2, c2 = visible_rect(self)
+    if r1 then tui.invalidate_region(r1, c1, r2, c2) end
+end
+-- }}}
+
+-- {{{ Panel:invalidate_row
+function Panel:invalidate_row(row)
+    if row < 1 or row > self.height then return end
+    local r1, c1, r2, c2 = visible_rect(self)
+    local y = self.row + row - 1
+    if r1 and y >= r1 and y <= r2 then tui.invalidate_region(y, c1, y, c2) end
+end
+-- }}}
+
+-- {{{ Panel style
+-- The style is global (delta-version 067's option 1); these are the same
+-- calls as tui.set_fg and the rest, kept on the panel so code that holds a
+-- panel need not reach for tui as well.
+function Panel:set_fg(fg) tui.set_fg(fg) end
+function Panel:set_bg(bg) tui.set_bg(bg) end
+function Panel:set_attrs(attrs) tui.set_attrs(attrs) end
+function Panel:reset_style() tui.reset_style() end
+-- }}}
+-- }}}
+
+-- {{{ Drawing without a terminal
+-- For tests, and for a program that wants a screen in memory: set up the
+-- buffers at a given size without touching the terminal, read a cell back,
+-- and catch what present() would send.
+
+-- {{{ tui.init_buffers
+-- Sets the screen size to r rows by c columns and makes blank buffers, with
+-- a full redraw pending.  Leaves the terminal alone (tui.init does not).
+function tui.init_buffers(r, c)
+    rows, cols = r, c
+    front_buffer = create_buffer(rows, cols)
+    back_buffer = create_buffer(rows, cols)
+    tui.invalidate()
+    return rows, cols
+end
+-- }}}
+
+-- {{{ tui.get_cell
+-- A copy of the back-buffer cell at (row, col): {char, fg, bg, attrs}, or
+-- nil outside the screen.
+function tui.get_cell(row, col)
+    local line = back_buffer[row]
+    local cell = line and line[col]
+    return cell and copy_cell(cell) or nil
+end
+-- }}}
+
+-- {{{ tui.set_output
+-- fn(text) receives what present() would write to the terminal.  nil sends
+-- it to the terminal again.
+function tui.set_output(fn)
+    output_fn = fn
+end
+-- }}}
 -- }}}
 
 -- {{{ tui.init

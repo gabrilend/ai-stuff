@@ -302,6 +302,20 @@ fi
 6. Results returned as JSON to stdout
 7. **lua-menu.sh** parses results and populates `MENU_VALUES` array
 
+## Screen Layout
+
+Each redraw, `menu.layout(rows, cols, {has_shortcuts=...})` splits the screen
+into three tui panels (issue 059):
+
+- **header**: rows 1-4 (box top, title, subtitle, separator)
+- **footer**: the last 2 rows (separator, help line), or 3 when there are
+  custom shortcut keys to list
+- **body**: everything between; sections, the description and any preview
+  fill it right down to the footer
+
+On a terminal too short for all three, the body keeps one row and the parts
+overlap; the tui drops anything off the screen.
+
 ## Tips
 
 1. **Use descriptive IDs** - They're used with `menu_get_value`, keep them readable
