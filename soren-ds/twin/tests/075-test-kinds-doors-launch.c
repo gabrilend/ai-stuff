@@ -75,6 +75,22 @@ static int near(uint64_t got, double want, double tolerance)
 }
 /* }}} */
 
+/* How long a program may take to settle before the test gives up on it.
+ * Settling answers the moment the engine is idle, so this costs nothing
+ * when the host is quiet; it is the bound for a host so busy that the
+ * engine's cores get a fraction of a CPU each. A count read before its
+ * program settled is a count of nothing in particular, so every settle
+ * below is checked rather than assumed. */
+#define SETTLE_MS 60000
+static int settled_every_time = 1;
+
+/* {{{ settle */
+static void settle(void)
+{
+    settled_every_time &= twin_engine_settle(SETTLE_MS);
+}
+/* }}} */
+
 #define SINK(name, from) "station " name " (../boxes/062-arithmetic.c:discard)\n  in 0 - " from "\n"
 
 int main(void)
@@ -95,7 +111,7 @@ int main(void)
         SINK("low", "split.0") SINK("even", "split.1") SINK("high", "split.2"));
     engine_configure(program_station(cmp, "split"), 0, PORT_RING, NULL, 0);
     feed(cmp, "split", 0, 0, 100);
-    twin_engine_settle(3000);
+    settle();
     CHECK(count_at(cmp, "low") == 50 && count_at(cmp, "even") == 1 && count_at(cmp, "high") == 49,
           "a comparator sent 0-49 below, 50 equal, 51-99 above (%llu %llu %llu)",
           (unsigned long long)count_at(cmp, "low"), (unsigned long long)count_at(cmp, "even"), (unsigned long long)count_at(cmp, "high"));
@@ -108,7 +124,7 @@ int main(void)
         SINK("a", "deal.0") SINK("b", "deal.1") SINK("c", "deal.2"));
     engine_configure(program_station(it, "deal"), 0, PORT_RING, NULL, 0);
     feed(it, "deal", 0, 0, 3000);
-    twin_engine_settle(3000);
+    settle();
     CHECK(count_at(it, "a") == 1000 && count_at(it, "b") == 1000 && count_at(it, "c") == 1000,
           "an iterator dealt 3000 values exactly 1000 to each exit");
 
@@ -121,7 +137,7 @@ int main(void)
         SINK("r0", "pick.0") SINK("r1", "pick.1") SINK("r2", "pick.2") SINK("r3", "pick.3"));
     engine_configure(program_station(rnd, "pick"), 0, PORT_RING, NULL, 0);
     feed(rnd, "pick", 0, 0, R);
-    twin_engine_settle(5000);
+    settle();
     uint64_t r[4] = { count_at(rnd, "r0"), count_at(rnd, "r1"), count_at(rnd, "r2"), count_at(rnd, "r3") };
     CHECK(r[0] + r[1] + r[2] + r[3] == (uint64_t)R && near(r[0], R / 4.0, 0.05) && near(r[1], R / 4.0, 0.05) &&
           near(r[2], R / 4.0, 0.05) && near(r[3], R / 4.0, 0.05),
@@ -144,26 +160,44 @@ int main(void)
         SINK("w0", "pick.0") SINK("w1", "pick.1") SINK("w2", "pick.2"));
     engine_configure(program_station(wt, "pick"), 0, PORT_RING, NULL, 0);
     feed(wt, "pick", 0, 0, 40000);
-    twin_engine_settle(5000);
+    settle();
     uint64_t w0 = count_at(wt, "w0"), w1 = count_at(wt, "w1"), w2 = count_at(wt, "w2");
     CHECK(near(w0, 5000, 0.07) && near(w1, 10000, 0.07) && near(w2, 25000, 0.07),
           "weighted {1, 2, 5} split 40000 close to 5000 / 10000 / 25000 (%llu %llu %llu)",
           (unsigned long long)w0, (unsigned long long)w1, (unsigned long long)w2);
 
     /* --- spread favours the destination that keeps up --------------------- */
+    /* "Keeps up" has to be made true rather than hoped for. When the slow
+     * destination was merely slow (a long box), the outcome rested on the
+     * feeder outrunning it: on a busy host the feeder is the thread that
+     * gets set aside, every value was handled before the next arrived,
+     * every look found both destinations idle, and the cursor split them
+     * evenly. So the slow destination is held: its second input has no
+     * source while the values arrive, and each one sent to it waits there.
+     * The values come in batches, each let settle, so the quick
+     * destination has drained before the next batch is decided; then the
+     * slow one is given its input and works through what it was sent. */
     int sp = load("spread.map",
         "spread share (../boxes/062-arithmetic.c:pass)\n"
         "  in 0 -\n"
         "  out 0 - slow.0\n  out 1 - quick.0\n"
         "station slow (../boxes/062-arithmetic.c:chew)\n"
-        "  in 0 - share.0\n  in 1 = 200000\n  out 0 - slow_sink.0\n"
+        "  in 0 - share.0\n  in 1 -\n  out 0 - slow_sink.0\n"
         "station quick (../boxes/062-arithmetic.c:pass)\n"
         "  in 0 - share.1\n  out 0 - quick_sink.0\n"
         SINK("slow_sink", "slow.0") SINK("quick_sink", "quick.0"));
     engine_configure(program_station(sp, "share"), 0, PORT_RING, NULL, 0);
-    feed(sp, "share", 0, 0, 2000);
-    twin_engine_settle(20000);
+    int batches_settled = 1;
+    for (int64_t from = 0; from < 2000; from += 100) {
+        feed(sp, "share", 0, from, from + 100);
+        batches_settled &= twin_engine_settle(SETTLE_MS);
+    }
+    uint64_t held = count_at(sp, "slow_sink");
+    int64_t rounds_slow = 200000;
+    engine_configure(program_station(sp, "slow"), 1, PORT_STATIC, &rounds_slow, sizeof rounds_slow);
+    batches_settled &= twin_engine_settle(SETTLE_MS);
     uint64_t slow = count_at(sp, "slow_sink"), quick = count_at(sp, "quick_sink");
+    CHECK(batches_settled && held == 0, "the spread program settled after every batch, the held destination running none");
     CHECK(slow + quick == 2000 && quick > slow, "spread sent more to the destination that keeps up (quick %llu, slow %llu)",
           (unsigned long long)quick, (unsigned long long)slow);
     metric_record("kinds.spread_quick_share", (double)quick / 2000.0, "fraction", "kinds-spread",
@@ -184,7 +218,7 @@ int main(void)
     program_argument(trap, 1, &c2, sizeof c2);
     program_argument(trap, 0, &o2, sizeof o2);
     program_argument(trap, 1, &c1, sizeof c1);
-    twin_engine_settle(2000);
+    settle();
     uint64_t runs = count_at(trap, "paired");
     int64_t sum;
     uint64_t count;
@@ -213,7 +247,7 @@ int main(void)
         program_argument(progs[i], 0, &seed, sizeof seed);
         program_argument(progs[i], 1, &rounds, sizeof rounds);
     }
-    twin_engine_settle(2000);
+    settle();
     int64_t sa, sb, sc;
     tally_read(program_station(first, "out_a"), &count, &sa);
     tally_read(program_station(second, "out_b"), &count, &sb);
@@ -223,15 +257,17 @@ int main(void)
 
     /* --- bringing up twice starts nothing twice ------------------------------- */
     int counting = program_load("src/maps/counting.map", &(struct map_report){ 0 });
-    twin_engine_settle(2000);
+    settle();
     int32_t add_one = program_station(counting, "add_one");
     uint64_t before = engine_station_runs(add_one);
     struct map_report report;
     program_bring_up(counting, &report);
     program_bring_up(counting, &report);
-    twin_engine_settle(2000);
+    settle();
     CHECK(before == 10 && engine_station_runs(add_one) == before, "bringing a program up twice started nothing again (%llu runs)",
           (unsigned long long)engine_station_runs(add_one));
+
+    CHECK(settled_every_time, "every program above settled before its counts were read");
 
     /* --- the launch boxes ------------------------------------------------------ */
     char line[512];
@@ -294,7 +330,7 @@ int main(void)
         snprintf(path, sizeof path, "%s/tmp/shared-memory/test-logs/075-halt.log", getenv("SOREN_DIR"));
         snprintf(errors, sizeof errors, "%s/tmp/shared-memory/test-logs/075-halt-stderr.log", getenv("SOREN_DIR"));
         remove(path);
-        freopen(errors, "w", stderr);
+        if (freopen(errors, "w", stderr) == NULL) _exit(2);
         /* Threads do not survive a fork: the child starts an engine of its own. */
         twin_engine_start(2, (size_t)64 << 20);
         engine_open_gate();

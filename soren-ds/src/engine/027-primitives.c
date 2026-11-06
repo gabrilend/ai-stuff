@@ -14,13 +14,17 @@ void spin_lock(spin_lock_t *lock)
 {
     uint32_t mine = __atomic_fetch_add(&lock->next, 1, __ATOMIC_RELAXED);
     /* Wait until our number is served. The acquire load is what makes
-     * everything the previous holder wrote visible to us once we are in. */
-    while (atomic_load_acquire(&lock->serving) != mine) {
-#if defined(__aarch64__)
-        __asm__ volatile("yield");
-#elif defined(__x86_64__)
-        __asm__ volatile("pause");
-#endif
+     * everything the previous holder wrote visible to us once we are in.
+     * How to wait is the platform's: see platform_spin_wait. */
+    uint32_t turns = 0, serving, last = mine;
+    while ((serving = atomic_load_acquire(&lock->serving)) != mine) {
+        /* Turns count from the last time the queue moved: a long queue
+         * that keeps moving is not a stalled one. */
+        if (serving != last) {
+            last = serving;
+            turns = 0;
+        }
+        platform_spin_wait(&lock->serving, serving, turns++);
     }
 }
 /* }}} */
@@ -32,6 +36,8 @@ void spin_unlock(spin_lock_t *lock)
      * with release ordering is enough. */
     uint32_t next = atomic_load_relaxed(&lock->serving) + 1;
     atomic_store_release(&lock->serving, next);
+    /* Somebody is queued: the platform may have let them sleep. */
+    if (atomic_load_relaxed(&lock->next) != next) platform_spin_wake(&lock->serving);
 }
 /* }}} */
 

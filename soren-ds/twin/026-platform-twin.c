@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <linux/futex.h>
 #include <pthread.h>
+#include <sched.h>
 #include <setjmp.h>
 #include <signal.h>
 #include <stdatomic.h>
@@ -256,6 +257,52 @@ static void futex_wait(_Atomic uint32_t *word, uint32_t expected, const struct t
 static void futex_wake_all(_Atomic uint32_t *word)
 {
     syscall(SYS_futex, (uint32_t *)word, FUTEX_WAKE_PRIVATE, 0x7fffffff, NULL, NULL, 0);
+}
+/* }}} */
+
+/* {{{ platform_spin_wait / platform_spin_wake */
+/* The host runs more threads than it has CPUs whenever anything else is
+ * busy, and sets runnable threads aside for whole time slices. A lock
+ * that serves in arrival order then waits on the one thread whose number
+ * is next; if that thread is runnable but set aside, every waiter behind
+ * it spins away the CPUs it needs, and the lock moves once per time slice.
+ * So a waiter that has watched the queue not move for a while (`turns`
+ * counts from its last move) sleeps in the kernel on the word it is
+ * watching, and the release wakes the sleepers: a thread woken from sleep
+ * is run promptly, where one merely set aside waits its turn. While the
+ * queue keeps moving nobody sleeps, which is the quiet host's case and
+ * keeps its speed; sleeping sooner made a quiet host's 049 ten times
+ * slower. A count of sleepers keeps the release from asking the kernel
+ * when nobody sleeps. */
+#define SPIN_TURNS_BEFORE_SLEEPING 1024
+static _Atomic uint32_t spin_sleepers;
+
+void platform_spin_wait(uint32_t *word, uint32_t seen, uint32_t turns)
+{
+    if (turns < SPIN_TURNS_BEFORE_SLEEPING) {
+#if defined(__x86_64__)
+        __asm__ volatile("pause");
+#elif defined(__aarch64__)
+        __asm__ volatile("yield");
+#endif
+        return;
+    }
+    /* The kernel sleeps only if the word still holds `seen`, so a release
+     * that lands after the look and before the sleep is not missed; the
+     * time limit is a backstop, not the mechanism. */
+    struct timespec limit = { 0, 1000000 };
+    atomic_fetch_add(&spin_sleepers, 1);
+    futex_wait((_Atomic uint32_t *)word, seen, &limit);
+    atomic_fetch_sub(&spin_sleepers, 1);
+}
+
+void platform_spin_wake(uint32_t *word)
+{
+    /* The release's store must be seen before the count is read, or a
+     * waiter that counted itself and then saw the old word would sleep
+     * with nobody to wake it. */
+    atomic_thread_fence(memory_order_seq_cst);
+    if (atomic_load(&spin_sleepers)) futex_wake_all((_Atomic uint32_t *)word);
 }
 /* }}} */
 
