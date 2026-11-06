@@ -744,10 +744,64 @@ return TemplatePreview
 
 ### Acceptance Criteria
 - [ ] Real-time visual preview of unit appearance with accurate rendering
-- [ ] Comprehensive stats analysis with combat effectiveness breakdown
-- [ ] Combat simulation against common opponent types
-- [ ] Template comparison functionality with detailed differences
+- [x] Comprehensive stats analysis with combat effectiveness breakdown
+- [x] Combat simulation against common opponent types
+- [x] Template comparison functionality with detailed differences
 - [ ] Interactive preview controls (zoom, toggle overlays)
 - [ ] Performance-optimized updates and rendering
 - [ ] Clear visual feedback for all template aspects
 - [ ] Animated mana bars and unit breathing effects
+
+## What Happened
+
+Built the logic behind the template preview, with nothing drawn: the
+unit, its range circles, mana bars and the mode tabs belong to the
+template editor's screen (issue 062), and no one has seen this on a
+screen.
+
+- `src/editor/template_preview.lua`:
+  - `TemplatePreview.analyze(template)`: survival (health, and
+    effective health against physical and magical damage by the game's
+    own rule, armor A letting through 100/(100+A)); offense (burst,
+    damage and healing a second at a steady charge, reach); support
+    (buffs, debuffs, uptime); mobility; counts of single-target, area,
+    piercing, cleave, over-time, crowd-control and each damage type; and
+    a row per ability (charge time, seconds between casts, per cast, per
+    second, targets, whether it waits on a trigger).
+  - `TemplatePreview.simulate(template, options)`: headless battles
+    (the balance harness) against one starter template of each body
+    (Warrior, Archer, Brute, Cleric, Battle Mage) or chosen opponents,
+    with win rates, 95% intervals and average length, seeded so they
+    repeat exactly, and a note that they compare templates rather than
+    predict real matches.
+  - `TemplatePreview.compare(a, b)`: points, every stat, abilities only
+    one has, and the analysis measures side by side, with the
+    differences in words.
+  - A preview object holds the view's state (mode, zoom held between
+    0.5 and 3, overlays on and off), the shapes the visual mode would
+    draw at that zoom, and caches: the analysis is worked out again only
+    when the template's contents change, and simulations are kept per
+    template and options.
+- `UnitTemplate.ability_throughput` now holds the per-cast, rate and
+  target arithmetic that `ability_cost` used inline, so the preview and
+  the prices read the same numbers. Every ability's cost is unchanged
+  (checked before and after).
+- `tests/test_template_preview.lua` (5 tests), run by `./run <dir> unit`.
+
+Left unticked, because they need a screen: drawing the unit and its
+look; zoom and overlay controls as things to click (their state and
+shapes exist); rendering speed (the analysis is cached, but nothing is
+rendered); visual feedback; animated mana bars and breathing.
+
+### Decisions
+
+- Simulations use the real abilities in the headless harness rather
+  than the sketch's formula (`our score / (our + their)`): the harness
+  runs every ability system, and a formula would disagree with it. They
+  carry the same caveat as the harness: the walking is a stand-in.
+- Opponents are the starter defaults, one per body, instead of the
+  sketch's "Basic Warrior" set, which doesn't exist.
+- Effective health uses the game's damage rule, not a separate score;
+  there is no single "total score", because one number would hide the
+  trade-offs the analysis is there to show.
+

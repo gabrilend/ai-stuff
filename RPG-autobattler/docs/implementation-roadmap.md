@@ -101,7 +101,7 @@
 - [x] Implement stat allocation interface (Issue #063: rows, limits, steps, presets and suggestions as logic; the screen comes with the editor UI)
 - [x] Create ability selection system (Issue #064: library, search, tuning and slot logic; the screen comes with the editor UI)
 - [x] Add point budget display and validation (Issue #065: segments, tooltips, status, change detection and over-budget suggestions as logic; the bar comes with the editor UI)
-- [ ] Implement template preview functionality
+- [x] Implement template preview functionality (Issue #066: analysis, headless battles, comparison and view state as logic; the drawing comes with the editor UI)
 
 ### 5.3 Template Integration
 - [ ] Connect templates to unit spawning system
