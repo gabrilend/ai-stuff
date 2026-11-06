@@ -13,6 +13,20 @@
 
 No NAT traversal mechanism exists. Players behind NAT cannot host games without port forwarding.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #308 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- The "open" test compares the outside address with the socket's own, which is `0.0.0.0` when bound to all addresses, so a machine with no NAT is reported as restricted cone.
+- The reflector binds its second socket on the same port as a wildcard main socket, which always fails with "address in use" in the recommended `--bind 0.0.0.0` setup; replies from a two-address host can also come from the wrong address.
+- The host ignores a repeated punch request while its own punch is established, so a player whose punch failed can never retry; a moved port also discards a working punch.
+- The reflector's sockets aren't in the server's select; the loop instead ticks at 100 Hz while idle (`r:sockets()` exists and is unused).
+- The second port is computed as bound+1 with no range check, and `--nat-port` accepts fractions and values above 65535.
+- Tokens are `game_id*4096 + player_id`, but player ids come from one counter for the server's life; past 4096 joins, tokens of different games collide, and both ids are public.
+- The default token comes from an unseeded random generator, so every client's first detection uses the same token.
+- Game data arriving while the receiving side is still "punching" is dropped silently.
+- Every datagram is decoded once per punch plus once more.
+
 ## Intended Behavior
 
 A UDP hole punching system that enables peer-to-peer connections between:
