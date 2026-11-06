@@ -1,0 +1,166 @@
+a first person game with a 3rd person mode inbetween each segment of the match.
+the first person sword game is controlled with a mouse and keyboard.
+so is the 3rd person mode, which is treated equally in ideal respects.
+
+we should try and intentionally give pareidolia [for/to] cats
+
+"yep she's a zelda queen, I call her kitty"
+
+players use wasd to move their character physically around a map topologically
+and if they backstep while low on fatigue they'll trip.
+players pretty much always can parry at high stamina
+it gets less and less as they go lower by gaining fatigue.
+1/4th chance while sidestepping to trip, but only if parrying.
+
+critical hits occur when you deal extra damage for some reason
+high crit chance gives you a chance to deal extra damage
+extra damage usually means you got momentum on your side
+momentum comes from movement intertia and weapon swing patterns
+as described in the next section.
+flanked hits also deal critical strikes on a solid connect
+dodging can't occur to a space that is occupied.
+
+inbetween each round there's a stage where you decide which compass direction
+your contingent will push this round
+total war style (there was a weird one where they had really small army sizes)
+then, you play as someone on the frontline while your commander (you) guides
+
+(that's the third person mode dummy)
+
+oh right, where you play as the entire contingent
+
+"what does your left and right mouse-click buttons do"
+
+good question, me... well, they throw ranged attacks and deploy shields.
+
+oh and um... in first person mode, basically you have your weapon placed in a
+U shape. and left-click will swing you in whatever direction your weapon is in.
+there's a special button move (space?) that swings from above. that one leaves
+you open but deals extra damage if it lands. can still be parried.
+most attacks are stabs. some are slashes, but less often because you're
+fighting in battalion
+duh
+read paksenarrion
+
+anyway, you can move into an occupied space at 50% speed. Nobody can push you
+around.
+
+most armies start out with spears and hatchets. this is because they are
+very simple technology
+then you move to big hammers, then swords, then glaives, then halberds.
+sometimes you use pikes, if you got the right kind of wood for it
+sometimes your armors not so good, so you train bushido
+sometimes you get horses, sometimes you lack the yak.
+there used to be all kinds of monsters in the swamps, like dinosaurs and lizards
+but we turned most swamps into little parks. some still remain, like in florida.
+prairie, similarly, is mostly bisected by roads manned with fences
+the oceans, known for their salt, starts to know gummy detritus.
+... idk how plastic tastes.
+
+can you chew on it "no baby don't do that"
+
+wow! electricity is magic!
+
+cars are horrifying skeletal beasts
+
+... anyway...
+
+you can only move into an occupied space if it's occupied by an ally, and then
+only at 50% speed. They move the other direction automatically, from a different
+movement potential than their user controls. the one used for dodging...? opens
+it up to griefing, so while it'd be more accurate, the game design wins for the
+simulation
+
+ranged weapons aim in an arc, about 2 battalions worth of empty space inbetween
+maybe 1...
+the arc is always the same, because everyone trains the same way, and they can't
+all see how far away the enemy is.
+
+lategame perk is to get an upgrade that lets you fire at any range from 1-3 but
+normally you can only fire at 3. 0 is melee range...? no 0 is you - okay but
+what if you want to - you'd basically just be tossing it, it won't have enough
+momentum unless you throw it like you mean it. And then there's only really one
+arc that you can pick, anything else risks throwing it too close. that's why
+it's a late-game perk to be able to throw at just the right angle - because you
+trained it that way.
+
+together.
+
+as a battalion.
+
+I bet I could make a doomsday device
+
+I promise I won't
+
+sometimes things change.
+
+cry me a river
+
+there's not enough rivers about
+
+... anyway,
+
+shields help you parry
+
+especially ranged weapons
+
+there's sometimes archers
+
+and cavalry!
+
+but at first it's just a sword game.
+
+so... just two-handed swords. we'll add the rest in an expansion.
+
+anyway after the third-person mode, you play in first person. in first person,
+you can control your movement patterns, and you intuitively know who is to the
+left and right of you because you have a 160 degree field of vision. less if you
+have higher armor. you can move the mouse to see. dragons are cannons of fire.
+
+um... idk what else to say about the game...
+
+oh! the U targetting system is always focused on the nearest enemy target, and
+it takes a half-second to switch. but you do so before your next attack, so the
+enemy doesn't know which way you are looking. Also there's no UI, you just see
+the character model. the game renders for you the correct character model, and
+you have a 90 degree field of view.
+
+each round, you pick a perk or upgrade for your guys
+
+each round all units are replenished.
+
+sometimes it says a certain amount of guys are affected, and you the player can
+always choose if you want to be affected. but, sometimes there isn't one ready,
+so you can only be a normal guy. things like "mega spearman" which is a heavily
+armored unit that you can get at any round of play even if you just have clothes
+for your guys and this unit has maxed armor stats +1, but they can only stab.
+because spear. oh and they have a shield, and that's represented with the +1
+armor.
+
+armor reduces damage by a certain percentage. you can pick thin armor if you
+want to attack at normal speed (almost a necessity) or you can thicken for two
+points, but you move slower. They are separate upgrade tracks, sorta like in
+Hearts of Iron infantry equipment designer (mod maybe?) oh oh artillery
+
+othertimes it's like "beastwarrior" which is a unit that is massive and tall
+they deal critical damage always, and can parry while moving forward.
+
+also there's "skirmisher" which can throw weapons from the frontline as long as
+the team isn't too close. then they retreat and can move through loose formation
+to another angle that isn't as close. anywhere from 0-1 batallion size distance.
+
+cavalry, someday...
+
+othertimes they're just very well trained, and have several perks applied that
+the other units don't have.
+
+like "halberds"
+
+or "riposte" where a parry follows an attack.
+
+or "harry" which is where they attack then back up as a group, dancing in-n-out.
+
+right so what else do we need? artstyles maybe? oh just make it moddable.
+what if we use gumby style claymation with lego armor and swords
+
+I'd like a visual prototype within two hours

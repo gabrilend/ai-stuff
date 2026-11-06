@@ -21,6 +21,21 @@ single view.
 
 ---
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #323 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- A protected map lists a duplicated file once by name and again as numbered copies (`File00000131.w3d`), so duplicates are counted more than once and appear under extensions with "no parser". The first run's totals (3,416 files, 146 unparsed) include these.
+- Listing a map's files is not protected: one map with a damaged file table stops the whole report with a traceback and leaves the archive open.
+- A map that won't open gets the status "error", which the summary never counts, so every standard file kind then looks "present in at least one map" and clutters the matrix.
+- A map path ending in `/` crashes before the map is opened (the short-name match finds nothing).
+- Standard names are matched with exact case and `\` separators, but archive names ignore case; `War3map.j` is filed as "no parser yet" and the script is never parsed.
+- The JSON writer turns every empty table into `[]`, so `status` and `summary` flip between object and array from run to run.
+- `--help` prints only a one-line usage to stderr and exits 2, the same as a usage error.
+- A third hand-written JSON encoder, beside `dkjson` and `cli/mapdump.lua`'s.
+- Maps are scanned one after another on one thread although each is independent (house rule: parallel batch work).
+- The branch moved this issue to completed while its "Still open" section lists deferred work, and the 8 parser failures it found were not written into the parser issues.
+
 ## Intended Behavior
 
 A project-specific tool that:

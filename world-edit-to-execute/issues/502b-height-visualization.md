@@ -34,6 +34,41 @@ the ground's.
 - [ ] Hills and cliffs on a test map match their shape in the editor's view
 - [ ] Units stand on the ground, not at height zero
 
+## Status Note (2026-11-06)
+
+The text above was written at the 2026-09-26 re-cut and not updated after
+issue 517b (2026-09-29), which built most of this in a second render path:
+`src/render/landscape.c`, drawn by the scene viewer (`run-map`) and the
+editor. The vertical slice's `terrain.c` is still flat, as described above.
+
+Done (read from the code, 2026-11-06):
+
+- Step 1: each tilepoint's height and cliff level set the mesh's vertices.
+  `w3e.ground_z` is height + 128 per cliff layer above layer 2;
+  `demo/wc3map/scene.lua` packs those into `render.land_build`, which
+  builds two triangles per cell in 32x32-cell chunks.
+- Step 4: the ground height under a point. `scene.sample.ground_at(x, y)`
+  interpolates between tilepoints; script-placed units get their z from it
+  (ships from the water when it is higher), and the viewer's
+  `scene_ground` keeps the camera on it.
+
+Partly done:
+
+- Step 2: one directional light, but per triangle (flat shading,
+  `geometry_shade`: 55% ambient plus the light by the face's slope), baked
+  into vertex colours. No smoothed vertex normals.
+- Step 3: cliffs show as rock-coloured slopes (a triangle rising more than
+  80 units across a cell), not as WC3's cliff walls and steps between
+  levels.
+
+Left: WC3-style cliff walls (cliff models or stepped walls per cliff
+tileset); smoothed normals if wanted; heights in the vertical slice's
+`terrain.c` and the page, or a decision that `landscape.c` replaces it.
+
+Boxes left unticked: 517 checked the maps by screenshot under Xvfb, but
+nobody compared hills and cliffs against WC3's own editor, and the units
+standing on the ground was not checked on screen in this pass.
+
 ---
 
 ## Earlier Design (January 2026, for a Lua renderer interface)
