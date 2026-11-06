@@ -2,7 +2,7 @@
 -- Tests the w3i parser against real map files.
 -- Run from project root: lua5.4 src/tests/test_w3i.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg and arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local mpq = require("mpq")
@@ -233,7 +233,55 @@ local function test_all_maps()
 end
 -- }}}
 
+-- {{{ The later editors' versions (28 and 31), made from the test map's
+-- own info: written back at each version, read again, every field there
+local function test_later_versions()
+    print_separator("Versions 28 and 31")
+    local archive = mpq.open(TEST_MAP)
+    if not archive then print("ERROR: Cannot open test map") return false end
+    local base = assert(w3i.parse(archive:extract("war3map.w3i")))
+    archive:close()
+    local all = true
+    for _, version in ipairs({ 28, 31 }) do
+        local m = base
+        m.version = version
+        m.game_version = { 1, 31, 1, 12164 }
+        m.script_language = 1
+        m.supported_modes, m.game_data_version = 3, 1
+        for i, p in ipairs(m.players) do p.enemy_low, p.enemy_high = i, 2 * i end
+        local again
+        local ok = test("version " .. version .. " written and read back", function()
+            again = assert(w3i.parse(w3i.write(m)))
+            assert(again.version == version, "version")
+            assert(again.game_version and again.game_version[2] == 31 and again.game_version[4] == 12164, "game version")
+            assert(again.name == base.name and again.playable_width == base.playable_width, "fields after the game version")
+            assert(again.fog.start_z == base.fog.start_z and again.water_color == base.water_color, "fog and tint")
+            assert(again.script_language == 1, "script language")
+            if version >= 31 then
+                assert(again.supported_modes == 3 and again.game_data_version == 1, "modes and game data version")
+                assert(again.players[1].enemy_high == 2, "a player's enemy priorities")
+            else
+                assert(again.supported_modes == nil and again.players[1].enemy_low == nil, "no version-31 fields")
+            end
+            assert(#again.players == #base.players and #again.forces == #base.forces, "players and forces")
+            assert(again.players[#again.players].start_x == base.players[#base.players].start_x, "the last player")
+            assert(again.sections.upgrades == base.sections.upgrades, "the sections after the forces")
+        end)
+        all = all and ok
+    end
+    all = test("flags 0x2000 and 0x10000 read as terrain fog and water tint", function()
+        local m = base
+        m.version = 25
+        m.flags = { raw = 0x12000 }
+        local again = assert(w3i.parse(w3i.write(m)))
+        assert(again.flags.use_terrain_fog and again.flags.use_water_tint and not again.flags.item_classification)
+    end) and all
+    return all
+end
+-- }}}
+
 -- Run the tests
 local ok = run_tests()
+local later_ok = test_later_versions()
 test_all_maps()
-os.exit(ok and 0 or 1)
+os.exit((ok and later_ok) and 0 or 1)
