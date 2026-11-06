@@ -1,0 +1,70 @@
+# A small bakery, written as an org map. Every document uses it as the worked
+# example, and the tests read it. See docs/002-the-org-map.md for the format.
+
+org corner-bakery
+  says "bread for the street, baked before seven"
+
+person ana
+  says "bakes"
+
+person bo
+  says "buys flour and runs the till"
+
+person cy
+  says "delivers, and is new"
+
+person dee
+  says "keeps the books"
+
+outside customers
+  says "the people who buy bread"
+
+outside mill
+  says "the mill we buy flour from"
+
+outside drain
+  says "the city drain behind the shop"
+  spoken-for-by dee
+
+role buying
+  says "orders flour and keeps the pantry full"
+  held-by bo
+  in invoice $mill "the mill's weekly invoice"
+  out flour - baking.flour
+
+role baking
+  says "turns flour into loaves"
+  held-by ana
+  in flour - buying.flour
+  in recipe = "the house sourdough, seventy percent water"
+  in clean-bench - cleaning.bench
+  out loaves - selling.loaves
+  out loaves - delivery.loaves
+  out wash-water $drain "flour paste down the sink"
+
+role cleaning
+  says "the bench is scrubbed before the first dough"
+  out bench - baking.clean-bench
+
+role selling
+  held-by bo
+  in loaves - baking.loaves
+  out takings - books.takings
+  out bread $customers
+
+role delivery
+  says "takes the standing orders round by bicycle"
+  held-by cy
+  in loaves - baking.loaves
+  out bread $customers
+
+role books
+  held-by dee
+  in takings - selling.takings
+  out oven-budget - new-oven.budget
+  out payment $mill
+
+work new-oven
+  says "replace the oven that loses heat overnight"
+  held-by ana
+  in budget - books.oven-budget

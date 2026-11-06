@@ -1,0 +1,16 @@
+proposal oven-money-from-takings
+  by ana
+  opened 2026-11-01
+  says "the books have not released the oven budget in a month; take it from the till directly"
+
+edit work new-oven
+  - in budget - books.oven-budget
+  + in budget - selling.oven-money
+
+edit role books
+  - out oven-budget - new-oven.budget
+
+edit role selling
+  + out oven-money - new-oven.budget
+
+object dee 2026-11-02 "the takings pay the mill first; this skips that"
