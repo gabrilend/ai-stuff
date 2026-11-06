@@ -393,7 +393,7 @@ Phase 2 & 3 Complete
 | **501** | Create abstract render interface | Re-cut 2026-09-26 | 508, 515 |
 | 501a | Define renderer interface | Retired (superseded/) | — |
 | 501b | Create renderer registry | Retired (superseded/) | — |
-| 501c | Implement null renderer | Re-cut 2026-09-26 | 501 |
+| 501c | Implement null renderer | In progress (over the slots; the page waits on 501) | 501 |
 | 501d | Implement camera system | Re-cut 2026-09-26 | 508 |
 | 501e | Create render events | Retired (superseded/) | — |
 | **502** | Implement terrain rendering | Re-cut 2026-09-26 | 508, 105, 501 |
