@@ -90,3 +90,7 @@ Efficient compute shader that calculates all pairwise cosine similarities.
 **Priority**: High
 
 **Note**: Shader design and implementation complete. Integration testing and performance benchmarking remain as follow-up tasks in parent issue 9-002.
+
+## Blocks
+
+- 9-002b

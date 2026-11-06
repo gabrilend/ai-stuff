@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# phase-2-demo - bodies on the field: who may stand where.
+#
+# Draws a battle from above in the terminal, one character per cell, second
+# by second, while the two crowds close and meet: enemies are walls, allies
+# give way at half speed, tired soldiers trip. Then it checks the stated rules
+# of phase 2 one by one (the same checks the test suite runs) and shows how
+# the parry chance falls with fatigue, as a chart.
+#
+# Usage: phase-2-demo [project-dir]
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/sword-fighting-game}"
+luajit "${DIR}/issues/completed/demos/phase-2-crowds.lua" "${DIR}" 22
+
+echo ""
+echo "the rules of phase 2, checked:"
+luajit "${DIR}/tests/000-run-all.lua" "${DIR}" | grep "032-bodies" | sed 's/032-bodies-on-the-field.lua: //'
+
+echo ""
+echo "parry chance by stamina (fresh at the top), with and without bushido:"
+luajit -e "
+package.path = '${DIR}/src/?.lua;' .. package.path
+local config = require('002-util').load_config('${DIR}')
+local st = require('007-stamina')
+for k = 10, 0, -1 do
+	local p, q = st.parry_chance(k / 10, config), st.parry_chance(k / 10, config, true)
+	print(string.format('    stamina %.1f  %-40s %3d%%   bushido %3d%%', k / 10,
+		string.rep('#', math.floor(p * 40 + 0.5)), math.floor(p * 100 + 0.5), math.floor(q * 100 + 0.5)))
+end
+print(string.format('    backsteps trip above fatigue %.2f; guarded sidesteps trip %d%% of the time',
+	config.stamina.trip_fatigue, config.stamina.side_trip * 100))"

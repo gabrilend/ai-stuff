@@ -96,7 +96,9 @@ local function demo_flat_html_generation()
     
     -- Generate sample chronological index
     print("📄 Generating chronological index with navigation...")
-    local index_file = flat_gen.generate_chronological_index_with_navigation(poems_data, DIR .. "/demo-output")
+    -- the pages are built by worker threads (Issue 8-058); two is plenty for
+    -- the demo's small view
+    local index_file = flat_gen.generate_chronological_index_with_navigation(poems_data, DIR .. "/demo-output", nil, 2)
     
     if index_file then
         print("✅ Generated: " .. index_file)
@@ -127,72 +129,64 @@ end
 -- }}}
 
 -- {{{ function demo_timeline_progress
+-- Draws one poem's first similar page through the same page workers a build
+-- uses (scripts/render-page-sample --anchor; Issue 8-058), then shows the
+-- progress bars above its first few entries: each bar fills by where that
+-- poem sits on the writing timeline.
+-- config.lua testing names the model and server the demos draw from
+local DEMO_MODEL = require("config-loader").load().testing.model
+local DEMO_SERVER = require("config-loader").load().testing.server
 local function demo_timeline_progress()
     print("🎨 DEMO 2: VISUAL TIMELINE PROGRESS WITH SEMANTIC COLORS")
     print(string.rep("-", 80))
-    
-    -- Generate a sample page with progress bars
-    print("🎯 Generating sample similarity page with timeline progress...")
-    
-    local poems_data = utils.read_json_file(utils.asset_path("poems.json"))
-    local similarity_data = utils.read_json_file(utils.embeddings_dir("embeddinggemma_latest") .. "/similarity_matrix.json")
 
-    if poems_data and similarity_data then
-        -- Find a poem with an ID for testing
-        local test_poem = nil
-        for i, poem in ipairs(poems_data.poems) do
-            if poem.id and poem.id > 1000 then  -- Choose a poem with some progress
-                test_poem = poem
-                break
-            end
-        end
-        
-        if test_poem then
-            print(string.format("📝 Using test poem ID %d for progress demonstration", test_poem.id))
-            
-            local ranking = flat_gen.generate_similarity_ranked_list(test_poem.id, poems_data, similarity_data.similarities)
-            local html = flat_gen.generate_flat_poem_list_html(test_poem, ranking, "similar", test_poem.id)
-            
-            local demo_file = DIR .. "/demo-output/timeline_progress_demo.html"
-            if utils.write_file(demo_file, html) then
-                print("✅ Generated: " .. demo_file)
-                
-                -- Extract and show progress bar examples
-                print("\n🌈 PROGRESS BAR EXAMPLES:")
-                local progress_examples = {}
-                for line in html:gmatch("[^\n]+") do
-                    if line:match("═") and line:match("aria%-label") then
-                        local aria_label = line:match('aria%-label="([^"]+)"')
-                        local progress_visual = line:match('>(.*)</div>')
-                        if aria_label and progress_visual then
-                            table.insert(progress_examples, {
-                                aria = aria_label,
-                                visual = progress_visual:gsub("<[^>]*>", ""):sub(1, 40) .. "..."
-                            })
-                        end
-                        if #progress_examples >= 3 then break end
-                    end
-                end
-                
-                for _, example in ipairs(progress_examples) do
-                    print(string.format("   🔊 Screen reader: \"%s\"", example.aria))
-                    print(string.format("   👁️  Visual: %s", example.visual))
-                    print()
-                end
-            else
-                print("❌ Failed to generate timeline progress demo")
-                return false
-            end
-        else
-            print("❌ Could not find suitable test poem")
-            return false
-        end
-    else
-        print("❌ Could not load required data")
+    local poems_data = utils.read_json_file(utils.asset_path("poems.json"))
+    if not poems_data then
+        print("❌ Could not load poems.json")
         return false
     end
-    
-    return true
+    -- the poem in the middle of the numbering, so its neighbours spread
+    -- across the timeline
+    local anchor_poem = poems_data.poems[math.floor(#poems_data.poems / 2)]
+    local anchor = anchor_poem.poem_index
+    local out = string.format("%s/demo-output/timeline-progress-%s", DIR, os.date("%Y%m%d-%H%M%S"))
+    print(string.format("🎯 Drawing poem %d's similar page (%s) into %s", anchor, DEMO_MODEL, out))
+    local cmd = string.format("%q %q --out %q --model %q --server %q --threads 4 --poems-per-page 33 --pages 1 --anchor %d",
+        DIR .. "/scripts/render-page-sample", DIR, out, DEMO_MODEL, DEMO_SERVER, anchor)
+    local result = os.execute(cmd)
+    if result ~= 0 and result ~= true then
+        print("❌ The page workers failed: " .. cmd)
+        return false
+    end
+    -- pages are named by the poem's source key (Issue 8-019)
+    local page = string.format("%s/similar/%s-01.html", out, anchor_poem.source_key or "?")
+    local html = utils.read_file(page)
+    if not html then
+        print("❌ No page at " .. page)
+        return false
+    end
+    print("✅ Generated: " .. page)
+
+    -- each entry's header line ("--- #n source ---") is followed by its
+    -- bar, the entry's top line; the bar's filled columns are ═ and empty ones ─ (counted whole: a Lua
+    -- pattern's + would repeat only the last byte of a multi-byte letter)
+    print("\n🌈 PROGRESS BARS (filled / width, by place on the writing timeline):")
+    local header, shown = nil, 0
+    for line in html:gmatch("[^\n]+") do
+        local plain = line:gsub("<[^>]*>", "")
+        if header then
+            local _, filled = plain:gsub("═", "")
+            local _, empty = plain:gsub("─", "")
+            print(string.format("   %-50s %3d / %d", header:sub(1, 50), filled, filled + empty))
+            shown = shown + 1
+            if shown >= 5 then break end
+            header = nil
+        elseif plain:match("^%-%-%- #%d+ ") then
+            header = plain
+        end
+    end
+    print()
+    return shown > 0
 end
 -- }}}
 

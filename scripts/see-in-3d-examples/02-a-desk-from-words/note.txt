@@ -1,0 +1,5 @@
+title: A desk with a lamp and a mug, from words alone
+picture: none
+stage: 3
+---
+The first version of this scene said "a mug" and drew none, and its floor sat under the lowest shape, so a desk raised to table height looked as if it lay on the ground. The views showed both at once; the mug, the legs, and a floor at height zero were added.

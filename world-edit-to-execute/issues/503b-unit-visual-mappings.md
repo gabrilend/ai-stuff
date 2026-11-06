@@ -14,6 +14,19 @@
 A unit's placeholder shape and size are set by the demo scripts, not from
 the map. Nothing reads a unit type's art fields.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #318 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- Model paths pass through unchanged: map-set models keep `.mdx`, stock ones have none, so whichever form the chooser expects, one kind silently gets a placeholder. `assets.model_for` already strips extensions.
+- Only `_` and empty count as "no value"; WC3 tables also use `-`, and profile values keep their quotes.
+- The module can't run without the installed game: a missing stock object crashes, so the planned map-load step would fail to load the map at all instead of using the map's own changes.
+- "Changed by the map" only comes from object-data edits; units changed through a map's own copy of `UnitUI.slk` are never marked.
+- Profile fields are looked up with exact capitalisation; profile files often write `File=`, so the model reads as none.
+- A custom type dropped by the stock merge (unknown parent) is reported as "in neither the map's data nor the tables", hiding the real cause.
+- This repeats the "map value, else stock value" lookup `object_stock` already has, with different rules, so the window's model and this module's shape can disagree.
+- Unreadable or missing values silently fall back to scale 1 and tint 255; several lookups are guarded against nil instead of finding why.
+
 ## Intended Behavior
 
 For each unit type on a map, its visual fields read from object data, the
@@ -163,3 +176,62 @@ This mapping can be expanded as needed. Start with common units, add more over t
 - issues/503a-core-sprite-system.md (uses these mappings)
 - src/runtime/ecs/wc3_components.lua (unit type IDs)
 - WC3 unit data files (reference)
+
+---
+
+## Decisions (2026-11-06)
+
+Made without the owner; each one theirs to overturn.
+
+1. **The rows are built and tested; handing them to the window is left.**
+   `src/gamedata/unit_visuals.lua` reads each unit type's art fields from
+   112's rows (`stock_rows.load` and `merge`) and needs neither raylib nor
+   the install to test. Giving each placed unit its row's shape, scale and
+   tint at map load changes the window's map scene (`demo/wc3map/`, which
+   draws with 517's designs) and can only be seen there, so it waits on
+   raylib, and checking real maps waits on the install. None of the three
+   boxes is ticked yet for that reason.
+2. **Each field's table and column come from the metadata row for its
+   code**, as `stock_rows` lays a map's changes over a stock row, not from
+   column names written here. A version that keeps the model path in
+   `UnitUI.slk` (`file`) and one that keeps it in a profile file both work.
+   The codes: `umdl` model, `usca` scale, `uclr`/`uclg`/`uclb` tint,
+   `ussc` selection scale, `ubdg` building, `umvt` move type.
+3. **A type the map doesn't change is read straight from the stock
+   tables**; one it changes (a custom type, or a stock type changed in
+   place) from its merged row, where the map's values win. Each row says
+   which fields the map set (`from_map`), so "a map's changed scale or
+   tint shows" can be checked field by field.
+4. **The placeholder rule:** a building is a cube, a flyer (move type
+   `fly`) a triangle, a ground unit with a selection scale of 1.5 or more
+   a cylinder, any other a circle. Building wins over flying, and flying
+   over size. The 1.5 is a guess at "large" (WC3's footman is 1, its
+   tauren about 1.75), kept as `LARGE_SELECTION`.
+5. **Missing values fall back, and are reported:** no model path (blank or
+   `_`, the tables' "nothing") means no model, so 516's chooser falls back
+   to the placeholder; scale and selection default to 1, tint to 255 (no
+   tint). A type in neither the map nor the tables is a problem
+   (`unknown_type`); a code the metadata lacks is one problem per code
+   (`no_metadata`), not one per type.
+
+## What happened (2026-11-06)
+
+- `src/gamedata/unit_visuals.lua` (with its `.info.md`): `of`,
+  `for_types`, `placeholder`, `CODES`, `LARGE_SELECTION`.
+- `src/tests/test_unit_visuals.lua` (51 checks, with its `.info.md`): the
+  real `stock_rows.load` and `merge` over a stand-in chain of hand-written
+  tables; a model kept in a profile file; problems; the rule alone; values
+  written as text. Through the real chain when the install and the 1.29.2
+  layer are present (skipped here: no install in this checkout).
+- Mutation check of `unit_visuals.lua`: 84 mutants, 81 caught. The 3 left
+  are equivalent: `return nil` for `return false` where the caller only
+  tests for truth (2), and a missing selection scale read as 1 instead of
+  0, both under the 1.5 threshold (1).
+
+## Follow-up (needs raylib and the install, not built)
+
+- At map load (`src/demo/wc3map/game.lua`, beside `classify.unit`), read
+  `unit_visuals.for_types` for the placed unit types and give each unit
+  its row's scale and tint, and its shape where no design or model is
+  found.
+- 516's chooser looks models up by `row.model`.

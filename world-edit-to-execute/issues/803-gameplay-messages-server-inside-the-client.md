@@ -74,6 +74,17 @@ Decided with the owner (2026-09-25), recorded in
   backwards). The owner: "let's do alternative number 2, since it's
   familiar, and a decent system."
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #321 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- This issue's Current Behavior still says the messages file describes all ten messages and a unit record is 38 bytes; the code has eleven messages and a 43-byte record.
+- Issue 804 introduced the paths message and still describes it with a point-number field and without the stopped list.
+- The new table row says the message carries each unit's points in order; the server sends only the points not yet reached, and only on ticks where a path changed. A unit whose step is past its path's end lands in neither list, although the code comment says "no points means stopped".
+- The encoder's promise to refuse bad input with a named field fails for a missing message (plain Lua indexing error) and for lists over 65535 records.
+- After a failed decode the decoder's raw pointer still points into the old string (harmless today only because every entry point resets it).
+- The fix is credited to this issue, but the paths message belongs to 804, which gets no record of it. The commit carried no transcript file.
+
 ## Intended Behavior
 
 The messages between the server and its clients, built and tested first
@@ -180,3 +191,12 @@ the waiting dialog testable without a network.
 - `issues/515-render-graph-on-the-ceramic-engine.md` (point 4)
 - `issues/515d-extrapolate-predict-snap.md`
 - `issues/W08-our-own-server-speaking-the-same-protocol.md` (time as ticks)
+
+## Note (2026-11-06)
+
+`src/net/messages.lua.info.md` gained message 11 (`paths`, server to
+client, for drawing only), added to `messages.lua` with the crossing-armies
+demo on 2026-09-25 but missing from the info file's table, and a line for
+`messages.descriptions`, which the C reader is generated from. The table
+now lists all eleven messages; checked field by field against
+`messages.lua`.

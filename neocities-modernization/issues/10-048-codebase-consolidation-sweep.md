@@ -3,6 +3,71 @@
 ## Priority
 Medium
 
+## The 2026-10-23 pass
+
+Owner, 2026-10-23 (search the transcripts for "lower the cognitive load"):
+prune the code "down, lower the cognitive load required to understand and
+use the system. History written in a comment is less valuable than it's
+prominence in our codebase suggests, because you can always git blame a
+file". To be done after a confirmed build (confirmed 2026-10-23).
+
+### Where it stands (measured 2026-10-23; re-measure, do not trust these)
+
+- 130 source files: about 31,000 lines of code and 10,000 of comments;
+  about 4,850 comment lines sit in paragraphs that are history ("until
+  2026-...", "used to", issue trails, "removed", "legacy").
+- `scripts/audit-orphan-files`: 13 modules nothing uses (about 4,700
+  lines) and 22 scripts nothing calls (some are hand-run tools to keep).
+- Settings still written in code: Issue 10-071's list, plus the gallery's
+  own picture-source list, the test and demo model, the GPU tuning numbers,
+  `TUI_LIBS`.
+- `src/flat-html-generator.lua` is 1,943 lines (it was 4,612 when the survey
+  below was written); `src/html-generator/` holds 4 files.
+
+### Order
+
+1. Every run keeps a log in RAM (Issue 10-075), so each later step leaves a
+   trail.
+2. Retire the unused modules and scripts, each checked by hand first
+   (renamed `-done` for one commit, then removed).
+3. Settings into `config.lua`, starting with the gallery's picture-source
+   list and the word-cloud colours (read from a section config.lua does not
+   have, so editing the real colours changes nothing).
+4. Prune history comments, largest files first.
+5. A check in `scripts/run-tests` that flags new history-style comments.
+
+Where the order stands (2026-10-25): steps 1-3 are done (step 3 in Issue
+10-071, with `scripts/audit-config-fallbacks` keeping it done). Steps 4-5
+are set aside by the owner for now ("let's skip this for now", 2026-10-25),
+so this issue stays open with them.
+
+### What a comment keeps, and how it points at a decision
+
+- Kept: why a design is the way it is -- the reasoning a reader needs to
+  change it safely.
+- Gone: before-and-after stories, dates, issue-number trails, "this used
+  to ..." accounts (git blame and git log hold them).
+- An owner decision is not quoted in full. It is pointed at: the date and a
+  short exact phrase from the owner's words that finds the conversation,
+  e.g. `owner, 2026-10-23, llm-transcripts: "not do it through bash"`.
+  Owner: "instead of my 'quoted decisions' can we include a reference or
+  link to the conversation in the llm-transcripts that we are going to be
+  referencing?" A phrase, not a file name or line number: transcript files
+  are renamed as a conversation grows (oct-20-26-through-oct-22-26.md
+  became ...-oct-23-26.md), so only the words stay findable. The
+  transcripts wrap at 80 columns, so a phrase can straddle a line break;
+  `scripts/find-in-transcripts "PHRASE"` searches with line breaks ignored
+  and prints the file, line and the lines around it.
+- A decision that is not in the transcripts (from before the history was
+  lost) stays verbatim, as the owner asked: "Stuff that doesn't exist in
+  the transcripts ... can be left verbatim. Maybe with some search terms
+  that will definitely bring us to them." Each such quote carries a few
+  words to search the issues for.
+- Before replacing a quote with a pointer, the phrase is checked:
+  `scripts/find-in-transcripts` finds it, or the quote stays.
+
+The sections below are the survey of June 2026, kept for the sub-tasks.
+
 ## Summary
 
 A survey of the project's source tree (≈28,000 lines of Lua plus ≈5,500 lines of shell across 14+ development phases) identified concrete refactoring opportunities clustered into three categories:
@@ -54,6 +119,8 @@ The directory `src/html-generator/` contains 16 files (template engine, golden-c
 - two themselves-dead source modules (`src/centroid-html-generator.lua` and `src/regenerate-clean-site.lua`)
 
 This is a parallel HTML-generation experiment that was superseded by the flat-html-generator path. It still works (the demos use it), but it adds confusion to the source tree because its name suggests it is the production generator.
+
+**Update 2026-10-04:** most of the directory is already gone -- the golden-prioritization template system was deleted (commit aff431d1b), taking the template engine and golden-collection generator with it. Four files remain (`golden-poem-indicators.lua`, `embedding-list-generator.lua` and its test, `url-manager.lua`). The demos were not updated: `demos/3-demo.sh` now warns "Component not found" and `demos/generate-site.lua` cannot start (recorded in 10-056). `scripts/audit-orphan-files` lists what is left; the disposition is tracked in 10-060.
 
 ### Four orphaned generator modules sit inside `src/`
 
@@ -182,5 +249,5 @@ The deletion-focused steps (10-048b, 10-048c, 10-048d) collectively remove an es
 - **Created**: 2026-06-15
 - **Phase**: 10 (Developer Tooling / Website Completion)
 - **Estimated Complexity**: Large (umbrella; individual sub-tasks range from Small to Medium)
-- **Dependencies**: None for the cleanup sub-tasks. The decomposition tasks (10-048f, 10-048g) are easier after the helper extraction in 10-048a.
+- **Dependencies**: None. (Inside this issue, the two decomposition sub-tasks, f and g in the list above, are easier after sub-task a's helper extraction. They are sections of this file, not issue files of their own, until one is promoted.)
 - **Affects**: HTML generation pipeline, config loading layer, source tree organization, test placement, main bash driver. No effect on rendered output if executed faithfully.
