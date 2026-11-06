@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# phase-6-demo - growth: what each perk is worth.
+#
+# For every perk in the catalogue, fights 96 headless battles where the
+# player's side has taken it and the other side has not, across every core,
+# and charts how often the side with the perk wins against the even baseline.
+# Then it opens the window on a battle with the example mod's clay knights in
+# the line, the player standing among them as one.
+#
+# Usage: phase-6-demo [project-dir]
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/sword-fighting-game}"
+COUNT=96
+echo "phase 6 - growth: team 1 win share with one perk, over ${COUNT} battles each"
+echo ""
+chart() {
+    local NAME="$1"
+    shift
+    local TOTALS WINS SHARE BAR
+    TOTALS=$("${DIR}/run-many-battles" "${DIR}" "${COUNT}" "$@")
+    WINS=$(echo "${TOTALS}" | grep "team 1 wins" | awk '{print $4}')
+    SHARE=$((WINS * 100 / COUNT))
+    BAR=$(head -c $((SHARE / 2)) /dev/zero | tr '\0' '#')
+    printf "    %-16s %3d%%  %s\n" "${NAME}" "${SHARE}" "${BAR}"
+}
+chart "no perk"
+for PERK in $(luajit -e "
+package.path = '${DIR}/src/?.lua;' .. package.path
+local cat = require('004-catalogue').load('${DIR}', {})
+print(table.concat(require('002-util').sorted_keys(cat.perks), ' '))"); do
+    chart "${PERK}" --perk "${PERK}"
+done
+chart "clay_knights" --mod example-clay-knights --perk clay_knights
+
+echo ""
+echo "now the window: a battle with the example mod's clay knights"
+"${DIR}/run-game" "${DIR}" --mode battle --seed 6 --mod example-clay-knights \
+    --perk clay_knights --perk riposte \
+    --screenshot 3 demo6-clay-knights --hold 4 w 3 --screenshot 13 demo6-advance --quit 13.5

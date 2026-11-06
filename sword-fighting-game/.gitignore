@@ -1,0 +1,4 @@
+tmp
+
+# the receipt every run writes as its last act; it changes with every run
+output/goodbye

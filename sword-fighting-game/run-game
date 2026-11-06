@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# run-game - open the game window.
+#
+# Makes sure the RAM scratch space behind tmp/ exists (a reboot empties it),
+# runs the game engine on the project folder with any options given, and when
+# the window closes, files every screenshot the run took into
+# development-history/ with its notes. The run's receipt is in output/goodbye.
+#
+# Usage:
+#   ./run-game [options]           options as in --help
+#   ./run-game <dir> [options]     the project at <dir>
+#   ./run-game --help
+
+DIR="/mnt/mtwo/programming/ai-stuff/sword-fighting-game"
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+
+if [ "${1:-}" = "--help" ]; then
+    luajit "${DIR}/src/020-headless.lua" "${DIR}" --help
+    echo ""
+    echo "In the window: see docs/controls.md, or the keys table in src/001-config.def.lua."
+    exit 0
+fi
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}"
+
+love "${DIR}" "$@"
+STATUS=$?
+"${DIR}/scripts/file-screenshots" "${DIR}"
+exit "${STATUS}"
