@@ -24,6 +24,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 102c | [Parse MPQ Block Table](./completed/102c-parse-mpq-block-table.md) | completed | 102a, 102b |
 | 102d | [Implement File Extraction with Decompression](./completed/102d-implement-file-extraction.md) | completed | 102a, 102b, 102c |
 | 103 | [Parse war3map.w3i (Map Info)](./completed/103-parse-war3map-w3i.md) | completed | 102 |
+| 103b | [Random Tables in war3map.w3i, Read as Written](./completed/103b-w3i-random-tables-as-written.md) | completed | — |
 | 104 | [Parse war3map.wts (Trigger Strings)](./completed/104-parse-war3map-wts.md) | completed | 102 |
 | 105 | [Parse war3map.w3e (Terrain Data)](./completed/105-parse-war3map-w3e.md) | completed | 102, 103 |
 | 106 | [Design Internal Data Structures](./completed/106-design-internal-data-structures.md) | completed | 103, 104, 105 |
@@ -47,6 +48,6 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 116 | [Read WC3 Models (.mdx)](./116-read-wc3-models.md) | open | — |
 | 117 | [Read WC3 Textures (BLP1)](./117-read-wc3-textures.md) | open | W01 |
 
-Completed 23, open 6, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 24, open 6, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

@@ -274,14 +274,20 @@ Map dimensions: `width = A + E + B`, `height = C + F + D`
 | TableName | string | Table display name |
 | PositionCount | int32 | Number of positions |
 
-### Position Entry (repeated PositionCount times)
+Then (issue 103b: this is the layout `w3i.write` writes and `w3i.parse`
+reads):
 
 | Field | Type | Description |
 |-------|------|-------------|
-| PositionType | int32 | Position category |
-| UnitIDCount | int32 | Number of possible units |
-| UnitID[] | char(4)[] | Array of unit IDs |
-| ChancePercent[] | int32[] | Percentage for each unit |
+| PositionType[] | int32[PositionCount] | Each position's type: 0 unit, 1 building, 2 item |
+| RowCount | int32 | Number of rows |
+
+### Row (repeated RowCount times)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| ChancePercent | int32 | The row's chance |
+| UnitID[] | char(4)[PositionCount] | One ID per position |
 
 ---
 
@@ -306,8 +312,13 @@ Map dimensions: `width = A + E + B`, `height = C + F + D`
 | Field | Type | Description |
 |-------|------|-------------|
 | ItemCount | int32 | Items in set |
-| ItemID[] | char(4)[] | Array of item IDs |
-| ChancePercent[] | int32[] | Percentage for each |
+
+Then, per item (issue 103b: the chance comes first, as in Conquest-v8-fix):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| ChancePercent | int32 | The item's chance |
+| ItemID | char(4) | Item ID |
 
 ---
 
