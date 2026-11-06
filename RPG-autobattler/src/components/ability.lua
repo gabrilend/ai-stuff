@@ -91,6 +91,17 @@ function Ability.base(config)
         generation_conditions = config.generation_conditions or {},
         activation_conditions = config.activation_conditions or {},
 
+        -- How the effect arrives: "instant", or "projectile" (it travels
+        -- at projectile_speed and hits up to `pierce` enemies on its path).
+        delivery = config.delivery or "instant",
+        projectile_speed = config.projectile_speed or 150,
+        pierce = config.pierce or 1,
+
+        -- Names of the picture and sound the renderer and audio should
+        -- play; the effect system passes them on in its cues.
+        visual_effect = config.visual_effect,
+        sound_effect = config.sound_effect,
+
         -- Anything a kind or a later system wants to carry along.
         custom = config.custom or {},
 

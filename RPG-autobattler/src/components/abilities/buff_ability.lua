@@ -5,6 +5,8 @@
 --                ability's name); a target that already has it is skipped
 --   modifiers    stat changes as fractions, e.g. {attack = 0.25,
 --                speed = 0.1} for +25% attack and +10% speed
+--   flat_modifiers  stat changes in points, e.g. {armor = 10}
+--   stun, silence   true to stop the target acting, or using abilities
 --   duration     seconds (default 5)
 --   max_stacks   how many times it can stack (default 1)
 --   stacking     "refresh" (recasting resets the time) or "stack"
@@ -17,6 +19,9 @@ local function effect_fields(default_modifiers)
     return function(ability, config)
         ability.effect_name = config.effect_name or ability.name
         ability.modifiers = config.modifiers or default_modifiers
+        ability.flat_modifiers = config.flat_modifiers or {}
+        ability.stun = config.stun or false
+        ability.silence = config.silence or false
         if ability.duration <= 0 then
             ability.duration = 5
         end
@@ -39,13 +44,19 @@ BuffAbility.effect_fields = effect_fields
 -- (power, scaling and the share of the bar spent).
 function BuffAbility.calculate_modifiers(ability, share)
     local strength = ability.power * ability.scaling * (share or 1)
-    local scaled = {}
+    local scaled, flat = {}, {}
     for stat, change in pairs(ability.modifiers) do
         scaled[stat] = change * strength
+    end
+    for stat, change in pairs(ability.flat_modifiers) do
+        flat[stat] = change * strength
     end
     return {
         name = ability.effect_name,
         modifiers = scaled,
+        flat_modifiers = flat,
+        stun = ability.stun,
+        silence = ability.silence,
         duration = ability.duration,
         max_stacks = ability.max_stacks,
         stacking = ability.stacking,
