@@ -10,10 +10,13 @@
 
 ## Current behavior
 
-**Two kinds of test, one front door, and fifty-nine of eighty mechanics named by one.**
+**Two kinds of test, one front door, and sixty-three of eighty mechanics named by one.**
 The shape is built and the census is being worked down. Twenty-five tests exist. Seventeen are read by a
 bench and eight by a person; two of the seventeen fail a claim, and both failures are
 findings rather than flakes.
+Beside them, three suites that are programs name what they cover in a `-- covers:`
+header: the invariants, the formation sandbox, and the door and the chest, which asks
+the player's verbs against a world that has never ticked.
 
 What exists:
 
