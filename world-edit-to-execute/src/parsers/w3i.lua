@@ -217,7 +217,11 @@ end
 -- }}}
 
 -- {{{ parse_random_unit_tables
--- Parses random unit tables (TFT only).
+-- Parses random unit tables (TFT only): each table's number and name,
+-- its positions (columns), each with a type (0 unit, 1 building, 2 item),
+-- then its rows: a chance and one ID per position each (issue 103b). Kept
+-- as positions[j].units[r] = { id, chance }, every position sharing its
+-- row's chance, as w3i.write takes them.
 local function parse_random_unit_tables(data, pos)
     local count = read_int32(data, pos)
     pos = pos + 4
@@ -230,22 +234,19 @@ local function parse_random_unit_tables(data, pos)
 
         local position_count = read_int32(data, pos); pos = pos + 4
         tbl.positions = {}
-
         for j = 1, position_count do
-            local position = {}
-            position.type = read_int32(data, pos); pos = pos + 4
+            tbl.positions[j] = { type = read_int32(data, pos), units = {} }
+            pos = pos + 4
+        end
 
-            local unit_count = read_int32(data, pos); pos = pos + 4
-            position.units = {}
-
-            for k = 1, unit_count do
-                local unit = {}
-                unit.id, pos = read_char4(data, pos)
-                unit.chance = read_int32(data, pos); pos = pos + 4
-                position.units[k] = unit
+        local row_count = read_int32(data, pos); pos = pos + 4
+        for r = 1, row_count do
+            local chance = read_int32(data, pos); pos = pos + 4
+            for j = 1, position_count do
+                local id
+                id, pos = read_char4(data, pos)
+                tbl.positions[j].units[r] = { id = id, chance = chance }
             end
-
-            tbl.positions[j] = position
         end
 
         tables[i] = tbl
@@ -256,7 +257,8 @@ end
 -- }}}
 
 -- {{{ parse_random_item_tables
--- Parses random item tables (TFT only).
+-- Parses random item tables (TFT only): each item is its chance, then its
+-- ID (issue 103b).
 local function parse_random_item_tables(data, pos)
     local count = read_int32(data, pos)
     pos = pos + 4
@@ -277,8 +279,8 @@ local function parse_random_item_tables(data, pos)
 
             for k = 1, item_count do
                 local item = {}
-                item.id, pos = read_char4(data, pos)
                 item.chance = read_int32(data, pos); pos = pos + 4
+                item.id, pos = read_char4(data, pos)
                 set.items[k] = item
             end
 
