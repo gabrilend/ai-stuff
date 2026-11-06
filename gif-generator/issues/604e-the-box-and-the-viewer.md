@@ -8,12 +8,12 @@ Part of 604. Depends on: 604c, 604d.
 
 Built: `./say` (makes the run folders in RAM and in `output/say/`, then
 runs `src/042-say.lua`), and the viewer's `--watch=FILE` mode in
-`delta-version/scripts/gif-viewer/main.lua` (the file's modification time
+`delta-version/scripts/gif-viewer/main.lua`, now `viewer/main.lua` (the file's modification time
 and size checked every quarter second; a change drops what was decoded and
 loads it again; "waiting for the first picture" until the file appears).
 `src/043-say-test.lua` runs the whole thing with stand-ins for `claude`
 and the viewer: 14 checks passing. The viewer's own test now opens a
-watched file too and passes (`test-gif-viewer.sh`). Not yet proven: the
+watched file too and passes (`test-gif-viewer.sh`, now `./test-gif-viewer`). Not yet proven: the
 reload when the file changes (the test proves loading, not reloading),
 and a run with a real Claude Code session.
 

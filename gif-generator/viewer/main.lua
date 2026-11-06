@@ -18,7 +18,7 @@
 --
 -- Arguments (after the viewer folder): an optional gif folder, and
 -- --selftest, which loads everything, prints what it found, and quits --
--- used by test-gif-viewer.sh to prove the window runs.
+-- used by the project's test-gif-viewer to prove the window runs.
 --
 -- --watch=FILE shows that one gif and reloads it whenever the file changes
 -- (its modification time and size, checked a few times a second). It is

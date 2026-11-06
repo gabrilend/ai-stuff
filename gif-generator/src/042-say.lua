@@ -34,7 +34,7 @@ local sessions = require("038-word-sessions")
 local director = require("040-director")
 local q = sessions.shell_quote
 
-local VIEWER = "/mnt/mtwo/programming/ai-stuff/delta-version/scripts/gif-viewer/view-gifs"
+local VIEWER = "/mnt/mtwo/programming/ai-stuff/gif-generator/view-gifs"
 local WIDTH = 72
 
 -- {{{ terminal drawing

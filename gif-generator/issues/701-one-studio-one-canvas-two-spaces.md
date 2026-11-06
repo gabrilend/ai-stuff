@@ -50,6 +50,9 @@ Two painters share one set of paints across two projects.
 - Across the house there are five GIF decoders or walkers, two encoders (this
   one and kanji's), two PNG writers and three gallery viewers.
 
+**Since written (2026-10-30):** 701a has moved the shape films and the
+viewer here (see its What Happened); the paths above are where they were.
+
 ## Intended Behavior
 
 **One project, this one, holding both painters, their viewer, and one set of
@@ -97,8 +100,9 @@ fingerprints quietly.
 ## Related Documents and Tools
 
 - `docs/score-format.md`, `docs/architecture.md`, `src/024-compile.lua`
-- `delta-version/issues/060-readme-gallery-of-interacting-shapes.md`,
-  `062-gif-viewer-window.md`, `064-a-gif-beside-every-message.md`
+- `issues/702-a-library-of-interacting-shapes.md` and
+  `703-a-window-for-watching-the-gifs.md` (once delta-version 060 and 062,
+  moved here by 701a); `delta-version/issues/064-a-gif-beside-every-message.md`
 - `~/.claude/skills/canvas-and-paintbrush/SKILL.md`
 - `kanji-learning-image-generator/src/045` to `048` (a built pool, tiers and
   cards; the pattern for 701e)
