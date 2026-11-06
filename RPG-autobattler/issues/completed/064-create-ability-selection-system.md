@@ -947,10 +947,66 @@ return AbilitySelector
 ```
 
 ### Acceptance Criteria
-- [ ] Comprehensive library of pre-defined abilities covering all major types
-- [ ] Search and filtering system to find relevant abilities quickly
-- [ ] Detailed ability customization with real-time cost calculation
+- [x] Comprehensive library of pre-defined abilities covering all major types
+- [x] Search and filtering system to find relevant abilities quickly
+- [x] Detailed ability customization with real-time cost calculation
 - [ ] Visual ability preview showing effects and constraints
-- [ ] Easy application of abilities to template slots
-- [ ] Support for creating custom abilities from scratch
-- [ ] Clear feedback on ability costs and point impact
+- [x] Easy application of abilities to template slots
+- [x] Support for creating custom abilities from scratch
+- [x] Clear feedback on ability costs and point impact
+
+## What Happened
+
+Built the logic of ability selection, with nothing drawn yet: the screen
+belongs to the template editor (issues 062 and 063), and no one has seen
+this on a screen.
+
+- `src/data/ability_library.lua` builds its catalogue from the ability
+  templates the game already runs (25 of them), rather than the sketch's
+  separate list, so every ability on offer is one that works in battle.
+  Each has a display name, a line saying what it does, a category (its
+  kind), a subcategory (melee, ranged, over_time, burst, zone, support),
+  tags (weapon, cleave, pierce, critical, stun, slow, cleanse, cooldown,
+  conditional and the weapon type), what can be tuned and whether it can
+  be a primary. `search(query, filters)` matches every word against name,
+  tags and description, best first; filters are category, subcategory,
+  tag, primary_only and max_cost.
+- Tuning: damage and heal abilities tune power, range and charge rate;
+  buffs and debuffs tune duration, range and charge rate; area abilities
+  tune power, radius, range and charge rate. Each may move between half
+  and one and a half times the template's own value (charge rate and
+  duration up to double), never past the hard limits in
+  `src/data/template_constraints.lua`. Values outside are held to the
+  edge with a note saying so.
+- Cost: `library:cost` prices an ability with `UnitTemplate.ability_cost`,
+  the same function that charges templates, so the number a player sees
+  is the number charged. The test checks this for every ability.
+- `src/editor/ability_selector.lua` is the model a screen will drive:
+  pick a slot, choose an ability, tune it, preview (its cost, what the
+  slot cost before, the change to the total, points left, errors and
+  warnings), apply, clear a slot, or put in a whole custom ability
+  config. It edits its own copy of the template; `result()` hands back a
+  new UnitTemplate.
+- `tests/test_ability_selection.lua` (8 tests), run by `./run <dir> unit`.
+
+### Decisions
+
+- The library is built from `src/data/ability_templates.lua` instead of
+  the sketch's own list of new abilities and price multipliers: one set
+  of abilities and one price list, so nothing can drift.
+- Library abilities are stored on templates as `{template = id, changes
+  = {...}}`, the shape UnitTemplate already saves, keeping only changes
+  that differ from the template's value.
+- Apply refuses a choice that leaves the template with errors (over
+  budget, a buff as the primary, a custom value past a limit), so the
+  working template can always be saved. The preview says why.
+- Clearing a slot moves later abilities up; clearing the last ability,
+  or a primary whose replacement can't be a primary, is refused.
+- Custom abilities may set anything that builds; the template's rules,
+  not the selector, decide whether it is allowed, so there is one set of
+  rules.
+- The selector lives in `src/editor/` with no drawing in it; the sketch's
+  `src/ui/components/ability_selector.lua` would hold the screen.
+- "Visual ability preview" is left unticked: it needs a screen. The
+  preview's numbers (cost, limits, config) are there for it.
+

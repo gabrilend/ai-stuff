@@ -385,6 +385,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_default_templates').run_all()
     " 2>/dev/null && print_success "Default template tests passed" || print_error "Default template tests failed"
+
+    # Test Ability selection (issue 064)
+    print_info "Testing Ability selection..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_ability_selection').run_all()
+    " 2>/dev/null && print_success "Ability selection tests passed" || print_error "Ability selection tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
