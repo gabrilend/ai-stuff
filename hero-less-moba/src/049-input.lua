@@ -433,7 +433,7 @@ function M.mousereleased(state, context, x, y, button)
                                  stone, x, y)
     if command ~= nil then
       if command.note ~= nil then
-        context.panel.note_refusal(command.note)
+        context.refuse_here(command.note)
         return
       end
       context.queue(command)

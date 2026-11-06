@@ -235,10 +235,14 @@ function M.apply_all(world)
     end
     local verdict = handler(world, command)
     if not verdict.accepted then
+      -- The arrival number goes back with the refusal so that whoever sent the
+      -- command can tell which of theirs it was -- the viewer shows the sentence
+      -- beside the place it was attempted (704). Read by nothing in the simulation.
       world.raise(world, "refused", {
-        player = command.player,
-        verb   = command.verb,
-        reason = verdict.reason,
+        player  = command.player,
+        verb    = command.verb,
+        reason  = verdict.reason,
+        arrival = command.arrival,
       })
     end
   end

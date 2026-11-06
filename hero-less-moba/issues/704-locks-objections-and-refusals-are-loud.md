@@ -26,8 +26,17 @@ from the other's — not hidden, absent, like the enemy's sign-posts. `g` pings 
 mouse is. **Not seen on screen**: the drawing has only been driven with LÖVE stubbed
 out.
 
-Still owed: refusals drawn **near where the action was attempted** rather than at the
-bottom of the panel (step 4), and step 9's playtest with three people.
+**A refusal of your own command is shown where you tried it** (step 4). Every refusal
+now carries back the arrival number of the command it refuses, and the viewer
+remembers where the mouse was when each of its commands was sent: over the ground on
+the map, followed as the camera moves, or beside the chip or slot on the panel. The
+sentence is drawn there, over a dark band, fading over six seconds; a second refusal
+at nearly the same place stacks above the first; at most four are shown. Refusals of
+anybody else's commands still go to the bottom of the panel. See
+[where it was refused](../src/078-where-it-was-refused.info.md). **Not seen on
+screen** either.
+
+Still owed: step 9's playtest with three people.
 
 ## Intended behavior
 
@@ -121,3 +130,11 @@ pointing at anything, it is shouting. Four seconds of life, decaying, so the mos
 player can have on screen at once is the three they are entitled to and nobody cleans
 up after anybody. The numbers live in the upgrade table beside the other verbs' prices,
 and are a first guess for step 9 to correct.
+
+**Where a refusal is shown, and its numbers: chosen by Claude, open for Ritz.** Beside
+the place the command was attempted, for six seconds (the corner list's own lifetime),
+at most four at once, the newest 22 pixels above the point, wrapping at 280 pixels, and
+stacking when two places are within 40 world units on the map or 60 pixels on the
+panel. Only the player's own refusals move there; a teammate's or a bot's stays in the
+corner, because it was not tried anywhere this player was looking. All are in
+`settings` in [078](../src/078-where-it-was-refused.lua), and none has been looked at.

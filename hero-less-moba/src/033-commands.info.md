@@ -42,7 +42,9 @@ about.
 ## Refusals are loud
 
 Every refusal is returned, named, and raised as a `refused` event carrying the
-player, the verb, and a sentence saying why. A command that silently does nothing is
+player, the verb, a sentence saying why, and the command's arrival number, so that
+whoever sent it can tell which of theirs it was — the viewer uses it to show the
+sentence where the command was attempted ([078](078-where-it-was-refused.info.md)). A command that silently does nothing is
 the worst outcome available here: the player believes the game has their instruction
 and it does not.
 

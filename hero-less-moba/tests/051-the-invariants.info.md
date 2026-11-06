@@ -74,6 +74,7 @@ cheap standing versions, kept here so a whole-match run notices.
 | A boon nobody chose is still on offer long after the calm ends, and no team was granted one it did not choose | …makes something decide for a player. This is the only place in the project where that was ever tempting. |
 | A hero obeys the sign at its junction and crosses to the next lane, with its one turn spent | …breaks sign-post routing, or lets one body turn twice. |
 | Three pings go, a fourth inside five seconds is refused saying when the next is free, and after the window one goes again; a ping is shown to its own team only and only while it lasts | …removes the rate limit, which is the whole design of the ping (704), or leaks a ping to the enemy. |
+| A refusal carries back its command's arrival number and is shown where that command was tried; anybody else's goes to the corner; refusals at nearly one place stack, a panel place never stacks with a map place, only the newest four stay, and they fade out; a refusal matched to an attempt at another verb stops the program | …puts a refusal back in a corner, away from where the player was looking (704, step 4), or beside the wrong thing, which would teach the wrong rule. |
 
 ### The premise, and the ending
 
