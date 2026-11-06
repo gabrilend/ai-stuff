@@ -20,6 +20,10 @@ world through a `game` table, so it runs headless in tests:
   game.resources(player)        -> { gold, lumber, food, food_cap, notes }
   game.time_of_day()            -> hours, 0-24
   game.minimap                  -> { image, x0, y0, x1, y1 } (WC3 extents)
+  game.view_quad()              optional: the view's four ground corners,
+                                { x1, y1, ... x4, y4 } (camera_view_quad,
+                                issue 501d), for the minimap's box when a
+                                corner of the screen sees no ground
   game.players                  -> { {number, name, color, team}, ... }
   game.quests                   -> { main = {titles}, optional = {titles} }
   game.portrait(unit)           add the unit's design to the portrait layer
@@ -31,6 +35,7 @@ world through a `game` table, so it runs headless in tests:
 ]]
 
 local layout = require("ui.wc3.layout")
+local minimap = require("ui.wc3.minimap")
 local commands = require("ui.wc3.commands")
 local icons = require("ui.wc3.icons")
 local designs = require("geometry.designs")
@@ -408,16 +413,19 @@ end
 
 -- {{{ Minimap
 
--- {{{ Hud:minimap_to_world / world_to_minimap
+-- {{{ Hud:minimap / minimap_to_world / world_to_minimap
+-- The map fitted into the minimap's square, as WC3 fits a map that is not
+-- square (ui/wc3/minimap.lua, issue 507a)
+function Hud:minimap()
+    return minimap.new(self.game.minimap, self.r.minimap)
+end
+
 function Hud:minimap_to_world(mx, my)
-    local m, r = self.game.minimap, self.r.minimap
-    local fx, fy = (mx - r.x) / r.w, (my - r.y) / r.h
-    return m.x0 + fx * (m.x1 - m.x0), m.y1 - fy * (m.y1 - m.y0)
+    return self:minimap():to_world(mx, my)
 end
 
 function Hud:world_to_minimap(x, y)
-    local m, r = self.game.minimap, self.r.minimap
-    return r.x + (x - m.x0) / (m.x1 - m.x0) * r.w, r.y + (m.y1 - y) / (m.y1 - m.y0) * r.h
+    return self:minimap():to_minimap(x, y)
 end
 -- }}}
 
@@ -860,11 +868,11 @@ function Hud:draw_console(ui)
     -- minimap and its buttons
     local mm = r.minimap
     bevel(ui, { x = mm.x - 3, y = mm.y - 3, w = mm.w + 6, h = mm.h + 6 }, C.frame)
+    local pic = self:minimap().picture
+    rect(ui, mm.x, mm.y, mm.w, mm.h, { 8, 8, 10 })
     if self.toggles.terrain and game.minimap.image then
-        ui.ui_image(game.minimap.image, mm.x, mm.y, mm.w, mm.h)
-        if game.minimap.fog then ui.ui_image(game.minimap.fog, mm.x, mm.y, mm.w, mm.h) end
-    else
-        rect(ui, mm.x, mm.y, mm.w, mm.h, { 8, 8, 10 })
+        ui.ui_image(game.minimap.image, pic.x, pic.y, pic.w, pic.h)
+        if game.minimap.fog then ui.ui_image(game.minimap.fog, pic.x, pic.y, pic.w, pic.h) end
     end
     for _, u in ipairs(game.units) do
         if u.alive ~= false and not u.hidden and (self.toggles.creeps or u.player ~= 12) and shown(game, u) then
@@ -884,18 +892,20 @@ function Hud:draw_console(ui)
             ui.ui_frame(px - 4 - age * 6, py - 4 - age * 6, 8 + age * 12, 8 + age * 12, 2, 250, 220, 60, 255)
         end
     end
-    -- what the camera sees
-    local corners = {}
+    -- what the camera sees (issue 507d): the ground under the view's
+    -- corners, or the camera's own quad when a corner sees no ground,
+    -- cut to the picture
+    local quad = {}
     for _, sp in ipairs({ { 0, r.top.h }, { r.w, r.top.h }, { r.w, con.y }, { 0, con.y } }) do
         local x, y = game.to_ground(sp[1], sp[2])
-        if x then corners[#corners + 1] = { self:world_to_minimap(x, y) } end
+        if x then quad[#quad + 1] = x; quad[#quad + 1] = y end
     end
-    if #corners == 4 then
-        for i = 1, 4 do
-            local a, b = corners[i], corners[i % 4 + 1]
-            local function clamp(v, lo, hi) return math.max(lo, math.min(hi, v)) end
-            ui.ui_line(clamp(a[1], mm.x, mm.x + mm.w), clamp(a[2], mm.y, mm.y + mm.h),
-                       clamp(b[1], mm.x, mm.x + mm.w), clamp(b[2], mm.y, mm.y + mm.h), 1, 255, 255, 255, 255)
+    if #quad < 8 and game.view_quad then quad = game.view_quad() or {} end
+    if #quad == 8 then
+        local box = self:minimap():view_box(quad)
+        for i = 1, #box do
+            local a, b = box[i], box[i % #box + 1]
+            ui.ui_line(a[1], a[2], b[1], b[2], 1, 255, 255, 255, 255)
         end
     end
     for _, mb in ipairs(r.minimap_buttons) do
