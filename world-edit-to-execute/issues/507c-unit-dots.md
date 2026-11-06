@@ -26,8 +26,8 @@ page each frame from the unit items; units hidden by fog (502d) left out.
 
 ## Acceptance Criteria
 
-- [ ] Dots follow units and show owners' colours
-- [ ] The colour toggle works
+- [x] Dots follow units and show owners' colours
+- [x] The colour toggle works
 
 ---
 
@@ -232,3 +232,15 @@ Collect and draw all visible units each frame. Should be fast since minimap is s
 - issues/507a-minimap-module.md (parent component)
 - issues/503c-team-colors-selection.md (color palette)
 - issues/402-build-entity-component-system.md (ECS queries)
+
+---
+
+## Decisions (2026-11-06)
+
+1. **Already built in the interface (518b), now tested** on the fitted
+   minimap (507a): a dot per living unit at its point, its owner's colour,
+   3 pixels for buildings and 2 for the rest; Alt+A's ally colours (own
+   green, enemies red, neutrals yellow); Alt+R hides creeps. Units the
+   game says are not shown (fog, 502d) are left out through
+   `game.shown`. Nothing in the code changed for this issue.
+2. Based on 501d's branch (#314), not on the headless renderer (#307): the minimap draws through the interface's 2D calls, not the render slots, and its tests take the view's corners from 501d's camera.

@@ -5,7 +5,8 @@
 | Cluster | transcript system (018–031; see `transcript-system-progress.md`) |
 | Blocked by | nothing |
 | Blocks | 038 (a gif for every turn); per-project HTML documentation that links into conversations |
-| Status | in progress (built and tested; open questions below) |
+| Status | in progress (built and tested; open questions below; sub-issues 035a–035e) |
+| Sub-issues | 035a three parts that never meet · 035b the story page for every project · 035c the conversation page meets the game's · 035d the films join the library · 035e one settings file per project |
 
 Turns saved conversations into readable web pages for any project, not just
 the one that built the renderer.
@@ -228,6 +229,25 @@ committed: `install-pages-hook` gives a repository a pre-push hook that
 rebuilds stale pages (`build-pages-before-push`) and a `.gitignore` line for
 `**/llm-transcripts/HTML/`.
 
+The hook builds projects in parallel, one per processor core, and skips a
+folder git has never committed, naming it. A page is drawn again only when
+what it is made from changed: its transcript's bytes, or the display side
+(the library's code, the project's settings, the films' descriptions),
+recorded as fingerprints in the pages folder's `.drawn-from`. The owner
+asked for it on 2026-11-02: "can we make it so we don't regenerate the
+transcripts if there's no work to do? ... Unless we modified the display
+side of the transcript". Before, a push judged staleness by file times,
+which the exporter's time stamps make unreliable, and rebuilt whole
+projects one after another; a full rebuild of the monorepo took about
+27 minutes, 765 seconds of it the top folder's by-hand pages. It now takes
+about 30 seconds, and a push with nothing changed about 6.
+
+Still open: splitting one large project's pages across several processes
+(each drawing its own pages, so none touch the same file), which the
+owner also asked for. With the record above, the remaining full-rebuild
+cost is the top folder's few very large by-hand pages, so it would help
+only after a display change.
+
 ## Pushing the pages to the Linode (asked 2026-09-26)
 
 The owner asked that the pre-push hook also send the pages to the Linode
@@ -248,6 +268,29 @@ server double-diaper-dungeon publishes to. Found the same day:
   it, is quoted in many of them).
 
 Not built. Questions 5–7 below.
+
+## The library, made whole (owner, 2026-10-04)
+
+She asked for the site to be "abstracted away for a different type of
+software", "able to be included into any project", with the table of
+contents kept apart from the transcript display, and double-diaper-dungeon
+switched onto it as a proof: *"the output should be byte-identical to what's
+already on the internet."* She chose to update this folder rather than start
+a new one in delta-version. Her choices, asked the same day:
+
+- the films (a gif beside every message) are a third part of their own;
+- the table of contents takes double-diaper-dungeon's look for every project;
+- the film system the game built replaces issue 038's first algorithm;
+- only a project whose settings ask for films gets them;
+- each project says where its transcripts and history are, in a settings
+  file;
+- a project that keeps its libraries inside itself pulls a copy, recorded
+  with the commit it came from, and pulls again when its dependencies are
+  updated.
+
+The work is split into 035a–035e. Decision 2 above (the game keeps its own
+copies when they differ) is superseded by the last of these: the game keeps
+a pulled copy of this library, not copies of its own.
 
 ## Open questions
 

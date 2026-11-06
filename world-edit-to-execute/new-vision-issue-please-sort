@@ -1,0 +1,13 @@
+one of the critical goals of the project is to show that a clean-room
+image generation and model generation pipeline could create the base
+models from the game, or rather, something that is similar enough to
+be clearly related.
+
+the idea is to show that the path must go both ways - if we ran the
+system in reverse, and heuristically guided it toward "more similar"
+then could we take a game with similar mechanics, point our backwards
+pipeline at it, and generate all of the models in the game from a
+clean-room text description?
+
+I don't know if this will help or hurt our legal case, but it's true,
+so we should due diligence create this pipeline and follow it through.

@@ -47,13 +47,13 @@ VkSimilarityContext* vks_init(VkComputeContext* ctx,
                                uint32_t num_poems,
                                uint32_t embedding_dim) {
     if (!ctx || !embeddings || num_poems == 0 || embedding_dim == 0) {
-        fprintf(stderr, "[VKS ERROR] Invalid parameters to vks_init\n");
+        VKC_SAY_ERR("[VKS ERROR] Invalid parameters to vks_init\n");
         return NULL;
     }
 
     VkSimilarityContext* sim_ctx = (VkSimilarityContext*)calloc(1, sizeof(VkSimilarityContext));
     if (!sim_ctx) {
-        fprintf(stderr, "[VKS ERROR] Failed to allocate similarity context\n");
+        VKC_SAY_ERR("[VKS ERROR] Failed to allocate similarity context\n");
         return NULL;
     }
 
@@ -68,7 +68,7 @@ VkSimilarityContext* vks_init(VkComputeContext* ctx,
 
     sim_ctx->embeddings_buffer = vkc_create_buffer(ctx, embeddings_size, VKC_BUFFER_DEVICE_LOCAL);
     if (!sim_ctx->embeddings_buffer) {
-        fprintf(stderr, "[VKS ERROR] Failed to create GPU buffers\n");
+        VKC_SAY_ERR("[VKS ERROR] Failed to create GPU buffers\n");
         vks_destroy(sim_ctx);
         return NULL;
     }
@@ -77,7 +77,7 @@ VkSimilarityContext* vks_init(VkComputeContext* ctx,
     VkComputeResult result = vkc_upload_buffer(ctx, sim_ctx->embeddings_buffer,
                                                 (void*)embeddings, embeddings_size);
     if (result != VKC_SUCCESS) {
-        fprintf(stderr, "[VKS ERROR] Failed to upload embeddings: %s\n",
+        VKC_SAY_ERR("[VKS ERROR] Failed to upload embeddings: %s\n",
                 vkc_get_error_string(result));
         vks_destroy(sim_ctx);
         return NULL;
@@ -136,12 +136,12 @@ VkComputeResult vks_compute_all_similarities_parallel(
     uint64_t triangular_size = ((uint64_t)num_poems * (num_poems - 1)) / 2;
     size_t buffer_size = triangular_size * sizeof(float);
 
-    printf("[VKS PARALLEL] Poems: %u, Pairs: %lu (%.1f MB)\n",
+    VKC_SAY("[VKS PARALLEL] Poems: %u, Pairs: %lu (%.1f MB)\n",
            num_poems, (unsigned long)triangular_size, buffer_size / (1024.0 * 1024.0));
 
     // Lazy-load the parallel shader if not already loaded
     if (!sim_ctx->similarity_full_pipeline) {
-        printf("[VKS PARALLEL] Loading parallel similarity shader...\n");
+        VKC_SAY("[VKS PARALLEL] Loading parallel similarity shader...\n");
         sim_ctx->similarity_full_pipeline = vkc_create_pipeline(
             sim_ctx->vk_ctx,
             "libs/vulkan-compute/build/similarity_full.spv",
@@ -149,21 +149,21 @@ VkComputeResult vks_compute_all_similarities_parallel(
         );
 
         if (!sim_ctx->similarity_full_pipeline) {
-            fprintf(stderr, "[VKS ERROR] Failed to load parallel similarity shader\n");
+            VKC_SAY_ERR("[VKS ERROR] Failed to load parallel similarity shader\n");
             return VKC_ERROR_SHADER_LOAD_FAILED;
         }
     }
 
     // Lazy-create the full output buffer if not already created
     if (!sim_ctx->full_similarities_buffer) {
-        printf("[VKS PARALLEL] Allocating GPU output buffer (%.1f MB)...\n",
+        VKC_SAY("[VKS PARALLEL] Allocating GPU output buffer (%.1f MB)...\n",
                buffer_size / (1024.0 * 1024.0));
         sim_ctx->full_similarities_buffer = vkc_create_buffer(
             sim_ctx->vk_ctx, buffer_size, VKC_BUFFER_DEVICE_LOCAL
         );
 
         if (!sim_ctx->full_similarities_buffer) {
-            fprintf(stderr, "[VKS ERROR] Failed to create full similarities buffer\n");
+            VKC_SAY_ERR("[VKS ERROR] Failed to create full similarities buffer\n");
             return VKC_ERROR_BUFFER_CREATION_FAILED;
         }
     }
@@ -174,14 +174,14 @@ VkComputeResult vks_compute_all_similarities_parallel(
     result = vkc_bind_buffer(sim_ctx->vk_ctx, sim_ctx->similarity_full_pipeline,
                               0, sim_ctx->embeddings_buffer);
     if (result != VKC_SUCCESS) {
-        fprintf(stderr, "[VKS ERROR] Failed to bind embeddings buffer\n");
+        VKC_SAY_ERR("[VKS ERROR] Failed to bind embeddings buffer\n");
         return result;
     }
 
     result = vkc_bind_buffer(sim_ctx->vk_ctx, sim_ctx->similarity_full_pipeline,
                               1, sim_ctx->full_similarities_buffer);
     if (result != VKC_SUCCESS) {
-        fprintf(stderr, "[VKS ERROR] Failed to bind output buffer\n");
+        VKC_SAY_ERR("[VKS ERROR] Failed to bind output buffer\n");
         return result;
     }
 
@@ -197,14 +197,14 @@ VkComputeResult vks_compute_all_similarities_parallel(
     uint32_t workgroups_x = (num_poems + 15) / 16;
     uint32_t workgroups_y = (num_poems + 15) / 16;
 
-    printf("[VKS PARALLEL] Dispatching %u × %u = %u workgroups (256 threads each)\n",
+    VKC_SAY("[VKS PARALLEL] Dispatching %u × %u = %u workgroups (256 threads each)\n",
            workgroups_x, workgroups_y, workgroups_x * workgroups_y);
 
     // Single dispatch for ALL pairs!
     result = vkc_dispatch(sim_ctx->vk_ctx, sim_ctx->similarity_full_pipeline,
                            workgroups_x, workgroups_y, 1, push_constants);
     if (result != VKC_SUCCESS) {
-        fprintf(stderr, "[VKS ERROR] Failed to dispatch parallel similarity shader\n");
+        VKC_SAY_ERR("[VKS ERROR] Failed to dispatch parallel similarity shader\n");
         return result;
     }
 
@@ -212,7 +212,7 @@ VkComputeResult vks_compute_all_similarities_parallel(
     result = vkc_download_buffer(sim_ctx->vk_ctx, sim_ctx->full_similarities_buffer,
                                    output_triangular, buffer_size);
     if (result != VKC_SUCCESS) {
-        fprintf(stderr, "[VKS ERROR] Failed to download similarity results\n");
+        VKC_SAY_ERR("[VKS ERROR] Failed to download similarity results\n");
         return result;
     }
 
@@ -287,7 +287,7 @@ static int write_similarity_file(
 
         FILE* f = fopen(filepath, "w");
         if (!f) {
-            fprintf(stderr, "[VKS FILE ERROR] Failed to open: %s\n", filepath);
+            VKC_SAY_ERR("[VKS FILE ERROR] Failed to open: %s\n", filepath);
             return -1;
         }
 
@@ -310,7 +310,7 @@ static int write_similarity_file(
     // Allocate pairs array
     SimilarityPair* pairs = (SimilarityPair*)malloc(total_sims * sizeof(SimilarityPair));
     if (!pairs) {
-        fprintf(stderr, "[VKS FILE ERROR] Failed to allocate pairs array\n");
+        VKC_SAY_ERR("[VKS FILE ERROR] Failed to allocate pairs array\n");
         return -1;
     }
 
@@ -345,7 +345,7 @@ static int write_similarity_file(
 
     FILE* f = fopen(filepath, "w");
     if (!f) {
-        fprintf(stderr, "[VKS FILE ERROR] Failed to open: %s\n", filepath);
+        VKC_SAY_ERR("[VKS FILE ERROR] Failed to open: %s\n", filepath);
         free(pairs);
         return -1;
     }
@@ -434,7 +434,7 @@ VkComputeResult vks_write_similarity_files_parallel(
     uint32_t num_threads) {
 
     if (!triangular_buffer || !poem_indices || !poem_ids || !output_dir) {
-        fprintf(stderr, "[VKS FILE ERROR] Invalid parameters\n");
+        VKC_SAY_ERR("[VKS FILE ERROR] Invalid parameters\n");
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
@@ -442,7 +442,7 @@ VkComputeResult vks_write_similarity_files_parallel(
     if (num_threads < 1) num_threads = 1;
     if (num_threads > 64) num_threads = 64;
 
-    printf("[VKS FILE] Writing %u similarity files with %u threads...\n", num_poems, num_threads);
+    VKC_SAY("[VKS FILE] Writing %u similarity files with %u threads...\n", num_poems, num_threads);
 
     time_t start_time = time(NULL);
 
@@ -454,7 +454,7 @@ VkComputeResult vks_write_similarity_files_parallel(
     pthread_t* threads = (pthread_t*)malloc(num_threads * sizeof(pthread_t));
 
     if (!contexts || !threads) {
-        fprintf(stderr, "[VKS FILE ERROR] Failed to allocate thread resources\n");
+        VKC_SAY_ERR("[VKS FILE ERROR] Failed to allocate thread resources\n");
         free(contexts);
         free(threads);
         return VKC_ERROR_OUT_OF_MEMORY;
@@ -473,7 +473,7 @@ VkComputeResult vks_write_similarity_files_parallel(
 
         int rc = pthread_create(&threads[t], NULL, file_writer_thread, &contexts[t]);
         if (rc != 0) {
-            fprintf(stderr, "[VKS FILE ERROR] Failed to create thread %u: %d\n", t, rc);
+            VKC_SAY_ERR("[VKS FILE ERROR] Failed to create thread %u: %d\n", t, rc);
             // Wait for already-created threads
             for (uint32_t i = 0; i < t; i++) {
                 pthread_join(threads[i], NULL);
@@ -513,7 +513,7 @@ VkComputeResult vks_write_similarity_files_parallel(
     double elapsed = difftime(end_time, start_time);
     double rate = elapsed > 0 ? total_written / elapsed : total_written;
 
-    printf("[VKS FILE] ✅ Wrote %u files in %.0f seconds (%.1f files/sec)\n",
+    VKC_SAY("[VKS FILE] ✅ Wrote %u files in %.0f seconds (%.1f files/sec)\n",
            total_written, elapsed, rate);
 
     free(contexts);
@@ -565,7 +565,7 @@ static void* cache_gen_thread(void* arg) {
     // Allocate thread-local pairs array (reused for each poem)
     SimilarityPair* pairs = (SimilarityPair*)malloc(total_sims * sizeof(SimilarityPair));
     if (!pairs) {
-        fprintf(stderr, "[VKS CACHE ERROR] Thread %u failed to allocate pairs\n", ctx->thread_id);
+        VKC_SAY_ERR("[VKS CACHE ERROR] Thread %u failed to allocate pairs\n", ctx->thread_id);
         return NULL;
     }
 
@@ -637,20 +637,20 @@ VkComputeResult vks_write_rankings_cache_parallel(
     uint32_t top_k) {
 
     if (!triangular_buffer || !poem_indices || !cache_file) {
-        fprintf(stderr, "[VKS CACHE ERROR] Invalid parameters\n");
+        VKC_SAY_ERR("[VKS CACHE ERROR] Invalid parameters\n");
         return VKC_ERROR_COMMAND_EXECUTION_FAILED;
     }
 
     if (num_threads < 1) num_threads = 1;
     if (num_threads > 64) num_threads = 64;
 
-    printf("[VKS CACHE] Generating rankings cache with %u threads...\n", num_threads);
+    VKC_SAY("[VKS CACHE] Generating rankings cache with %u threads...\n", num_threads);
     time_t start_time = time(NULL);
 
     // Allocate rankings array (one entry per poem)
     PoemRankings* all_rankings = (PoemRankings*)calloc(num_poems, sizeof(PoemRankings));
     if (!all_rankings) {
-        fprintf(stderr, "[VKS CACHE ERROR] Failed to allocate rankings array\n");
+        VKC_SAY_ERR("[VKS CACHE ERROR] Failed to allocate rankings array\n");
         return VKC_ERROR_OUT_OF_MEMORY;
     }
 
@@ -662,7 +662,7 @@ VkComputeResult vks_write_rankings_cache_parallel(
     pthread_t* threads = (pthread_t*)malloc(num_threads * sizeof(pthread_t));
 
     if (!contexts || !threads) {
-        fprintf(stderr, "[VKS CACHE ERROR] Failed to allocate thread resources\n");
+        VKC_SAY_ERR("[VKS CACHE ERROR] Failed to allocate thread resources\n");
         free(all_rankings);
         free(contexts);
         free(threads);
@@ -682,7 +682,7 @@ VkComputeResult vks_write_rankings_cache_parallel(
 
         int rc = pthread_create(&threads[t], NULL, cache_gen_thread, &contexts[t]);
         if (rc != 0) {
-            fprintf(stderr, "[VKS CACHE ERROR] Failed to create thread %u\n", t);
+            VKC_SAY_ERR("[VKS CACHE ERROR] Failed to create thread %u\n", t);
             for (uint32_t i = 0; i < t; i++) {
                 pthread_join(threads[i], NULL);
             }
@@ -701,15 +701,15 @@ VkComputeResult vks_write_rankings_cache_parallel(
     }
 
     time_t sort_time = time(NULL);
-    printf("[VKS CACHE] Parallel sorting complete: %u poems in %ld seconds\n",
+    VKC_SAY("[VKS CACHE] Parallel sorting complete: %u poems in %ld seconds\n",
            total_sorted, (long)(sort_time - start_time));
 
     // Write cache file
-    printf("[VKS CACHE] Writing cache file: %s\n", cache_file);
+    VKC_SAY("[VKS CACHE] Writing cache file: %s\n", cache_file);
 
     FILE* f = fopen(cache_file, "w");
     if (!f) {
-        fprintf(stderr, "[VKS CACHE ERROR] Failed to open cache file: %s\n", cache_file);
+        VKC_SAY_ERR("[VKS CACHE ERROR] Failed to open cache file: %s\n", cache_file);
         // Cleanup
         for (uint32_t i = 0; i < num_poems; i++) {
             free(all_rankings[i].sorted_indices);
@@ -775,7 +775,7 @@ VkComputeResult vks_write_rankings_cache_parallel(
     free(threads);
 
     time_t end_time = time(NULL);
-    printf("[VKS CACHE] ✅ Cache written in %ld seconds total\n", (long)(end_time - start_time));
+    VKC_SAY("[VKS CACHE] ✅ Cache written in %ld seconds total\n", (long)(end_time - start_time));
 
     return VKC_SUCCESS;
 }

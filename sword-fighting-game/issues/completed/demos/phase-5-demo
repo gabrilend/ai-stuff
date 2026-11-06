@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#
+# phase-5-demo - command and the round: a whole match, round by round.
+#
+# Plays a full match headless and draws the campaign map after every round:
+# which side owns which region, where the front stands, what was pushed into
+# and who won it. Then it opens the window on the command table, picks a push
+# direction and a perk by clicking and pressing keys through the scripted
+# input, begins the round, throws a volley and raises the shield wall, and
+# files the pictures.
+#
+# Usage: phase-5-demo [project-dir]
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/sword-fighting-game}"
+luajit "${DIR}/issues/completed/demos/phase-5-campaign.lua" "${DIR}" 3
+echo ""
+echo "now the window: the command table, then a volley and the shield wall"
+"${DIR}/run-game" "${DIR}" --seed 5 \
+    --screenshot 1 demo5-command-table \
+    --key 1.5 up --key 1.7 y --screenshot 2 demo5-chosen \
+    --key 2.5 return \
+    --click 9.5 640 360 --screenshot 10.6 demo5-volley \
+    --right-hold 11 3 --screenshot 12 demo5-shield-wall \
+    --quit 12.5
+echo ""
+grep -E "^(rounds|volleys|darts|dart_hits|frames|screenshots):" "${DIR}/output/goodbye" | sed 's/^/    /'
