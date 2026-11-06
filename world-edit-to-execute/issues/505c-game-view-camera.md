@@ -31,7 +31,7 @@ Speeds as WC3's defaults.
 
 - [ ] Edge panning and arrow keys move the view within the map's bounds
 - [ ] The wheel zooms within limits
-- [ ] A key centres the view on the selection
+- [x] A key centres the view on the selection
 
 ---
 
@@ -152,3 +152,51 @@ Camera controls must feel responsive and predictable. Sluggish or erratic camera
 - issues/501d-implement-camera-system.md (camera logic)
 - issues/505b-wire-render-systems.md (camera used here)
 - issues/507-create-minimap-renderer.md (minimap interaction)
+
+---
+
+## Decisions (2026-11-06)
+
+Made without the owner, each one theirs to overturn.
+
+1. **The controls are built on 501d's camera as plain C**
+   (`src/render/camera_input.c`, with `camera_input.h`): one frame of
+   input (arrow keys, whether the screen's edges scroll, the mouse, the
+   screen's size, wheel notches) moves the camera and clamps it. The
+   window already pans and zooms its own `ViewCamera` the same way
+   (`scene_viewer.c`, since 517) but never against the map's bounds;
+   moving it onto `camera_step` needs raylib to build and check, so it
+   waits with 501d's wiring. The first two boxes wait on it.
+2. **The speeds are the window's stand-ins**, kept until 516d measures
+   WC3's: 1400 units a second at the default distance and in proportion
+   to the distance; 150 units of distance a wheel notch; the outer 3
+   pixels of the screen scroll. Diagonals add both ways, as the window
+   does (faster than one way, as in WC3).
+3. **Panning follows the view's heading**: up the screen is the way the
+   camera looks. The window pans by the map's north, which is the same at
+   WC3's default rotation (90); once a trigger turns the camera, the
+   keys still match the screen.
+4. **The keys that bring the view to the selection are the interface's,
+   already built (518b), and now tested**: a hero's F1-F3 twice, a
+   control group's number twice within half a second, and F8 for the
+   next idle worker. WC3 has no single "centre on selection" key; those
+   are its ways. The minimap's click and drag (507e) also move the view.
+5. **No glide**: a frame's pan is applied at once, as the window does.
+   The camera natives' glides (904) stay in `wc3map/main.lua`.
+6. **Based on 501d's branch, not on the headless renderer (#307)**: the
+   controls use the camera model and nothing that draws.
+
+## What happened
+
+- `src/render/camera_input.h`, `camera_input.c`, with an info page;
+  `src/render/camera.lua` builds it in and offers `cam:step(input, dt)`.
+- `src/tests/test_camera_controls.lua` (37 checks): keys, edges, wheel,
+  bounds and the interface's keys on a fake game.
+- Mutation check of `camera_input.c`: 26 mutants, 26 caught.
+
+## Follow-up (needs raylib, not built)
+
+- `scene_viewer.c`: fill a `CameraInput` from `IsKeyDown`,
+  `GetMousePosition` and `GetMouseWheelMove` (edges on when the scene has
+  an interface and the window is focused, as now) and call
+  `camera_step` in place of its own pan and zoom.

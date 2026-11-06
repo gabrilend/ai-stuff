@@ -412,7 +412,7 @@ Phase 2 & 3 Complete
 | **505** | Implement default visual mode | Retired (superseded/) | — |
 | 505a | Default renderer backend | Retired (superseded/) | — |
 | 505b | Wire render systems | Retired (superseded/) | — |
-| 505c | Game view camera | Re-cut 2026-09-26 | 501d |
+| 505c | Game view camera | In progress (the controls built; the window waits on raylib) | 501d |
 | 505d | Minimal UI | Retired (superseded/) | — |
 | 505e | Input commands | Retired (superseded/) | — |
 | 505f | Debug overlays | Re-cut 2026-09-26 | 501 |
