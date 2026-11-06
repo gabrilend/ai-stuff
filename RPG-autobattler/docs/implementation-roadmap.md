@@ -58,7 +58,7 @@
 ### 3.3 Base System
 - [x] Create base entities with health pools (Issue #036)
 - [x] Implement defense shield system (3 shields) (Issue #037)
-- [ ] Add automatic turret for base defense
+- [x] Add automatic turret for base defense (Issue #038)
 - [ ] Create shield destruction mechanics
 - [ ] Implement unit reset when shields are destroyed
 
