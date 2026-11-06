@@ -575,6 +575,10 @@ function M.render(conversation, opts)
 
   body[#body + 1] = '<header class="masthead">'
   body[#body + 1] = "<h1>" .. escape(title) .. "</h1>"
+  -- The name the person gave the session, when they renamed it (issue 037).
+  if conversation.title then
+    body[#body + 1] = '<p class="facts">named &ldquo;' .. escape(conversation.title) .. '&rdquo;</p>'
+  end
   body[#body + 1] = facts_line(conversation)
   body[#body + 1] = "</header>"
 

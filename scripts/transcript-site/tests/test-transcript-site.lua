@@ -48,6 +48,7 @@ local function transcript(opts, parts)
   local out = { "# Conversation Summary: " .. (opts.id or "test-session-id"), "" }
   if opts.generated ~= false then out[#out + 1] = "Generated on: 2026-09-26 10:00:00" end
   if opts.models then out[#out + 1] = "Models: " .. opts.models end
+  if opts.title then out[#out + 1] = "Title: " .. opts.title end
   out[#out + 1] = ""
   if opts.above_rule then
     out[#out + 1] = opts.above_rule
@@ -155,6 +156,16 @@ refuses("a Contents entry of an unknown shape is refused",
   transcript({ models = "m", above_rule = "## Contents\n\n1. yesterday - something" }, { { "User Request 1", "x" } }),
   "unrecognised Contents entry")
 
+-- The name the person gave the session (issue 037): read from the header,
+-- never from a "Title:" line someone wrote in the conversation.
+local titled = reader.read(transcript({ models = "m", title = "Fix the <menu> & more" }, {
+  { "User Request 1", "go" }, { "Assistant Response 1", "done" } }))
+check("a renamed session's title is read", titled.title, "Fix the <menu> & more")
+check("without a title line, title is nil", basic.title, nil)
+local quoted_title = reader.read(transcript({ models = "m" }, {
+  { "User Request 1", "Title: not the session's name" }, { "Assistant Response 1", "ok" } }))
+check("a 'Title:' line in a turn is not the session's title", quoted_title.title, nil)
+
 print("== the page ==")
 
 local html = page.render(with_contents, { title = "t", colours_css = COLOURS })
@@ -162,6 +173,9 @@ check("the Contents list is drawn", html:find('<nav class="contents">', 1, true)
 check("an entry links to the turn after its request", html:find('<a href="#turn-3">after Request 1</a>', 1, true) ~= nil, true)
 check("... and that turn carries the id", html:find('<section id="turn-3" class="turn said">', 1, true) ~= nil, true)
 check("no recaps: no Contents list", page.render(basic, { colours_css = COLOURS }):find('<nav class="contents">', 1, true) == nil, true)
+check("the person's title is drawn under the heading, escaped",
+  page.render(titled, { title = "t", colours_css = COLOURS }):find('<p class="facts">named &ldquo;Fix the &lt;menu&gt; &amp; more&rdquo;</p>', 1, true) ~= nil, true)
+check("no title: no 'named' line", page.render(basic, { colours_css = COLOURS }):find("named &ldquo;", 1, true) == nil, true)
 
 local linking = reader.read(transcript({ models = "m" }, {
   { "User Request 1", "go" },

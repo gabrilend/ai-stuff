@@ -26,6 +26,7 @@
 --     # Conversation Summary: <session id>     the first line, always
 --     Generated on: <when the file was written>
 --     Models: <every model that served a reply>
+--     Title: <the person's name for it>       only when they renamed it
 --     ## Contents                              the recaps, when there are any
 --     ### User Request 1                       an exchange begins
 --     ### Assistant Response 1                 the reply to it
@@ -111,6 +112,11 @@ end
 --   the models line is written only when some reply named its model, so its
 --   absence is a real shape: models is an empty list, meaning none named.
 --
+--   the title line is written only when the person renamed the session
+--   (issue 037), so its absence is the usual shape: title is nil. It is
+--   looked for above the first rule only, so a "Title:" line someone wrote
+--   in the conversation is never taken for it.
+--
 -- One exception, and it is a list rather than a looser rule: a transcript on
 -- the archived list may lack the generated-on line. Its generated_on comes
 -- back nil and its header_complete false, so a page can say "not recorded"
@@ -136,7 +142,10 @@ local function read_header(text)
     end
   end
 
-  return session_id, generated_on, models, not is_archived
+  local header_block = text:match("^(.-)\n%-%-%-%-%-%-%-%-%-%-") or text
+  local title = header_block:match("\nTitle: ([^\n]+)")
+
+  return session_id, generated_on, models, not is_archived, title
 end
 -- }}}
 
@@ -272,6 +281,8 @@ end
 --                    generated-on and models lines may be missing because
 --                    they were never written, not because none applied
 --   models           list of strings, first-use order; may be empty
+--   title            the name the person gave the session, or nil when they
+--                    never renamed it
 --   contents         list of recap entries (see read_contents), may be empty
 --   exchanges        list of turns, in file order, which is the order they
 --                    happened
@@ -293,7 +304,7 @@ end
 -- exporter only writes the marker when the model CHANGES. A reply with no
 -- marker above it was served by whatever served the one before.
 function M.read(text)
-  local session_id, generated_on, models, header_complete = read_header(text)
+  local session_id, generated_on, models, header_complete, title = read_header(text)
 
   -- The header block is everything down to the first rule line; below it and
   -- above the first `###` heading are lines the harness wrote before the
@@ -371,6 +382,7 @@ function M.read(text)
     generated_on = generated_on,
     header_complete = header_complete,
     models = models,
+    title = title,
     contents = contents,
     exchanges = exchanges,
   }

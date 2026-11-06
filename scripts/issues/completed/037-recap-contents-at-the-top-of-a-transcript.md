@@ -97,12 +97,14 @@ Models: ...
 
 ## Open Questions
 
-1. **Should the recap also appear in the body, at the spot it happened?**
+1. ~~**Should the recap also appear in the body, at the spot it happened?**~~
+   Answered 2026-11-02: no (see What Happened).
    The contents list says "after Request 12"; a marker line in the body
    there (the way background-task notices are shown) would make the spot
    findable by eye and give the future HTML link a target. It doubles the
    text. Not built until the owner says.
-2. **Should the session's title head the contents?** Claude Code names each
+2. ~~**Should the session's title head the contents?**~~ Answered 2026-11-02:
+   the person's own name for it, yes; the machine's, no (see What Happened). Claude Code names each
    session once, from its first message, with a small model (a `ai-title`
    record, string field `aiTitle`); a name the person gives by renaming the
    session is a `custom-title` record and wins. The owner's sessions change
@@ -126,6 +128,56 @@ Models: ...
 
 ## Metadata
 
-- **Status**: in progress (built and tested; open questions unanswered)
+- **Status**: done (open questions answered 2026-11-02)
 - **Complexity**: Low
 - **Dependencies**: none
+
+## What Happened
+
+The Contents list was built and tested earlier, and 035's pages draw it. The
+two open questions were settled on 2026-11-02, on branch
+`claude/037-recap-markers`:
+
+1. **No marker in the body.** The question's two reasons were findability by
+   eye and a target for an HTML link. 035 already gives both: the page draws
+   the list as "How it went", and each "after Request N" links to the turn
+   that follows. A body line would repeat text the Contents list already
+   holds. It would also rewrite every archived transcript that has a recap
+   the next time it is exported. The existing check "the recap is listed
+   once, not repeated in the body" stays as it is.
+2. **The person's own name for the session goes in the header; the machine's
+   does not.**
+   - When the log holds a `custom-title` record (the person renamed the
+     session), the transcript's header gets a line `Title: <name>` after the
+     `Models:` line. A session renamed twice keeps the later name.
+   - The `ai-title` record Claude Code writes by itself from the first message
+     is not shown. It describes only the opening, which is why issue 025
+     declined it as a filename, and the same reason holds inside the file.
+   - A `custom-title` record without text stops the export with a message,
+     the way a recap without a timestamp does, rather than being guessed at.
+   - The line goes in the header rather than the Contents list. It names the
+     whole conversation rather than a point in it, and the header is where the
+     reader already takes whole-conversation facts from.
+   - The shared reader (`transcript-site/transcript-reader.lua`) reads the
+     line into `title`, from above the first rule only, so a "Title:" line
+     someone typed in a turn is never taken for it. The page draws it under
+     the heading as `named "<title>"`, escaped.
+   - A renamed session's transcript gains the line the next time it is
+     exported. No other transcript changes.
+
+Tests:
+
+- `tests/test_conversation-parser-session-title.lua` (13 checks): a renamed
+  session gets its name after the Models line; the later of two names wins; a
+  machine title alone, or no title, writes no line; a title record without
+  text is reported. 4 of the 13 fail on the old parser.
+- `transcript-site/tests/test-transcript-site.lua` gains five checks: reading
+  the title, its absence, a "Title:" line in a turn not taken for it, and the
+  page drawing it escaped or not at all.
+- Every `tests/test_conversation-parser-*.lua` suite passes unchanged.
+- `tests/test-backup-conversations-sessions.sh` gives 31 passed and 2 failed
+  here, the same as on main. The two "unreadable log" checks can't fail a read
+  when the tests run as root.
+
+`README-backup-conversations.md` and the reader's header comment describe
+the new line.

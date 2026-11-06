@@ -338,6 +338,7 @@ Each conversation is saved as a markdown file with:
 
 Generated on: {date}
 Models: {every model that served a reply, in first-appearance order}
+Title: {the name the person gave the session, if they renamed it}
 
 ## Contents
 
@@ -365,8 +366,10 @@ Models: {every model that served a reply, in first-appearance order}
 --------------------------------------------------------------------------------
 ```
 
-The `Models:` line is omitted when no assistant message named a model, and the
-command line when no command was run. The Contents section lists, in order,
+The `Models:` line is omitted when no assistant message named a model, the
+`Title:` line when the person never renamed the session (the title Claude Code
+writes for itself from the first message is not shown: it describes only the
+opening; issue 037), and the command line when no command was run. The Contents section lists, in order,
 every recap Claude Code wrote while the person was stepped away — read top to
 bottom it is a summary of how the conversation went — each placed by the last
 request before it, with the "(disable recaps in /config)" boilerplate removed;
