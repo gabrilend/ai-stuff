@@ -164,122 +164,100 @@ local function parse_phase_divider(line)
 end
 -- }}}
 
--- {{{ get_issue_phase
--- Determines the phase number from an issue ID
---
--- Supports two naming conventions:
---   1. Dash-separated: P-NNN-desc.md (e.g., "10-001" = phase 10, issue 1)
---   2. Numeric prefix: PNN-desc.md (e.g., "047" = phase 0, issue 47; "101" = phase 1, issue 1)
---
--- For numeric prefix format: first digit = phase, last two digits = issue
---   - 001-099: phase 0, issues 1-99
---   - 100-199: phase 1, issues 0-99
---   - 800-899: phase 8, issues 0-99
---
--- Also handles sub-issues like 101a, 101b, etc.
-local function get_issue_phase(issue_id)
-    -- First check for dash-separated format: "10-001" or "1-005"
-    local explicit_phase = issue_id:match("^(%d+)%-")
-    if explicit_phase then
-        -- Check if this looks like explicit phase-issue format
-        -- by seeing if there's another number after the dash
-        local after_dash = issue_id:match("^%d+%-(%d)")
-        if after_dash then
-            return tonumber(explicit_phase)
+-- {{{ Shared issue-name reader
+-- Which phase an issue belongs to is decided in one place for the whole
+-- monorepo: scripts/libs/issue-names.lua, which the progress dashboard and
+-- the issue validator also read through (issue 048). This script used to
+-- keep its own rule (first digit is the phase); it now asks the reader, so
+-- it agrees with them -- including on names whose width is ambiguous
+-- ("1001") and on issues filed in a phase-N/ folder. Found beside this
+-- script's project, so it works whatever --dir says.
+local ISSUE_NAMES_PATH = ((arg[0]:match("(.*)/[^/]*$") or ".")
+    .. "/../../scripts/libs/issue-names.lua")
+local issue_names = nil
+local scanned = {}  -- project path -> list of issues, read once per run
+
+-- {{{ load_issue_names
+local function load_issue_names()
+    if issue_names then return issue_names end
+    local ok, library = pcall(dofile, ISSUE_NAMES_PATH)
+    if not ok or type(library) ~= "table" then
+        io.stderr:write("generate-readme-toc: cannot load the shared issue-name reader at "
+            .. ISSUE_NAMES_PATH .. "\n")
+        os.exit(2)
+    end
+    issue_names = library
+    return issue_names
+end
+-- }}}
+
+-- {{{ project_issues
+-- Every open or completed issue file in a project, as the shared reader sees
+-- it. Retired issues (superseded, declined, archive) are left out, as are
+-- issue-shaped names without .md, since a title is read from each file. A
+-- project with no issues/ directory has no issues.
+local function project_issues(project_path)
+    if scanned[project_path] then return scanned[project_path] end
+    local reader = load_issue_names()
+    local ok, found = pcall(reader.scan, project_path)
+    local issues = {}
+    if ok then
+        for _, issue in ipairs(found) do
+            if issue.has_extension and (issue.status == "open" or issue.status == "completed") then
+                issues[#issues + 1] = issue
+            end
         end
     end
+    scanned[project_path] = issues
+    return issues
+end
+-- }}}
+-- }}}
 
-    -- Extract just the numeric part (strip trailing letters for sub-issues)
-    local num_part = issue_id:match("^(%d+)")
-    if not num_part then return nil end
-
-    local num = tonumber(num_part)
-    if not num then return nil end
-
-    -- Numeric prefix format: first digit = phase, last two digits = issue
-    -- 047 = phase 0, issue 47
-    -- 101 = phase 1, issue 01
-    -- 800 = phase 8, issue 00
-    return math.floor(num / 100)
+-- {{{ issue_title
+-- The first heading in an issue file, without an "Issue NNN:" prefix; the
+-- description from the file name when there is no heading.
+local function issue_title(path, descr)
+    local title = descr:gsub("%-", " "):gsub("^%l", string.upper)
+    local file_handle = io.open(path, "r")
+    if file_handle then
+        for file_line in file_handle:lines() do
+            local heading = file_line:match("^#%s+(.+)$")
+            if heading then
+                title = heading:gsub("^Issue%s+[%w%-]+:%s*", "")
+                break
+            end
+        end
+        file_handle:close()
+    end
+    return title
 end
 -- }}}
 
 -- {{{ discover_phase_issues
--- Discovers all issue files for a given phase number in a project
--- Returns a sorted list of issue file info: {path, name, id, title}
+-- The issues of one phase in a project, as a sorted list of
+-- {path, name, id, title, completed}.
 local function discover_phase_issues(project_path, phase_num)
     local issues = {}
-    local issues_dir = project_path .. "/issues"
-
-    if not dir_exists(issues_dir) then
-        return issues
-    end
-
-    -- Search both active and completed issues
-    local search_dirs = {
-        issues_dir,
-        issues_dir .. "/completed",
-    }
-
-    for _, search_dir in ipairs(search_dirs) do
-        if dir_exists(search_dir) then
-            -- Find all .md files with numeric prefixes
-            local cmd = string.format("find %q -maxdepth 1 -name '[0-9]*.md' -type f 2>/dev/null",
-                search_dir)
-            local handle = io.popen(cmd)
-            if handle then
-                for filepath in handle:lines() do
-                    local filename = filepath:match("([^/]+)$")
-                    -- Parse issue ID and description from filename
-                    -- Format: {ID}-{description}.md or {ID}{letter}-{description}.md
-                    local issue_id, descr = filename:match("^(%d+[a-z]?)%-(.+)%.md$")
-
-                    if issue_id then
-                        local issue_phase = get_issue_phase(issue_id)
-                        -- Verify this issue belongs to the requested phase
-                        if issue_phase == phase_num then
-                            -- Try to extract title from first heading in file
-                            local title = descr:gsub("%-", " "):gsub("^%l", string.upper)
-                            local file_handle = io.open(filepath, "r")
-                            if file_handle then
-                                for file_line in file_handle:lines() do
-                                    local heading = file_line:match("^#%s+(.+)$")
-                                    if heading then
-                                        -- Clean up "Issue XXX:" prefix if present
-                                        title = heading:gsub("^Issue%s+%d+:%s*", "")
-                                        break
-                                    end
-                                end
-                                file_handle:close()
-                            end
-
-                            local is_completed = filepath:match("/completed/") ~= nil
-                            table.insert(issues, {
-                                path = filepath,
-                                name = filename,
-                                id = issue_id,
-                                title = title,
-                                completed = is_completed,
-                            })
-                        end
-                    end
-                end
-                handle:close()
-            end
+    for _, issue in ipairs(project_issues(project_path)) do
+        if issue.phase == tostring(phase_num) then
+            issues[#issues + 1] = {
+                path = issue.path,
+                name = issue.filename,
+                id = issue.id,
+                number = tonumber(issue.number) or 0,
+                index = issue.index or "",
+                title = issue_title(issue.path, issue.descr),
+                completed = issue.status == "completed",
+            }
         end
     end
 
-    -- Sort by issue ID (numeric part first, then letter suffix)
+    -- By issue number within the phase, then sub-issue letter
     table.sort(issues, function(a, b)
-        local a_num = tonumber(a.id:match("^(%d+)")) or 0
-        local b_num = tonumber(b.id:match("^(%d+)")) or 0
-        if a_num ~= b_num then
-            return a_num < b_num
-        end
-        -- Same number, sort by letter suffix
-        local a_suffix = a.id:match("^%d+([a-z]*)$") or ""
-        local b_suffix = b.id:match("^%d+([a-z]*)$") or ""
-        return a_suffix < b_suffix
+        if a.number ~= b.number then return a.number < b.number end
+        if a.index ~= b.index then return a.index < b.index end
+        return a.path < b.path
     end)
 
     return issues
