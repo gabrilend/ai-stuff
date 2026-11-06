@@ -8,6 +8,7 @@ package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local doo = require("parsers.doo")
 local mpq = require("mpq")
+local compat = require("compat")
 
 -- {{{ Test configuration
 local TEST_MAPS_DIR = DIR .. "/assets"
@@ -95,8 +96,10 @@ end
 -- }}}
 
 -- {{{ build_doodad_entry
--- Build a single doodad entry (42 bytes)
-local function build_doodad_entry(d)
+-- Build a single doodad entry: 42 bytes in version 7; in version 8 the
+-- item drops (table pointer, item sets) come before the creation number
+-- (issue 201e)
+local function build_doodad_entry(d, version)
     local parts = {}
 
     -- Type ID (4 chars)
@@ -124,6 +127,19 @@ local function build_doodad_entry(d)
     -- Life (1 byte)
     parts[#parts + 1] = string.char(d.life or 100)
 
+    -- Version 8: item table pointer and item sets
+    if (version or 7) >= 8 then
+        parts[#parts + 1] = pack_int32(d.item_table_pointer or -1)
+        parts[#parts + 1] = pack_int32(#(d.item_sets or {}))
+        for _, set in ipairs(d.item_sets or {}) do
+            parts[#parts + 1] = pack_int32(#set)
+            for _, it in ipairs(set) do
+                parts[#parts + 1] = pack_id(it[1])
+                parts[#parts + 1] = pack_int32(it[2])
+            end
+        end
+    end
+
     -- Creation number
     parts[#parts + 1] = pack_int32(d.creation_number or 1)
 
@@ -145,7 +161,7 @@ local function build_doo_file(doodads, options)
 
     -- Doodad entries
     for _, d in ipairs(doodads) do
-        parts[#parts + 1] = build_doodad_entry(d)
+        parts[#parts + 1] = build_doodad_entry(d, options.version)
     end
 
     -- Special doodads section (empty by default)
@@ -498,6 +514,47 @@ local function test_invalid_data()
 end
 -- }}}
 
+-- {{{ test_parse_v8_drops
+-- Version 8: what a doodad drops, read before its creation number (201e)
+local function test_parse_v8_drops()
+    print("Testing version 8 doodads with item drops...")
+
+    local data = build_doo_file({
+        { id = "LTlt", x = 100, y = 200, creation_number = 7 },
+        { id = "LTbr", x = 300, y = 400, creation_number = 8, item_table_pointer = -1,
+          item_sets = { { { "gold", 60 }, { "lmbr", 40 } }, { { "phea", 100 } } } },
+        { id = "LTcr", x = 500, y = 600, creation_number = 9, item_table_pointer = 2 },
+    }, { version = 8, subversion = 11 })
+
+    local result, err = doo.parse(data)
+    assert(result, "Parse failed: " .. tostring(err))
+    assert(#result.doodads == 3, "Expected 3 doodads, got " .. #result.doodads)
+
+    local d1, d2, d3 = result.doodads[1], result.doodads[2], result.doodads[3]
+    assert(d1.creation_number == 7, "Doodad 1 creation number mismatch")
+    assert(d1.item_table_pointer == -1, "Doodad 1 table pointer mismatch")
+    assert(d1.item_sets_count == 0, "Doodad 1 should drop nothing")
+    assert(d2.creation_number == 8, "Doodad 2 creation number mismatch")
+    assert(d2.item_sets_count == 2 and #d2.item_sets == 2, "Doodad 2 should have 2 item sets")
+    assert(d2.item_sets[1].items[2].id == "lmbr", "Doodad 2 set 1 item 2 mismatch")
+    assert(d2.item_sets[1].items[2].chance == 40, "Doodad 2 set 1 chance mismatch")
+    assert(d2.item_sets[2].items[1].id == "phea", "Doodad 2 set 2 item mismatch")
+    assert(d3.creation_number == 9, "Doodad 3 creation number mismatch")
+    assert(d3.item_table_pointer == 2, "Doodad 3 table pointer mismatch")
+    assert(#result.tail_raw == 8, "The special section should follow the last doodad")
+
+    -- written back byte for byte
+    assert(doo.write(result) == data, "Version 8 doodads should write back byte for byte")
+
+    -- an item list cut by the end of the data
+    local cut, cut_err = doo.parse(data:sub(1, 16 + 50 + 40))
+    assert(cut == nil, "A cut item list should not parse")
+    assert(cut_err and cut_err:find("doodad 2/3"), "The message names the doodad: " .. tostring(cut_err))
+
+    print("  PASS: Version 8 drops read before the creation number")
+end
+-- }}}
+
 -- {{{ test_real_maps
 local function test_real_maps()
     print("Testing against real map files...")
@@ -562,6 +619,34 @@ local function test_real_maps()
         total_doodads = total_doodads + count
         log(string.format("    Parsed: %d doodads", count))
 
+        -- The entries read right (201e): the file writes back byte for
+        -- byte, every creation number is its own and not negative, and
+        -- what follows the last doodad is the special doodads section
+        -- (version, count, 16 bytes each)
+        do
+            local problem
+            local seen = {}
+            for i, d in ipairs(result.doodads) do
+                if d.creation_number < 0 or seen[d.creation_number] then
+                    problem = string.format("creation number %d at doodad %d", d.creation_number, i)
+                    break
+                end
+                seen[d.creation_number] = true
+            end
+            local t = result.tail_raw
+            if not problem and (#t < 8 or #t ~= 8 + 16 * compat.unpack_int32(t, 5)) then
+                problem = string.format("%d bytes after the last doodad", #t)
+            end
+            if not problem and doo.write(result) ~= doo_data then
+                problem = "not written back byte for byte"
+            end
+            if problem then
+                print(string.format("    FAIL: %s in %s", problem, map_name))
+                failed = failed + 1
+                goto close_and_continue
+            end
+        end
+
         -- Validate some properties
         for i, d in ipairs(result.doodads) do
             if i > 10 then break end  -- Just check first 10
@@ -591,6 +676,7 @@ local function test_real_maps()
     elseif passed > 0 then
         print("  PARTIAL: Some maps failed")
     end
+    assert(failed == 0, failed .. " map(s) failed")
 end
 -- }}}
 -- }}}
@@ -608,6 +694,7 @@ local function main()
     test_in_bounds()
     test_format()
     test_invalid_data()
+    test_parse_v8_drops()
     test_real_maps()
 
     print("\n=== All tests completed ===")
