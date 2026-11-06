@@ -8,8 +8,13 @@ local script_path = arg[0]:match("(.*/)")
 if script_path then
     package.path = script_path .. "?.lua;" .. package.path
 end
--- Add ai-stuff/libs/lua for dkjson
+-- Add ai-stuff/libs/lua for dkjson: the copy in the checkout this file lives
+-- in (scripts/libs/ -> ../../libs/lua/) first, the house path after it, so a
+-- second checkout runs its own vendored copy.
 package.path = "/home/ritz/programming/ai-stuff/libs/lua/?.lua;" .. package.path
+if script_path then
+    package.path = script_path .. "../../libs/lua/?.lua;" .. package.path
+end
 
 local json = require("dkjson")
 local menu = require("menu")

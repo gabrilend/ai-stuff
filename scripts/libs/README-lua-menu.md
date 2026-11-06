@@ -15,6 +15,7 @@ and keyboard shortcuts for quick item access.
 - Checkbox and radio button selection
 - Numeric input fields with LEFT/RIGHT shortcuts
 - Multi-state cycling options
+- Dropdown select lists, fixed or fetched when opened
 - Quick jump to any checkbox via repeated digit keys (1, 22, 333, etc.)
 - SHIFT+digit to go back one tier
 - Framebuffer rendering (flicker-free updates)

@@ -1,5 +1,5 @@
 -- menu.lua - Interactive menu component using framebuffer TUI
--- Provides multi-section menus with vim keybindings, checkbox/flag/multistate items.
+-- Provides multi-section menus with vim keybindings, checkbox/flag/multistate/select items.
 -- LuaJIT compatible. All rendering goes through the TUI framebuffer for clean updates.
 
 local tui = require("tui")
@@ -70,6 +70,9 @@ local state = {
     -- Allows sections to have a max visible height with scrollbar
     section_scroll_offset = {},   -- section_id -> scroll offset within section
     section_max_visible = {},     -- section_id -> max visible items (nil = unlimited)
+    -- Issue 017: the open dropdown of a select item, nil when none is open:
+    -- {id, options, cursor, scroll, loading, anchor_row, anchor_col}
+    dropdown = nil,
 
     -- Issue 10-018: Animation state for command preview transitions
     animation = {
@@ -111,6 +114,116 @@ local function anim_debug(msg, clear_log)
         f:close()
     end
 end
+-- }}}
+
+-- {{{ Select items: options (issue 017)
+-- A select item holds one value chosen from a list of options. An option is
+-- {value, label, description, disabled, disabled_reason}; a plain string is
+-- an option whose value and label are both that string. A "select" item's
+-- options are fixed when the menu is built; a "select_dynamic" item's are
+-- fetched each time its dropdown opens, from a Lua function (options) or a
+-- shell command (options_command) printing value|label|description|reason
+-- lines.
+
+-- {{{ local function is_select
+local function is_select(item_type)
+    return item_type == "select" or item_type == "select_dynamic"
+end
+-- }}}
+
+-- {{{ local function normalize_options
+-- Any list of options in the shapes above, as a list of option tables. An
+-- option with a disabled_reason is disabled unless it says disabled = false.
+local function normalize_options(raw)
+    local list = {}
+    if type(raw) ~= "table" then return list end
+    for _, opt in ipairs(raw) do
+        if type(opt) == "string" or type(opt) == "number" then
+            local text = tostring(opt)
+            list[#list + 1] = { value = text, label = text, description = "", disabled = false }
+        elseif type(opt) == "table" and opt.value ~= nil then
+            local value = tostring(opt.value)
+            local reason = opt.disabled_reason
+            if reason == "" then reason = nil end
+            local disabled = opt.disabled == true
+            if opt.disabled == nil and reason then disabled = true end
+            list[#list + 1] = {
+                value = value,
+                label = (opt.label and opt.label ~= "") and tostring(opt.label) or value,
+                description = opt.description and tostring(opt.description) or "",
+                disabled = disabled,
+                disabled_reason = reason and tostring(reason) or nil,
+            }
+        end
+    end
+    return list
+end
+-- }}}
+
+-- {{{ local function parse_option_lines
+-- Options from text, one per line: value|label|description|disabled_reason.
+-- Only the value is needed; blank lines are skipped.
+local function parse_option_lines(text)
+    local raw = {}
+    for line in (text or ""):gmatch("[^\n]+") do
+        line = line:gsub("\r$", "")
+        if line:match("%S") then
+            local fields, start = {}, 1
+            while #fields < 3 do
+                local bar = line:find("|", start, true)
+                if not bar then break end
+                fields[#fields + 1] = line:sub(start, bar - 1)
+                start = bar + 1
+            end
+            fields[#fields + 1] = line:sub(start)
+            raw[#raw + 1] = { value = fields[1], label = fields[2],
+                              description = fields[3], disabled_reason = fields[4] }
+        end
+    end
+    return normalize_options(raw)
+end
+-- }}}
+
+-- {{{ local function first_enabled
+local function first_enabled(options)
+    for i, opt in ipairs(options) do
+        if not opt.disabled then return i end
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ local function option_index
+local function option_index(options, value)
+    for i, opt in ipairs(options) do
+        if opt.value == value then return i end
+    end
+    return nil
+end
+-- }}}
+
+-- {{{ local function text_width / fit_text
+-- Width in terminal cells (one per character, as tui.write_str counts), and
+-- text cut to a width with "..." when it is too wide.
+local function text_width(text)
+    local n = 0
+    for _ in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do n = n + 1 end
+    return n
+end
+
+local function fit_text(text, width)
+    if width <= 0 then return "" end
+    if text_width(text) <= width then return text end
+    local keep = width > 3 and width - 3 or width
+    local out, n = {}, 0
+    for c in text:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        if n >= keep then break end
+        out[#out + 1] = c
+        n = n + 1
+    end
+    return table.concat(out) .. (width > 3 and "..." or "")
+end
+-- }}}
 -- }}}
 
 -- {{{ menu.init
@@ -162,6 +275,7 @@ function menu.init(config)
     -- Section viewport scrolling state
     state.section_scroll_offset = {}
     state.section_max_visible = {}
+    state.dropdown = nil
 
     -- Issue 10-018: Animation state reset
     state.animation.enabled = true
@@ -206,9 +320,20 @@ function menu.init(config)
                 default_value = item.value or "",  -- Store original as default for flag items
                 shortcut = item.shortcut or nil,   -- Optional keyboard shortcut
                 flag = item.flag or nil,           -- CLI flag (e.g., "--verbose")
-                filepath = item.filepath or nil    -- Optional file path for preview
+                filepath = item.filepath or nil,   -- Optional file path for preview
+                -- Issue 017: a select item's options (see normalize_options)
+                options = type(item.options) == "table" and normalize_options(item.options) or nil,
+                options_fn = type(item.options) == "function" and item.options or nil,
+                options_command = item.options_command or nil,
             }
             state.values[iid] = item.value or (item.type == "checkbox" and "0" or "")
+            -- A fixed select list with no value given starts on its first
+            -- option that can be chosen.
+            local data = state.item_data[iid]
+            if data.type == "select" and state.values[iid] == "" and data.options then
+                local first = first_enabled(data.options)
+                if first then state.values[iid] = data.options[first].value end
+            end
 
             -- Build shortcuts lookup table
             if item.shortcut and #item.shortcut == 1 then
@@ -1081,8 +1206,9 @@ local function compute_command_preview()
                         if display_value and display_value ~= "" and display_value ~= "0" then
                             table.insert(parts, flag .. " " .. display_value)
                         end
-                    elseif item.type == "multistate" then
-                        -- Add flag with current state value
+                    elseif item.type == "multistate" or is_select(item.type) then
+                        -- Add flag with current state value (a select
+                        -- item's chosen option, issue 017)
                         if value and value ~= "" then
                             table.insert(parts, flag .. " " .. value)
                         end
@@ -1962,6 +2088,239 @@ local function find_item_position(target_item_id)
 end
 -- }}}
 
+-- {{{ Select items: the dropdown (issue 017)
+
+-- {{{ local function select_options
+-- The options a select item offers now. A fixed list is the item's own. A
+-- dynamic one is fetched when its dropdown opens (refresh true) and kept
+-- until it opens again, so drawing and cycling never fetch. Returns the list
+-- and, when a fetch failed, why.
+local function select_options(item_id, refresh)
+    local data = state.item_data[item_id]
+    if data.type ~= "select_dynamic" then return data.options or {} end
+    if data.cached_options and not refresh then return data.cached_options end
+    local list, why
+    if data.options_fn then
+        local ok, result = pcall(data.options_fn)
+        if ok then list = normalize_options(result) else why = tostring(result) end
+    elseif data.options_command then
+        local pipe = io.popen(data.options_command .. " 2>/dev/null")
+        if pipe then
+            list = parse_option_lines(pipe:read("*a"))
+            pipe:close()
+        else
+            why = "could not run the options command"
+        end
+    end
+    data.cached_options = list or data.cached_options or {}
+    return data.cached_options, why
+end
+-- }}}
+
+-- {{{ local function select_display
+-- What a closed select item shows between its brackets: the chosen option's
+-- label, else the bare value, else why there is nothing.
+local function select_display(item_id)
+    local data = state.item_data[item_id]
+    local value = state.values[item_id] or ""
+    local options = (data.type == "select_dynamic") and (data.cached_options or {}) or (data.options or {})
+    local i = option_index(options, value)
+    if i then return options[i].label end
+    if value ~= "" then return value end
+    if data.type == "select" and #options == 0 then return "(no options available)" end
+    return "(none)"
+end
+-- }}}
+
+-- {{{ menu.select_open
+-- Opens a select item's dropdown, the cursor on the chosen option. A dynamic
+-- list shows "loading..." while it is fetched. With no options there is
+-- nothing to open: the item flashes red and the reason is shown.
+function menu.select_open(item_id)
+    local data = state.item_data[item_id]
+    if data.type == "select_dynamic" then
+        state.dropdown = { id = item_id, loading = true, options = {}, cursor = 1, scroll = 0 }
+        menu.render()
+    end
+    local options, why = select_options(item_id, true)
+    if #options == 0 then
+        state.dropdown = nil
+        state.status_message = why and ("No options: " .. why) or "(no options available)"
+        menu.flash_item(item_id, 2, "red", 100)
+        menu.render()
+        return false
+    end
+    local cursor = option_index(options, state.values[item_id] or "") or first_enabled(options) or 1
+    state.dropdown = { id = item_id, options = options, cursor = cursor, scroll = 0 }
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ menu.select_close
+-- Closes the dropdown, keeping the value it had.
+function menu.select_close()
+    state.dropdown = nil
+    menu.render()
+end
+-- }}}
+
+-- {{{ menu.select_move
+-- Moves the dropdown's cursor by step (1 or -1), or to "top" or "bottom".
+-- It stops at the ends rather than wrapping.
+function menu.select_move(step)
+    local dd = state.dropdown
+    if not dd or dd.loading then return end
+    if step == "top" then
+        dd.cursor = 1
+    elseif step == "bottom" then
+        dd.cursor = #dd.options
+    else
+        dd.cursor = math.max(1, math.min(#dd.options, dd.cursor + step))
+    end
+    menu.render()
+end
+-- }}}
+
+-- {{{ menu.select_jump
+-- Moves the cursor to the next option whose label starts with this letter
+-- (any case), wrapping round the list.
+function menu.select_jump(letter)
+    local dd = state.dropdown
+    if not dd or dd.loading then return end
+    letter = letter:lower()
+    local n = #dd.options
+    for k = 1, n do
+        local i = (dd.cursor - 1 + k) % n + 1
+        if dd.options[i].label:sub(1, 1):lower() == letter then
+            dd.cursor = i
+            break
+        end
+    end
+    menu.render()
+end
+-- }}}
+
+-- {{{ menu.select_choose
+-- Chooses the option under the cursor and closes the dropdown. A disabled
+-- option is refused, with its reason, and the dropdown stays open.
+function menu.select_choose()
+    local dd = state.dropdown
+    if not dd or dd.loading then return false end
+    local opt = dd.options[dd.cursor]
+    if opt.disabled then
+        state.status_message = "Unavailable" .. (opt.disabled_reason and (": " .. opt.disabled_reason) or "")
+        menu.render()
+        return false
+    end
+    state.values[dd.id] = opt.value
+    state.dropdown = nil
+    update_disabled_states()
+    menu.render()
+    return true
+end
+-- }}}
+
+-- {{{ local function select_cycle
+-- Left/right on a closed select item: the previous or next option that can
+-- be chosen, wrapping, as a multistate item cycles.
+local function select_cycle(item_id, step)
+    local options = select_options(item_id, false)
+    if #options == 0 then return false end
+    local n = #options
+    local i = option_index(options, state.values[item_id] or "") or (step > 0 and 0 or n + 1)
+    for _ = 1, n do
+        i = (i - 1 + step) % n + 1
+        if not options[i].disabled then
+            state.values[item_id] = options[i].value
+            update_disabled_states()
+            menu.render()
+            return true
+        end
+    end
+    return false
+end
+-- }}}
+
+-- {{{ local function render_dropdown
+-- Draws the open dropdown over the rows below its item, or above it when
+-- there is more room there: a box of options, the chosen one marked with a
+-- dot, the cursor's highlighted, disabled ones dim, and a scrollbar in the
+-- right border when the list is longer than the box. Drawn last, so it sits
+-- on top of everything else.
+local DROPDOWN_MAX_VISIBLE = 10
+local function render_dropdown()
+    local dd = state.dropdown
+    if not dd or not dd.anchor_row then return end
+    local row0, col0 = dd.anchor_row, dd.anchor_col
+    tui.reset_style()
+    if dd.loading then
+        tui.set_attrs(tui.ATTR_DIM)
+        tui.write_str(row0, col0, "[loading...]")
+        tui.reset_style()
+        return
+    end
+
+    local options = dd.options
+    local n = #options
+    local top_limit = 5                  -- first row under the header
+    local bottom_limit = state.rows - 3  -- last row above the footer
+    local room_below = bottom_limit - row0 + 1
+    local room_above = row0 - top_limit + 1
+    local want = math.min(n, DROPDOWN_MAX_VISIBLE) + 2
+    local down = room_below >= want or room_below >= room_above
+    local room = down and room_below or room_above
+    local visible = math.max(1, math.min(n, DROPDOWN_MAX_VISIBLE, room - 2))
+
+    -- Keep the cursor inside the window of visible options
+    if dd.cursor <= dd.scroll then dd.scroll = dd.cursor - 1 end
+    if dd.cursor > dd.scroll + visible then dd.scroll = dd.cursor - visible end
+    dd.scroll = math.max(0, math.min(dd.scroll, n - visible))
+
+    -- Width: the widest label, cut to fit the screen
+    local label_w = 0
+    for _, opt in ipairs(options) do label_w = math.max(label_w, text_width(opt.label)) end
+    label_w = math.min(label_w, math.max(4, state.cols - 8))
+    local width = label_w + 6            -- "│ ● " label " │"
+    local col = col0
+    if col + width - 1 > state.cols then col = math.max(1, state.cols - width + 1) end
+    local top = down and row0 or (row0 - visible - 1)
+
+    tui.draw_box_top(top, col, width, "single")
+    for k = 1, visible do
+        local i = dd.scroll + k
+        local opt = options[i]
+        local r = top + k
+        tui.reset_style()
+        tui.draw_box_line(r, col, width, "single")
+        tui.write_str(r, col + 1, string.rep(" ", width - 2))
+        local mark = (opt.value == state.values[dd.id]) and "\226\151\143 " or "  "  -- ●
+        local text = mark .. fit_text(opt.label, label_w)
+        text = text .. string.rep(" ", label_w + 2 - text_width(text))
+        if i == dd.cursor then
+            tui.set_fg(tui.FG_BLACK)
+            tui.set_bg(tui.BG_WHITE)
+        end
+        if opt.disabled then tui.set_attrs(tui.ATTR_DIM) end
+        tui.write_str(r, col + 2, text)
+    end
+    tui.reset_style()
+    tui.draw_box_bottom(top + visible + 1, col, width, "single")
+
+    if n > visible then
+        local thumb = math.max(1, math.floor(visible * visible / n))
+        local pos = math.floor(dd.scroll / (n - visible) * (visible - thumb) + 0.5)
+        tui.set_attrs(tui.ATTR_DIM)
+        for k = 0, visible - 1 do
+            local ch = (k >= pos and k < pos + thumb) and "\226\150\136" or "\226\150\145"  -- █ or ░
+            tui.set_cell(top + 1 + k, col + width - 1, ch)
+        end
+        tui.reset_style()
+    end
+end
+-- }}}
+-- }}}
+
 -- {{{ Rendering functions
 local function render_header()
     local cols = state.cols
@@ -2154,6 +2513,23 @@ local function render_item(row, item_id, highlight, item_num, section_type)
         tui.set_attrs(highlight and tui.ATTR_NONE or tui.ATTR_DIM)
         tui.set_fg(highlight and tui.FG_CYAN or tui.FG_DEFAULT)
         tui.write_str(row, col, ">")
+    elseif is_select(item_type) then
+        -- Issue 017: "Label: [chosen ▼]"; while its dropdown is open, the
+        -- brackets give way to the dropdown, drawn last by render_dropdown.
+        col = tui.write_str(row, col, ": ")
+        local dd = state.dropdown
+        if dd and dd.id == item_id then
+            dd.anchor_row, dd.anchor_col = row, col
+        else
+            if disabled then tui.set_attrs(tui.ATTR_DIM) end
+            local shown = fit_text(select_display(item_id), state.cols - col - 5)
+            col = tui.write_str(row, col, "[" .. shown .. " ")
+            tui.set_fg(highlight and tui.FG_CYAN or tui.FG_DEFAULT)
+            col = tui.write_str(row, col, "\226\150\188")  -- ▼
+            tui.reset_style()
+            if disabled then tui.set_attrs(tui.ATTR_DIM) end
+            tui.write_str(row, col, "]")
+        end
     elseif item_type == "action" then
         -- Action items show an arrow indicator
         tui.set_fg(highlight and tui.FG_YELLOW or tui.FG_DEFAULT)
@@ -2760,8 +3136,15 @@ local function render_description(start_row)
     else
         -- Get current item description
         local item_id = get_current_item_id()
+        -- Issue 017: with a dropdown open, the option under its cursor is
+        -- described instead, and a disabled option's reason shown under it.
+        local dd = state.dropdown
+        local dd_option = dd and dd.id == item_id and not dd.loading and dd.options[dd.cursor]
         if item_id then
             local desc = state.item_data[item_id].description
+            if dd_option then
+                desc = dd_option.description ~= "" and dd_option.description or dd_option.label
+            end
             if desc and desc ~= "" then
                 local max_len = state.cols - 4
                 if #desc > max_len then
@@ -2772,8 +3155,15 @@ local function render_description(start_row)
         end
         row = row + 1
 
+        if dd_option and dd_option.disabled then
+            tui.clear_row(row)
+            tui.set_fg(tui.FG_YELLOW)
+            local reason = "-> Unavailable" .. (dd_option.disabled_reason and (": " .. dd_option.disabled_reason) or "")
+            tui.write_str(row, 5, fit_text(reason, state.cols - 6))
+            tui.reset_style()
+            row = row + 1
         -- Show disabled reason if item is disabled due to dependency
-        if item_id and state.disabled_reasons[item_id] then
+        elseif item_id and state.disabled_reasons[item_id] then
             tui.clear_row(row)
             local reason_info = state.disabled_reasons[item_id]
             local reason = reason_info.reason
@@ -2879,6 +3269,8 @@ local function render_footer()
         else  -- arrow mode
             base_help = "arrows:cursor  type:edit  ENTER:next val  q:quit"
         end
+    elseif state.dropdown then
+        base_help = "j/k:option  spc/enter:choose  letter:jump  esc/q:cancel"
     else
         base_help = "j/k:nav  space:toggle  ~:copy  `:action  q/esc:quit"
     end
@@ -2943,6 +3335,7 @@ function menu.render()
 
     render_description(row)
     render_footer()
+    render_dropdown()  -- Issue 017: on top of everything
 
     tui.present()
 end
@@ -3165,6 +3558,10 @@ function menu.toggle()
     if data.type == "action" then
         -- Action items trigger immediate execution
         return "action"
+    elseif is_select(data.type) then
+        -- Issue 017: open the dropdown; choosing happens inside it
+        menu.select_open(item_id)
+        return nil
     elseif data.type == "checkbox" then
         if section_type == "single" then
             -- Radio button behavior: unselect all others in section
@@ -4078,6 +4475,8 @@ function menu.handle_left()
         state.values[item_id] = options[current_idx]
         menu.render()
         return true
+    elseif is_select(data.type) and not data.disabled then
+        return select_cycle(item_id, -1)
     end
     return false
 end
@@ -4119,6 +4518,8 @@ function menu.handle_right()
         state.values[item_id] = options[current_idx]
         menu.render()
         return true
+    elseif is_select(data.type) and not data.disabled then
+        return select_cycle(item_id, 1)
     end
     return false
 end
@@ -4155,6 +4556,31 @@ function menu.run()
 
         -- Clear status message on any keypress (it will be re-set if needed)
         state.status_message = nil
+
+        -- Issue 017: an open dropdown takes every key until it closes.
+        -- j/k and the arrows move, space/enter choose, esc/q cancel, home/end
+        -- go to the ends, and any other letter or digit jumps to the next
+        -- option starting with it (so g, h, l and i jump too).
+        if state.dropdown then
+            if key == "CTRL_C" or key == "Q" then
+                return "quit", state.values
+            elseif key == "j" or key == "DOWN" then
+                menu.select_move(1)
+            elseif key == "k" or key == "UP" then
+                menu.select_move(-1)
+            elseif key == "HOME" or key == "PAGE_UP" then
+                menu.select_move("top")
+            elseif key == "END" or key == "PAGE_DOWN" then
+                menu.select_move("bottom")
+            elseif key == "SPACE" or key == "ENTER" then
+                menu.select_choose()
+            elseif key == "ESCAPE" or key == "q" then
+                menu.select_close()
+            elseif type(key) == "string" and #key == 1 and key:match("%w") then
+                menu.select_jump(key)
+            end
+            goto continue
+        end
 
         -- Check if we're on the command preview item
         local on_cmd_preview = is_on_command_preview()
