@@ -30,6 +30,33 @@ a second, translucent mesh per chunk, tinted by the map's water colour
 - [ ] Water shows where the map has it, at its level
 - [ ] Shallow and deep water look different
 
+## Status Note (2026-11-06)
+
+The text above was written at the 2026-09-26 re-cut and not updated after
+issue 517b (2026-09-29). `src/render/landscape.c` (scene viewer, `run-map`,
+and the editor) already draws water; the vertical slice's `main.c` demo
+colouring described above is unchanged.
+
+Done (read from the code, 2026-11-06):
+
+- Step 1: a water mesh per chunk, beside the land mesh. A tilepoint is wet
+  where its water flag is set and the surface (`w3e.water_z`: stored level
+  less 89.6) is above the ground; each wet cell's surface is level with
+  its highest wet corner. Water is drawn in a second pass after the land.
+- Depth shading: each cell mixes a shallow and a deep colour by depth
+  (full deep at 256 units).
+
+Left:
+
+- The tint is two fixed colours. The map's own water colour is read by the
+  w3i parser (`map.water_color`) but nothing uses it yet.
+- The water is opaque (alpha 255), not translucent.
+- The vertical slice (`terrain.c`, the page) has no water.
+
+Boxes left unticked: 517 checked water by screenshot under Xvfb, but that
+is not repeated here, and shallow against deep was not looked at on screen
+in this pass.
+
 ---
 
 ## Earlier Design (January 2026, for a Lua renderer interface)

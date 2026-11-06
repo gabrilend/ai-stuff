@@ -28,10 +28,12 @@
 # Usage:  DIR=/path/to/project; source "${DIR}/scripts/stage-timing.sh"
 
 # {{{ configuration
-# ${DIR} is the project root. run.sh sets it before sourcing; the hardcoded value
-# is the fallback so the library is usable standalone. STAGE_TIMINGS_FILE is
-# overridable (the tests point it at a temp file).
-DIR="${DIR:-/mnt/mtwo/programming/ai-stuff/neocities-modernization}"
+# ${DIR} is the project root, set by the script that sources this (run.sh, the
+# test). project-dir: none -- a sourced library takes no command line; its
+# caller reads --dir. It used to fall back to a written-in path when DIR was
+# unset; now an unset DIR stops the caller, naming it (Issue 10-076).
+# STAGE_TIMINGS_FILE is overridable (the tests point it at a temp file).
+: "${DIR:?stage-timing.sh: set DIR to the project folder before sourcing this}"
 STAGE_TIMINGS_FILE="${STAGE_TIMINGS_FILE:-${DIR}/.stage-timings}"
 # Ring size: how many recent timings to keep per stage. 5 balances a smooth mean
 # against reacting to a real change (e.g. a backend that halved the embed time):

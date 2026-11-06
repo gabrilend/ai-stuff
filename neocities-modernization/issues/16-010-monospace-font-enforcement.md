@@ -1,7 +1,9 @@
 # Issue 16-010: Monospace Font Enforcement
 
 ## Status
-- **Status**: REOPENED (2026-09-22). Sorted from `next-issue-please-sort`.
+- **Status**: In progress -- built 2026-10-25 and checked in Firefox at four
+  screen widths; what remains is the owner's look on a real phone (Safari,
+  Chrome) after the next build. Reopened 2026-09-22 from `next-issue-please-sort`.
 - **Numbering note**: a second, unrelated completed issue used to carry the
   number 16-010 as well; it was renumbered 16-011 on 2026-09-22
   (`issues/completed/16-011-wordcloud-display-colors-and-url-fixes.md`).
@@ -16,6 +18,41 @@ Medium (was Low). Mobile readers see mangled frames.
 > is also properly padded no matter the screen size.
 
 ## Current Behavior
+
+**Built 2026-10-25 (the owner's answers to both open questions).**
+- **The font scales; the columns stay.** Owner: "Always scale to fit" --
+  "scale the font size, not the text columns." Every `<pre>` on every page
+  (`src/page-head.lua` base style) has
+  `font-size: min(16px, calc((100vw - 16px) / 50.572))`: 84 cells of the
+  shipped font (each 1233/2048 = 0.602 of the font size) fit the screen less
+  its margins, and on a screen wide enough the size is the usual 16px. The
+  84 comes from config.lua `layout.text_content_width` + 4
+  (`page_head.frame_columns`), the same number the frames are drawn to.
+- **Every block is the grid's full width.** The poem pages' and word pages'
+  `<pre>` are `84ch` wide, so blocks split around a picture all centre the
+  same and their frames line up (a block only as wide as its widest line used
+  to shift).
+- **Emoji are held to two cells.** Owner: "Keep, forced into the grid." The
+  drawer wraps each emoji (with its skin-tone and presentation marks, joined
+  emoji, and a flag's two letters) in `<span class="e">`, a box exactly
+  `2ch` wide, and counts it as two columns wherever widths are measured --
+  wrapping, golden-wall padding, boost-frame padding, the whole-site check
+  (`libs/text-formatter.lua` `display_columns`, `grid_emoji`). A symbol the
+  font draws itself (★) stays one cell unless the colour-emoji mark asks for
+  the picture. Found on the way: the boost frame padded its lines by
+  counting characters, so `&amp;` took five columns and an emoji one; it
+  uses the shared measure now.
+- **Checked** on a 400-page sample: 0 over-wide lines, 0 misshapen frames;
+  and in Firefox (headless) at 360, 390, 430 and 1280 pixels: the whole grid
+  fits at every phone width, with no sideways scrolling and every frame in
+  line, and the desktop page is unchanged. Not yet checked: Safari and
+  Chrome, on a real phone.
+- Tests: `src/page-head.test.lua` (the scaling rule and the emoji box),
+  `libs/text-formatter-test.lua` (emoji widths and boxing),
+  `src/poem-entry.test.lua` (a golden line with an emoji keeps its wall in
+  place), `src/boost-bars.test.lua` (entities and emoji in a boost line).
+
+Earlier (2026-09-22):
 
 **Fixed 2026-09-22, found while testing 8-045:** the shared stylesheet says
 `text-size-adjust: 100%;`, and four page templates in
@@ -354,7 +391,9 @@ because the visitor's browser never will.
 
 ## Open Questions
 
-1. **Partly answered: tiny text, or a different phone layout?** At 390 pixels,
+1. **Answered (owner, 2026-10-25): "Always scale to fit" -- "scale the font
+   size, not the text columns."** Built as above.
+   The question, as asked: **Partly answered: tiny text, or a different phone layout?** At 390 pixels,
    fitting 84 cells means text about 7.5 pixels tall. Owner (2026-09-22):
    "Gotta make it work, and it's gotta be dynamic."
    - **Requirement recorded:** a fixed scale-down to unreadable text is not the
@@ -365,8 +404,9 @@ because the visitor's browser never will.
      narrower frame (bars, nav boxes and CW boxes re-drawn at the narrower
      width). This must still be done without JavaScript (3-006), so either
      CSS only, or pages generated at more than one width and chosen by CSS.
-2. Should emoji keep their colour glyphs and be forced into the grid, or be
-   replaced with a monospace symbol?
+2. **Answered (owner, 2026-10-25): keep them, forced into the grid.** Built as
+   above. The question, as asked: Should emoji keep their colour glyphs and be
+   forced into the grid, or be replaced with a monospace symbol?
 
 ## Original Implementation Steps (2026-02/03)
 
@@ -399,10 +439,10 @@ because the visitor's browser never will.
 - [ ] Fallback works if font fails to load
 - [ ] Character alignment correct for formatted text
 - [ ] Bold weight works (if included)
-- [ ] Frames line up on a 360-pixel screen
-- [ ] Frames line up on a 390-pixel screen
-- [ ] Frames line up on a 430-pixel screen
-- [ ] No sideways scrolling on any of the three
+- [x] Frames line up on a 360-pixel screen (Firefox, 2026-10-25)
+- [x] Frames line up on a 390-pixel screen (Firefox, 2026-10-25)
+- [x] Frames line up on a 430-pixel screen (Firefox, 2026-10-25)
+- [x] No sideways scrolling on any of the three (Firefox, 2026-10-25)
 
 ## Related Documents
 

@@ -1,0 +1,5 @@
+title: The reading walk's small screen, read as a watch
+picture: /home/ritz/programming/ai-stuff/scripts/see-in-3d-examples/01-the-walk-on-a-watch/picture.png
+stage: 1
+---
+The first render drew the white text grey: every face was shaded by the one light, and a lit OLED pixel gives off light rather than reflecting it. The paintbrush gained the word glow, and this second render shows the text white on black, the way the screen does.

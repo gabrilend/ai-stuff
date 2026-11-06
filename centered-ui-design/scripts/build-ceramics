@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+#
+# build-ceramics - builds the world's engine: the ceramic boxes as a shared library.
+#
+# In plain terms: the world's work is written as C boxes (src/020) wired by a
+# map (src/021) for soramech's ceramic engine. This script turns them into one
+# library file LÖVE can load:
+#
+#   1. builds serac (soramech's compiler) from minimal-soramech's sources,
+#      once, into the project's executable scratch tier;
+#   2. has serac write out the construction code for the map (which carries
+#      the boxes' source with it);
+#   3. cuts that code at its own main and puts the host's calls (src/022) in
+#      its place — the render thread is this program's only outside caller;
+#   4. compiles the lot against the project's copy of the engine
+#      (libs/ceramic) as a shared library.
+#
+# Rebuilds only when a source is newer than the library. Every step's
+# failure stops the script with the step named.
+#
+# Usage:
+#   scripts/build-ceramics            build for the project at the default place
+#   scripts/build-ceramics <dir>      build for the project at <dir>
+#   scripts/build-ceramics <dir> --force   rebuild even if up to date
+#
+# Prints the library's path on success.
+
+DIR="/mnt/mtwo/programming/ai-stuff/centered-ui-design"
+# a first argument that is a folder is the project's location
+if [ -d "${1:-}" ]; then
+    DIR="$1"
+    shift
+fi
+FORCE="${1:-}"
+SORAMECH="/home/ritz/programming/ai-playground/minimal-soramech"
+
+source /mnt/mtwo/programming/ai-stuff/scripts/libs/ensure-ram-tiers
+ensure_ram_tiers "${DIR}"
+
+BUILD="${DIR}/tmp/tmp/ceramic"
+SERAC="${BUILD}/serac"
+LIBRARY="${BUILD}/libceramics.so"
+ENGINE="${DIR}/libs/ceramic"
+SRC="${DIR}/src"
+mkdir -p "${BUILD}"
+set -e
+
+# {{{ up to date?
+# the library is newer than every source it is made from: nothing to do
+if [ "${FORCE}" != "--force" ] && [ -f "${LIBRARY}" ]; then
+    NEWER=$(find "${SRC}/020-ceramic-boxes.c" "${SRC}/021-ceramics.map" "${SRC}/022-the-ceramic-host.c" \
+        "${ENGINE}/cera.c" "${ENGINE}/cera.h" -newer "${LIBRARY}")
+    if [ -z "${NEWER}" ]; then
+        echo "${LIBRARY}"
+        exit 0
+    fi
+fi
+# }}}
+
+# {{{ 1. serac
+if [ ! -x "${SERAC}" ]; then
+    bash "${SORAMECH}/scripts/147-build-serac.sh" "${SORAMECH}" -o "${SERAC}" > /dev/null
+fi
+# }}}
+
+# {{{ 2. the construction code (serac reads the map and the boxes beside it)
+cp "${SRC}/021-ceramics.map" "${SRC}/020-ceramic-boxes.c" "${BUILD}/"
+"${SERAC}" --emit-c "${BUILD}/021-ceramics.map"
+EMITTED="${BUILD}/021-ceramics.c"
+if [ ! -f "${EMITTED}" ]; then
+    echo "build-ceramics: serac wrote no ${EMITTED}" >&2
+    exit 1
+fi
+# }}}
+
+# {{{ 3. the host in place of the emitted main
+CUT_AT=$(grep -n '^int main(int argc, char \*\*argv)' "${EMITTED}" | cut -d: -f1)
+if [ -z "${CUT_AT}" ]; then
+    echo "build-ceramics: the emitted program has no main to replace" >&2
+    exit 1
+fi
+head -n $((CUT_AT - 1)) "${EMITTED}" > "${BUILD}/ceramics-whole.c"
+cat "${SRC}/022-the-ceramic-host.c" >> "${BUILD}/ceramics-whole.c"
+# }}}
+
+# {{{ 4. one shared library
+cc -std=gnu11 -O2 -pthread -fPIC -shared \
+    -I"${ENGINE}" "${BUILD}/ceramics-whole.c" "${ENGINE}/cera.c" \
+    -o "${LIBRARY}" -lm
+# }}}
+
+echo "${LIBRARY}"
