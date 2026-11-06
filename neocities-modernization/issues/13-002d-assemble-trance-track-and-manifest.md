@@ -257,4 +257,4 @@ Assembly is fast — the bottleneck is TTS generation (13-002c):
 - **Phase**: 13 (Audio-Visual Generation)
 - **Estimated Complexity**: Medium (audio assembly + manifest generation)
 - **Dependencies**: 13-002b (sequence), 13-002c (audio cache + durations)
-- **Blocks**: 13-003, 13-004
+- **Blocks**: 13-003, 13-004, 13-003a, 13-003c, 13-004a

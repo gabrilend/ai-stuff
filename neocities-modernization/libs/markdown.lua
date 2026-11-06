@@ -47,6 +47,16 @@ local function render_inline(text)
     text = escape_html(text)
 
     local code_spans = {}
+    -- Double-backtick spans first: ``x`` is how markdown writes code that
+    -- itself holds a backtick (`` `…` ``), with one padding space trimmed on
+    -- each side. Read with the single-backtick rule instead, the backticks
+    -- pair up wrongly and the text AFTER the span falls outside code -- which
+    -- is how a reference page's `[text](url)` example became a link to a
+    -- page called "url".
+    text = text:gsub("``(.-)``", function(code)
+        code_spans[#code_spans + 1] = code:gsub("^ ", ""):gsub(" $", "")
+        return "\1" .. #code_spans .. "\2"
+    end)
     text = text:gsub("`([^`]+)`", function(code)
         code_spans[#code_spans + 1] = code
         return "\1" .. #code_spans .. "\2"

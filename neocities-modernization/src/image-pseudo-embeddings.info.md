@@ -5,9 +5,18 @@ image from the poems that bracket it in time, so the image can be ranked on
 similar/different pages like a poem. No I/O, no GPU, no date parsing — the
 pipeline caller supplies numeric timestamps and joined embeddings.
 
+## Where it is used now (2026-10-25)
+
+Since 2026-10-25 pictures are placed by the vision model's vector of the
+picture itself (`src/picture-embeddings.lua`, Stage 6). This cross-cut is
+kept only for the few picture-only posts whose media has no picture -- a
+video or a sound, three posts in 2026-10 -- by the owner's choice ("let's
+just do the before/after poem system that we currently have. For those
+three."). `qualified_image_title` still names every gallery picture.
+
 ## Concept
 
-An image has no semantic vector of its own. We place it at its timestamp in the
+A post with only a video or a sound has no picture to embed. We place it at its timestamp in the
 chronological order of text poems and synthesize its embedding by CROSS-CUTTING
 its two temporal neighbours: the leading dimensions come from the poem before it,
 the trailing dimensions from the poem after it (a "crooked" cut, not an average).

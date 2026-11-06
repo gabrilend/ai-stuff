@@ -87,6 +87,27 @@ out = run(messy .. " --file " .. messy .. "/issues/105-Bad_Name.md")
 check("--file reports only that file", out:find("105-Bad_Name", 1, true) ~= nil
     and out:find("102-second", 1, true) == nil)
 
+-- another project's issues, named by its folder, are looked up there: a
+-- project beside a sibling, where one bullet names a sibling issue that
+-- exists, one that doesn't, and a later bare number that is the sibling's
+local linked = SCRATCH .. "/linked"
+local sibling = SCRATCH .. "/sibling"
+write(sibling, "phase-3-progress.md", "")
+write(sibling, "301-there.md", full)
+write(sibling, "302-also-there.md", full)
+write(linked, "phase-1-progress.md", "")
+write(linked, "101-first.md", "## Blocks\n\n- 102\n- sibling 301's part, and later (302)\n"
+    .. "- sibling 399\n\n" .. full)
+write(linked, "102-second.md", "**Blocked by:** 101\n" .. full)
+out, status = run(linked)
+check("sibling issue that exists is accepted", out:find("sibling 301", 1, true) == nil
+    and out:find("sibling 302", 1, true) == nil)
+check("sibling issue that doesn't exist is reported",
+    out:find("names sibling 399, which has no file there", 1, true) ~= nil)
+check("own link in the same field still read", out:find("102", 1, true) == nil)
+check("sibling numbers are not read as this project's",
+    out:find("names 301", 1, true) == nil and out:find("names 302", 1, true) == nil)
+
 -- a missing issues/ folder is a usage error
 _, status = run(SCRATCH .. "/nothing-here")
 check("missing issues/ exits 2", status == 2)
