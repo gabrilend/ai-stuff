@@ -42,6 +42,18 @@ with a zero.
 **format_id(shape, phase, number, width)** → string
 Writes an id in the given shape: compact 5, 23, 2 → "523".
 
+**next_free_ids(issues, width)** → table
+Phase → the id one past the highest number its names use, in the phase's own
+shape. Sub-issue letters do not use up a number.
+
+**next_id(issues, report, phase)** → string
+The id a new issue in `phase` takes: the next free one, or the first in the
+project's usual shape for a phase with no issues. `validate-issues --next` and
+`libs/issue-manager.lua` both answer with this.
+
+**dominant_shape(issues)** → string
+The shape most of the project's issues use (ties alphabetical).
+
 **phase_sort_key(phase)** → string
 Sorts numeric phases numerically, before lettered ones.
 

@@ -61,6 +61,13 @@ check("--next 1 prints 103", out:match("^103") ~= nil)
 out = run(clean .. " --next 2")
 check("--next on an empty phase starts at 201", out:match("^201") ~= nil)
 
+-- a file whose very first line is a required heading still has it
+local first_line = SCRATCH .. "/first-line"
+write(first_line, "101-heading-first.md", full)
+out, status = run(first_line)
+check("a heading on the first line counts", status == 0
+    and not out:find("missing section", 1, true))
+
 -- every finding kind appears once
 local messy = SCRATCH .. "/messy"
 write(messy, "phase-1-progress.md", "")
