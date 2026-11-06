@@ -19,6 +19,14 @@
 #   - the token reaches the cloud only inside the header file, never as an
 #     argument, and the header file is gone when the run ends;
 #   - an export that fails stops the run and names the session;
+#   - a Remote Control session is listed as such and never fetched;
+#   - a session's helper agents are fetched into <session>/subagents/, one
+#     log per helper, exported as transcripts of their own, and a change to
+#     a helper alone counts as a change to the session;
+#   - a session whose log comes back empty keeps nothing and fails the run,
+#     naming the session;
+#   - --limit smaller than a long listing page cuts the listing cleanly
+#     (it used to die of SIGPIPE, exit 141, against the real cloud);
 #   - an expired sign-in, a refused sign-in and a missing sign-in each stop the
 #     run with a message that says what to do.
 #
@@ -125,22 +133,40 @@ function build_fixtures() {
 
     STORE="$SCRATCH/cloud-projects"
 
-    # The listing, in two pages.
-    answer "$API/v1/sessions?limit=100" 200 \
-        '{"data":[{"id":"session_01AAAA","title":"Grocery list","created_at":"2026-11-01T10:00:00Z","updated_at":"2026-11-01T10:05:00Z","session_context":{"sources":[]}}],"has_more":true,"first_id":"session_01AAAA","last_id":"session_01AAAA"}'
+    # The listing, in two pages. Session C is a Remote Control session
+    # ("bridge"): the fake cloud has no log for it, so fetching it at all
+    # would fail the run with the fake cloud's 599.
+    LISTING_PAGE_1='{"data":[{"id":"session_01AAAA","title":"Grocery list","created_at":"2026-11-01T10:00:00Z","updated_at":"2026-11-01T10:05:00Z","environment_kind":"anthropic_cloud","session_context":{"sources":[]}}],"has_more":true,"first_id":"session_01AAAA","last_id":"session_01AAAA"}'
+    answer "$API/v1/sessions?limit=100" 200 "$LISTING_PAGE_1"
     answer "$API/v1/sessions?limit=100&after_id=session_01AAAA" 200 \
-        '{"data":[{"id":"session_01BBBB","title":"Fix the exporter","created_at":"2026-10-31T09:00:00Z","updated_at":"2026-10-31T09:30:00Z","session_context":{"sources":[{"type":"git_repository","url":"https://github.com/gabrilend/ai-stuff.git"}]}}],"has_more":false,"first_id":"session_01BBBB","last_id":"session_01BBBB"}'
+        '{"data":[{"id":"session_01BBBB","title":"Fix the exporter","created_at":"2026-10-31T09:00:00Z","updated_at":"2026-10-31T09:30:00Z","environment_kind":"anthropic_cloud","session_context":{"sources":[{"type":"git_repository","url":"https://github.com/gabrilend/ai-stuff.git"}]}},{"id":"session_01CCCC","title":"Steered from the phone","created_at":"2026-10-30T09:00:00Z","updated_at":"2026-10-30T09:30:00Z","environment_kind":"bridge","session_context":{"sources":[]}}],"has_more":false,"first_id":"session_01BBBB","last_id":"session_01CCCC"}'
 
     # Session A: two pages of the paged feed. Its second page holds a row
     # with no payload, which must be skipped.
     A_FEED="$API/v1/code/sessions/cse_01AAAA/teleport-events"
+    # Its first page also launches its two helpers: h1 through an Agent
+    # call, h2 through a Skill run in a fork. Each launch's result names the
+    # helper it started; that is how the helpers get their descriptions.
     answer "$A_FEED?limit=1000&from_first_event=true" 200 \
-        '{"data":[{"payload":{"type":"user","timestamp":"2026-11-01T10:00:00.000Z","uuid":"a1","message":{"role":"user","content":"What goes on the grocery list?"}}}],"next_cursor":"c2"}'
+        '{"data":[{"payload":{"type":"user","timestamp":"2026-11-01T10:00:00.000Z","uuid":"a1","message":{"role":"user","content":"What goes on the grocery list?"}}},{"payload":{"type":"assistant","timestamp":"2026-11-01T10:00:00.500Z","uuid":"a1l","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"tool_use","id":"t1","name":"Agent","input":{"description":"Price the blackberries","subagent_type":"general-purpose","prompt":"Price the blackberries"}},{"type":"tool_use","id":"t2","name":"Skill","input":{"skill":"find-bakery","args":"near home"}}]}}},{"payload":{"type":"user","timestamp":"2026-11-01T10:00:03.000Z","uuid":"a1r","toolUseResult":{"agentId":"h1","status":"completed"},"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"Four dollars a pint."}]}}},{"payload":{"type":"user","timestamp":"2026-11-01T10:00:03.500Z","uuid":"a1s","toolUseResult":{"agentId":"h2","status":"forked","commandName":"find-bakery"},"message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t2","content":"A bakery is near."}]}}}],"next_cursor":"c2"}'
     answer "$A_FEED?limit=1000&cursor=c2" 200 \
         '{"data":[{"payload":null},{"payload":{"type":"assistant","timestamp":"2026-11-01T10:00:05.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"Bread, cheese and blackberries."}]}}}],"next_cursor":null}'
 
-    # Session B: the paged feed does not know it; the one-shot feed does.
+    # Session A's helpers: two helper agents, their rows interleaved across
+    # two pages of the helper feed, the way the real feed hands them over.
+    A_HELPERS="$A_FEED?limit=1000&subagents=true"
+    answer "$A_HELPERS&from_first_event=true" 200 \
+        '{"data":[{"session_agent_id":"h1","payload":{"type":"user","isSidechain":true,"agentId":"h1","timestamp":"2026-11-01T10:00:01.000Z","uuid":"h1a","message":{"role":"user","content":"Price the blackberries"}}},{"session_agent_id":"h2","payload":{"type":"user","isSidechain":true,"agentId":"h2","timestamp":"2026-11-01T10:00:01.500Z","uuid":"h2a","message":{"role":"user","content":"Find a bakery"}}}],"next_cursor":"hc2"}'
+    answer "$A_HELPERS&cursor=hc2" 200 \
+        '{"data":[{"session_agent_id":"h1","payload":{"type":"assistant","isSidechain":true,"agentId":"h1","timestamp":"2026-11-01T10:00:02.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"Blackberries are four dollars a pint."}]}}},{"session_agent_id":"h2","payload":null}],"next_cursor":null}'
+
+    # Session B: the paged feed does not know it; the one-shot feed does,
+    # and there is no helper feed for it either.
     answer "$API/v1/code/sessions/cse_01BBBB/teleport-events?limit=1000&from_first_event=true" 404 '{"error":"not found"}'
+    answer "$API/v1/code/sessions/cse_01BBBB/teleport-events?limit=1000&subagents=true&from_first_event=true" 404 '{"error":"not found"}'
+
+    # Session D: in no listing; its feed answers, but with no events.
+    answer "$API/v1/code/sessions/cse_01DDDD/teleport-events?limit=1000&from_first_event=true" 200 '{"data":[],"next_cursor":null}'
     answer "$API/v1/session_ingress/session/session_01BBBB" 200 \
         '{"loglines":[{"type":"user","timestamp":"2026-10-31T09:00:00.000Z","uuid":"b1","message":{"role":"user","content":"Why does the exporter skip cloud sessions?"}},{"type":"assistant","timestamp":"2026-10-31T09:00:05.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"They never reach this computer."}]}}]}'
 }
@@ -183,7 +209,9 @@ function main() {
     local status=$?
     check "--list succeeds" "$([ $status -eq 0 ] && echo yes || echo no)"
     check "--list shows both pages of sessions" \
-        "$( [ "$(wc -l < "$SCRATCH/out")" -eq 2 ] && grep -q 'session_01BBBB' "$SCRATCH/out" && echo yes || echo no)"
+        "$( [ "$(wc -l < "$SCRATCH/out")" -eq 3 ] && grep -q 'session_01BBBB' "$SCRATCH/out" && echo yes || echo no)"
+    check "--list names each session's kind in words" \
+        "$( grep -q $'session_01AAAA\tcloud\t' "$SCRATCH/out" && grep -q $'session_01CCCC\tremote-control\t' "$SCRATCH/out" && echo yes || echo no)"
     check "--list fetches no log" "$(yes_if bash -c "! grep -q teleport-events '$CLOUD/calls'")"
 
     echo "First run"
@@ -197,7 +225,7 @@ function main() {
     check "an unmapped session is filed under the default project" "$(yes_if test -f "$a_log")"
     check "a mapped session is filed under its repository's project" "$(yes_if test -f "$b_log")"
     check "a paged log arrives whole, oldest first, payload-less rows skipped" \
-        "$( [ "$(wc -l < "$a_log")" -eq 2 ] && [ "$(head -n1 "$a_log" | jq -r .uuid)" = a1 ] && echo yes || echo no)"
+        "$( [ "$(wc -l < "$a_log")" -eq 5 ] && [ "$(head -n1 "$a_log" | jq -r .uuid)" = a1 ] && echo yes || echo no)"
     check "a log the paged feed lacks is read from the one-shot feed" \
         "$( [ "$(wc -l < "$b_log")" -eq 2 ] && echo yes || echo no)"
     check "every call carried the sign-in in its header file" \
@@ -211,6 +239,22 @@ function main() {
         "$( [ -n "$a_md" ] && grep -q 'blackberries' "$a_md" && echo yes || echo no)"
     check "the mapped session became a transcript in its project" \
         "$( [ -n "$b_md" ] && grep -q 'never reach this computer' "$b_md" && echo yes || echo no)"
+    check "the Remote Control session is counted and never fetched" \
+        "$( grep -q 'Remote Control sessions: 1 left' "$SCRATCH/out" && ! grep -q 'cse_01CCCC' "$CLOUD/calls" && ! find "$STORE" -name 'session_01CCCC*' | grep -q . && echo yes || echo no)"
+    local a_helpers="$STORE/$(session_folder_name "$HOME_PROJECT")/session_01AAAA/subagents"
+    check "each helper gets its own log beside the parent's, in arrival order" \
+        "$( [ "$(wc -l < "$a_helpers/agent-h1.jsonl")" -eq 2 ] && [ "$(head -n1 "$a_helpers/agent-h1.jsonl" | jq -r .uuid)" = h1a ] \
+            && [ "$(wc -l < "$a_helpers/agent-h2.jsonl")" -eq 1 ] && echo yes || echo no)"
+    check "a session without a helper feed says so and goes on" \
+        "$( grep -q 'session_01BBBB: the cloud has no helper feed' "$SCRATCH/err.first" && ! test -e "$(dirname "$b_log")/session_01BBBB" && echo yes || echo no)"
+    check "a helper launched by an Agent call is described as it was asked" \
+        "$( [ "$(jq -r .description "$a_helpers/agent-h1.meta.json")" = 'Price the blackberries' ] && echo yes || echo no)"
+    check "a helper forked by a Skill call is described as /skill args" \
+        "$( [ "$(jq -r .description "$a_helpers/agent-h2.meta.json")" = '/find-bakery near home' ] && echo yes || echo no)"
+    local h1_md
+    h1_md=$(transcript_of "$HOME_PROJECT" agent-h1)
+    check "a helper became a transcript of its own" \
+        "$( [ -n "$h1_md" ] && grep -q 'four dollars a pint' "$h1_md" && echo yes || echo no)"
 
     echo "Second run, nothing new"
     local a_before
@@ -232,6 +276,42 @@ function main() {
     a_md=$(transcript_of "$HOME_PROJECT" session_01AAAA)
     check "the grown session's transcript has the new turn" \
         "$( [ -n "$a_md" ] && grep -q 'Eggs are on the list' "$a_md" && echo yes || echo no)"
+
+    echo "A helper that grew"
+    answer "$A_HELPERS&cursor=hc2" 200 \
+        '{"data":[{"session_agent_id":"h1","payload":{"type":"assistant","isSidechain":true,"agentId":"h1","timestamp":"2026-11-01T10:00:02.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"Blackberries are four dollars a pint."}]}}},{"session_agent_id":"h2","payload":{"type":"assistant","isSidechain":true,"agentId":"h2","timestamp":"2026-11-01T10:00:03.000Z","message":{"role":"assistant","model":"claude-opus-5-5","content":[{"type":"text","text":"The bakery opens at seven."}]}}}],"next_cursor":null}'
+    run_fetcher --session session_01AAAA
+    check "a change to a helper alone counts as a change to the session" \
+        "$(yes_if grep -q 'Cloud sessions: 0 new, 1 changed, 0 unchanged' "$SCRATCH/out")"
+    check "and the helper's log holds the new turn" \
+        "$(yes_if grep -q 'bakery opens at seven' "$a_helpers/agent-h2.jsonl")"
+
+    echo "A helper whose launch is not in the log"
+    answer "$API/v1/code/sessions/cse_01EEEE/teleport-events?limit=1000&from_first_event=true" 200 \
+        '{"data":[{"payload":{"type":"user","timestamp":"2026-11-02T10:00:00.000Z","uuid":"e1","message":{"role":"user","content":"Carry on from the summary."}}}],"next_cursor":null}'
+    answer "$API/v1/code/sessions/cse_01EEEE/teleport-events?limit=1000&subagents=true&from_first_event=true" 200 \
+        '{"data":[{"session_agent_id":"h9","payload":{"type":"user","isSidechain":true,"agentId":"h9","timestamp":"2026-11-01T09:00:00.000Z","uuid":"h9a","message":{"role":"user","content":"Survey the code"}}}],"next_cursor":null}'
+    run_fetcher --session session_01EEEE
+    status=$?
+    check "a helper with no description stops the export" "$([ $status -ne 0 ] && echo yes || echo no)"
+    check "and the exporter names the helper" "$(yes_if grep -q 'agent-h9.meta.json has no description' "$SCRATCH/err")"
+
+    echo "An empty log"
+    run_fetcher --session session_01DDDD
+    status=$?
+    check "an empty log fails the run" "$([ $status -ne 0 ] && echo yes || echo no)"
+    check "and names the session" "$(yes_if grep -q 'session_01DDDD: the cloud answered with an empty log' "$SCRATCH/err")"
+    check "and keeps nothing" "$(yes_if bash -c "! find '$STORE' -name 'session_01DDDD*' | grep -q .")"
+
+    echo "A long listing cut by --limit"
+    local long_page
+    long_page=$(jq -nc '{data: [range(0; 600) | {id: "session_01L\(.)", title: "A conversation with a long enough title to fill the pipe \(.)", created_at: "2026-10-01T00:00:00Z", updated_at: "2026-10-01T00:00:00Z", environment_kind: "bridge", session_context: {sources: []}}], has_more: false, last_id: "session_01L599"}')
+    answer "$API/v1/sessions?limit=100" 200 "$long_page"
+    run_fetcher --list --limit 5
+    status=$?
+    check "--limit below a long page succeeds" "$([ $status -eq 0 ] && echo yes || echo no)"
+    check "and lists exactly that many" "$( [ "$(wc -l < "$SCRATCH/out")" -eq 5 ] && echo yes || echo no)"
+    answer "$API/v1/sessions?limit=100" 200 "$LISTING_PAGE_1"
 
     echo "--fetch-only"
     rm -rf "$HOME_PROJECT/llm-transcripts" "$STORE"

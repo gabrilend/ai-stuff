@@ -15,11 +15,17 @@
 # This script:
 #
 #   1. asks the cloud which sessions this account has (newest first);
-#   2. downloads each one's log, page by page, into a sessions store of its
+#   2. passes over the Remote Control sessions among them: those ran in
+#      Claude Code on this computer, so their logs are already here;
+#   3. downloads each other session's log, and the logs of the helper agents
+#      (subagents) it started, page by page, into a sessions store of its
 #      own (~/.claude/cloud-projects by default, never ~/.claude/projects, so
 #      Claude Code's own store is never touched);
-#   3. hands every log that changed to backup-conversations, which writes the
-#      transcript into the project's llm-transcripts/ folder as usual.
+#   4. hands every session that changed to backup-conversations, which writes
+#      its transcript, and one per helper, into the project's llm-transcripts/
+#      folder as usual.
+#
+# A session whose log comes back empty is named and fails the run.
 #
 # A log that has not changed since the last run is left alone and not
 # re-exported, so running this often costs one listing and one page per
@@ -165,20 +171,39 @@ function get_json() {
 # Every session this account can see, newest first, one JSON object per line
 # with the fields the rest of the script uses. Pages are followed by the last
 # id of the page before, until the cloud says there are no more.
+#
+# "kind" is the session's environment_kind: "anthropic_cloud" for a session
+# that ran on Anthropic's machines (its log exists only in the cloud),
+# "bridge" for a Remote Control session (it ran in Claude Code on this
+# computer, and the cloud only relayed it to the app; see main).
+#
+# The pages are gathered in a file and cut to the limit afterwards. Cutting
+# them while they were still being written (`... | head`) closed the pipe on
+# a writer with up to 95 rows to go, and pipefail turned that SIGPIPE into a
+# silent exit 141 on every `--limit` smaller than a page.
 function list_sessions() {
    local limit="${1:-0}" after="" page="$RUN_DIR/sessions-page" seen=0
+   local all="$RUN_DIR/sessions-all"
+   : > "$all"
    while :; do
       local url="$CLAUDE_CLOUD_API/v1/sessions?limit=100"
       [ -n "$after" ] && url="$url&after_id=$after"
       get_json "$url" "$page" "listing sessions" || die "listing sessions: not found (404)"
       jq -c '.data[] | {id, title: (.title // ""), created_at, updated_at,
-             repos: [(.session_context.sources // [])[] | (.url // "") | sub("\\.git$"; "") | split("/") | last]}' "$page"
+             kind: (.environment_kind // ""),
+             repos: [(.session_context.sources // [])[] | (.url // "") | sub("\\.git$"; "") | split("/") | last]}' "$page" >> "$all"
       seen=$(( seen + $(jq '.data | length' "$page") ))
       [ "$limit" -gt 0 ] && [ "$seen" -ge "$limit" ] && break
       [ "$(jq -r '.has_more // false' "$page")" = "true" ] || break
       after=$(jq -r '.last_id // empty' "$page")
       [ -n "$after" ] || break
-   done | { if [ "$limit" -gt 0 ]; then head -n "$limit"; else cat; fi; }
+   done
+   # A limit keeps the first n rows; no limit keeps them all.
+   if [ "$limit" -gt 0 ]; then
+      head -n "$limit" "$all"
+   else
+      cat "$all"
+   fi
 }
 # }}}
 
@@ -233,6 +258,106 @@ function fetch_log_one_shot() {
 }
 # }}}
 
+# -- {{{ fetch_helpers
+# Write each helper agent's (subagent's) log of a session into $2 as
+# agent-<id>.jsonl, the name and folder Claude Code gives them locally, so
+# backup-conversations finds them beside the parent and exports each one as
+# its own transcript linked from the parent's.
+#
+# The helpers come from the same paged feed as the main log, asked with
+# subagents=true. Asked that way the feed returns only helper rows, never
+# main-conversation rows (seen 2026-11-05: 160 rows, two helpers, none of the
+# parent's 2057), and each row names its helper in session_agent_id. The
+# rows of all helpers arrive together; they are split by that id, keeping
+# each helper's rows in the order they came, oldest first.
+#
+# A session the paged feed does not know (404 on the first page) is one
+# whose main log came from the one-shot feed, which has no helper rows to
+# offer; that is said on stderr and the session goes on without helpers.
+function fetch_helpers() {
+   local session_id="$1" out_dir="$2"
+   local page="$RUN_DIR/helper-page" rows="$RUN_DIR/helper-rows" cursor="" pages=0
+   local feed="$CLAUDE_CLOUD_API/v1/code/sessions/$(code_session_id "$session_id")/teleport-events"
+   mkdir -p "$out_dir"
+   : > "$rows"
+   while :; do
+      local url="$feed?limit=1000&subagents=true"
+      if [ -n "$cursor" ]; then
+         url="$url&cursor=$cursor"
+      else
+         url="$url&from_first_event=true"
+      fi
+      if ! get_json "$url" "$page" "session $session_id helpers"; then
+         [ "$pages" -eq 0 ] || die "session $session_id: helper feed vanished part way through (404)"
+         echo "fetch-cloud-conversations: session $session_id: the cloud has no helper feed for it; its helpers, if any, are not fetched" >&2
+         return
+      fi
+      # A row's payload is compact JSON, so it holds no raw tab: the first
+      # tab on the line always ends the helper id.
+      jq -r '.data[] | select(.payload != null and .session_agent_id != null)
+             | "\(.session_agent_id)\t\(.payload | tojson)"' "$page" >> "$rows"
+      pages=$((pages + 1))
+      cursor=$(jq -r '.next_cursor // empty' "$page")
+      [ -n "$cursor" ] || break
+      [ "$pages" -lt 1000 ] || die "session $session_id: more than 1000 pages of helpers, giving up"
+   done
+   # The helper id becomes part of a file name, so anything but letters,
+   # digits, dash and underscore stops the run rather than writing elsewhere.
+   awk -v dir="$out_dir" '{
+      tab = index($0, "\t")
+      id = substr($0, 1, tab - 1)
+      if (id !~ /^[A-Za-z0-9_-]+$/) { print id; exit 1 }
+      print substr($0, tab + 1) > (dir "/agent-" id ".jsonl")
+   }' "$rows" > "$RUN_DIR/bad-helper-id" \
+      || die "session $session_id: a helper id is not a plain name: $(cat "$RUN_DIR/bad-helper-id")"
+}
+# }}}
+
+# -- {{{ describe_helpers
+# Write agent-<id>.meta.json beside each helper log in $2, as Claude Code
+# writes it locally: backup-conversations names a helper's transcript by the
+# "description" in that file and refuses a helper without one.
+#
+# The cloud's helper rows carry no description. The parent's log does: the
+# launch holds it, and the launch's result names the helper it started
+# (toolUseResult.agentId), tied to the launch by the tool call's id. Two
+# kinds of launch start a helper:
+#   - an Agent (once Task) call: its description and agent type, as given;
+#   - a Skill call that runs the skill in a fork: Claude Code describes
+#     that helper as "/<skill> <args>" (seen 2026-11-05 in a local
+#     agent-*.meta.json: "/code-review 324 medium"), named after the skill.
+#
+# A helper whose launch is not in the parent's log gets a file without a
+# description, and the export then stops and says which helper it was. That
+# happens when the launch came before a compaction: the cloud's log of a
+# session starts at its latest compaction (seen 2026-11-05).
+function describe_helpers() {
+   local main_log="$1" helper_dir="$2" helper id
+   local launches="$RUN_DIR/helper-launches"
+   jq -sc '
+      ([.[] | select(.type == "assistant") | .message.content[]?
+            | select(.type == "tool_use")
+            | if .name == "Agent" or .name == "Task" then
+                 {key: .id, value: {description: .input.description, agentType: .input.subagent_type}}
+              elif .name == "Skill" then
+                 {key: .id, value: {description: ("/" + .input.skill + (if (.input.args // "") != "" then " " + .input.args else "" end)),
+                                    name: .input.skill}}
+              else empty end]
+       | from_entries) as $launch
+      | [.[] | select(.toolUseResult.agentId? != null) as $row
+             | $row.message.content[]? | select(.type == "tool_result")
+             | {key: $row.toolUseResult.agentId, value: ($launch[.tool_use_id] // {})}]
+      | from_entries' "$main_log" > "$launches"
+   for helper in "$helper_dir"/agent-*.jsonl; do
+      [ -f "$helper" ] || continue
+      id=$(basename "$helper" .jsonl)
+      id="${id#agent-}"
+      jq -c --arg id "$id" '(.[$id] // {}) | with_entries(select(.value != null))' "$launches" \
+         > "${helper%.jsonl}.meta.json"
+   done
+}
+# }}}
+
 # -- {{{ project_for
 # The project folder a session is filed under: the first of its repositories
 # that the map names, or the default.
@@ -259,40 +384,77 @@ function session_folder_for() {
 }
 # }}}
 
+# -- {{{ same_helpers
+# True when two helper folders hold the same files with the same contents.
+# A folder that does not exist counts as an empty one, so a session that
+# never had helpers is unchanged by a fetch that found none.
+function same_helpers() {
+   local old="$1" new="$2"
+   [ -d "$old" ] || old="$RUN_DIR/no-helpers"
+   mkdir -p "$RUN_DIR/no-helpers"
+   diff -rq "$old" "$new" >/dev/null
+}
+# }}}
+
 # -- {{{ bring_home
-# Fetch one session; keep it only if it changed; export it if asked to.
-# Prints "new", "changed" or "unchanged".
+# Fetch one session and its helpers; keep them only if something changed;
+# export them if asked to. Prints "new", "changed", "unchanged" or "empty".
+#
+# The session's log is kept at <folder>/<id>.jsonl and its helpers at
+# <folder>/<id>/subagents/agent-<helper>.jsonl, the layout Claude Code uses
+# locally, so backup-conversations reads both with one --session.
+#
+# A log with no events at all is "empty": nothing is kept or exported, and
+# main names the session and fails the run. It used to be kept as an empty
+# file and passed over in silence (seen on 2026-11-05 for 22 sessions, every
+# one of them a Remote Control session, which are no longer fetched).
 function bring_home() {
    local session_json="$1"
-   local session_id project folder log fresh
+   local session_id project folder log helpers fresh fresh_helpers
    session_id=$(printf '%s' "$session_json" | jq -r '.id')
    project=$(project_for "$session_json")
    folder=$(session_folder_for "$project")
    log="$folder/$session_id.jsonl"
+   helpers="$folder/$session_id/subagents"
    fresh="$RUN_DIR/fresh.jsonl"
+   fresh_helpers="$RUN_DIR/fresh-subagents"
+   rm -rf "$fresh_helpers"
 
    fetch_log "$session_id" "$fresh"
+   if [ ! -s "$fresh" ]; then
+      echo empty
+      return
+   fi
+   fetch_helpers "$session_id" "$fresh_helpers"
+   describe_helpers "$fresh" "$fresh_helpers"
 
+   # new: never kept before. unchanged: log and helpers match what is kept,
+   # so nothing is written or exported. changed: either one differs.
    local state
    if [ ! -f "$log" ]; then
       state=new
-   elif cmp -s "$fresh" "$log"; then
+   elif cmp -s "$fresh" "$log" && same_helpers "$helpers" "$fresh_helpers"; then
       echo unchanged
       return
    else
       state=changed
    fi
    mkdir -p "$folder"
-   # Rename into place, so a reader never sees half a log.
+   # Rename into place, so a reader never sees half a log. The helpers'
+   # folder is replaced whole, so a helper the cloud no longer lists does
+   # not linger beside the ones it does.
+   rm -rf "$helpers"
+   if [ -n "$(ls -A "$fresh_helpers")" ]; then
+      mkdir -p "$folder/$session_id"
+      mv "$fresh_helpers" "$helpers"
+   fi
    mv "$fresh" "$log.part"
    mv "$log.part" "$log"
 
    if [ "$EXPORT" = yes ]; then
-      if [ -s "$log" ]; then
-         CLAUDE_SESSIONS_ROOT="$CLOUD_SESSIONS_ROOT" \
-            "$SCRIPTS_DIR/backup-conversations" --session "$session_id" "$project" >&2 \
-            || die "session $session_id: fetched, but backup-conversations could not export it"
-      fi
+      CLAUDE_SESSIONS_ROOT="$CLOUD_SESSIONS_ROOT" \
+         "$SCRIPTS_DIR/backup-conversations" --session "$session_id" "$project" >&2 \
+         || die "session $session_id: fetched, but backup-conversations could not export it"
    fi
    echo "$state"
 }
@@ -333,8 +495,12 @@ function main() {
    local sessions="$RUN_DIR/sessions"
    list_sessions "$limit" > "$sessions"
 
+   # The listing names each session's kind in words: "cloud" for one that
+   # ran on Anthropic's machines, "remote-control" for one that ran here.
    if [ "$mode" = list ]; then
-      jq -r '[.updated_at // .created_at, .id, .title] | @tsv' "$sessions"
+      jq -r '[.updated_at // .created_at, .id,
+              ({"anthropic_cloud": "cloud", "bridge": "remote-control"}[.kind] // .kind),
+              .title] | @tsv' "$sessions"
       return
    fi
 
@@ -345,17 +511,46 @@ function main() {
       printf '%s\n' "$wanted" > "$sessions"
    fi
 
-   local new=0 changed=0 unchanged=0 line state
+   # A Remote Control session ("bridge") ran in Claude Code on this
+   # computer; the cloud only relayed it to the app. Its log is already in
+   # ~/.claude/projects under the folder it ran in, and backup-conversations
+   # files it there. So it is not fetched: fetching it would file a second
+   # transcript of the same conversation under the default project. Checked
+   # 2026-11-05: every one of the 22,508 events in the 25 Remote Control
+   # copies the cloud held was also in a local log; the other 22 copies were
+   # empty. A Remote Control session cannot outlive its computer (it runs
+   # there), so the cloud copy has nothing the local log lacks.
+   local new=0 changed=0 unchanged=0 remote=0 line state kind sid
+   local empty_ids=""
    while IFS= read -r line; do
       [ -n "$line" ] || continue
+      kind=$(printf '%s' "$line" | jq -r '.kind // ""')
+      if [ "$kind" = bridge ]; then
+         remote=$((remote + 1))
+         continue
+      fi
       state=$(bring_home "$line") || exit 1
       case "$state" in
          new)       new=$((new + 1)) ;;
          changed)   changed=$((changed + 1)) ;;
          unchanged) unchanged=$((unchanged + 1)) ;;
+         empty)     sid=$(printf '%s' "$line" | jq -r '.id')
+                    empty_ids="$empty_ids $sid" ;;
       esac
    done < "$sessions"
-   echo "Cloud sessions: $new new, $changed changed, $unchanged unchanged -> $CLOUD_SESSIONS_ROOT"
+   local empty_count
+   empty_count=$(printf '%s' "$empty_ids" | wc -w)
+   echo "Cloud sessions: $new new, $changed changed, $unchanged unchanged, $empty_count empty -> $CLOUD_SESSIONS_ROOT"
+   echo "Remote Control sessions: $remote left to this computer's own logs (not fetched)"
+   # An empty log from a session that ran in the cloud means the feed
+   # answered with nothing where a conversation should be: an error, named,
+   # never a quiet zero (issue 025).
+   if [ "$empty_count" -gt 0 ]; then
+      for sid in $empty_ids; do
+         echo "fetch-cloud-conversations: session $sid: the cloud answered with an empty log; nothing was kept" >&2
+      done
+      exit 1
+   fi
 }
 # }}}
 

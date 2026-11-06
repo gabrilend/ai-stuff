@@ -73,7 +73,7 @@ Extracts Claude conversation transcripts from `~/.claude/projects/` and writes s
 ```
 
 ### fetch-cloud-conversations
-Brings conversations that ran in the cloud (Claude Duet threads, claude.ai/code sessions) home, and hands each one that changed to `backup-conversations`, so they land in `llm-transcripts/` like any other. Reuses Claude Code's own sign-in on this computer. See `README-fetch-cloud-conversations.md`.
+Brings conversations that ran in the cloud (claude.ai/code sessions, with their helper agents) home, and hands each one that changed to `backup-conversations`, so they land in `llm-transcripts/` like any other. Passes over Remote Control sessions, whose logs are already on this computer. Claude Duet threads are not reached yet (issue 051). Reuses Claude Code's own sign-in on this computer. See `README-fetch-cloud-conversations.md`.
 
 **Usage:**
 ```bash
