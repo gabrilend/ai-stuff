@@ -34,8 +34,13 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   that played it (`the builder (the stand-in)`), read from the ledger's
   own turn lines.
 
-1002c, 1003b-d and all of 1004 remain: the fuller mood-vs-mechanism
-refusal; the draft form, its folder and the person's own promotion gate;
-and the phase 10 demo, which cannot be built until the story and lessons
-it shows exist end to end. 1001 itself stays open for a storyteller turn
-retelling the machine's chapters in a model's words.
+- 1002c mechanism refusal — a mood ("the build was bad") is sent back,
+  saying why, from closed word lists (`085-the-lesson.lua`'s `mood_of`);
+  with it, `lesson.read`, the `lessons.md` reader 1002d deferred, so the
+  counter now counts the file itself.
+
+1003b-d and all of 1004 remain: the draft form, its folder and the
+person's own promotion gate; and the phase 10 demo, which cannot be built
+until the story and lessons it shows exist end to end. 1001 and 1002
+themselves stay open for the turns that retell chapters in a model's words
+and name the mechanism behind each turning point.
