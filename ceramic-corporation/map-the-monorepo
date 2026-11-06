@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# map-the-monorepo -- writes the monorepo's own queue of pull requests as an
+# org map, and ranks what it is waiting on.
+#
+# From examples/monorepo/input/ (a snapshot of the open pull requests and a
+# hand-kept list of open questions) it writes examples/monorepo/org.map,
+# validates it, writes the blocked board to examples/monorepo/board.txt, and
+# the page to examples/monorepo/page.html. With --fetch it first takes a
+# fresh snapshot from GitHub's REST API (reads only; needs the gh command).
+# Then it prints the top of the board: the merges and answers that free the
+# most waiting work, among those that can be done now.
+#
+# Usage:
+#   ./map-the-monorepo              -- from the snapshot already in input/
+#   ./map-the-monorepo --fetch      -- take a fresh snapshot first
+#   ./map-the-monorepo /path/to/ceramic-corporation [--fetch]
+
+DIR="/mnt/mtwo/programming/ai-stuff/ceramic-corporation"
+
+# -- {{{ show_help
+show_help() {
+    sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'
+}
+# }}}
+
+if [ -f "$1/src/012-monorepo-map.lua" ]; then
+    DIR="$1"
+    shift
+fi
+
+FETCH=0
+for arg in "$@"; do
+    case "${arg}" in
+        --fetch) FETCH=1 ;;
+        -h|--help) show_help; exit 0 ;;
+        *) show_help; exit 2 ;;
+    esac
+done
+
+LUA="${LUA:-luajit}"
+ORG="${DIR}/examples/monorepo"
+INPUT="${ORG}/input"
+
+# -- {{{ fetch_snapshot
+fetch_snapshot() {
+    local fresh
+    fresh=$(mktemp) || exit 1
+    echo "taking a snapshot of the open pull requests (one request per pull request)..."
+    if ! "${DIR}/scripts/list-open-pull-requests" > "${fresh}"; then
+        rm -f "${fresh}"
+        echo "ERROR: the snapshot failed; the old one is untouched" >&2
+        exit 1
+    fi
+    { echo "# taken $(date +%Y-%m-%d) from gabrilend/ai-stuff by scripts/list-open-pull-requests"
+      cat "${fresh}"; } > "${INPUT}/open-pull-requests.tsv"
+    rm -f "${fresh}"
+}
+# }}}
+
+[ "${FETCH}" -eq 1 ] && fetch_snapshot
+
+"${LUA}" "${DIR}/src/012-monorepo-map.lua" "${INPUT}" "${ORG}" || exit 1
+"${LUA}" "${DIR}/src/007-org-reader.lua" "${ORG}" || exit 1
+"${LUA}" "${DIR}/src/008-blocked-board.lua" "${ORG}" --says > "${ORG}/board.txt" || exit 1
+"${LUA}" "${DIR}/src/013-org-page.lua" "${ORG}" > "${ORG}/page.html" || exit 1
+
+echo
+echo "what can be merged or answered now, ranked by how much waits behind it:"
+"${LUA}" "${DIR}/src/008-blocked-board.lua" "${ORG}" --ready --says | head -21
+echo
+echo "the whole board: ${ORG}/board.txt; the page: ${ORG}/page.html"

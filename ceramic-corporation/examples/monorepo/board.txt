@@ -1,0 +1,375 @@
+source                             state    owes  frees  reach  holders
+pr-63                              ready       2      1     22  ritz
+    #63: RPG-autobattler: mana bars per ability with primary and secondary charging (issue 041)
+pr-80                              blocked     2      1     21  ritz
+    #80: RPG-autobattler: mana settle time, combat bonuses and death reset (issues 042, 043)
+pr-82                              blocked     2      1     20  ritz
+    #82: RPG-autobattler: proportional mana spending (issue 044)
+pr-90                              blocked     2      1     19  ritz
+    #90: RPG-autobattler: ability base class and component system (046)
+pr-94                              blocked     2      1     18  ritz
+    #94: RPG-autobattler: targeting system for abilities (047)
+pr-96                              blocked     2      1     17  ritz
+    #96: RPG-autobattler: abilities fire when their mana is full (048)
+pr-101                             blocked     2      1     16  ritz
+    #101: RPG-autobattler: ability types and their effects (049)
+pr-104                             blocked     2      1     15  ritz
+    #104: RPG-autobattler: ability cooldowns and effects over time (050)
+pr-116                             ready       2      1     14  ritz
+    #116: supcom-derivative-clone: the dunes are raised by a tool, and sightlines are read off them (102, 103)
+pr-2                               ready       5      1     14  ritz
+    #2: The shape films and their viewer come home to gif-generator (issue 701a)
+pr-105                             blocked     2      1     14  ritz
+    #105: RPG-autobattler: mana bars drawn in plain shapes, not yet seen (045)
+pr-122                             blocked     2      1     13  ritz
+    #122: supcom-derivative-clone: the world is flat arrays, the tick is a table, timers and named streams (104-107)
+pr-124                             blocked     2      1     13  ritz
+    #124: RPG-autobattler: reconcile issues 051-056 with the ability stack
+pr-30                              ready       3      2     12  ritz
+    #30: Each fetched file is kept once, under its hash (issue 604)
+pr-128                             blocked     2      1     12  ritz
+    #128: RPG-autobattler: priced unit templates and template manager (057)
+pr-129                             blocked     2      1     12  ritz
+    #129: supcom-derivative-clone: commands enter through one door; snapshots, hashes and replays (108, 109)
+pr-131                             blocked     2      1     11  ritz
+    #131: RPG-autobattler: template validation and constraints (059)
+pr-134                             blocked     2      1     11  ritz
+    #134: supcom-derivative-clone: the headless runner and a terminal viewer (110, 111)
+pr-3                               blocked     3      1     11  ritz
+    #3: One reader and one writer for the whole studio (issue 701b)
+pr-87                              ready       2      1     10  ritz
+    #87: delta-version: stale phase-folder issue copies become pointers (001, 004–007, 010, 011, 013, 014)
+pr-136                             blocked     2      1     10  ritz
+    #136: RPG-autobattler: template saving, loading, backups and library (060)
+pr-140                             blocked     2      1     10  ritz
+    #140: supcom-derivative-clone: territory is painted on cells (112)
+pr-139                             blocked     2      1      9  ritz
+    #139: RPG-autobattler: default template sets and generated guide (061)
+pr-144                             blocked     2      1      9  ritz
+    #144: supcom-derivative-clone: every mechanic has a test, and the phase 1 demo (113)
+pr-4                               blocked     2      1      9  ritz
+    #4: gif-generator 701c: the 3D vocabulary (scenes are data, closed word lists, every rule at the wall)
+pr-89                              blocked     2      1      9  ritz
+    #89: delta-version 005: close branch isolation as superseded (stacked on #87)
+pr-119                             ready       3      2      8  ritz
+    #119: delta-version 040 (first slice): CLAUDE.md guidelines from repeated events, approve/rollback; stand-in model for tests
+pr-57                              ready       3      2      8  ritz
+    #57: scripts: shared project-discovery library (010)
+pr-47                              ready       2      1      8  ritz
+    #47: RPG-autobattler: bases with health pools and a victory event (issue 036)
+pr-115                             blocked     2      1      8  ritz
+    #115: delta-version: one issue per number (001, 037, 038 renumbered to 065, 066, 067 with pointers)
+pr-143                             blocked     2      1      8  ritz
+    #143: RPG-autobattler: ability library and selection logic (064)
+pr-153                             blocked     2      1      8  ritz
+    #153: supcom-derivative-clone: a unit is one record, and the unit catalogue (201, 202)
+pr-5                               blocked     2      1      8  ritz
+    #5: gif-generator 701d: one canvas, two spaces
+pr-66                              blocked     2      1      8  ritz
+    #66: The docs put player data in the project's player-data folder (part of 601)
+pr-132                             blocked     3      2      7  ritz
+    #132: delta-version: decide the older open issues (close 058, 056a; recommend 039, 052, 056, 067)
+pr-79                              blocked     3      2      7  ritz
+    #79: Any asset by its path, the player's packs first (issue 601)
+pr-149                             blocked     2      1      7  ritz
+    #149: RPG-autobattler: provisional repricing machinery (058)
+pr-156                             blocked     2      1      7  ritz
+    #156: supcom-derivative-clone: three domains on one field, and movement follows a pattern (203, 204)
+pr-51                              blocked     2      1      7  ritz
+    #51: RPG-autobattler: three defence shields per base (issue 037)
+pr-6                               blocked     2      1      7  ritz
+    #6: 701e: every film kept and rated
+pr-120                             blocked     2      1      6  ritz
+    #120: delta-version 049 (first slice, 049a): transcript detail levels, classed by the model, kept word for word
+pr-160                             blocked     2      1      6  ritz
+    #160: RPG-autobattler: warn on ability triggers a body can never meet; fix Glass Cannon and battle fury
+pr-161                             blocked     2      1      6  ritz
+    #161: supcom-derivative-clone: nothing is out of range (205)
+pr-55                              blocked     2      1      6  ritz
+    #55: RPG-autobattler: automatic base turret (issue 038)
+pr-7                               blocked     3      1      6  ritz
+    #7: 701f: the studio skill
+pr-109                             blocked     2      1      5  ritz
+    #109: world-edit-to-execute: hot-reload for asset packs (606)
+pr-123                             blocked     2      1      5  ritz
+    #123: delta-version 051 (first slice, 051a): first-commit facts from git and a model-drafted vision
+pr-135                             blocked     2      1      5  ritz
+    #135: delta-version 052: close as superseded by llama.cpp
+pr-163                             blocked     2      1      5  ritz
+    #163: RPG-autobattler: stat allocation logic (063)
+pr-168                             blocked     2      1      5  ritz
+    #168: supcom-derivative-clone: a shot is buffered when fired and applied when it lands (206, 207)
+pr-58                              blocked     2      1      5  ritz
+    #58: RPG-autobattler: shield vulnerability windows and a 30 s seal between shield losses (issue 039)
+pr-62                              blocked     2      1      5  ritz
+    #62: delta-version 018: discover-projects picks a ticket's projects (stacked on #57)
+pr-8                               blocked     3      1      5  ritz
+    #8: 701g: the two spaces demo
+pr-22                              ready       3      2      4  ritz
+    #22: words-pdf: offline unit tests for loading, layout and theme choice (015 slice A)
+pr-126                             blocked     3      2      4  ritz
+    #126: delta-version 053 (first slice): TODONE reports components several projects each plan to build
+pr-148                             blocked     3      2      4  ritz
+    #148: world-edit-to-execute: shared map-and-model list, applied for one game (609)
+pr-112                             ready       2      1      4  ritz
+    #112: world-edit-to-execute: phase 5, 9 and B progress tables up to date
+pr-32                              ready       2      1      4  ritz
+    #32: burner-of-down-things: the ledger told as a story (1001b-d)
+pr-43                              ready       2      1      4  ritz
+    #43: burner-of-down-things: the flair's quarter colours, day refused on night-only categories (801c-d)
+pr-150                             blocked     2      1      4  ritz
+    #150: delta-version 039: extra-root projects stay local unless listed; pushing is opt-in
+pr-167                             blocked     2      1      4  ritz
+    #167: RPG-autobattler: point budget display logic and optimizer (065)
+pr-171                             blocked     2      1      4  ritz
+    #171: supcom-derivative-clone: a dead unit leaves bones that carry mass (208)
+pr-60                              blocked     2      1      4  ritz
+    #60: RPG-autobattler: a fallen shield removes every attacking unit (issue 040)
+pr-98                              blocked     2      1      4  ritz
+    #98: delta-version 019: ticket distribution engine (dry run, ledger, undo)
+pr-64                              blocked     3      2      3  ritz
+    #64: How much each map and asset pack takes, and deleting one (issue 605)
+pr-35                              ready       2      1      3  ritz
+    #35: soren-ds: the six filesystem boxes (406, 407)
+pr-52                              ready       2      1      3  ritz
+    #52: burner-of-down-things: ratings appended safely under two writers, tiers counted (809b)
+pr-69                              ready       2      1      3  ritz
+    #69: soren-ds: compile a box on the running device (409)
+pr-102                             blocked     2      1      3  ritz
+    #102: delta-version 020: ticket distribution menu (preview, distribute after a yes, history, undo)
+pr-127                             blocked     2      1      3  ritz
+    #127: world-edit-to-execute: renumber the second 515 and 516 to 543 and 544
+pr-155                             blocked     2      1      3  ritz
+    #155: delta-version 056b: recursive map-reduce transcript summarizer (stand-in tested)
+pr-169                             blocked     2      1      3  ritz
+    #169: RPG-autobattler: template preview logic (066)
+pr-177                             blocked     2      1      3  ritz
+    #177: supcom-derivative-clone: the command truck moves on command and launches its plane (210)
+pr-34                              blocked     2      1      3  ritz
+    #34: burner-of-down-things: moods sent back, lessons read back (1002c)
+pr-73                              blocked     2      1      3  ritz
+    #73: RPG-autobattler: the game state now runs a match with bases, shields, turrets and resets
+pr-9                               blocked     2      1      3  ritz
+    #9: 704: the porch hears both spaces, and says back what it heard
+pr-95                              blocked     2      1      3  ritz
+    #95: burner-of-down-things: the paintbrush and its wall (802)
+pr-108                             ready       2      1      2  ritz
+    #108: scripts: the bash menu stops scrolling its own screen (issue 004)
+pr-23                              ready       2      1      2  ritz
+    #23: Parser coverage report: every file in the test maps, its reader, and whether it read (issue A06)
+pr-45                              ready       2      1      2  ritz
+    #45: scripts: update-toc notices documents the table of contents does not link to (A05)
+pr-46                              ready       2      1      2  ritz
+    #46: burner-of-down-things: image, clip and table recognised without a model (902b)
+pr-53                              ready       2      1      2  ritz
+    #53: scripts: commit-own-changes reads exit statuses the same under LuaJIT and Lua 5.4
+pr-56                              ready       2      1      2  ritz
+    #56: burner-of-down-things: box diagrams in text, arrows labelled there and here (807c)
+pr-70                              ready       2      1      2  ritz
+    #70: RPG-autobattler: fix Vector2.lerp looping forever (lane tests hung)
+pr-74                              ready       2      1      2  ritz
+    #74: burner-of-down-things: ollama needs check and confinement (903b, 903d)
+pr-10                              blocked     2      1      2  ritz
+    #10: 601: the porch goes live, a door to llama.cpp's server and ./porch
+pr-106                             blocked     2      1      2  ritz
+    #106: delta-version 021: ticket chain test suite (every keyword, every template, scale)
+pr-117                             blocked     2      1      2  ritz
+    #117: soren-ds: append-path, a file larger than one value (413)
+pr-158                             blocked     2      1      2  ritz
+    #158: 606a: the renderer reads through the asset loader
+pr-159                             blocked     2      1      2  ritz
+    #159: delta-version 056c: summary applier (table of contents + block; renames off by default)
+pr-165                             blocked     2      1      2  ritz
+    #165: 051b, first slice: a project's phases read from its git history, as a drafted roadmap
+pr-172                             blocked     2      1      2  ritz
+    #172: RPG-autobattler: template editor logic and layout (062)
+pr-180                             blocked     2      1      2  ritz
+    #180: supcom-derivative-clone: the enforcer eats bones, upgrades, and shields its friends (211)
+pr-24                              blocked     2      1      2  ritz
+    #24: words-pdf: Tier 1 gate measures only the empty column bottoms (issue 033)
+pr-39                              blocked     2      1      2  ritz
+    #39: burner-of-down-things: strategems drafted from recurring lessons, kept only by the person (1003b-d)
+pr-65                              blocked     2      1      2  ritz
+    #65: burner-of-down-things: floors per category (809d)
+pr-75                              blocked     2      1      2  ritz
+    #75: RPG-autobattler: draw the match with plain shapes (NOT YET SEEN ON SCREEN)
+pr-83                              blocked     2      1      2  ritz
+    #83: soren-ds: give compiled code back once nothing can be inside it (410)
+pr-97                              blocked     2      1      2  ritz
+    #97: burner-of-down-things: the source end's checks (808 step 1)
+pr-107                             ready       1      0      1  ritz
+    #107: RPG-autobattler: file issue 067, matches spawn units with ability sets
+pr-114                             ready       1      0      1  ritz
+    #114: test-runner finds tests kept in a project's scripts/ folder
+pr-118                             ready       1      0      1  ritz
+    #118: Menu libraries keep their tables when sourced from inside a function
+pr-12                              ready       1      0      1  ritz
+    #12: Poetry site: every page on pure black from one theme (11-009)
+pr-13                              ready       1      0      1  ritz
+    #13: soren-ds: build the twin and the kernel on stock GCC or LLVM
+pr-130                             ready       1      0      1  ritz
+    #130: scripts: file server keeps names as data, so the page has no script and runs nothing (issue 007)
+pr-133                             ready       1      0      1  ritz
+    #133: scripts: conversation exporter shows a failed export; tmp link ignored (issue 034)
+pr-137                             ready       1      0      1  ritz
+    #137: scripts: transcripts carry the name the person gave the session; recap questions settled (issue 037)
+pr-14                              ready       1      0      1  ritz
+    #14: Model reader: errors that say where, classic models only, a summary (issue 116)
+pr-145                             ready       1      0      1  ritz
+    #145: scripts: settle the gif-per-turn questions (038), list it under 035, close 016
+pr-146                             ready       1      0      1  ritz
+    #146: hero-less-moba: a guard is a point, and no guard had ever moved (216d)
+pr-15                              ready       1      0      1  ritz
+    #15: Poetry site: writing-cadence histograms on the explore page (11-008)
+pr-151                             ready       1      0      1  ritz
+    #151: scripts: panels in tui.lua, a rectangle with its own coordinates (039, from delta-version 067)
+pr-152                             ready       1      0      1  ritz
+    #152: scripts: one issue per number, the newer 008 and 026 become 040 and 041
+pr-154                             ready       1      0      1  ritz
+    #154: hero-less-moba: the door and the chest get a suite of their own (106, 401, 402, 411)
+pr-157                             ready       1      0      1  ritz
+    #157: hero-less-moba: a drawn body can carry weight, behind a key (709)
+pr-16                              ready       1      0      1  ritz
+    #16: my-libs threadpool: safe to share between threads, sanitizer-clean tests (800h)
+pr-164                             ready       1      0      1  ritz
+    #164: scripts: batch transcript backup gets its menu, --since and --commit (009)
+pr-17                              ready       1      0      1  ritz
+    #17: Texture reader: errors that name the mipmap and byte, every mipmap at once (issue 117)
+pr-170                             ready       1      0      1  ritz
+    #170: scripts: vision-viewer reads the projects' vision documents (005a, closes 005)
+pr-174                             ready       1      0      1  ritz
+    #174: scripts: the exporter keeps a summary block and a slug name (043, for delta-version 056c)
+pr-179                             ready       1      0      1  ritz
+    #179: scripts: lua-menu multistate items get their states and cycle (044)
+pr-18                              ready       1      0      1  ritz
+    #18: Poetry site: an editable splash page in front of the word cloud (11-006)
+pr-182                             ready       1      0      1  ritz
+    #182: hero-less-moba: a beaten body gets one roll (212), H15 answered
+pr-184                             ready       1      0      1  ritz
+    #184: scripts: batch backup output folder, combined file, metadata, parallel levels (042, on #164)
+pr-19                              ready       1      0      1  ritz
+    #19: my-libs threadpool: platform layer, every OS call in one header (800f)
+pr-20                              ready       1      0      1  ritz
+    #20: soren-ds: test the FAT32 layer against laptop-made cards; fix three faults (402-404)
+pr-21                              ready       1      0      1  ritz
+    #21: Known debt paid: short reads named, straight lines seen through rounding (issues 118, 410)
+pr-25                              ready       1      0      1  ritz
+    #25: soren-ds: paths and the device's symlinks on the card (405)
+pr-26                              ready       1      0      1  ritz
+    #26: Poetry site: one command runs every test suite (10-010)
+pr-28                              ready       1      0      1  ritz
+    #28: delta-version: the integration checker checks issue files and transcripts (042a)
+pr-31                              ready       1      0      1  ritz
+    #31: Poetry site: chronological image gallery in ten pages, both directions (10-062)
+pr-33                              ready       1      0      1  ritz
+    #33: delta-version: an issue closes in one commit (055, the wrapper)
+pr-36                              ready       1      0      1  ritz
+    #36: soren-ds: read a queued task's size before another core can free it
+pr-37                              ready       1      0      1  ritz
+    #37: scripts: commands run from the shell prompt read as commands in a transcript (031)
+pr-38                              ready       1      0      1  ritz
+    #38: delta-version: a map of every project's folders (044)
+pr-40                              ready       1      0      1  ritz
+    #40: burner-of-down-things: tag numbers given by the machine, reuse refused (901c-d)
+pr-41                              ready       1      0      1  ritz
+    #41: Poetry site: --reverse builds the site newest first (10-064)
+pr-42                              ready       1      0      1  ritz
+    #42: delta-version: ticket templates fill themselves, the keyword engine (017)
+pr-44                              ready       1      0      1  ritz
+    #44: delta-version: close 054, GitHub's language figures confirmed
+pr-48                              ready       1      0      1  ritz
+    #48: soren-ds: the four remembered settings, on the twin (408)
+pr-54                              ready       1      0      1  ritz
+    #54: delta-version 046: worktrees start from origin/main, never /dev
+pr-59                              ready       1      0      1  ritz
+    #59: burner-of-down-things: plans joined by shape: search, joint checks, execution (905b-d)
+pr-61                              ready       1      0      1  ritz
+    #61: scripts: issue manager library on the shared issue-name reader (012)
+pr-68                              ready       1      0      1  ritz
+    #68: RPG-autobattler: fix Unit.are_enemies reading an undefined variable
+pr-71                              ready       1      0      1  ritz
+    #71: burner-of-down-things: line and dot charts, diagrams by level, the machine drawn by itself (805b-d)
+pr-72                              ready       1      0      1  ritz
+    #72: delta-version 048, 027: close both as already answered
+pr-76                              ready       1      0      1  ritz
+    #76: scripts: a file of just the person's requests beside every transcript (issue 002)
+pr-77                              ready       1      0      1  ritz
+    #77: scripts: close issue 015, the list viewport was already built
+pr-84                              ready       1      0      1  ritz
+    #84: delta-version: README TOC takes issue phases from the shared reader (048 leftover)
+pr-85                              ready       1      0      1  ritz
+    #85: delta-version 023: duplicate copy becomes a pointer to the completed record
+pr-91                              ready       1      0      1  ritz
+    #91: burner-of-down-things: the PNG writer (804 step 1)
+pr-93                              ready       1      0      1  ritz
+    #93: scripts: dropdown select items for the Lua menu (issue 017)
+question-ceramic-trainstation      ready       1      0      1  ritz
+    can ceramic-trainstation come into the repository, so the boxes-and-wires picture can be built? (ceramic-corporation/issues/203-the-trainstation-picture.md)
+question-ceramic-what-soramech-is  ready       1      0      1  ritz
+    is the reading of soramech right? the parent, minimal-soramech, is not in the repository (ceramic-corporation/docs/005-open-questions.md, Q1)
+question-soren-ds-catalogue        ready       1      0      1  ritz
+    does the device keep a catalogue at all, or lean on something like the parent's symbol table? (soren-ds/issues/phase-3-progress.md, the catalogue question)
+pr-100                             blocked     1      0      1  ritz
+    #100: burner-of-down-things: frames and moves (806 step 1)
+pr-103                             blocked     1      0      1  ritz
+    #103: burner-of-down-things: observations of a station's errors (906 step 1)
+pr-11                              blocked     1      0      1  ritz
+    #11: 602: three readings of one sentence, filmed small, and the pick
+pr-110                             blocked     1      0      1  ritz
+    #110: RPG-autobattler: units attack bases and shields (040b)
+pr-111                             blocked     1      0      1  ritz
+    #111: delta-version 022: ticket command and opt-in post-commit hook (preview only by default)
+pr-113                             blocked     1      0      1  ritz
+    #113: RPG-autobattler: settle the vector and spawn test disagreements (008a, 013a)
+pr-121                             blocked     1      0      1  ritz
+    #121: world-edit-to-execute: read-only stored files, edited copy-on-write (604a)
+pr-125                             blocked     1      0      1  ritz
+    #125: Bash menu scrolls a tall list inside its box
+pr-138                             blocked     1      0      1  ritz
+    #138: world-edit-to-execute: wire-frame fallback for missing assets and blank maps (602)
+pr-141                             blocked     1      0      1  ritz
+    #141: soren-ds: pull the twin's card out mid-write; every write shown old-or-new
+pr-142                             blocked     1      0      1  ritz
+    #142: scripts: close the built commit, scratch-tier and patch issues (032, 032a, 032b, 033, 036)
+pr-147                             blocked     1      0      1  ritz
+    #147: delta-version 059: count every conversation alike, plus git lines and a symlink hang fix
+pr-162                             blocked     1      0      1  ritz
+    #162: The issue validator recognises a pointer file and lets it be
+pr-166                             blocked     1      0      1  ritz
+    #166: 609a: a shared list goes from one player to another, asking first
+pr-173                             blocked     1      0      1  ritz
+    #173: 051c: issue files for work already done, drafted from git history
+pr-175                             blocked     1      0      1  ritz
+    #175: 606a: WC3_HOT_RELOAD turns hot-reload on in the viewer and the editor
+pr-176                             blocked     1      0      1  ritz
+    #176: 053c: shared components in build order, from todone's report
+pr-178                             blocked     1      0      1  ritz
+    #178: RPG-autobattler: draw and play ability cues (068)
+pr-181                             blocked     1      0      1  ritz
+    #181: 040d and 040g: a queryable CLAUDE.md audit trail, and why a guideline exists
+pr-183                             blocked     1      0      1  ritz
+    #183: supcom-derivative-clone: the thread pool slices the tick, the same at any count (209)
+pr-185                             blocked     1      0      1  ritz
+    #185: 056d: an overseer that finds unsummarized conversations, previewing unless run=on
+pr-27                              blocked     1      0      1  ritz
+    #27: words-pdf: diversity boost lowers negative theme scores too (issue 034)
+pr-29                              blocked     1      0      1  ritz
+    #29: words-pdf: art regions follow the poem boxes as drawn (issue 035)
+pr-49                              blocked     1      0      1  ritz
+    #49: burner-of-down-things: every shape type recognised, the rest unknown (902c)
+pr-50                              blocked     1      0      1  ritz
+    #50: Readers for the pathing map, shadow map and minimap icons (issue 119)
+pr-67                              blocked     1      0      1  ritz
+    #67: burner-of-down-things: prose templates (807d)
+pr-78                              blocked     1      0      1  ritz
+    #78: delta-version: list-projects.sh reads its rules from the shared library (stacked on #57)
+pr-81                              blocked     1      0      1  ritz
+    #81: burner-of-down-things: the router, step 1 (904)
+pr-86                              blocked     1      0      1  ritz
+    #86: burner-of-down-things: the viewer without its window (810, steps 1-2)
+pr-88                              blocked     1      0      1  ritz
+    #88: Catalogue, check and store maps and models; local files only for now (issue 603)
+pr-92                              blocked     1      0      1  ritz
+    #92: soren-ds: replace a box in a running program by moving the arrows (411)
+pr-99                              blocked     1      0      1  ritz
+    #99: scripts: Phase A tools tested together, with a demo (issue A07)

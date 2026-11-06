@@ -22,6 +22,10 @@ ceramic-corporation/
 │                                               much depends on it.
 ├── apply-proposal ............................ Says whether a change may be applied,
 │                                               shows its diff, and applies it.
+├── org-page .................................. An org as one static HTML5 page.
+├── map-the-monorepo .......................... The monorepo's own queue of pull
+│                                               requests, as an org, ranked.
+├── run-phase-demo ............................ Runs a phase's demo.
 ├── run-tests ................................. Every test, under LuaJIT and Lua
 │                                               5.4, and every example validated.
 │
@@ -29,12 +33,19 @@ ceramic-corporation/
 │   │                                           companion .info.md.
 │   ├── 007-org-reader ........................ The one reader, and the validator.
 │   ├── 008-blocked-board ..................... owes, frees, reach.
-│   └── 010-proposals ......................... Status, kinds, affected, rules;
-│                                               the map edited as text.
+│   ├── 010-proposals ......................... Status, kinds, affected, rules;
+│   │                                           the map edited as text.
+│   ├── 012-monorepo-map ...................... A snapshot of the queue, as a map.
+│   └── 013-org-page .......................... The static page.
 ├── tests/
 │   ├── 009-the-map-and-the-board ............. One refusal per rule code; the
 │   │                                           board against document 004.
-│   └── 011-proposals ......................... Every ruling of document 003.
+│   ├── 011-proposals ......................... Every ruling of document 003.
+│   └── 014-the-monorepo-and-the-page ......... The queue as a map; the page; every
+│                                               generated example against its
+│                                               generator.
+├── scripts/
+│   └── list-open-pull-requests ............... The queue, from GitHub's REST API.
 │
 ├── notes/
 │   └── vision ................................ Where all of this came from, in the
@@ -56,10 +67,16 @@ ceramic-corporation/
 │   └── table-of-contents ..................... This page.
 │
 ├── examples/
-│   └── bakery/ ............................... The worked example every document
-│                                               uses: a map, a state, two proposals.
+│   ├── bakery/ ............................... The worked example every document
+│   │                                           uses: a map, a state, two proposals,
+│   │                                           and its page.
+│   └── monorepo/ ............................. This repository's queue of pull
+│                                               requests as an org: the snapshot and
+│                                               questions it is made from, the map,
+│                                               the board, the page.
 │
 └── issues/ ................................... Phase-numbered issue files.
     ├── phase-N-progress.md
     └── completed/
+        └── demos/ ............................ One per phase, run by run-phase-demo.
 ```

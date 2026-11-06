@@ -55,6 +55,8 @@ either.
 ./blocked-board examples/bakery       # what to deliver first
 ./apply-proposal examples/bakery oven-money-from-takings
                                       # may it be applied, and its diff
+./org-page examples/bakery > page.html
+./map-the-monorepo --fetch            # this repository's own queue, ranked
 ./run-tests                           # everything this project checks
 ```
 
@@ -62,6 +64,9 @@ LuaJIT, or Lua 5.4 with `LUA=lua5.4`. Nothing else.
 
 ## Status
 
-Phase 1: the model is written down; the validator, the blocked board and the
-proposal tool read it. The monorepo mapped onto itself is next. See [the roadmap](docs/006-roadmap.md) and
+Phase 1 is complete: the model is written down; the validator, the blocked
+board, the proposal tool and a static page read it; and this monorepo's own
+queue of pull requests is mapped in [`examples/monorepo/`](examples/monorepo/board.txt),
+where the board says which merge frees the most. `./run-phase-demo 1` shows all
+of it. Phase 2 (maps inside boxes, history replayed) is next. See [the roadmap](docs/006-roadmap.md) and
 [phase 1's progress](issues/phase-1-progress.md).

@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+#
+# Phase 1 Demo: the model, and the tools that read it
+# Demonstrates functionality developed in Phase 1: an org map validated by
+# rule code, the blocked board, a proposal judged and applied as a diff, and
+# the monorepo's own queue of pull requests ranked by what it frees.
+#
+# Nothing is changed in the repository: the bakery is copied to a temporary
+# directory before anything is applied to it.
+#
+# Usage: issues/completed/demos/phase-1-demo [PROJECT_DIR]
+
+DIR="${1:-/mnt/mtwo/programming/ai-stuff/ceramic-corporation}"
+LUA="${LUA:-luajit}"
+
+# -- {{{ say
+say() {
+    echo
+    echo "== $* =="
+}
+# }}}
+
+# -- {{{ main
+main() {
+    local copy
+    copy=$(mktemp -d) || exit 1
+    cp -r "${DIR}/examples/bakery/." "${copy}/"
+
+    say "the bakery, validated"
+    "${DIR}/validate-org" "${DIR}" "${copy}"
+
+    say "what the bakery is waiting on"
+    "${DIR}/blocked-board" "${DIR}" "${copy}"
+
+    say "Ana's proposal to take the oven money from the till"
+    "${DIR}/apply-proposal" "${DIR}" "${copy}" oven-money-from-takings --today 2026-11-03 | head -9
+
+    say "Cy offers to scrub the bench, and it is applied"
+    "${DIR}/apply-proposal" "${DIR}" "${copy}" cy-takes-cleaning --today 2026-11-03 --write | tail -1
+
+    say "the bakery's board afterwards: the bench is no longer vacant"
+    "${DIR}/blocked-board" "${DIR}" "${copy}"
+    rm -rf "${copy}"
+
+    say "the monorepo: what can be merged or answered now, by how much waits behind it"
+    echo "(from the snapshot in examples/monorepo/input; ./map-the-monorepo --fetch takes a new one)"
+    "${LUA}" "${DIR}/src/008-blocked-board.lua" "${DIR}/examples/monorepo" --ready --says | head -11
+}
+# }}}
+
+main

@@ -11,7 +11,8 @@
 # Usage:
 #   ./blocked-board ORG_DIR              -- every source of waiting
 #   ./blocked-board ORG_DIR --ready      -- only what somebody can deliver now
-#   ./blocked-board /path/to/ceramic-corporation ORG_DIR [--ready]
+#   ./blocked-board ORG_DIR --says       -- each row followed by what it is
+#   ./blocked-board /path/to/ceramic-corporation ORG_DIR [--ready] [--says]
 #
 # LUA picks the interpreter (default luajit).
 
@@ -19,7 +20,7 @@ DIR="/mnt/mtwo/programming/ai-stuff/ceramic-corporation"
 
 # -- {{{ show_help
 show_help() {
-    sed -n '3,17p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '3,18p' "$0" | sed 's/^# \{0,1\}//'
 }
 # }}}
 

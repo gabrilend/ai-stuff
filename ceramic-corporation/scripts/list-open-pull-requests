@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+#
+# list-open-pull-requests -- the monorepo's queue of open pull requests, as a
+# plain tab-separated snapshot the monorepo map is built from.
+#
+# Asks GitHub's REST API (through the gh command, which holds the credentials)
+# for every open pull request, then for the files each one changes, and writes
+# one line per pull request:
+#
+#   NUMBER <tab> BASE BRANCH <tab> HEAD BRANCH <tab> PROJECTS <tab> TITLE
+#
+# PROJECTS is the comma-separated, sorted list of top-level directories the
+# pull request touches ("." for files at the repository root). Lines are in
+# order of number. Only the REST API is used; nothing is written to GitHub.
+#
+# Usage:
+#   scripts/list-open-pull-requests [OWNER/REPO] > snapshot.tsv
+#
+# OWNER/REPO defaults to gabrilend/ai-stuff.
+
+REPO="${1:-gabrilend/ai-stuff}"
+
+# -- {{{ fail
+fail() {
+    echo "list-open-pull-requests: $*" >&2
+    exit 1
+}
+# }}}
+
+command -v gh > /dev/null 2>&1 || fail "the gh command is not installed"
+
+# -- {{{ open_pull_requests
+# One page at a time, by explicit page number: following GitHub's own
+# next-page links is not always possible through a proxy.
+open_pull_requests() {
+    local page=1 lines
+    while :; do
+        lines=$(gh api "repos/${REPO}/pulls?state=open&per_page=100&page=${page}" \
+            --jq '.[] | [.number, .base.ref, .head.ref, (.title | gsub("[\t\n]"; " "))] | @tsv') \
+            || fail "could not list page ${page} of open pull requests"
+        [ -z "${lines}" ] && break
+        printf '%s\n' "${lines}"
+        [ "$(printf '%s\n' "${lines}" | wc -l)" -lt 100 ] && break
+        page=$((page + 1))
+    done
+}
+# }}}
+
+# -- {{{ projects_of
+# The sorted top-level directories one pull request touches.
+projects_of() {
+    local number="$1" page=1 files all=""
+    while :; do
+        files=$(gh api "repos/${REPO}/pulls/${number}/files?per_page=100&page=${page}" \
+            --jq '.[].filename') || fail "could not list the files of #${number}"
+        [ -z "${files}" ] && break
+        all="${all}${files}"$'\n'
+        [ "$(printf '%s\n' "${files}" | wc -l)" -lt 100 ] && break
+        page=$((page + 1))
+    done
+    printf '%s' "${all}" | awk -F/ 'NF { print (NF == 1 ? "." : $1) }' | sort -u | paste -sd, -
+}
+# }}}
+
+# -- {{{ main
+open_pull_requests | sort -n | while IFS=$'\t' read -r number base head title; do
+    printf '%s\t%s\t%s\t%s\t%s\n' "${number}" "${base}" "${head}" "$(projects_of "${number}")" "${title}"
+done
+# }}}
