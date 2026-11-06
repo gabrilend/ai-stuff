@@ -1,0 +1,184 @@
+# Issue 9-002b: Validate GPU Similarity Implementation
+
+## Parent Issue
+9-002: Port Similarity Matrix Generation to Vulkan
+
+## Current Behavior
+
+GPU similarity matrix generation is the validated, production default for
+Stage 7. There is now exactly **one** GPU code path:
+
+- The full-matrix **parallel** path computes every poem pair in a single GPU
+  dispatch, then writes the per-poem similarity files and the rankings cache
+  with C pthreads. (`generate_similarity_matrix_gpu_parallel` in
+  `vk_similarity.lua` → `vks_compute_all_similarities_parallel` in
+  `vk_similarity.c`.)
+- There is no CPU fallback: `--cpu-only` and the CPU similarity engine
+  (`src/similarity-engine-parallel.lua`) were removed (Issue 9-001f /
+  10-057). A machine without a working Vulkan device cannot run Stage 7.
+
+The earlier **sequential per-poem** GPU path was removed (it pre-dated the
+single-dispatch design and was never used in production). It re-uploaded one
+"source" embedding per poem and ran ~7,800 small dispatches; the parallel path
+does the same work in one dispatch. Removing it also dropped its scaffolding
+from the C context: the host-side CPU copy of the embeddings, the per-source
+GPU buffer, the sequential output buffer, and the batch shader pipeline. A
+single-threaded run is now simply `--threads=1`, which only narrows CPU
+sort/write fan-out and never touches GPU compute. Removed entry points:
+`vks_compute_similarities_for_poem` and `vks_compute_all_similarities` (C +
+header + Lua FFI), and the deprecated Lua `generate_similarity_matrix_gpu`.
+
+Validation of the surviving parallel path (2026-10-25):
+- It runs on the full poem collection as the only Stage 7 path; its time
+  per build is kept in `.stage-timings` (section `generate-similarity`).
+- `src/similarity-gpu-matches-cpu.test.lua` checks the built table against
+  plain arithmetic: twelve poems picked at random (seeded), each compared
+  with every other poem in double precision on the processor, from the same
+  embeddings and the same centring (`libs/embedding-space.lua`). Every score
+  must agree within 1e-4; each file must list every other poem once, most
+  similar first, filed under its own poem. First run, EmbeddingGemma 2:
+  12 x 9,333 pairs, worst difference 7.9e-07. It runs with the other tests
+  (`scripts/run-tests`) and skips a model whose table is older than its
+  embeddings or was made under another numbering of the poems
+  (`libs/numbering-stamp.lua`), saying so.
+- Until that test, the claim "matches the CPU reference" rested on nothing
+  in the repository: the CPU reference had been deleted and no comparison
+  was ever kept.
+
+## Intended Behavior
+
+- GPU similarity generation validated on full dataset
+- Performance benchmarked and documented
+- Results verified to match CPU implementation (within float32 precision tolerance)
+- GPU path becomes the default in run.sh
+- Confidence that GPU implementation is production-ready
+
+## Implementation Steps
+
+Status of the steps below (2026-10-25): the CPU reference they compare
+against no longer exists, so the comparison was rebuilt against a direct
+calculation instead (above). Steps 1-2 are done that way; step 3's CPU
+benchmark is moot (no CPU path); steps 4-5 are done by the pipeline itself.
+
+### Step 1: Create Test Script
+- [ ] Create `libs/vulkan-compute/test-similarity.lua`
+- [ ] Test on small subset (10 poems) first
+- [ ] Validate output JSON format matches CPU format
+- [ ] Verify triangular storage correctness
+
+### Step 2: Validation Test
+- [ ] Generate similarities for 100 poems using GPU
+- [ ] Generate same 100 poems using CPU
+- [ ] Compare results file-by-file
+- [ ] Document precision differences (should be < 1e-5)
+- [ ] Verify all metadata fields match
+
+### Step 3: Performance Benchmark
+- [ ] Run GPU similarity on full 7,797 poems
+- [ ] Measure total time and poems/second rate
+- [ ] Run CPU similarity on subset (e.g., 1,000 poems)
+- [ ] Extrapolate full dataset time for CPU
+- [ ] Calculate speedup factor
+- [ ] Document memory usage
+
+### Step 4: Full Integration Test
+- [ ] Run full pipeline with GPU similarities enabled
+- [ ] Generate HTML pages using GPU-computed similarities
+- [ ] Verify website looks correct
+- [ ] Check for any numerical precision issues in rankings
+
+### Step 5: Production Readiness
+- [ ] Update run.sh to use GPU by default (remove --cpu-only requirement)
+- [ ] Add command line flag `--cpu-only` to force CPU mode
+- [ ] Update documentation
+- [ ] Update Phase 9 progress
+
+## Test Plan
+
+### Small-Scale Test (10 poems)
+```bash
+# Test GPU implementation
+cd libs/vulkan-compute
+./test-similarity.lua --num-poems 10 --output /tmp/gpu-test
+
+# Compare with CPU
+cd ../..
+luajit -e "
+  package.path = 'src/?.lua;' .. package.path
+  local sim = require('similarity-engine-parallel')
+  sim.calculate_similarity_matrix_parallel(
+    'assets/embeddings/embeddinggemma_latest/embeddings.json',
+    'embeddinggemma:latest',
+    0,  -- no sleep
+    true,  -- force
+    1  -- single thread
+  )
+"
+
+# Compare outputs
+diff -r assets/embeddings/embeddinggemma_latest/similarities /tmp/gpu-test
+```
+
+### Full-Scale Benchmark
+```bash
+# GPU benchmark
+time ./run.sh --generate-similarities --force
+
+# CPU benchmark (subset)
+# (Manually edit run.sh to limit to 1000 poems)
+time ./run.sh --generate-similarities --cpu-only --force
+```
+
+## Quality Assurance Criteria
+
+- [ ] Test script created and working
+- [ ] GPU output format matches CPU format exactly
+- [ ] Precision differences < 1e-5 for float32
+- [ ] Performance benchmarked on full dataset
+- [ ] GPU implementation at least 5x faster than CPU
+- [ ] Full pipeline test successful
+- [ ] No visual artifacts in generated HTML
+- [ ] Production deployment approved
+
+## Expected Performance
+
+Based on similarity_batch.comp design and GTX 1080 Ti specs:
+
+| Metric | CPU (effil, 8 threads) | GPU (expected) | Speedup |
+|--------|------------------------|----------------|---------|
+| Full matrix (7,797 poems) | ~30 minutes | ~3-5 minutes | 6-10× |
+| Poems/second | ~4-5 | ~25-40 | 6-10× |
+| Memory usage | ~500 MB RAM | ~50 MB VRAM | Efficient |
+
+**Note**: Expected speedup is lower than diversity cache (996×) because:
+1. Similarity computation must write 7,797 individual JSON files (I/O bound)
+2. File writing is single-threaded in Lua
+3. GPU benefit is primarily in cosine similarity computation, not file I/O
+
+## Dependencies
+
+- 9-002a (Shader design) ✅ COMPLETED
+- 9-001b (Vulkan wrapper) ✅ COMPLETED
+- 9-001c (Cosine distance shader) ✅ COMPLETED
+
+## Blocks
+
+- 9-002c
+
+## Related Files
+
+- `libs/vulkan-compute/lua/vk_similarity.lua` - Implementation to test
+- `src/similarity-engine-parallel.lua` - CPU reference implementation
+- `run.sh` lines 574-595 - GPU integration point
+- `libs/vulkan-compute/shaders/similarity_batch.comp` - GPU kernel
+
+---
+
+**ISSUE STATUS: COMPLETED (2026-10-25)** -- validated by
+`src/similarity-gpu-matches-cpu.test.lua`
+
+**Created**: 2026-01-17
+
+**Phase**: 9 (GPU Acceleration)
+
+**Priority**: High (blocks production use of GPU similarity)

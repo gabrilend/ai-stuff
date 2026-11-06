@@ -264,4 +264,5 @@ ls output/media/ | wc -l  # 546
 - **Phase**: 8 (Website Completion / HTML Generation)
 - **Estimated Complexity**: Medium
 - **Dependencies**: Issue 8-040 (complete)
+- **Blocks**: 8-049
 - **Affects**: All HTML pages with images, deployment workflow
