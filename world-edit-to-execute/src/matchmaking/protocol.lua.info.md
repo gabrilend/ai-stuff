@@ -8,7 +8,7 @@ message's fields are described once in `protocol.FIELDS`.
 
 | Type | Message | Fields |
 |---|---|---|
-| 0x01 | REGISTER_GAME | map_name, map_hash, asset_packs (id, hash), max_players, game_mode, region, host_port |
+| 0x01 | REGISTER_GAME | map_name, map_hash, asset_packs (id, hash), max_players, game_mode, region, host_port, optionally host_name (801b) |
 | 0x02 | UNREGISTER_GAME | game_id |
 | 0x03 | UPDATE_GAME | game_id, players, max_players |
 | 0x04 | LIST_GAMES | any of map_name, game_mode, region, max_latency_ms, free_slots |

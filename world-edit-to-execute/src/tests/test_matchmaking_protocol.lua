@@ -8,8 +8,12 @@
 -- are refused with a reason instead of guessed at.
 --
 -- Run with: luajit src/tests/test_matchmaking_protocol.lua [DIR]
+-- (DIR defaults to the project this file is in.)
 
-local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+-- The project: the argument, or the folder this test sits in (run-tests.sh
+-- runs each test by its full path, from the project), or the owner's.
+local DIR = arg[1] or arg[0]:match("^(.+)/src/tests/[^/]+%.lua$") or (arg[0]:match("^src/tests/") and ".")
+    or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local msgpack = require("matchmaking.msgpack")
@@ -245,5 +249,22 @@ test("bytes left over", refused(function() protocol.decode(ping .. "x") end, "PI
 test("shorter than a header", refused(function() protocol.decode("WC\0") end, "shorter than a header"))
 -- }}}
 
-print(string.format("\nmatchmaking protocol: %d of %d passed", pass_count, test_count))
+-- {{{ the host's name (801b)
+print("The host's name")
+do
+    local with_name = {}
+    for k, v in pairs(samples.REGISTER_GAME) do with_name[k] = v end
+    with_name.host_name = "Ritz"
+    local _, m = protocol.decode(protocol.encode("REGISTER_GAME", with_name))
+    test("REGISTER_GAME may carry the host's name", m.host_name == "Ritz")
+    _, m = protocol.decode(protocol.encode("REGISTER_GAME", samples.REGISTER_GAME))
+    test("and may leave it out", m.host_name == nil)
+    with_name.host_name = 7
+    test("a name that is not text is refused", refused(function() protocol.encode("REGISTER_GAME", with_name) end,
+        "REGISTER_GAME.host_name: should be text"))
+end
+-- }}}
+
+print(string.format("\nTests: %d passed, %d failed", pass_count, test_count - pass_count))
+print(string.format("matchmaking protocol: %d of %d passed", pass_count, test_count))
 os.exit(pass_count == test_count and 0 or 1)
