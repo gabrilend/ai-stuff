@@ -37,6 +37,9 @@ supcom-derivative-clone/
 │                                               cross-linked HTML in docs/HTML/.
 ├── run-phase-demo ............................ Asks which phase demo to run, and
 │                                               runs it.
+├── run-headless .............................. Plays one match with no window and
+│                                               prints its report; replays a log
+│                                               and names a mismatched tick.
 ├── new-source-file ........................... The only sanctioned way to bring a
 │                                               source file in. Claims the next
 │                                               index, stamps the licence, writes

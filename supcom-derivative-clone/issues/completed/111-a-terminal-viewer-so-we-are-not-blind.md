@@ -5,15 +5,16 @@
 | Phase | 1 — The Dunes and the Clock |
 | Blocked by | 102, 109 |
 | Blocks | — |
-| Reads | [the views](../docs/010-the-views.md) |
+| Reads | [the views](../../docs/010-the-views.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing draws anything. The dune tool's own dump, when it exists, prints
-heights; nothing prints a snapshot. The phase 1 test program looks for a source
-file whose stem is `terminal-viewer` and asserts that `draw` returns one line
-per row of the field.
+Built. `src/038-terminal-viewer.lua` draws a snapshot as text: one character per
+cell graded by height above the water, water as `~`, a live unit as its kind's
+letter, owned cells tinted when colour is asked for, and a legend of the tick,
+each team's share of the land, and the live counts. `./run-headless --draw`
+prints the last tick through it.
 
 ## Intended behavior
 
@@ -45,11 +46,28 @@ are a table indexed by kind, so that a new kind is a row.
    it, and give the phase 1 demo the dunes and the water line to show.
 5. Fill the companion with the legend's meaning.
 
+## What happened
+
+- **Grading is relative to the field's own highest cell**, worked out from the
+  snapshot, so a low field and a tall one both use every mark.
+- **Unit letters wait for the catalogue.** Kinds are numbered by the unit
+  catalogue (issue 202), which does not exist yet; `LETTERS` is empty and a unit
+  of a kind with no letter is drawn as `?`, loudly, rather than as ground. Issue
+  202 adds a row per kind.
+- **Colour is a terminal colour code per team**, blue for team one and red for
+  team two, only when the caller asks; the plain drawing has no escape codes, so
+  it reads in a log or a failure message.
+- **The viewer counts territory itself**, from the snapshot's owners and the
+  field's heights, because the viewer rule forbids it to call the territory
+  module.
+- The phase 1 demo, which shows the dunes and the water line through this, is
+  built with issue 113, the phase's last.
+
 ## Related documents and tools
 
-- [The views](../docs/010-the-views.md)
-- [The dunes and the sightlines](../docs/002-the-dunes-and-the-sightlines.md)
-- The test program: [the dunes and the clock](../tests/019-the-dunes-and-the-clock.lua)
+- [The views](../../docs/010-the-views.md)
+- [The dunes and the sightlines](../../docs/002-the-dunes-and-the-sightlines.md)
+- The test program: [the dunes and the clock](../../tests/019-the-dunes-and-the-clock.lua)
 
 ## Still open
 

@@ -69,8 +69,8 @@ the test.
 | `the-rules` | 105, 112 | a table in `assets/`: `ticks_per_second`, the claim's `claim_seconds`, `claim_increments` and `claim_radius`, the sizes of the command queue and the refusal ring, and `fingerprint_every`; copied into the world as `world.rule` |
 | `commands` | 108 | `VERBS`, a dispatch table, and `ARGUMENTS`, each verb's argument names; `queue(world, command)` returns nothing or a refusal string naming the reason; `apply_due(world)` returns how many applied; `refusals(world)` returns the ring's refusals, oldest first; `unpack(world, row)` |
 | `snapshot` | 109 | `hash(world)`; `copy(world)`; `record(world, path, commands)`; `replay(path)`; `stamp(world)`; `snapshot_pass(world)`, the tick's last row; `note_command(world, command)`, the door's hook |
-| `headless-runner` | 110 | `run(root, options)` — options carry `seed`, `ticks`, `field`, `bots` — returns a report with `ticks`, `hash`, `seed`, `factories`, `shortest_pattern` |
-| `terminal-viewer` | 111 | `draw(snapshot)` returns a string with a row per field row |
+| `headless-runner` | 110 | `run(root, options)` — options carry `seed`, `ticks`, `field`, `bots`, and `units` and `replay` — returns a report with `ticks`, `hash`, `seed`, `factories`, `shortest_pattern`, and `ended`, `replay`, `replay_checked`, `mismatch_tick`, `world`; `lines(report)` |
+| `terminal-viewer` | 111 | `draw(snapshot, options)` returns a string with a row per field row, tinted when `options.colour` is set; `GRADES`, `WATER`, `LETTERS`, `UNKNOWN`, `COLOURS` |
 | `territory` | 112 | `claim(world, team, x, y, radius)`; `claim_pass(world)`; `owner(world, cell)`; `percent(world, team)` |
 | `units` | 201 | `spawn(world, kind, team, x, y)` returns an id, refusing an unknown kind by name; `alive(world)` returns a count |
 | `unit-catalogue` | 202 | a table in `assets/`, one row per kind, every field an integer, a double, or a name: `health`, `damage`, `shell_speed`, `heal_period`, `eye`, `profile`, `shield`, and the rest the issue lists |

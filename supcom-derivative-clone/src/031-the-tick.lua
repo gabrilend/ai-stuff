@@ -142,6 +142,27 @@ function M.advance(world)
 end
 -- }}}
 
+-- {{{ function M.advance_timed()
+-- The same tick as `advance`, with the processor time each row took added into
+-- `seconds` under the row's name. The headless runner measures with it; the
+-- reading of the clock is the only difference, and it never reaches the world.
+function M.advance_timed(world, seconds)
+  local tick = world.tick
+  for _, counter_row in ipairs(world.layout.counters) do
+    timers.advance(world_module.counter_at(world, counter_row), tick)
+  end
+  local systems = M.SYSTEMS
+  for index = 1, #systems do
+    local row = systems[index]
+    local started = os.clock()
+    row.run(world)
+    seconds[row.name] = (seconds[row.name] or 0) + (os.clock() - started)
+  end
+  world.tick = tick + 1
+  return true
+end
+-- }}}
+
 -- {{{ function M.assemble()
 -- The one place a match's world is put together: the world's arrays allocated,
 -- the field raised, the streams opened (all inside the world's allocate), then

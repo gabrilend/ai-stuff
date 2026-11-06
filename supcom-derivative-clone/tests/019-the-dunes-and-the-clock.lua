@@ -493,6 +493,72 @@ harness.suite("the headless runner reports what it ran", function()
   harness.check("the report carries the seed", report.seed == SEED)
 end)
 
+harness.suite("the runner plays one seed the same twice, and replays its own log", function()
+  local runner = harness.load("headless-runner", "110")
+  local first = runner.run(harness.root, {seed = SEED, ticks = 120, field = FIELD})
+  local second = runner.run(harness.root, {seed = SEED, ticks = 120, field = FIELD})
+  harness.check("two runs on one seed end on one hash", first.hash == second.hash,
+                string.format("%08x vs %08x", first.hash, second.hash))
+  harness.check("the report says where the log went, in the RAM tier",
+                first.replay:find("^/dev/shm/") ~= nil, first.replay)
+  local replayed = runner.run(harness.root, {replay = second.replay, field = FIELD})
+  harness.check("a replay checks every hash its log holds and finds no mismatch",
+                replayed.replay_checked == 12 and replayed.mismatch_tick == 0,
+                replayed.replay_checked .. " checked, mismatch at " .. replayed.mismatch_tick)
+  -- Tamper with one recorded hash: the replay must stop there and name it.
+  local handle = io.open(second.replay, "r")
+  local text = handle:read("*a")
+  handle:close()
+  handle = io.open(second.replay, "w")
+  handle:write((text:gsub("\nhash 60 %x+", "\nhash 60 00000000")))
+  handle:close()
+  local broken = runner.run(harness.root, {replay = second.replay, field = FIELD})
+  harness.check("a log that disagrees is named by its tick", broken.mismatch_tick == 60,
+                broken.ended)
+  local lines = runner.lines(first)
+  harness.check("the report renders as name: value lines", lines[1] == "seed: " .. SEED, lines[1])
+end)
+
+harness.suite("the runner refuses a malformed input file by its line", function()
+  local runner = harness.load("headless-runner", "110")
+  -- A root of its own, so the project's real input/ is never touched: the
+  -- runner's modules are found beside the runner, and only input/ and output/
+  -- are read from the root it is given. It carries the project's name, because
+  -- the name is what picks the RAM tier the runner writes its log into.
+  local holder = "/tmp/supcom-derivative-clone/019-a-root"
+  local root = holder .. "/supcom-derivative-clone"
+  os.execute("mkdir -p " .. root .. "/input " .. root .. "/output")
+  local function write(name, text)
+    local handle = io.open(root .. "/input/" .. name, "w")
+    handle:write(text)
+    handle:close()
+  end
+  write("seed", "# a comment\n7\n")
+  write("players", "first 1 person\nsecond 2 bot\n")
+  write("field", "size: 32\ndune_height: 20\ndune_wavelength: 16\nroughness: 0.4\n"
+                 .. "water_line: 4\nhydrocarbon_rate: 0.02\n")
+  local saved = os.getenv("SDC_SEED")
+  local ok, report = pcall(runner.run, root, {ticks = 5})
+  harness.check("a well-formed root plays", ok and report.ticks == 5, report)
+  harness.check("the environment's seed beats the file's",
+                ok and report.seed == (saved and tonumber(saved) or 7), ok and report.seed)
+  write("field", "size: 32\ndune_height: twenty\n")
+  ok, report = pcall(runner.run, root, {ticks = 5})
+  harness.check("a field line that is not a number is refused by its line",
+                not ok and tostring(report):find("line 2", 1, true) ~= nil, report)
+  write("field", "size: 32\n")
+  ok, report = pcall(runner.run, root, {ticks = 5})
+  harness.check("a missing field line is refused by its name",
+                not ok and tostring(report):find("dune_height", 1, true) ~= nil, report)
+  write("players", "first 1 person\nsecond 2 robot\n")
+  ok, report = pcall(runner.run, root, {ticks = 5, field = FIELD})
+  harness.check("a player who is neither person nor bot is refused by the line",
+                not ok and tostring(report):find("line 2", 1, true) ~= nil, report)
+  ok, report = pcall(runner.run, root, {field = FIELD})
+  harness.check("a run with no tick limit is refused", not ok)
+  os.execute("rm -rf " .. holder)
+end)
+
 harness.suite("the terminal viewer draws the field as text", function()
   local dunes = harness.load("the-dunes", "102")
   local viewer = harness.load("terminal-viewer", "111")
@@ -503,6 +569,47 @@ harness.suite("the terminal viewer draws the field as text", function()
   harness.check("the drawing is a string", type(text) == "string")
   harness.check("the drawing has at least one row per field row",
                 select(2, text:gsub("\n", "")) >= FIELD.size)
+end)
+
+harness.suite("the terminal viewer draws water, ownership, and units from the snapshot alone", function()
+  local viewer = harness.load("terminal-viewer", "111")
+  local snapshot = harness.load("snapshot", "109")
+  local the_world = harness.load("the-world", "104")
+  local world = the_world.allocate({field = FIELD, units = 16, teams = 2, seed = SEED})
+  -- The first land cell and the first water cell, found from the field.
+  local land, water
+  for index = 1, FIELD.size * FIELD.size do
+    if world.field.height[index] >= world.field.water_line then land = land or index
+    else water = water or index end
+  end
+  world.cell.owner[land] = 1
+  local id = the_world.claim(world, "unit")
+  local x, y = (water - 1) % FIELD.size, math.floor((water - 1) / FIELD.size)
+  world.unit.x[id], world.unit.y[id], world.unit.team[id] = x, y, 2
+  local copy = snapshot.copy(world)
+  local before = snapshot.hash(copy)
+  local plain = viewer.draw(copy)
+  local rows = {}
+  for line in plain:gmatch("[^\n]+") do rows[#rows + 1] = line end
+  local function at(index)
+    local row = rows[math.floor((index - 1) / FIELD.size) + 1]
+    local column = (index - 1) % FIELD.size + 1
+    return row:sub(column, column)
+  end
+  harness.check("a live unit is drawn over the ground", at(water) == viewer.UNKNOWN, at(water))
+  harness.check("plain drawing carries no colour codes", plain:find("\27", 1, true) == nil)
+  harness.check("the legend gives the tick and the territory",
+                plain:find("tick 0", 1, true) ~= nil and plain:find("team 1 holds", 1, true) ~= nil)
+  local coloured = viewer.draw(copy, {colour = true})
+  harness.check("asked for colour, an owned cell is tinted in its team's colour",
+                coloured:find(viewer.COLOURS[1], 1, true) ~= nil)
+  harness.check("drawing changes nothing in the snapshot", snapshot.hash(copy) == before)
+  local any_water = false
+  for index = 1, FIELD.size * FIELD.size do
+    if index ~= water and world.field.height[index] < world.field.water_line
+       and at(index) == viewer.WATER then any_water = true end
+  end
+  harness.check("water is drawn as its own mark", any_water)
 end)
 -- }}}
 

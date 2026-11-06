@@ -1,0 +1,19 @@
+# The dune field's shape: what the dune tool raises the field from, with the seed.
+#
+# One `name: value` per line, every one a number, every one required -- a missing
+# or misspelled line is refused by name rather than filled in, because a default
+# here would be a field nobody chose. The headless runner reads this file; an
+# option given to the runner beats it.
+#
+#   size              -- cells per side; the field is square
+#   dune_height       -- how tall the dunes stand, in the same units as the water line
+#   dune_wavelength   -- cells between crests
+#   roughness         -- how strong the fine surface on top is
+#   water_line        -- every cell below it is sea
+#   hydrocarbon_rate  -- the share of land cells holding a bonus pocket of energy
+size: 64
+dune_height: 20
+dune_wavelength: 16
+roughness: 0.4
+water_line: 4
+hydrocarbon_rate: 0.02

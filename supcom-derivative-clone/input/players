@@ -1,0 +1,9 @@
+# Who plays: one line per player, three words -- a name, a team number, and
+# `person` or `bot`.
+#
+# A match is two teams with any number of players a side, one command truck each;
+# the demo is one against one. A team is counted from the numbers that appear
+# here, so two teams means the numbers 1 and 2. A line that is not three words
+# of that shape is refused by its line number.
+first 1 person
+second 2 bot
