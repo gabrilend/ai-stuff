@@ -51,11 +51,11 @@ M.WATER = "~"
 -- {{{ the unit letters
 -- One letter per kind of unit, indexed by the kind's `index` in the unit
 -- catalogue (issue 202): tank, anti-air gun, helicopter, frigate, command truck,
--- enforcer. The viewer loads no simulation module, so the order is written here
+-- enforcer, and the artillery (R, for range; issue 502). The viewer loads no simulation module, so the order is written here
 -- and phase 2's tests hold it to the catalogue's. A unit of a kind with no letter
 -- -- a row nobody filled, a kind added without one -- is drawn as UNKNOWN, so it
 -- shows up loudly rather than as ground.
-M.LETTERS = {"T", "A", "H", "F", "C", "E"}
+M.LETTERS = {"T", "A", "H", "F", "C", "E", "R"}
 M.UNKNOWN = "?"
 
 -- The sightline layer's mark: a unit the caller says is seen draws as this

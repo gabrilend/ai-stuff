@@ -116,6 +116,7 @@ M.LAYOUT = {
     {"profile", "double"},      -- how tall it looks
     {"claim_radius", "integer"}, -- cells of territory it claims, copied at birth; zero claims none
     {"waited", "integer"},      -- one when it waited a tick for an occupied cell; zero otherwise
+    {"seen", "integer"},        -- this tick's team sight: bit t-1 set when a unit of team t chose it (issue 502)
     {"shield", "integer"},      -- the enforcer's shield pair; zero for everything else
     {"shield_at", "integer"},
     {"eaten", "integer"},       -- mass an enforcer has consumed

@@ -79,7 +79,8 @@ M.REACH = domains.REACH
 -- missing, a field of another type, or a field not listed here is refused.
 M.FIELDS = {
   {"index", "integer"}, {"name", "name"}, {"domain", "integer"}, {"reaches", "integer"},
-  {"tier", "integer"}, {"health", "integer"}, {"damage", "integer"},
+  {"tier", "integer"}, {"falloff", "name"}, {"team_sight", "integer"},
+  {"health", "integer"}, {"damage", "integer"},
   {"falloff_full", "double"}, {"falloff_floor", "double"}, {"falloff_end", "double"},
   {"shell_speed", "double"},
   {"reload_seconds", "double", "reload_ticks"}, {"heal_period", "double", "heal_ticks"},
@@ -152,6 +153,9 @@ local function check_row(name, row, rate)
   end
   if row.tier < 1 or row.tier > 3 then
     refuse(name, "tier", "is " .. row.tier .. ", not 1, 2, or 3 (experimental)")
+  end
+  if row.team_sight > 1 then
+    refuse(name, "team_sight", "is " .. row.team_sight .. ", not 0 (its own eye) or 1 (its team's)")
   end
   if row.health < 1 then
     refuse(name, "health", "is zero; a unit that is born dead is not a unit")

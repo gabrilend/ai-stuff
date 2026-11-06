@@ -70,6 +70,69 @@ harness.suite("artillery loses nothing to distance", function()
 end)
 -- }}}
 
+-- {{{ artillery, closer
+harness.suite("falloff is a table of shapes, and the artillery's is flat and slow", function()
+  local targeting = harness.load("targeting", "502")
+  local units = harness.load("units", "201")
+  local viewer = harness.load("terminal-viewer", "111")
+  harness.check("the shapes are linear-to-floor, then flat",
+                #targeting.FALLOFF == 2 and targeting.FALLOFF[1].name == "linear-to-floor"
+                and targeting.FALLOFF[2].name == "flat")
+  harness.check("a tank's shell still falls to its floor",
+                targeting.falloff("tank", 1000) == units.kind("tank").falloff_floor)
+  harness.check("at every distance between, the artillery loses nothing",
+                targeting.falloff("artillery", 0) == 1 and targeting.falloff("artillery", 63) == 1)
+  local slowest = true
+  for _, row in ipairs(units.catalogue().kinds) do
+    if row.name ~= "artillery" and row.shell_speed > 0
+       and row.shell_speed <= units.kind("artillery").shell_speed then
+      slowest = false
+    end
+  end
+  harness.check("its shell is the slowest in the catalogue", slowest)
+  local speed = units.kind("artillery").shell_speed
+  harness.check("and a shot across the field is many ticks in flight, with no cap",
+                targeting.flight_ticks("artillery", 90) == math.ceil(90 / speed)
+                and targeting.flight_ticks("artillery", 90) > 100)
+  harness.check("the viewer has its letter", viewer.LETTERS[units.index_of("artillery")] == "R")
+  local rate = harness.load_asset("the-rules", "105").ticks_per_second
+  local raw = {}
+  for name, row in pairs(harness.load_asset("unit-catalogue", "202")) do
+    raw[name] = {}
+    for key, value in pairs(row) do raw[name][key] = value end
+  end
+  raw.tank.team_sight = 2
+  local fine, message = pcall(units.validate_catalogue, raw, rate)
+  harness.check("team sight is nought or one",
+                not fine and tostring(message):find("tank.team_sight", 1, true) ~= nil, message)
+end)
+
+harness.suite("the artillery fires at what its team sees, and holds fire unseen", function()
+  local targeting = harness.load("targeting", "502")
+  local units = harness.load("units", "201")
+  local the_world = harness.load("the-world", "104")
+  local world = fresh()
+  for y = 0, world.field.size - 1 do world.field.height[y * world.field.size + 20 + 1] = 14 end
+  local gun = units.spawn(world, "artillery", 1, 5, 10)
+  local enemy = units.spawn(world, "tank", 2, 30, 10)
+  harness.check("the ridge hides the enemy from the artillery's own eye",
+                not targeting.sees(world, gun, enemy))
+  targeting.aim_pass(world)
+  harness.check("with no friendly eye on it, the artillery holds fire", world.unit.target[gun] == 0)
+  local friend = units.spawn(world, "tank", 1, 25, 10)
+  targeting.aim_pass(world)
+  harness.check("a friend that chose the enemy marks it seen by the team",
+                world.unit.target[friend] == enemy and targeting.seen_by_team(world, gun, enemy))
+  harness.check("and the artillery fires at it over the ridge", world.unit.target[gun] == enemy)
+  harness.check("each team's sight is its own bit",
+                world.unit.seen[enemy] == 1 and world.unit.seen[friend] == 2)
+  the_world.release(world, "unit", friend)
+  targeting.aim_pass(world)
+  harness.check("its own choice keeps nothing seen: with the eye gone, it holds fire",
+                world.unit.target[gun] == 0 and world.unit.seen[enemy] == 0)
+end)
+-- }}}
+
 -- {{{ the gunship
 harness.suite("the gunship flies a pattern and ignores the cloud", function()
   local units = harness.load("units", "503")

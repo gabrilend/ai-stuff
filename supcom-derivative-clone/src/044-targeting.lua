@@ -74,25 +74,55 @@ local bit = require("bit")
 -- needs otherwise): an enemy of this kind first, then the closest.
 M.FIRST = "command-truck"
 
+-- {{{ FALLOFF
+-- The shapes a falloff curve can take, as a dispatch table: each row a name and
+-- a curve from a kind's catalogue row and a distance to the fraction of full
+-- damage done there. A kind's catalogue `falloff` names its row. Adding a shape
+-- is adding a row (issue 502).
+M.FALLOFF = {
+  -- One out to the kind's `falloff_full`, then a straight line down to
+  -- `falloff_floor` at `falloff_end`, and the floor beyond. A kind whose floor
+  -- is one loses nothing at any distance.
+  {name = "linear-to-floor", curve = function(row, distance)
+    if distance <= row.falloff_full then
+      return 1
+    end
+    local floor = row.falloff_floor
+    local span = row.falloff_end - row.falloff_full
+    if distance >= row.falloff_end or span <= 0 then
+      return floor
+    end
+    return 1 - (1 - floor) * (distance - row.falloff_full) / span
+  end},
+  -- Nothing lost to distance: the artillery's, which maximises range.
+  {name = "flat", curve = function()
+    return 1
+  end},
+}
+M.SHAPE = {}
+for _, shape in ipairs(M.FALLOFF) do
+  M.SHAPE[shape.name] = shape
+end
+-- Every kind's shape is checked once, now, so a catalogue naming a shape
+-- nobody has built is refused when targeting loads, by kind and name.
+for _, row in ipairs(units.catalogue().kinds) do
+  if M.SHAPE[row.falloff] == nil then
+    error("targeting: the " .. row.name .. "'s falloff is '" .. tostring(row.falloff)
+          .. "', which is no row of FALLOFF", 0)
+  end
+end
+-- }}}
+
 -- {{{ function M.falloff()
 -- The fraction of full damage a shot from `kind` (a name or an index) does at
--- `distance` cells: one out to the kind's `falloff_full`, then a straight line
--- down to `falloff_floor` at `falloff_end`, and the floor beyond. A kind whose
--- floor is one loses nothing at any distance. Refuses a kind the catalogue lacks.
+-- `distance` cells, by the curve its catalogue row names. Refuses a kind the
+-- catalogue lacks and a distance that is not a number from zero.
 function M.falloff(kind, distance)
   local row = units.kind(kind)
   if type(distance) ~= "number" or distance ~= distance or distance < 0 then
     error("targeting: a distance is " .. tostring(distance) .. ", not a number from zero", 2)
   end
-  if distance <= row.falloff_full then
-    return 1
-  end
-  local floor = row.falloff_floor
-  local span = row.falloff_end - row.falloff_full
-  if distance >= row.falloff_end or span <= 0 then
-    return floor
-  end
-  return 1 - (1 - floor) * (distance - row.falloff_full) / span
+  return M.SHAPE[row.falloff].curve(row, distance)
 end
 -- }}}
 
@@ -207,13 +237,13 @@ end
 -- One shooter's choice. The best candidate is found in row order, and a
 -- sightline is asked only of a candidate that would beat the best so far, so
 -- the answer is the full rule's and the questions are as few as it allows.
-local function aim(world, shooter, first)
+local function aim(world, shooter, first, look)
   local unit = world.unit
   local best, best_class, best_square = 0, 2, math.huge
   for _, id in ipairs(M.candidates(world, shooter)) do
     local class, square = rank(world, shooter, id, first)
     if (class < best_class or (class == best_class and square < best_square))
-       and M.sees(world, shooter, id) then
+       and look(world, shooter, id) then
       best, best_class, best_square = id, class, square
     end
   end
@@ -224,7 +254,7 @@ local function aim(world, shooter, first)
      and unit.team[current] ~= unit.team[shooter]
      and bit.band(units.kind(unit.kind[shooter]).reaches, bit.lshift(1, unit.domain[current] - 1)) ~= 0 then
     local class = rank(world, shooter, current, first)
-    if class <= best_class and M.sees(world, shooter, current) then
+    if class <= best_class and look(world, shooter, current) then
       return
     end
   end
@@ -232,24 +262,84 @@ local function aim(world, shooter, first)
 end
 -- }}}
 
+-- {{{ local function team_sight()
+-- Whether a unit fires by its team's eyes rather than its own.
+local function team_sight(world, id)
+  return units.kind(world.unit.kind[id]).team_sight == 1
+end
+-- }}}
+
+-- {{{ function M.seen_by_team()
+-- Whether `b` is marked seen by `a`'s team this tick: some unit of that team,
+-- firing by its own eyes, chose it. The look a team-sight shooter takes in
+-- place of a sightline of its own.
+function M.seen_by_team(world, a, b)
+  local unit = world.unit
+  return bit.band(unit.seen[b], bit.lshift(1, unit.team[a] - 1)) ~= 0
+end
+-- }}}
+
+-- {{{ function M.gather_sight()
+-- Unsliced, once a tick after the sliced aim: every unit's `seen` rewritten
+-- from nothing, one bit per team, from every live unit's chosen target -- the
+-- bit of the chooser's team set on the target. A unit that fires by its team's
+-- eyes marks nothing, so no artillery keeps a target alive by its own choosing.
+-- The one walk that writes across rows, which is why it is not in a slice.
+function M.gather_sight(world)
+  local unit = world.unit
+  local seen, target = unit.seen, unit.target
+  for id = 1, unit.top do
+    seen[id] = 0
+  end
+  for id = 1, unit.top do
+    local chosen = target[id]
+    if chosen ~= 0 and unit.alive[id] == 1 and unit.kind[id] ~= 0 and unit.alive[chosen] == 1
+       and not team_sight(world, id) then
+      seen[chosen] = bit.bor(seen[chosen], bit.lshift(1, unit.team[id] - 1))
+    end
+  end
+end
+-- }}}
+
 -- {{{ function M.aim_pass_slice()
 -- The shooters from `first` to `last`: every live unit with a reloaded weapon
--- chooses. Writes only those units' `target`.
+-- that fires by its own eyes chooses. Writes only those units' `target`. The
+-- team-sight shooters choose in `aim_pass_after`, once the team's sight is in.
 function M.aim_pass_slice(world, first, last)
   local unit = world.unit
   local truck = units.index_of(M.FIRST)
   for id = first, last do
-    if unit.alive[id] == 1 and M.ready(world, id) then
-      aim(world, id, truck)
+    if unit.alive[id] == 1 and unit.kind[id] ~= 0 and M.ready(world, id) and not team_sight(world, id) then
+      aim(world, id, truck, M.sees)
+    end
+  end
+end
+-- }}}
+
+-- {{{ function M.aim_pass_after()
+-- Unsliced, after the slices: the team's sight gathered, then every ready unit
+-- that fires by its team's eyes chooses, in row order, from the enemies its
+-- team has marked seen -- by the same rule as everyone, truck first, then the
+-- closest, keeping its target while it stays seen. No friendly eye on a target,
+-- no shot at it.
+function M.aim_pass_after(world)
+  M.gather_sight(world)
+  local unit = world.unit
+  local truck = units.index_of(M.FIRST)
+  for id = 1, unit.top do
+    if unit.alive[id] == 1 and unit.kind[id] ~= 0 and team_sight(world, id) and M.ready(world, id) then
+      aim(world, id, truck, M.seen_by_team)
     end
   end
 end
 -- }}}
 
 -- {{{ function M.aim_pass()
--- The tick's sight-and-aim row over the whole world.
+-- The tick's sight-and-aim row over the whole world: the slices, then the
+-- unsliced step after them.
 function M.aim_pass(world)
   M.aim_pass_slice(world, 1, world.unit.top)
+  M.aim_pass_after(world)
 end
 -- }}}
 

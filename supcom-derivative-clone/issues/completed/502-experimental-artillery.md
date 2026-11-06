@@ -5,16 +5,17 @@
 | Phase | 5 — The Big Things |
 | Blocked by | 205, 501 |
 | Blocks | — |
-| Reads | [enforcers and experimentals](../docs/009-enforcers-and-experimentals.md) |
+| Reads | [enforcers and experimentals](../../docs/009-enforcers-and-experimentals.md) |
 | Open questions | none |
 
 ## Current behavior
 
-Nothing. Issue 501 puts an artillery row in the catalogue and issue 205 gives
-every weapon a falloff curve that declines to a floor. Nothing has a curve that
-does not decline, and nothing fires at what somebody else can see.
-`tests/023-the-big-things.lua` asserts that artillery loses nothing to distance:
-its damage at the far side of the field equals its damage at one cell.
+Built. Falloff curves are a dispatch table of shapes in `targeting`
+(`linear-to-floor`, `flat`), named by each catalogue row's `falloff`. The
+catalogue has an `artillery` row with the flat shape, the slowest shell, and
+`team_sight`. The aim pass's unsliced step after its slices gathers each team's
+sight into a per-unit `seen` bit set, and team-sight kinds choose from it, so
+the artillery fires at what its team sees and holds fire when nobody sees.
 
 ## Intended behavior
 
@@ -67,11 +68,40 @@ which is the artillery's counter: move.
    eye on the target, the artillery holds fire.
 7. Update the companions of `targeting`, `the-world`, and the catalogue.
 
+## What happened
+
+- **Built ahead of 501.** The artillery's row goes straight into the unit
+  catalogue, tier three, which is where 501 says experimentals live. 501 still
+  owns the `experimentals` asset, the other four rows, and pricing through the
+  cost table. The row's cost already matches 023's hundred-times rule.
+- **A curve returns a fraction, not damage**, as `falloff` always has; the
+  shooter multiplies. The unit row's `falloff` column still holds the kind's
+  index, and the curve is found through the kind's row, so nothing that already
+  calls `falloff(kind, distance)` changes.
+- **The shape check runs when targeting loads**, because the units module
+  cannot load targeting (targeting loads units). A shape name no row has is
+  refused there, by kind and name.
+- **`seen` is one integer column on the unit row, a bit per team**, rather than
+  a per-team array: one column, fixed size, folded by the hash like any other.
+  Teams beyond 31 would need a wider column.
+- **No new tick row.** The phase 1 test fixes the tick at thirteen rows, so the
+  gather step and the artillery's choosing are the sight-and-aim row's unsliced
+  step after its slices, `aim_pass_after`, which `aim_pass` runs.
+- **A team-sight unit marks nothing**, so an artillery cannot keep its own
+  target seen. A unit still reloading keeps the target it last chose, and that
+  target still counts as seen, as the issue's "from every unit's chosen target"
+  says.
+- **The artillery's letter in the viewer is `R`**, for range.
+- **The flight arithmetic has no cap**: a shot across the field flies about 180
+  ticks. Firing and landing are issue 206's and are not on this branch.
+- Both open questions stay as the issue rules them: team sight, and live sight
+  only.
+
 ## Related documents and tools
 
-- [Enforcers and experimentals](../docs/009-enforcers-and-experimentals.md)
-- [A unit and what it carries](../docs/004-a-unit-and-what-it-carries.md) — nothing is out of range
-- [The tick and the timers](../docs/003-the-tick-and-the-timers.md) — the thread pool's rule
+- [Enforcers and experimentals](../../docs/009-enforcers-and-experimentals.md)
+- [A unit and what it carries](../../docs/004-a-unit-and-what-it-carries.md) — nothing is out of range
+- [The tick and the timers](../../docs/003-the-tick-and-the-timers.md) — the thread pool's rule
 - `tests/023-the-big-things.lua`
 
 ## Still open

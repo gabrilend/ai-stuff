@@ -570,12 +570,15 @@ harness.suite("only a reloaded weapon aims, and aiming writes only the target", 
   world.unit.reload_at[shooter] = 0
   local before = snapshot.hash(world)
   local was = world.unit.target[enemy]
+  local sight = {}
+  for id = 1, world.unit.top do sight[id] = world.unit.seen[id] end
   targeting.aim_pass(world)
   harness.check("a reloaded one does", world.unit.target[shooter] == truck)
   harness.check("the truck, with no weapon, chooses nothing", world.unit.target[truck] == 0)
   world.unit.target[shooter] = 0
   world.unit.target[enemy] = was
-  harness.check("nothing but the targets changed", snapshot.hash(world) == before)
+  for id = 1, world.unit.top do world.unit.seen[id] = sight[id] end
+  harness.check("nothing but the targets and the team's sight changed", snapshot.hash(world) == before)
   local row = the_tick.SYSTEMS[7]
   harness.check("the tick's seventh row is the aim pass, and it slices",
                 row.name == "sight-and-aim" and row.waiting_for == nil and row.sliceable)

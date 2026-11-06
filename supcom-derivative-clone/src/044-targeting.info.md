@@ -10,10 +10,16 @@ function is misbehaving; this is for everything else.
 
 Nothing is out of range. Distance never forbids a shot. It does two things:
 
-- **Falloff.** A shot does full damage out to the kind's `falloff_full`, then
-  falls in a straight line to `falloff_floor` (a fraction of full) at
-  `falloff_end`, and the floor beyond that. A kind whose floor is one loses
-  nothing at any distance.
+- **Falloff.** Each kind's catalogue `falloff` names a shape, a row of the
+  dispatch table `FALLOFF` (issue 502). Each row is a name and a curve from the
+  kind's row and a distance to a fraction of full damage. There are two shapes:
+  - `linear-to-floor`: full damage out to `falloff_full`, then a straight
+    line down to `falloff_floor` at `falloff_end`, and the floor beyond. Every
+    kind but the artillery uses it.
+  - `flat`: nothing lost at any distance. The artillery's.
+
+  Adding a shape means adding a row. A kind naming a shape no row has is
+  refused when this module loads.
 - **Time of flight.** A shell takes the distance over the kind's
   `shell_speed`, rounded up to whole ticks, and never less than one.
 
@@ -38,12 +44,33 @@ headless runner prints how many were asked.
 The pass is sliced (issue 209). It reads the world and writes only each
 shooter's own `target`.
 
+**Team sight** (issue 502). A kind with `team_sight` (the artillery) does not
+look for itself. It fires at whatever any unit of its team has chosen as a
+target this tick, so a scout on a crest, or a plane, is its eye. That needs a
+write across rows, which a slice may not make, so the row has an unsliced step
+after its slices, `aim_pass_after`:
+
+1. `gather_sight` rewrites every unit's `seen` from nothing, one bit per team:
+   bit t-1 is set when a live unit of team t, firing by its own eyes, chose it.
+   A team-sight unit marks nothing, so an artillery's own choice never keeps a
+   target seen.
+2. Every ready team-sight unit chooses in row order, by the same rule as
+   everyone else, with "marked seen by my team" (`seen_by_team`) in place of
+   a sightline.
+
+With no friendly eye on an enemy, it holds fire. The slices skip team-sight
+kinds. `aim_pass` is the slices and then the step after.
+
 ## Exports
 
 | Function | Arguments | Returns |
 | --- | --- | --- |
 | `aim_pass(world)` | a world | nothing; the tick's `sight-and-aim` row |
-| `aim_pass_slice(world, first, last)` | a world; a range of unit ids | nothing; the ready shooters in the range choose |
+| `aim_pass_slice(world, first, last)` | a world; a range of unit ids | nothing; the ready shooters in the range that look for themselves choose |
+| `aim_pass_after(world)` | a world | nothing; unsliced: gathers the team's sight, then the ready team-sight shooters choose |
+| `gather_sight(world)` | a world | nothing; rewrites every unit's `seen` from every chosen target |
+| `seen_by_team(world, a, b)` | a world; two units | whether b is marked seen by a's team this tick |
+| `FALLOFF`, `SHAPE` | | the falloff shapes as `{name, curve}` rows, and the same by name |
 | `falloff(kind, distance)` | a kind's name or index; cells | the fraction of full damage, from the floor to one; refuses a kind the catalogue lacks |
 | `flight_ticks(kind, distance)` | a kind; cells | whole ticks, at least one; refuses a kind with no weapon |
 | `candidates(world, shooter)` | a world; a unit | the live enemies in domains its weapon reaches, in row order |
@@ -55,7 +82,8 @@ shooter's own `target`.
 
 ## Data structures it owns
 
-None of its own. It writes `world.unit.target` and reads `reload_at`, which is
+None of its own. It writes `world.unit.target` and `world.unit.seen` (a bit
+per team; teams beyond 31 would need a wider column) and reads `reload_at`, which is
 the increment from which the weapon may fire again (zero for a weapon never
 fired; issue 206's fire pass writes it). It also reads the reload counters
 `world.reload.<kind>`, one per kind with a weapon, which the units module asks

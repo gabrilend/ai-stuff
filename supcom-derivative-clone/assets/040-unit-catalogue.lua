@@ -41,6 +41,10 @@
 --   tier            -- 1, 2, or 3 for experimental
 --   health          -- the heal cap
 --   damage          -- per shot, at full strength; zero for a kind with no weapon
+--   falloff         -- the name of its falloff curve's shape, a row of the
+--                      targeting module's FALLOFF: "linear-to-floor" or "flat"
+--   team_sight      -- 1 when it fires at what any unit of its team sees, rather
+--                      than at what it sees itself (the artillery); 0 otherwise
 --   falloff_full    -- cells out to which damage is full
 --   falloff_floor   -- the fraction of damage it never falls below
 --   falloff_end     -- cells out to which damage declines in a straight line to
@@ -62,6 +66,7 @@
 return {
   tank = {
     index = 1, name = "tank", domain = 1, reaches = 5, tier = 1,
+    falloff = "linear-to-floor", team_sight = 0,
     health = 100, damage = 25, falloff_full = 16, falloff_floor = 0.25, falloff_end = 48,
     shell_speed = 2, reload_seconds = 3, heal_period = 1,
     speed = 0.2, climb = 0.5, eye = 1.5, profile = 2, altitude = 0, claim_radius = 2,
@@ -69,6 +74,7 @@ return {
   },
   ["anti-air"] = {
     index = 2, name = "anti-air", domain = 1, reaches = 2, tier = 1,
+    falloff = "linear-to-floor", team_sight = 0,
     health = 75, damage = 20, falloff_full = 24, falloff_floor = 0.5, falloff_end = 64,
     shell_speed = 4, reload_seconds = 1.5, heal_period = 1.2,
     speed = 0.15, climb = 0.5, eye = 1.5, profile = 1.5, altitude = 0, claim_radius = 2,
@@ -76,6 +82,7 @@ return {
   },
   helicopter = {
     index = 3, name = "helicopter", domain = 2, reaches = 5, tier = 1,
+    falloff = "linear-to-floor", team_sight = 0,
     health = 50, damage = 15, falloff_full = 8, falloff_floor = 0.25, falloff_end = 24,
     shell_speed = 3, reload_seconds = 2, heal_period = 0.8,
     speed = 0.6, climb = 0, eye = 1, profile = 1, altitude = 8, claim_radius = 0,
@@ -83,6 +90,7 @@ return {
   },
   frigate = {
     index = 4, name = "frigate", domain = 3, reaches = 5, tier = 1,
+    falloff = "linear-to-floor", team_sight = 0,
     health = 200, damage = 30, falloff_full = 20, falloff_floor = 0.25, falloff_end = 56,
     shell_speed = 2, reload_seconds = 4, heal_period = 1.5,
     speed = 0.15, climb = 0, eye = 3, profile = 3, altitude = 0, claim_radius = 2,
@@ -90,6 +98,7 @@ return {
   },
   ["command-truck"] = {
     index = 5, name = "command-truck", domain = 1, reaches = 0, tier = 1,
+    falloff = "linear-to-floor", team_sight = 0,
     health = 25, damage = 0, falloff_full = 0, falloff_floor = 0, falloff_end = 0,
     shell_speed = 0, reload_seconds = 0, heal_period = 2,
     speed = 0.25, climb = 0.5, eye = 1.5, profile = 1.5, altitude = 0, claim_radius = 2,
@@ -97,9 +106,21 @@ return {
   },
   enforcer = {
     index = 6, name = "enforcer", domain = 1, reaches = 5, tier = 2,
+    falloff = "linear-to-floor", team_sight = 0,
     health = 150, damage = 60, falloff_full = 20, falloff_floor = 0.3, falloff_end = 60,
     shell_speed = 2, reload_seconds = 4, heal_period = 0.5,
     speed = 0.1, climb = 0.3, eye = 5, profile = 6, altitude = 0, claim_radius = 4,
     shield = 100, shield_seconds = 0.5, cost_mass = 500, cost_energy = 50, build_seconds = 30,
+  },
+  -- The first experimental (issue 502; issue 501 owns the experimentals as a
+  -- whole). It maximises range: its shells lose nothing to distance, the
+  -- slowest in the catalogue, and it fires at what any unit of its team sees.
+  artillery = {
+    index = 7, name = "artillery", domain = 1, reaches = 5, tier = 3,
+    falloff = "flat", team_sight = 1,
+    health = 400, damage = 80, falloff_full = 0, falloff_floor = 1, falloff_end = 0,
+    shell_speed = 0.5, reload_seconds = 8, heal_period = 3,
+    speed = 0.05, climb = 0.5, eye = 2, profile = 3, altitude = 0, claim_radius = 2,
+    shield = 0, shield_seconds = 0, cost_mass = 10000, cost_energy = 1000, build_seconds = 120,
   },
 }
