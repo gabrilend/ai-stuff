@@ -48,6 +48,8 @@ const char *compile_source(const char *path_or_address, size_t *length)
 The source of the newest unit compiled from a file, by the file's path
 or by any box address in it ("/boxes/greet.c:greet"): its text (not
 ended by a zero) and length, or NULL if no unit came from that file.
+A unit's source outlives its code: it is the session's record of the
+box, kept until a reboot like a log (410), so the pointer stays good.
 
 ### compile_unit_count
 
@@ -60,6 +62,38 @@ int compile_unit_count(void)
 ```c
 int compile_unit_facts(int unit, struct compile_unit_facts *out)
 ```
+
+### compile_retire
+
+```c
+int compile_retire(int unit)
+```
+
+Retire a unit: its rows stop answering, so nothing new is placed from
+it, and it is filed in the scrapyard. Every sweep (every rewire and
+removal, engine_sweep, and this call) frees it once no core can still be
+inside it — and never while any station places one of its boxes: a
+sweep that finds one says which, once, on the developer's line, and
+leaves it filed. Answers 0, COMPILE_RETIRED, or ENGINE_NO_BOX.
+
+### compile_teardown
+
+```c
+int compile_teardown(void)
+```
+
+Free every retired unit no station places, now, without waiting for a
+sweep: for an engine that is stopping, when no core will start a task
+again. Safe to race a sweep — each unit is freed exactly once. Answers
+how many this call freed.
+
+### compile_units_freed
+
+```c
+uint64_t compile_units_freed(void)
+```
+
+Units whose code has been given back, since startup.
 
 ### compile_error_text
 

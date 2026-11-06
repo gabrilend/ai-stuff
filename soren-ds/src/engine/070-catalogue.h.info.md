@@ -60,6 +60,16 @@ by width, never by layout, issue 303). `unit` is the compile pipeline's
 number for it (086-compile.h). Refuses — adding nothing — a row whose
 address the image's own rows hold. Answers 0 or a negative engine error.
 
+### catalogue_retire_unit
+
+```c
+int catalogue_retire_unit(int unit)
+```
+
+Stop a unit's rows answering (410): looked up by address they are not
+found, and by index they answer "" and NULL, so nothing new is placed
+from code that is about to be freed. Answers how many rows it stopped.
+
 ### catalogue_count
 
 ```c

@@ -18,12 +18,37 @@ a long time:
 A failure at any step leaves nothing behind: code that loaded is
 unloaded again, memory is given back, and no row appears.
 
+Code is given back the way an old set of arrows is (410): retired (its
+rows stop answering and it is filed in the scrapyard with every core's
+counter), swept (freed once each core has been seen outside whatever it
+was inside then, and no station places one of its boxes), freed. There
+is no reference count and no generation: a station placing one of its
+boxes is the only reference there is, and the table is where they are.
+
 ## What it offers
 
 ### compile_box_source
 
 ```c
 int compile_box_source(const char *path, const char *text, size_t length, struct compile_report *report)
+```
+
+### compile_retire
+
+```c
+int compile_retire(int unit)
+```
+
+### compile_teardown
+
+```c
+int compile_teardown(void)
+```
+
+### compile_units_freed
+
+```c
+uint64_t compile_units_freed(void)
 ```
 
 ### compile_source

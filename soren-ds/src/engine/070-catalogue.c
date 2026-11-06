@@ -12,6 +12,10 @@
  * right now, and its ports were sized to that box — so looking an address
  * up searches the added rows newest first.
  *
+ * A retired row (410) stays where it is, so no index moves, but answers no
+ * address and no box: nothing new can be placed from code that is about
+ * to be freed.
+ *
  * A type a unit brings is copied into the catalogue's own memory, name and
  * fields and all, so the row outlives the unit's code when 410 frees it.
  * The copy leaves the ordering out: nothing reads a type row's ordering
@@ -28,6 +32,7 @@ struct added_row {
     char              address[ADDRESS_BYTES];
     const struct box *box;
     int               unit;
+    int               retired;      /* 410: its unit's code may be freed; the row answers nothing */
 };
 
 static struct shelves added_rows = SHELVES_INIT(struct added_row, 64);
@@ -46,7 +51,8 @@ const char *catalogue_address(int index)
     if (index < catalogue_row_count) {
         return catalogue_rows[index].address;
     }
-    return ((struct added_row *)shelves_at(&added_rows, index - catalogue_row_count))->address;
+    struct added_row *row = shelves_at(&added_rows, index - catalogue_row_count);
+    return atomic_load_acquire(&row->retired) ? "" : row->address;
 }
 /* }}} */
 
@@ -56,7 +62,8 @@ const struct box *catalogue_box_at(int index)
     if (index < catalogue_row_count) {
         return catalogue_rows[index].box;
     }
-    return ((struct added_row *)shelves_at(&added_rows, index - catalogue_row_count))->box;
+    struct added_row *row = shelves_at(&added_rows, index - catalogue_row_count);
+    return atomic_load_acquire(&row->retired) ? (const struct box *)0 : row->box;
 }
 /* }}} */
 
@@ -91,7 +98,7 @@ const struct box *catalogue_box(const char *address)
     }
     for (int32_t i = shelves_count(&added_rows) - 1; i >= 0; i--) {
         struct added_row *row = shelves_at(&added_rows, i);
-        if (text_equal(row->address, address)) {
+        if (!atomic_load_acquire(&row->retired) && text_equal(row->address, address)) {
             return row->box;
         }
     }
@@ -189,8 +196,9 @@ static int add_rows(struct core_ctx *c, const struct catalogue_row *rows, int n,
             return ENGINE_NO_MEMORY;
         }
         bytes_copy(row->address, rows[i].address, text_length(rows[i].address) + 1);
-        row->box  = rows[i].box;
-        row->unit = unit;
+        row->box     = rows[i].box;
+        row->unit    = unit;
+        row->retired = 0;
     }
     shelves_publish(&added_rows, first + n);
     return ENGINE_OK;
@@ -239,6 +247,22 @@ int catalogue_add_unit(const struct catalogue_unit *u, int unit)
     }
     engine_leave(c);
     return answer;
+}
+/* }}} */
+
+/* {{{ catalogue_retire_unit */
+int catalogue_retire_unit(int unit)
+{
+    int retired = 0;
+    int32_t n = shelves_count(&added_rows);
+    for (int32_t i = 0; i < n; i++) {
+        struct added_row *row = shelves_at(&added_rows, i);
+        if (row->unit == unit && unit >= 0 && !atomic_load_acquire(&row->retired)) {
+            atomic_store_release(&row->retired, 1);
+            retired++;
+        }
+    }
+    return retired;
 }
 /* }}} */
 

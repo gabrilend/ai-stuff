@@ -15,6 +15,10 @@ do not replace the older rows — a station may be placed on an older one
 right now, and its ports were sized to that box — so looking an address
 up searches the added rows newest first.
 
+A retired row (410) stays where it is, so no index moves, but answers no
+address and no box: nothing new can be placed from code that is about
+to be freed.
+
 A type a unit brings is copied into the catalogue's own memory, name and
 fields and all, so the row outlives the unit's code when 410 frees it.
 The copy leaves the ordering out: nothing reads a type row's ordering
@@ -69,6 +73,12 @@ int catalogue_add(const char *address, const struct box *box)
 
 ```c
 int catalogue_add_unit(const struct catalogue_unit *u, int unit)
+```
+
+### catalogue_retire_unit
+
+```c
+int catalogue_retire_unit(int unit)
 ```
 
 ### catalogue_embedded_map
