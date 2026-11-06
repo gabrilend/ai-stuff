@@ -13,6 +13,20 @@
 
 No client library for matchmaking exists.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #306 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- When a blocking create or join times out, the client closes the lobby locally but sends nothing to undo it; the server's late acceptance leaves the connection in an orphan lobby, and every later create or join is refused "already in lobby".
+- Join acceptances and refusals are applied to whatever lobby is opening without checking the game id, so a late answer to an earlier request settles a later one.
+- The reconnect wait resets as soon as TCP connects, so a full server that accepts and closes is retried every second forever; the waits also go 1,1,2,4 instead of 1,2,4.
+- A lobby still "opening" can't be left, and callback requests have no timeout, so a lost answer locks the connection until disconnect.
+- Unsent output piles up without limit, and each partial send copies the whole remainder.
+- poll() waits for input before writing queued output, so every request is held back by the poll's wait (see also 801h).
+- Every failed connect is reported as "refused", whatever the real error was.
+- Without LuaSocket the clock silently falls back to whole seconds.
+- Most functions lack their own folds.
+
 ## Intended Behavior
 
 A client-side library that provides:

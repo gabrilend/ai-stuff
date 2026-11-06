@@ -23,7 +23,7 @@ trapezoid, since the camera looks down at an angle, as WC3 draws it).
 
 ## Acceptance Criteria
 
-- [ ] The box moves and changes shape with the camera
+- [x] The box moves and changes shape with the camera
 
 ---
 
@@ -183,3 +183,23 @@ The viewport indicator is crucial for orientation. It answers "where am I lookin
 - issues/507a-minimap-module.md (parent component)
 - issues/501d-implement-camera-system.md (camera data)
 - issues/507e-minimap-interaction.md (click to move)
+
+---
+
+## Decisions (2026-11-06)
+
+1. **The box is the screen's view on the ground, cut to the map's
+   picture**: the interface takes the ground under the 3D view's corners
+   (below the top bar, above the console), as it did, and when a corner
+   sees no ground (looking at the horizon) the game may give the
+   camera's own four corners (`game.view_quad`, from 501d's
+   `camera_view_quad`, which always gives four). Before, the box was
+   dropped then.
+2. **Cut, not clamped**: the part of the box on the map is drawn, cut
+   where its sides cross the picture's edges (each edge in turn). Before,
+   each end of each side was pushed into the square, which bent the box.
+3. **Tested against 501d's camera through the FFI**: moved, zoomed out
+   and turned, the box moves, grows and turns with it. Handing
+   `view_quad` to the game from the window waits on 501d's wiring
+   (raylib).
+4. Based on 501d's branch (#314), not on the headless renderer (#307): the minimap draws through the interface's 2D calls, not the render slots, and its tests take the view's corners from 501d's camera.

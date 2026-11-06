@@ -13,6 +13,20 @@
 
 No matchmaking server implementation exists.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #305 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- Errors inside message handlers are not caught, so a reply too big to encode (a game list over the 1 MiB payload limit, reachable by an attacker with two huge lobbies) stops the whole server.
+- If a client resets right after connecting, its peer address is nil and the log line that joins it raises, again stopping the server.
+- When the daemon fails to start, its test runs a pasted copy of an unrelated socket test and reports a wrong total.
+- Any bytes count as activity, so a client trickling partial frames is never closed for idleness; 1000 such sockets hold every slot and about 1 GB of buffers.
+- GAME_START gives players the host's address as the server saw it; a host on loopback or the server's LAN gives remote players `127.0.0.1` or `192.168.x.x`.
+- The daemon has no signal handling and no protection around its loop, so being killed (the documented way to stop) never tells lobbies they closed.
+- Each tick joins and re-cuts every stalled connection's backlog, sorts every connection and lobby, and counts tables by walking them.
+- The daemon has no `--help`; most functions lack folds.
+- The branch moved this issue to completed while question Q-1 is open and its decisions are unconfirmed; Current Behavior still says no server exists.
+
 ## Intended Behavior
 
 A robust server application that:

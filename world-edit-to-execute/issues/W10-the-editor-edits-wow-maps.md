@@ -120,3 +120,69 @@ Each step is its own sub-issue (W10a, W10b, ...) when it begins.
 - `issues/913-test-map-opens-the-w-client.md`
 - W client: `/mnt/mtwo/games/azeroth-core/custom-client/docs/003-asset-formats.md`
   (WoW's file formats)
+
+## Sub-Issues
+
+- *2026-11-05:* `W10a-the-wow-layer-of-a-map.md`: step 1, and the
+  keeping half of step 8. A map project keeps WoW maps under
+  `wow/World/Maps/<dir>/` byte for byte, beside its WC3 part (question
+  1: one map holds both games); the editor lists them and reads every
+  tile through the W client's reader into data for its tools. Its own
+  open questions are answered there as dated decisions.
+- *2026-11-05:* `W10b-the-terrain-editor-on-wow-tiles.md`: step 2
+  without its window, and the ground half of step 8. Raise, lower,
+  smooth, flatten, paint (new layers and textures) and holes on a WoW
+  map's tiles as plain Lua; an edited tile written back by patching its
+  own bytes (an unedited tile is the file read, byte for byte); the
+  editor's strokes, undo and project save on a picked WoW map. Its open
+  questions are answered there as dated decisions.
+- *2026-11-05:* `W10c-far-view-and-water-on-wow-tiles.md`: step 2's
+  "place liquids", and the far view's half of step 8. The WDL is
+  patched from the edited tiles (far heights, whole-chunk holes). Water
+  can be put on and dried off a WoW map's tiles, and the tile's MH2O is
+  written again; parts not touched by an edit keep their bytes. Depths
+  follow moved ground. The editor's `water` and `dry` strokes work on a
+  WoW map. Its open questions are answered there as dated decisions.
+- *2026-11-05:* `W10d-tiles-from-the-wdt-added-and-taken-off.md`: the
+  tile list read from the WDT through the W client's `wdt_read`. Tiles
+  can be added (flat, or meeting their neighbours) and taken off: the
+  save writes the tile, patches its MAIN flag in place and updates the
+  WDL, with undo. Flowing water (vertex formats 1 and 3) keeps its format
+  and picture positions through an edit. Its open questions are answered
+  there as dated decisions.
+- *2026-11-05:* `W10e-the-object-placer-on-wow-tiles.md`: step 3
+  without its window. Models (MDDF, MMDX/MMID) and buildings (MODF,
+  MWMO/MWID) are placed, moved, turned, sized and deleted on a WoW map's
+  tiles as plain Lua and as editor steps with undo and redo around saves.
+  A save rewrites only an edited tile's placement blocks, name lists and
+  chunk references (MCRF), and the offsets after them; unedited tiles and
+  records keep their bytes. Unique ids stay unique across the map; a
+  building over a tile edge is listed by every tile its box touches with
+  one id. Checked through the W client's `adt_read` and `adt_place_read`.
+  Its open questions are answered there as dated decisions.
+- *2026-11-05:* `W10f-areas-and-doodad-sets-on-wow-tiles.md`: the chunk
+  half of step 4 ("regions as areas") and a building's doodad set from
+  step 3, without the window. Each chunk's area number (MCNK header byte
+  52) is read, set over whole chunks at a point or by radius (plain Lua
+  and the editor's `area` stroke, with undo), and written in place; a new
+  tile takes its neighbours' area; a building's doodad set (MODF byte 58)
+  is set as an editor step; areas' names are read from a loose
+  AreaTable.dbc. Writing AreaTable rows waits for W02c's writer on this
+  stack. Its open questions are answered there as dated decisions.
+- *2026-11-05:* `W10g-areas-of-a-maps-own-as-areatable-rows.md`: the
+  table half of step 4. On the branch that joins the W02 chain into the
+  editor stack, a converted map's own areas are made, renamed, flagged
+  and taken away (AreaTable rows with W02c's ids and their own
+  explored-zones bits), painted by the area brush, and saved as the map's
+  registration and the folder's tables in every form (the overlay, the
+  server's SQL, the merged stock tables, patch-W.MPQ), with undo. Its
+  open questions are answered there as dated decisions.
+- *2026-11-05:* `W10h-patch-w-never-behind-and-more-areas.md`: the
+  rest of step 8's save, and more of step 4's areas. Every save that
+  writes a file of a registered map makes the folder's tables and
+  `patch-W.MPQ` again (or removes the patch when it can't be made), then
+  its install plan and server-stamp, so no reader finds a patch older
+  than the folder. A map can now have 99 areas besides its zone, with
+  ids from a second block and explored bits from a pool, collision-free
+  across the folder. A project's WoW build carries the tables and patch.
+  Its open questions are answered there as dated decisions.
