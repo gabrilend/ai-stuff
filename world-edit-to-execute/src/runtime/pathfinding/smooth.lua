@@ -22,6 +22,11 @@ Usage:
 
 local smooth = {}
 
+-- Three points closer to a line than this (the sine of the angle between
+-- the two legs) count as on it: about 6e-8 of a degree, far
+-- below any turn a path makes, far above rounding (about 1e-16)
+smooth.COLLINEAR_TOLERANCE = 1e-9
+
 -- {{{ has_line_of_sight
 -- Checks if there's a clear line between two grid points.
 -- Uses Bresenham's line algorithm to check all tiles along the line.
@@ -69,15 +74,22 @@ end
 
 -- {{{ are_collinear
 -- Checks if three points are collinear (on the same line).
--- Uses cross product which is zero for collinear points.
+-- Uses the cross product, which is zero for collinear points. With
+-- fractional coordinates rounding leaves it a hair off zero, so the test is
+-- against a tolerance on the sine of the angle at p1 (the cross product
+-- over the two lengths), which doesn't depend on the path's scale (issue
+-- 410, known debt D-2).
 --
 -- @param p1, p2, p3 Points with x, y fields
 -- @return boolean true if points are collinear
 local function are_collinear(p1, p2, p3)
+    local ax, ay = p2.x - p1.x, p2.y - p1.y
+    local bx, by = p3.x - p1.x, p3.y - p1.y
     -- Cross product: (p2-p1) x (p3-p1)
-    -- If zero, points are collinear
-    local cross = (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x)
-    return cross == 0
+    local cross = ax * by - ay * bx
+    if cross == 0 then return true end
+    local lengths = math.sqrt((ax * ax + ay * ay) * (bx * bx + by * by))
+    return math.abs(cross) <= smooth.COLLINEAR_TOLERANCE * lengths
 end
 -- }}}
 
@@ -204,8 +216,10 @@ function smooth.remove_collinear(path)
         local curr = path[i]
         local next = path[i + 1]
 
-        -- Keep point only if it changes direction
-        if not are_collinear(prev, curr, next) then
+        -- Keep point only if it changes direction: off the line, or on it
+        -- but turning back (a point the path doubles back from is a turn)
+        local ahead = (curr.x - prev.x) * (next.x - curr.x) + (curr.y - prev.y) * (next.y - curr.y) >= 0
+        if not (are_collinear(prev, curr, next) and ahead) then
             smoothed[#smoothed + 1] = curr
         end
     end

@@ -1,6 +1,11 @@
 -- Lua/LuaJIT Compatibility Layer
 -- Provides unified bitwise operations and binary unpacking for both
 -- Lua 5.3+ (native operators) and LuaJIT (bit library + manual unpacking).
+--
+-- The unpack_* readers check the data is long enough before reading, on
+-- both, and a short read raises the same error on both: "truncated data:
+-- a uint32 at byte 1201 needs 4 bytes, but the data is 1203 bytes long",
+-- reported at the line of the parser that asked (issue 118).
 
 local compat = {}
 
@@ -119,24 +124,50 @@ end
 -- }}}
 
 -- {{{ Binary unpacking
+
+-- {{{ need
+-- Raises unless `count` bytes from `pos` (1-based) are in the data. Level 3
+-- puts the error at the parser's line that called the reader, which says
+-- which file was being read. A position from the end (negative, as
+-- string.unpack allows) is left to the reader.
+local function need(data, pos, count, what)
+    if pos > 0 and pos + count - 1 > #data then
+        error(string.format("truncated data: a%s %s at byte %d needs %d bytes, but the data is %d bytes long",
+            what:match("^i") and "n" or "", what, pos, count, #data), 3)
+    end
+end
+-- }}}
+
 if has_unpack then
     -- Lua 5.3+ string.unpack
     compat.unpack_int32 = function(data, pos)
+        pos = pos or 1
+        need(data, pos, 4, "int32")
         return string.unpack("<i4", data, pos)
     end
     compat.unpack_uint32 = function(data, pos)
+        pos = pos or 1
+        need(data, pos, 4, "uint32")
         return string.unpack("<I4", data, pos)
     end
     compat.unpack_int16 = function(data, pos)
+        pos = pos or 1
+        need(data, pos, 2, "int16")
         return string.unpack("<i2", data, pos)
     end
     compat.unpack_uint16 = function(data, pos)
+        pos = pos or 1
+        need(data, pos, 2, "uint16")
         return string.unpack("<I2", data, pos)
     end
     compat.unpack_float = function(data, pos)
+        pos = pos or 1
+        need(data, pos, 4, "float")
         return string.unpack("<f", data, pos)
     end
     compat.unpack_double = function(data, pos)
+        pos = pos or 1
+        need(data, pos, 8, "double")
         return string.unpack("<d", data, pos)
     end
 else
@@ -167,24 +198,28 @@ else
 
         compat.unpack_uint32 = function(data, pos)
             pos = pos or 1
+            need(data, pos, 4, "uint32")
             local b1, b2, b3, b4 = data:byte(pos, pos + 3)
             return bytes_to_uint32(b1, b2, b3, b4), pos + 4
         end
 
         compat.unpack_int32 = function(data, pos)
             pos = pos or 1
+            need(data, pos, 4, "int32")
             local b1, b2, b3, b4 = data:byte(pos, pos + 3)
             return bytes_to_int32(b1, b2, b3, b4), pos + 4
         end
 
         compat.unpack_uint16 = function(data, pos)
             pos = pos or 1
+            need(data, pos, 2, "uint16")
             local b1, b2 = data:byte(pos, pos + 1)
             return b1 + b2 * 256, pos + 2
         end
 
         compat.unpack_int16 = function(data, pos)
             pos = pos or 1
+            need(data, pos, 2, "int16")
             local b1, b2 = data:byte(pos, pos + 1)
             local val = b1 + b2 * 256
             if val >= 32768 then
@@ -196,6 +231,7 @@ else
         -- Float unpacking - IEEE 754 single-precision decoder
         compat.unpack_float = function(data, pos)
             pos = pos or 1
+            need(data, pos, 4, "float")
             local b1, b2, b3, b4 = data:byte(pos, pos + 3)
 
             -- Little-endian: b4 is MSB
@@ -224,6 +260,7 @@ else
         -- Double unpacking
         compat.unpack_double = function(data, pos)
             pos = pos or 1
+            need(data, pos, 8, "double")
             local b1, b2, b3, b4, b5, b6, b7, b8 = data:byte(pos, pos + 7)
 
             local sign = (b8 >= 128) and -1 or 1
