@@ -396,9 +396,64 @@ return TemplateManager
 ```
 
 ### Acceptance Criteria
-- [ ] Template data structure supports all required fields and validation
-- [ ] Point-based balance system accurately calculates costs
-- [ ] Templates can be created, validated, and saved
-- [ ] Default templates provide good starting examples
-- [ ] Template manager handles registration and retrieval
+- [x] Template data structure supports all required fields and validation
+- [x] Point-based balance system accurately calculates costs
+- [x] Templates can be created, validated, and saved
+- [x] Default templates provide good starting examples
+- [x] Template manager handles registration and retrieval
 - [ ] Point costs encourage meaningful trade-offs in design
+
+## What Happened
+
+Built as:
+- **`src/data/unit_template.lua`:** `UnitTemplate.new(data)`, with:
+  - `calculate_point_cost` (a breakdown by body, stat and ability) and
+    `validate` (`validation_errors` in plain words);
+  - `points_left`, `ability_configs`, and `create_unit(em, x, y, team)`,
+    which gives a real unit its stats, a "stats" component, abilities
+    and mana bars;
+  - `to_save_data` / `from_save_data`.
+- **`src/data/template_costs.lua`:** the prices, budget, stat ranges and
+  ability-count limits.
+- **`src/managers/template_manager.lua`:** register (data or a
+  template), get, remove, list, and `create_default_templates`. There is
+  one default per ability set (eleven), all valid and under 100 points
+  (41-96).
+- **`tests/test_unit_templates.lua`** (8 tests), added to `./run <dir>
+  unit`. One test has template-built warriors and archers fight in the
+  balance harness's world.
+
+Headless only. Nothing was seen.
+
+### Decisions
+- **Abilities are the ability system's own.** A template lists
+  ability-template names, a name with changes, or whole ability configs,
+  so a template unit fights with the same abilities as everything else.
+  The sketch's separate fields (`effect_type`, `base_value`,
+  `target_type`) are not used.
+- **Pricing:**
+  - **Stats are priced against the chosen body's own values.** A tank's
+    200 health is free, and only what's added costs. Lowering a stat
+    gives nothing back, which avoids dump-stat builds; 058 can revisit
+    this.
+  - **Bodies cost:** melee 0, ranged 10, tank 10, support 0, special 10.
+    The sketch charged 10 for ranged only, and had two unit types where
+    the game has five.
+  - **An ability costs its base times its strength, plus extras.** The
+    base is 10 for the primary and 20 for others. Strength is its effect
+    per second next to the sword's (25 every 10 s). The extras are 1
+    point per 5 reach past 15, and 1 per 10 area radius.
+  - **Strength counts:** crits, accuracy, cleave, pierce, extra area
+    targets, effects over time and zones. Cooldowns longer than the
+    bar's fill time slow the rate. Buffs and debuffs are priced by
+    uptime, next to battle fury's.
+  - All are first guesses, in one file, for issue 058 to tune.
+- **The first ability must deal damage or heal,** since primary bars
+  always charge and are a unit's basic attack.
+- **Files go where the project keeps such things.** There is no
+  `src/config/`, so the costs sit beside the ability templates in
+  `src/data/`. The manager starts `src/managers/` as the sketch named
+  it.
+- **Saving means `to_save_data`, which returns plain tables.** Writing
+  them to disk is issue 060.
+

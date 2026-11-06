@@ -90,7 +90,7 @@
 ## Phase 5: Unit Templates
 
 ### 5.1 Template System
-- [ ] Design unit template data structure
+- [x] Design unit template data structure (Issue #057: priced templates, default per ability set)
 - [ ] Create point-based balancing system
 - [ ] Implement template validation and constraints
 - [ ] Add template saving/loading system
