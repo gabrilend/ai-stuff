@@ -76,6 +76,8 @@ writes the file.
 | `request-failed` | a request's locate, amend or rebuild gave up | the request file |
 | `request-done` | a request's rebuild has passed | the request file |
 | `goodbye` | the run ends | `-` |
+| `routed` | the router's answer for a parcel fits the station table (docs/068) | the parcel: its tag's number, else its folder's name; text its shape, its station and how many attempts it took |
+| `route-failed` | three router answers for a parcel were each sent back (docs/068) | the parcel, as for `routed`; text why the last was sent back. The parcel waits for the person |
 
 ### What the chain is for
 

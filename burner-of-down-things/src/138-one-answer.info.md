@@ -12,4 +12,5 @@ to `stderr.txt`; its exit status is the wrapper's.
 | Function | In | Out |
 |---|---|---|
 | `json(printed)` | what the model printed | `{"answer":"..."}` and a newline, the text exactly as printed (no trimming) |
+| `decode(text)` | a `result.json` this wrapper wrote | the answer text, JSON's escapes undone; nil when the text is not one `{"answer": "..."}` object or holds a broken escape |
 | `run(words)` | the command as an array of words | what it printed on standard output, and its exit status |

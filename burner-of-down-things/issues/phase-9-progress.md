@@ -35,6 +35,13 @@ Counts: run `/home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua /mnt
   prints on standard output reaches the turn's `result.json`, written by
   the machine.
 
+- 904 the router, step 1 — a parcel's tag, recognised types and the
+  station table handed to an answerer; an invented station, an unknown
+  shape or a shape the station does not take sent back with the nearest
+  names, up to three times, then the parcel waits for the person; every
+  routing one `routed` or `route-failed` ledger line. Step 2, a real model
+  run by hand, waits on a model being chosen.
+
 901c-d, 902b-c and 905b-d remain: number issuance and reuse refusal;
 structured and remaining types; shortest-chain search, joint checking and
 plan execution.

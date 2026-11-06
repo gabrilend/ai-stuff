@@ -39,6 +39,7 @@ local KINDS = {
     ["audited"] = true, ["inspected"] = true,
     ["graded"] = true, ["held"] = true, ["request-done"] = true,
     ["request-failed"] = true, ["goodbye"] = true,
+    ["routed"] = true, ["route-failed"] = true,
 }
 ledger.KINDS = KINDS
 
