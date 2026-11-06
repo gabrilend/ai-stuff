@@ -76,3 +76,9 @@ byte for byte.
   `tail_raw` without naming them (the sections it detects there are
   partial); they write back as read, so nothing fails. Not part of this
   issue.
+
+### Note (2026-11-06)
+
+"Still open" is taken up in 103c: the 4 bytes are the random item tables'
+count of 0, missed by an off-by-one; the 1 byte is a lone 0xFF in place of
+all four sections, kept as it is.
