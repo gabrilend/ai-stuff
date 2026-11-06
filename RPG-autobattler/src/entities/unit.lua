@@ -379,7 +379,10 @@ end
 -- }}}
 
 -- {{{ Unit.are_enemies
-function Unit.are_enemies(entity_manager, unit1, entity2)
+function Unit.are_enemies(entity_manager, unit1, unit2)
+    if not unit1 or not unit2 then
+        return false
+    end
     local team1 = entity_manager:get_component(unit1, "team")
     local team2 = entity_manager:get_component(unit2, "team")
     
