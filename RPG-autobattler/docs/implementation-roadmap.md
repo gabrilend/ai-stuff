@@ -65,7 +65,7 @@
 ## Phase 4: Ability System
 
 ### 4.1 Mana System
-- [ ] Implement mana bars for each unit ability
+- [x] Implement mana bars for each unit ability (Issue #041)
 - [ ] Create mana generation rules (primary vs secondary)
 - [ ] Add conditional mana generation (ranged standing still, melee in range)
 - [ ] Implement mana efficiency (proportional usage)
