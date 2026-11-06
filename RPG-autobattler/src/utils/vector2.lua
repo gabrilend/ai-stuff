@@ -323,11 +323,9 @@ function Vector2.distance(a, b)
 end
 -- }}}
 
--- {{{ Vector2.lerp
-function Vector2.lerp(a, b, t)
-    return a:lerp(b, t)
-end
--- }}}
+-- Vector2.lerp(a, b, t) needs no separate definition: Vector2:lerp(other, t)
+-- above already is Vector2.lerp(self, other, t). A static version that
+-- called a:lerp(b, t) replaced the method with itself and looped forever.
 
 -- }}} End static functions
 
