@@ -13,6 +13,19 @@
 
 No minimap.
 
+## Code review findings to fix
+
+The code review of 2026-11-05 read the unmerged pull request #316 that build this issue. The issue text above is brought over from the branch; the code is still on the branch. Each point below is to be fixed (or answered) before the code merges and this issue is called complete. "Confirmed" means the review reproduced it by running the branch's code; the rest come from reading it. The review's overall summary is in the message of the "code review results" commit.
+
+- The view box returns degenerate polygons (repeated or collinear points) when it only touches the picture from outside, so a stray line or dot is drawn though none of the view is on the map (confirmed). Drop results with fewer than 3 distinct points or zero area.
+- The fallback box measures the whole window while the normal box measures the ground between the top bar and the console, so the box jumps in size when the camera tips toward the horizon; corners that still saw ground are thrown away too.
+- Mapping to the minimap divides by the map's width and height without the zero check `fit` has, giving NaN or infinite points (confirmed).
+- If the camera library fails to build, the test indexes the error string and stops without its summary line, so the runner can't count results.
+- The hud builds a new minimap object for every unit and every ping, every frame.
+- `Minimap:inside` duplicates `layout.inside` and nothing uses it.
+- `fit` quietly fills the whole square for a map with no width; a missing view quad is replaced with an empty list silently.
+- Fold markers don't follow the rule (the `view_box` fold opens on a helper); the white-line picking loop in the test is copied three times, the third looser.
+
 ## Intended Behavior
 
 A minimap element on the page: a screen rectangle in the console, the
@@ -27,7 +40,7 @@ others use: world point to minimap point and back.
 
 ## Acceptance Criteria
 
-- [ ] The two conversions are tested on a square and a non-square map
+- [x] The two conversions are tested on a square and a non-square map
 
 ---
 
@@ -244,3 +257,43 @@ Minimap should render efficiently. Pre-render terrain to texture, only update un
 - issues/506a-ui-component-system.md (base component)
 - issues/502-implement-terrain-rendering.md (terrain data)
 - issues/105-parse-war3map-w3e.md (map bounds)
+
+---
+
+## Decisions (2026-11-06)
+
+Made without the owner, each one theirs to overturn.
+
+1. **The minimap already lived in the interface** (`src/ui/wc3/hud.lua`,
+   issue 518b, 2026-09-29, after this issue's re-cut): its square in the
+   console, dots, view box, clicks and pings, with conversions that
+   stretched the map to the square. The newer code is followed: the
+   module is Lua beside it, `src/ui/wc3/minimap.lua`, and the interface
+   now goes through it, rather than a new element on the page (501),
+   which does not exist yet.
+2. **A map that is not square is fitted as WC3 fits it**: the whole map
+   at one scale across and down, centred in the square, the rest dark.
+   The map's picture is drawn over that rectangle only.
+3. **A click in the dark margin, or past the picture, is the nearest
+   point of the map**, so dragging along the minimap's edge holds the
+   camera to the map's edge.
+4. **The extent is the one the game gives** (`game.minimap`: today the
+   whole terrain, which its picture is made from). Whether WC3's minimap
+   shows the whole terrain, the playable area or the camera bounds is
+   not measured here; changing it is one line in `wc3map/game.lua` and
+   the picture with it.
+5. Based on 501d's branch (#314), not on the headless renderer (#307): the minimap draws through the interface's 2D calls, not the render slots, and its tests take the view's corners from 501d's camera.
+
+## What happened
+
+- `src/ui/wc3/minimap.lua` (with an info page): `fit`, `new`,
+  `to_minimap`, `to_world`, `inside`, `view_box`; `hud.lua` uses it for
+  every minimap point and draws the picture fitted.
+- `src/tests/test_minimap.lua` (59 checks, with 507c-e): a square map, one
+  twice as wide and one twice as tall, both ways, the margins, a map
+  with no width or height.
+- Mutation check of `minimap.lua`: 96 mutants, 89 caught. The 7 left are
+  equivalent: `>` for `>=` where a corner on the picture's edge is cut to
+  itself (4), the loop over the quad's eight numbers run to 8 (1), and a
+  map one unit wide taken as none (2). Of the lines changed in `hud.lua`,
+  30 mutants, 30 caught.
