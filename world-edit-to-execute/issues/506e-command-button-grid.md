@@ -253,3 +253,40 @@ Only show commands common to all selected units.
 - issues/506c-input-handling.md (hotkey system)
 - issues/505e-input-commands.md (command issuance)
 - issues/506f-tooltip-system.md (ability tooltips)
+
+## Decisions (2026-11-05)
+
+Made without the owner, and the owner's to overturn (Q-4: Lua; see 506).
+
+1. **The grid fill was already built, by 518b** (`src/ui/wc3/commands.lua`,
+   September 2026):
+   - move, stop, hold, attack and patrol in their places;
+   - abilities, trains, builds, research, upgrades and shop stock at the
+     positions object data gives (`x`, `y` from `abpx`/`abpy`), falling
+     back to the first free slot;
+   - hotkeys, a Cancel button in every sub-menu, disabled buttons and
+     cooldown shares.
+
+   The hud presses a button the same way by click and by hotkey, and
+   targeted orders enter targeting and take a click. 518b's
+   `test_wc3_interface.lua` checks all three acceptance criteria ("Move
+   at top left", "hotkey M starts targeting", "a click orders the move
+   there", "clicking a button presses it"). Nothing here duplicates it.
+2. **What this adds is the grid as interface elements:**
+   `commands.elements(card, rects)` gives one element per filled slot,
+   with its hotkey, its disabled flag and the button. `ui/hit.lua` then
+   delivers a click and the hotkey as the same button, which is the
+   tested case. It is ready for when the hud's hit test moves to
+   `hit.lua` (506c).
+3. **The stock commands' places are still from memory** (518b's own
+   note). The game's CommandFunc data on the owner's install would
+   confirm them.
+
+## What happened (2026-11-05)
+
+- Added `commands.elements` to `src/ui/wc3/commands.lua`.
+  `test_ui_framework.lua` checks it, and `test_wc3_interface.lua` still
+  passes (76 of 76).
+
+**Left for the owner:** whether 518b's card closes this issue, and the
+stock places from the game's data.

@@ -84,7 +84,8 @@ should be one shared piece rather than a fourth hand-rolled one.
 **Where the compiler comes from: assume it is there.** The device calls
 a C compiler and does not negotiate about it. Embedding a small one is
 the likely answer given there is no package manager on a handheld, and
-the choice belongs to implementation rather than to this issue. What
+the choice belongs to implementation rather than to this issue. *(Chosen
+below, revisably: TinyCC, behind `platform_compile`.)* What
 this issue commits to is the behaviour: source in, a placeable box out,
 or a refusal naming the compiler's own output rather than a summary of
 it.
@@ -143,15 +144,28 @@ discover it is missing.
 
 ### Proposed answers (UNVERIFIED)
 
-1. *Which compiler?* **Not chosen, and still Ritz's to choose** — it is a
-   month of work either way and decides what the device carries. What is
-   built is the seam that makes the choice local: the pipeline hands
-   generated C to `platform_compile` and takes back an entry function, so
-   the embedded compiler (or a box-semantics C subset) slots in behind
-   one call in `src/device/042-platform-device.c` without touching the
-   engine. The twin answers it with the laptop's gcc and `dlopen`; the
-   device answers "this device has no C compiler yet", in those words,
-   and the pipeline passes them back as the refusal.
+1. *Which compiler?* **TinyCC (libtcc), behind a pluggable compile
+   step. A revisable decision: Ritz can overturn it, and overturning it
+   touches one function.** TinyCC is small (a few hundred kilobytes of
+   code), compiles straight into memory with no files and no linker run
+   (`tcc_new`, `tcc_set_output_type(TCC_OUTPUT_MEMORY)`,
+   `tcc_compile_string`, `tcc_relocate`, `tcc_get_symbol` map one-to-one
+   onto what `platform_compile` must do), and has an arm64 back end. What
+   was given up: a C subset written for box semantics would be tighter
+   and could refuse what a box may not do, but it is a month of writing
+   and a second C dialect to keep true; TinyCC's code is slower than
+   gcc's, which matters little for a box someone typed at the
+   touchscreen and can be revisited by compiling hot boxes into the next
+   image. The step stays pluggable because it already is: the pipeline
+   hands generated C to `platform_compile` and takes back an entry
+   function, so TinyCC (or anything else) slots in behind that one call
+   in `src/device/042-platform-device.c` without touching the engine. The
+   twin answers it with the laptop's gcc and `dlopen`. **TinyCC is not
+   vendored yet**: copying it into the project waits for device bring-up
+   (201, 202, 401), when it can be built for the device and tried there.
+   Until then the device answers "this device's C compiler (TinyCC) is not
+   built in yet", in those words, and the pipeline passes them back as
+   the refusal.
 2. *Does the on-device generator share the build's describe mode?* It
    shares the generator itself — the same `gen_read` over the same
    source, and its problems come back verbatim as the refusal, every one,
@@ -216,7 +230,7 @@ silently), 406 (how the source arrives).
 
 ## Blocks
 
-410, 411, 412.
+410, 411, 412, 612.
 
 ## Related
 

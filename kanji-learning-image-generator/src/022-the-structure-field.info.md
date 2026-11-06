@@ -27,6 +27,8 @@ luajit src/022-the-structure-field.lua --chars 森休川 [--out DIR]
 | `M.where(placement, stroke)` | Which box a stroke is drawn in. |
 | `M.blur_for(count, settings)` | How far to soften a character with this many strokes. |
 | `M.build(record, settings, options)` | One character's structure field. |
+| `M.mask(record, settings, width, options)` | The character's strokes as a hard-edged mask: one on a stroke, zero off it. |
+| `M.ink(mask, ink, paper)` | The outside route's canvas: the strokes painted in ink, the rest blank paper. |
 | `M.thumbnail(surface, settings)` | The same field at the size the illusion is supposed to work at. |
 | `M.inspect(surface, measured, settings, record)` | What the field looks like from the outside, as numbers a test can assert on. |
 | `M.edge_ink(surface)` | The most extreme value found anywhere on the outer border. |
@@ -70,6 +72,22 @@ One character's structure field.
 options.polarity   "dark_ink" (default) or "light_ink" options.measured   the stroke measurements, if the caller already has them
 
 Returns the canvas, and a table of what was done to it, which the run report and the card both quote.
+
+### `M.mask(record, settings, width, options)`
+
+The character's strokes as a hard-edged mask: one on a stroke, zero off it.
+
+The two mask routes (`416`) draw the line between the strokes and the rest with this rather than with the blurred field above. The field is a *neighbourhood*, softened on purpose so a control net reads it as light and dark; a mask is a *boundary*, and a soft boundary would let the inside route's subjects and background bleed into each other.
+
+Same placement, same strokes, same order as the field, so the mask and the field are the same character in the same place. No ramp along the writing order: a mask is in or out, and a last stroke at eighty-eight percent would be in at one threshold and out at another.
+
+`width` is in pixels at the reference resolution and is scaled like every other length (`414`). It is wider than the field's stroke because the inside route has to fit *things* along a stroke -- a heron, a femur -- and a hairline has no room for anything.
+
+### `M.ink(mask, ink, paper)`
+
+The outside route's canvas: the strokes painted in ink, the rest blank paper.
+
+`ink` and `paper` are grey levels between zero and one. What the paper is matters little -- every pixel of it is regenerated from noise -- but the ink is kept exactly, pasted back over the finished picture, so it is the character as the learner will see it.
 
 ### `M.thumbnail(surface, settings)`
 

@@ -168,6 +168,13 @@ forest asking for a teeming picture while word stays photographic. Deciding it
 needs more than four characters, and the pool now records which style made each
 rendering, so the comparison is a query rather than an experiment.
 
+**Since 2026-10-04 the Wimmelbild style is gone** (`412`), and the question has
+moved. Those 0.98s are suspect under Q13 — a crowd that assembles into the
+strokes scores highest by construction. The live form of this question is now
+*which route suits which character*: `416` runs every character inside (scene
+only where the strokes are) and outside (the strokes painted, the scene around
+them), and only the inside route's score means anything.
+
 ### Q11 — Are the radical names the right ones?
 
 `401` gives every piece a short name, and those names are **ours**. Most are

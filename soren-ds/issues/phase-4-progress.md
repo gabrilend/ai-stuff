@@ -87,7 +87,8 @@ described and never rebuilt.
   catalogue all at once; failures leave nothing and come back in the
   generator's or compiler's own words. Compiling a file again makes a
   newer unit beside the old. The twin compiles with the laptop's gcc;
-  **the device has no compiler yet — which one to embed is still open**.
+  **the device will use TinyCC behind the same call (a revisable choice), not
+  vendored until device bring-up**.
   `src/engine/087-compile.c` on `086-shelves.c`; test `twin/tests/088`
   (34 checks: late boxes byte-identical to the image's, the width
   refusal, the same-width scramble, written back out and read in).

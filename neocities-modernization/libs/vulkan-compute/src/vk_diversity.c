@@ -53,8 +53,8 @@ VkDiversityContext* vkd_init(VkComputeContext* ctx,
     div_ctx->num_poems = num_poems;
     div_ctx->embedding_dim = embedding_dim;
 
-    printf("[VKD] Initializing diversity context...\n");
-    printf("      Poems: %u, Dimensions: %u\n", num_poems, embedding_dim);
+    VKC_SAY("[VKD] Initializing diversity context...\n");
+    VKC_SAY("      Poems: %u, Dimensions: %u\n", num_poems, embedding_dim);
 
     /* Create GPU buffers */
     size_t embeddings_size = num_poems * embedding_dim * sizeof(float);
@@ -71,13 +71,13 @@ VkDiversityContext* vkd_init(VkComputeContext* ctx,
 
     if (!div_ctx->embeddings_buf || !div_ctx->centroid_buf || !div_ctx->distances_buf ||
         !div_ctx->mask_buf || !div_ctx->result_buf) {
-        fprintf(stderr, "[VKD ERROR] Failed to create GPU buffers\n");
+        VKC_SAY_ERR("[VKD ERROR] Failed to create GPU buffers\n");
         vkd_destroy(div_ctx);
         return NULL;
     }
 
     /* Upload embeddings to GPU (one-time operation) */
-    printf("[VKD] Uploading %.2f MB of embeddings to GPU...\n",
+    VKC_SAY("[VKD] Uploading %.2f MB of embeddings to GPU...\n",
            embeddings_size / (1024.0 * 1024.0));
     vkc_upload_buffer(ctx, div_ctx->embeddings_buf, embeddings, embeddings_size);
 
@@ -90,7 +90,7 @@ VkDiversityContext* vkd_init(VkComputeContext* ctx,
                                                       sizeof(uint32_t));
 
     if (!div_ctx->cosine_pipeline || !div_ctx->centroid_pipeline || !div_ctx->reduction_pipeline) {
-        fprintf(stderr, "[VKD ERROR] Failed to create pipelines\n");
+        VKC_SAY_ERR("[VKD ERROR] Failed to create pipelines\n");
         vkd_destroy(div_ctx);
         return NULL;
     }
@@ -124,7 +124,7 @@ VkDiversityContext* vkd_init(VkComputeContext* ctx,
     }
     memcpy(div_ctx->embeddings, embeddings, embeddings_size);
 
-    printf("[VKD] Initialization complete\n");
+    VKC_SAY("[VKD] Initialization complete\n");
     return div_ctx;
 }
 
@@ -153,13 +153,13 @@ VkComputeResult vkd_compute_sequence(VkDiversityContext* div_ctx,
     /* Initialize centroid with start_poem's embedding */
     const float* start_embedding = &div_ctx->embeddings[start_poem * embedding_dim];
     vkc_upload_buffer(ctx, div_ctx->centroid_buf, start_embedding, embedding_dim * sizeof(float));
-    printf("[VKD] Initialized centroid with poem %u's embedding\n", start_poem);
+    VKC_SAY("[VKD] Initialized centroid with poem %u's embedding\n", start_poem);
 
     /* Initialize sequence */
     output_sequence[0] = start_poem;
     uint32_t count = 1;
 
-    printf("[VKD] Computing diversity sequence starting from poem %u...\n", start_poem);
+    VKC_SAY("[VKD] Computing diversity sequence starting from poem %u...\n", start_poem);
 
     /* Iteratively select most diverse poems */
     for (uint32_t iter = 1; iter < num_poems; iter++) {
@@ -190,7 +190,7 @@ VkComputeResult vkd_compute_sequence(VkDiversityContext* div_ctx,
 
         /* Verify selection is valid */
         if (selected_poem == 0xFFFFFFFF) {
-            fprintf(stderr, "[VKD ERROR] No valid poem found (all masked?) at iteration %u\n", iter);
+            VKC_SAY_ERR("[VKD ERROR] No valid poem found (all masked?) at iteration %u\n", iter);
 
             /* Count available poems */
             uint32_t available_count = 0;
@@ -199,16 +199,16 @@ VkComputeResult vkd_compute_sequence(VkDiversityContext* div_ctx,
             }
 
             /* Show first 10 mask values for debugging */
-            fprintf(stderr, "[VKD DEBUG] First 10 mask values: ");
+            VKC_SAY_ERR("[VKD DEBUG] First 10 mask values: ");
             for (uint32_t i = 0; i < 10 && i < num_poems; i++) {
-                fprintf(stderr, "%u:%u ", i, div_ctx->mask[i]);
+                VKC_SAY_ERR("%u:%u ", i, div_ctx->mask[i]);
             }
-            fprintf(stderr, "\n[VKD DEBUG] Total available: %u / %u\n", available_count, num_poems);
+            VKC_SAY_ERR("\n[VKD DEBUG] Total available: %u / %u\n", available_count, num_poems);
             return VKC_ERROR_COMMAND_EXECUTION_FAILED;
         }
 
         if (selected_poem >= num_poems || div_ctx->mask[selected_poem] == 0) {
-            fprintf(stderr, "[VKD ERROR] Invalid poem selected: %u (mask: %u)\n",
+            VKC_SAY_ERR("[VKD ERROR] Invalid poem selected: %u (mask: %u)\n",
                    selected_poem, div_ctx->mask[selected_poem]);
             return VKC_ERROR_COMMAND_EXECUTION_FAILED;
         }
@@ -235,7 +235,7 @@ VkComputeResult vkd_compute_sequence(VkDiversityContext* div_ctx,
     }
 
     vkc_progress_finish();
-    printf("[VKD] Sequence computation complete\n");
+    VKC_SAY("[VKD] Sequence computation complete\n");
     return VKC_SUCCESS;
 }
 
@@ -283,7 +283,7 @@ void vkd_destroy(VkDiversityContext* div_ctx) {
     }
 
     free(div_ctx);
-    printf("[VKD] Cleanup complete\n");
+    VKC_SAY("[VKD] Cleanup complete\n");
 }
 
 /* }}} */
@@ -357,7 +357,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
          * unpackHalf2x16 efficiently; an odd dim count would leave a tail
          * half that the current shader does not handle. Embedding models
          * that produce odd dims would need a shader update to support. */
-        fprintf(stderr, "[VKD Batch ERROR] embedding_dim must be even for the FP16-packed shader; got %u\n", embedding_dim);
+        VKC_SAY_ERR("[VKD Batch ERROR] embedding_dim must be even for the FP16-packed shader; got %u\n", embedding_dim);
         return NULL;
     }
 
@@ -371,8 +371,8 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     batch_ctx->embedding_dim = embedding_dim;
     batch_ctx->batch_size = batch_size;
 
-    printf("[VKD Batch] Initializing batch context...\n");
-    printf("      Poems: %u, Dimensions: %u, Batch size: %u\n",
+    VKC_SAY("[VKD Batch] Initializing batch context...\n");
+    VKC_SAY("      Poems: %u, Dimensions: %u, Batch size: %u\n",
            num_poems, embedding_dim, batch_size);
 
     /* Calculate buffer sizes. Embeddings are FP16-packed: each value is
@@ -385,11 +385,11 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     size_t output_size = (size_t)batch_size * num_poems * sizeof(uint32_t);
     size_t selections_size = (size_t)batch_size * sizeof(uint32_t);
 
-    printf("[VKD Batch] Buffer sizes:\n");
-    printf("      Embeddings (FP16): %.2f MB\n", embeddings_size / (1024.0 * 1024.0));
-    printf("      Centroids (FP32): %.2f MB\n", centroids_size / (1024.0 * 1024.0));
-    printf("      Masks: %.2f MB\n", masks_size / (1024.0 * 1024.0));
-    printf("      Total GPU memory: %.2f MB\n",
+    VKC_SAY("[VKD Batch] Buffer sizes:\n");
+    VKC_SAY("      Embeddings (FP16): %.2f MB\n", embeddings_size / (1024.0 * 1024.0));
+    VKC_SAY("      Centroids (FP32): %.2f MB\n", centroids_size / (1024.0 * 1024.0));
+    VKC_SAY("      Masks: %.2f MB\n", masks_size / (1024.0 * 1024.0));
+    VKC_SAY("      Total GPU memory: %.2f MB\n",
            (embeddings_size + centroids_size + masks_size + counts_size + output_size) / (1024.0 * 1024.0));
 
     /* Create GPU buffers */
@@ -402,14 +402,14 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
 
     if (!batch_ctx->embeddings_buf || !batch_ctx->centroids_buf || !batch_ctx->masks_buf ||
         !batch_ctx->counts_buf || !batch_ctx->output_buf || !batch_ctx->selections_buf) {
-        fprintf(stderr, "[VKD Batch ERROR] Failed to create GPU buffers\n");
+        VKC_SAY_ERR("[VKD Batch ERROR] Failed to create GPU buffers\n");
         vkd_batch_destroy(batch_ctx);
         return NULL;
     }
 
     /* Upload FP16-packed embeddings to the GPU. The shader reads these
      * via unpackHalf2x16 on the fly; no conversion happens here. */
-    printf("[VKD Batch] Uploading %.2f MB of FP16 embeddings to GPU...\n",
+    VKC_SAY("[VKD Batch] Uploading %.2f MB of FP16 embeddings to GPU...\n",
            embeddings_size / (1024.0 * 1024.0));
     vkc_upload_buffer(ctx, batch_ctx->embeddings_buf, embeddings_fp16, embeddings_size);
 
@@ -425,7 +425,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     for (uint32_t i = 0; i < batch_size; i++) {
         uint32_t start_poem = start_indices[i];
         if (start_poem >= num_poems) {
-            fprintf(stderr, "[VKD Batch ERROR] Invalid start index: %u\n", start_poem);
+            VKC_SAY_ERR("[VKD Batch ERROR] Invalid start index: %u\n", start_poem);
             free(initial_centroids);
             vkd_batch_destroy(batch_ctx);
             return NULL;
@@ -490,7 +490,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     batch_ctx->batch_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/diversity_full.spv",
                                                       sizeof(uint32_t) * 5);  /* num_poems, embedding_dim, start_slot, slot_count, tile_size */
     if (!batch_ctx->batch_pipeline) {
-        fprintf(stderr, "[VKD Batch ERROR] Failed to create pipeline\n");
+        VKC_SAY_ERR("[VKD Batch ERROR] Failed to create pipeline\n");
         vkd_batch_destroy(batch_ctx);
         return NULL;
     }
@@ -513,7 +513,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     batch_ctx->running_max_index_buf =
         vkc_create_buffer(ctx, running_max_index_size, VKC_BUFFER_DEVICE_LOCAL);
     if (!batch_ctx->running_max_distance_buf || !batch_ctx->running_max_index_buf) {
-        fprintf(stderr, "[VKD Batch ERROR] Failed to create running-max buffers\n");
+        VKC_SAY_ERR("[VKD Batch ERROR] Failed to create running-max buffers\n");
         vkd_batch_destroy(batch_ctx);
         return NULL;
     }
@@ -546,7 +546,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     batch_ctx->scan_tile_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/diversity_scan_tile.spv",
                                                          sizeof(uint32_t) * 4);
     if (!batch_ctx->scan_tile_pipeline) {
-        fprintf(stderr, "[VKD Batch ERROR] Failed to create scan_tile pipeline\n");
+        VKC_SAY_ERR("[VKD Batch ERROR] Failed to create scan_tile pipeline\n");
         vkd_batch_destroy(batch_ctx);
         return NULL;
     }
@@ -562,7 +562,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     batch_ctx->commit_iteration_pipeline = vkc_create_pipeline(ctx, "libs/vulkan-compute/build/diversity_commit_iteration.spv",
                                                                 sizeof(uint32_t) * 3);
     if (!batch_ctx->commit_iteration_pipeline) {
-        fprintf(stderr, "[VKD Batch ERROR] Failed to create commit_iteration pipeline\n");
+        VKC_SAY_ERR("[VKD Batch ERROR] Failed to create commit_iteration pipeline\n");
         vkd_batch_destroy(batch_ctx);
         return NULL;
     }
@@ -578,7 +578,7 @@ VkDiversityBatchContext* vkd_batch_init(VkComputeContext* ctx,
     // candidate in a tile), commit (records the per-iteration winner), and the
     // legacy single-dispatch batch shader. They are algorithm stages, not
     // parallel workers -- distinct from how the *work* is chunked into batches.
-    printf("[VKD Batch] Initialization complete (3 compute shaders: tile-scan, commit, batch)\n");
+    VKC_SAY("[VKD Batch] Initialization complete (3 compute shaders: tile-scan, commit, batch)\n");
     return batch_ctx;
 }
 
@@ -802,7 +802,7 @@ void vkd_batch_destroy(VkDiversityBatchContext* batch_ctx) {
     }
 
     free(batch_ctx);
-    printf("[VKD Batch] Cleanup complete\n");
+    VKC_SAY("[VKD Batch] Cleanup complete\n");
 }
 
 /* }}} */

@@ -59,6 +59,19 @@ the result the downloader records.
   permission, so fetching from the original post stays the default and
   bundling is the exception.
 
+**Three ways to open it (2026-11-04).** The owner, of sharing maps and
+models: "we can have a small 'launcher style' system that users can open
+to view and browse and such. They could also be viewed and browsed through
+the browser." So the catalogue, and the shared map-and-model lists beside
+its entries (609), open in:
+
+- **a small launcher** of this project's, started on its own, without the
+  editor or the W client;
+- **an ordinary web browser**, the same page;
+- **the W client's flat pane**, as decided 2026-10-07 (open question 1).
+
+One page serves all three; what differs is only who draws it.
+
 ## Suggested Implementation Steps
 
 1. Read the catalogue files through 603's catalogue reader; nothing here
@@ -83,11 +96,60 @@ the result the downloader records.
 
 ## Open Questions
 
-1. A page or an in-engine screen first? A page is quicker and matches the
-   documentation pages; an in-engine screen is where a player picking a map
-   to play would be.
-2. Where are shared lists (609) shown: next to a map in this catalogue?
-   (Asked in 609 too.)
+1. ~~A page or an in-engine screen first?~~ Answered 2026-10-07: both, as
+   one thing. The browser is an HTML page, and the W client draws it into
+   a texture and shows it on a flat pane (the owner: "maybe we just render
+   the browser to HTML and cast it onto a flat UI pane in the W client?
+   And our Azerothcore project ... can do the same"; W client 110f).
+2. ~~Where are shared lists (609) shown: next to a map in this catalogue?~~
+   Answered 2026-11-04: here, in the launcher and the web page ("Three
+   ways to open it", above).
+3. ~~Which HTML capabilities the pane needs~~ Answered 2026-10-07:
+   scripts are needed (a search that narrows as one types, downloads
+   that show progress), and the one thing a still page can't do is "spin
+   a 3d model to see the other sides or watch animations in action"
+   (the owner). So the page holds a **live model box**: a place in the
+   layout the W client fills with a view drawn into a texture (W client
+   110f), turned by the mouse, playing the model's animations.
+4. ~~Lua for the page's scripts instead of JavaScript?~~ Answered
+   2026-10-07: (a), Lua scripts, inside the W client only; "We can build a
+   separate javascript web viewer if we want that later" (the owner).
+   The question as asked: (the owner: "Can
+   we build them in lua instead of javascript? Or is that a terrible
+   idea?") Not terrible: the W client already runs Lua for its interface
+   (Phase 7, where WoW itself lays out its interface in XML and scripts
+   it in Lua). The cost is that an ordinary web browser runs only
+   JavaScript, so a Lua-scripted page works only inside the W client,
+   unless the page also loads a Lua interpreter written in JavaScript
+   (Fengari, which runs Lua 5.3: scripts kept to what LuaJIT and Lua 5.3
+   share would run in both). Options: (a) Lua scripts, W client only;
+   (b) Lua scripts, plus Fengari so the same page works in web browsers
+   and in the AzerothCore project's pages; (c) the browser built as a W
+   client interface screen (XML and Lua) rather than HTML. Which?
+5. **Scripts in an ordinary web browser.** Asked 2026-11-04. Answer 4
+   kept the page's Lua scripts inside the W client, with "a separate
+   javascript web viewer if we want that later". The launcher and the web
+   browser now want the page too. Does the page carry Fengari (one Lua
+   interpreter written in JavaScript, so the same scripts run in all
+   three), or does the web browser get the separate JavaScript viewer
+   answer 4 left for later? And does the launcher draw the page itself
+   (it would need an HTML engine) or open it in the user's web browser?
+   Answered the same day, the owner: "no to fengari", then: "Let's do
+   javascript, and run a little browser inside the client as an addon. We
+   need feature parity with WoW's client, so... we need addons, and plenty
+   of them have created web-browsers inside the client." So the page's
+   moving parts (the search that narrows as one types, download progress,
+   the live model box) are JavaScript, and this replaces answer 4's Lua.
+   One page: an ordinary web browser opens it as it is, and inside the W
+   client a web browser addon opens it (W client issue 710).
+6. ~~**How does the launcher show the page?**~~ Answered 2026-11-04, the
+   owner: "the user could visit the page on their browser, or view it in
+   their client / launcher. the client / launcher don't open the
+   browser." So the launcher shows the page itself, with a full browser
+   engine (the owner, same day: "full browser engine"), the same one the
+   W client's browser addon (its 710) uses. The question as asked: by
+   opening it in the user's own web browser, or with a page engine of its
+   own?
 
 ## Related Documents
 

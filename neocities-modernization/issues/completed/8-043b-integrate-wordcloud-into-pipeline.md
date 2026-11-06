@@ -141,3 +141,4 @@ Stage 9: Generate HTML
 - **Completed**: 2026-01-21
 - **Phase**: 8 (Website Completion)
 - **Parent Issue**: 8-043
+- **Blocks**: 8-050 (the word pages rank against the word embeddings this stage makes)

@@ -62,7 +62,10 @@ local MAX_DEPTH = 8
 
 -- {{{ local function new_command()
 local function new_command(depth)
-    return { words = {}, heredocs = {}, depth = depth }
+    -- redirects: { op = string, target = string } for every redirection
+    -- with a file target, in the order typed (refuse-outside-writes reads
+    -- them; the other gates only read words, which never hold targets)
+    return { words = {}, heredocs = {}, redirects = {}, depth = depth }
 end
 -- }}}
 
@@ -153,7 +156,9 @@ function scan.commands(text, depth)
     local current = new_command(depth)
     local word = nil            -- the word being built, or nil between words
     local word_quoted = false   -- did any part of this word come from quotes?
-    local skip_next_word = false -- the next finished word is a redirect target
+    local skip_next_word = false -- the next finished word is a redirect target:
+                                 -- false, true (data: a here-string), or the
+                                 -- operator as typed (`>`, `>>`, `&>`, `<`...)
     local heredoc_next = nil    -- the next finished word is a heredoc delimiter
     local pending_heredocs = {} -- delimiters waiting for the next newline
     local nested_scripts = {}   -- inner scripts to read after this line
@@ -179,7 +184,12 @@ function scan.commands(text, depth)
             pending_heredocs[#pending_heredocs + 1] = heredoc_next
             heredoc_next = nil
         elseif skip_next_word then
-            -- a redirection target is where output goes, not an argument
+            -- a redirection target is where output goes, not an argument;
+            -- one with an operator is kept aside as a redirect, a here-string's
+            -- data (true) is not a place at all
+            if skip_next_word ~= true then
+                current.redirects[#current.redirects + 1] = { op = skip_next_word, target = w }
+            end
             skip_next_word = false
         elseif #current.words == 0 and not quoted and RESERVED_AT_COMMAND_START[w] then
             -- grammar in front of a command; the command starts after it
@@ -343,7 +353,7 @@ function scan.commands(text, depth)
             -- target word is dropped when it finishes
             local op = text:match("^[<>][<>|&]?", pos)
             pos = pos + #op
-            skip_next_word = true
+            skip_next_word = op
         end
     end
     -- }}}
@@ -379,8 +389,9 @@ function scan.commands(text, depth)
         if nxt == ">" then
             -- &> and &>> redirect both streams; the target is not an argument
             finish_word()
-            pos = pos + (text:sub(pos + 2, pos + 2) == ">" and 3 or 2)
-            skip_next_word = true
+            local both = text:sub(pos + 2, pos + 2) == ">" and "&>>" or "&>"
+            pos = pos + #both
+            skip_next_word = both
         else
             finish_command()
             pos = pos + (nxt == "&" and 2 or 1)

@@ -1,0 +1,3 @@
+Made by scripts/see-in-3d views, 2026-10-10 23:48:38, in conversation 151ddaeb-59f4-466e-abd5-8862afcb9075, so the agent's looking is kept with the project and shown where it happened.
+scene: /home/ritz/programming/ai-stuff/scripts/tmp/shared-memory/see-in-3d/figure-perspective-scene.lua
+picture: views.jpg -- the game camera looks down at 62 degrees: the ground is a tilted plate; on the left, villagers standing straight up in the world (as now) seem to lean toward the viewer; on the right, villagers stood upright toward the screen, as sprites, stand straight up the picture -- front, right / top, angle
