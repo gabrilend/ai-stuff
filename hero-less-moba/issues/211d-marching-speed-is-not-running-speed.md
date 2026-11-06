@@ -23,10 +23,12 @@ the table they were picked from.
 anchor. That is what replaced hurrying: a body on the outside of a bend has further to
 walk and cannot make it up by going faster, so the front stops asking for it.
 
-**Running is not built.** There is one speed in the catalogue and the third gear has
-no number and no caller. It belongs to a body that has been beaten and is getting out,
-which is [issue 212](212-a-beaten-body-gets-one-roll.md), and it should be a second
-number on the archetype row rather than a multiple of the first.
+**Running is built, for [issue 212](212-a-beaten-body-gets-one-roll.md), and as a gait.**
+This paragraph asked for a second number on the archetype row rather than a multiple of
+the first. The pace table that came after it (216c) made every gait a multiplier on a
+body's own speed, so that nothing is ever handed speed, and running follows that: `run`,
+1.6, read in exactly one place — the recovery step of a routed body — and checked to be.
+The cohesion clamps are still closed.
 
 ## Intended behavior
 

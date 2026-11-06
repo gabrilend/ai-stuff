@@ -97,6 +97,20 @@ cheap standing versions, kept here so a whole-match run notices.
 | Bodies fall and begin decaying rather than vanishing; a decaying body is not alive, is not in the living count, still holds its own slot halfway through, can be brought back intact, and nobody was paid for a death that was taken back | …makes a death instant again. The slot being reachable is the entire mechanism by which a death can ever be corrected from another machine — once it is recycled there is nothing left to write onto. |
 | Bodies spend time decaying over a whole match, their deaths are announced when they become certain, a finished decay hands the slot back, and nothing decays for longer than its span | …breaks the far end. A body stuck decaying would hold its slot for the rest of the match and never pay anybody, and the free list would drain until the world ran out of room. |
 
+### A beaten body gets one roll
+
+Issue 212, asked of a world that has never ticked, with the will stream replaced by a
+die that always rolls the same face. The `-- covers: 212` line sits beside these rather
+than in the header.
+
+| Check | Fails the day somebody… |
+| --- | --- |
+| A body that fails lives with one point of health, runs, and lands nothing; beaten again, it dies without rolling | …lets a body roll twice, or makes failing a death. |
+| A body that passes stays, dies, and lands one blow on its target out of reach and off cooldown; a guard has no roll and simply dies | …makes the last blow a swing like any other, which a dying body would usually not get. |
+| A monster that beats a wave takes seven last blows, enough of them kill it, and the Golem given three waves of them does not move | …breaks the one way big things die. |
+| A last blow that beats somebody lets them land theirs in the same pass, and nothing is owed afterwards | …lands last blows a tick late, or leaks the list into the next tick. |
+| A routed body gets out at running pace, and running pace is read in exactly one place in the source | …lets anything still in a fight run (211d). |
+
 ### Line of sight, and the rank behind the line
 
 | Check | Fails the day somebody… |

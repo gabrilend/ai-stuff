@@ -1385,6 +1385,222 @@ local function test_a_replay_knows_which_rules_it_was_played_under()
 end
 -- }}}
 
+-- {{{ A beaten body gets one roll
+-- covers: 212
+--
+-- The will save, asked of a world that has never ticked: bodies are stood where a
+-- check needs them, given exactly the damage that beats them, and resolved once. The
+-- die is replaced by one that always says the same thing, so each check asks about
+-- one outcome rather than about luck.
+
+-- {{{ local function a_loaded_die()
+-- A stand-in for a team's will stream that always rolls `face`, and counts its rolls.
+local function a_loaded_die(face)
+  local die = {face = face, rolls = 0}
+  function die:next_below(limit)
+    self.rolls = self.rolls + 1
+    return math.min(self.face, limit)
+  end
+  return die
+end
+-- }}}
+
+-- {{{ local function a_field()
+-- A fresh world with a way to stand a body of a given row at a point, off every lane.
+local function a_field()
+  local world, modules, parameters = fresh_world(tick_module)
+  local soldier = world.soldier
+  local function put(team, archetype, x, y)
+    local id = world.allocate(world)
+    world.give_body(world, id, parameters.unit.archetype[archetype])
+    soldier.team[id] = team
+    soldier.archetype[id] = archetype
+    soldier.lane[id] = 0
+    soldier.x[id], soldier.y[id] = x, y
+    return id
+  end
+  local function row_named(name)
+    for index, row in ipairs(parameters.unit.archetype) do
+      if row.name == name then return index end
+    end
+    error("no archetype named " .. name)
+  end
+  return world, modules, parameters, put, row_named
+end
+-- }}}
+
+-- {{{ local function test_a_beaten_body_rolls_once()
+-- Failing is what lets a body live: it keeps one point of health and runs, and lands
+-- nothing. Beaten a second time, it does not roll again -- it dies.
+local function test_a_beaten_body_rolls_once()
+  local world, modules, _, put = a_field()
+  local soldier = world.soldier
+  local coward = put(1, 1, 0, 0)
+  local enemy = put(2, 1, 400, 0)
+  soldier.target[coward] = enemy
+  local fails, passes = a_loaded_die(1), a_loaded_die(8)
+  world.stream.will[1] = fails
+
+  world.pending_damage[coward] = soldier.health[coward] + 10
+  modules.combat.resolve_pass(world)
+  check("a body that fails its save lives, with one point of health, and runs",
+        soldier.state[coward] == 7 and soldier.routed[coward] == 1
+          and soldier.health[coward] == 1 and soldier.rolled[coward] == 1,
+        string.format("state %d, routed %d, health %s", soldier.state[coward],
+                      soldier.routed[coward], tostring(soldier.health[coward])))
+  check("and lands nothing",
+        soldier.health[enemy] == soldier.health_max[enemy])
+
+  world.stream.will[1] = passes
+  world.pending_damage[coward] = 5
+  modules.combat.resolve_pass(world)
+  check("beaten a second time, it dies without rolling again",
+        soldier.state[coward] == 5 and passes.rolls == 0
+          and soldier.health[enemy] == soldier.health_max[enemy],
+        string.format("state %d after %d more rolls", soldier.state[coward], passes.rolls))
+end
+-- }}}
+
+-- {{{ local function test_passing_is_staying()
+-- Passing is what makes a body stay: it lands one blow and dies. The blow is
+-- guaranteed -- its target is far out of reach and its weapon is not ready -- and a
+-- body that never rolls, a guard, simply dies.
+local function test_passing_is_staying()
+  local world, modules, parameters, put, row_named = a_field()
+  local soldier = world.soldier
+  local hero = put(1, 1, 0, 0)
+  local enemy = put(2, 1, 900, 0)
+  soldier.target[hero] = enemy
+  soldier.cooldown[hero] = soldier.cooldown_max[hero]
+  local passes = a_loaded_die(8)
+  world.stream.will[1] = passes
+
+  world.pending_damage[hero] = soldier.health[hero]
+  modules.combat.resolve_pass(world)
+  local landed = soldier.damage[hero] - soldier.armour[enemy]
+  check("a body that passes its save stays, and dies",
+        soldier.state[hero] == 5 and soldier.routed[hero] == 0)
+  check("and lands one blow on what it was fighting, out of reach and off cooldown",
+        soldier.health_max[enemy] - soldier.health[enemy] == landed,
+        string.format("took %s, one blow is %s",
+                      tostring(soldier.health_max[enemy] - soldier.health[enemy]),
+                      tostring(landed)))
+
+  local guard = put(1, row_named("guard"), 0, 50)
+  soldier.target[guard] = enemy
+  local before = soldier.health[enemy]
+  world.pending_damage[guard] = soldier.health[guard]
+  modules.combat.resolve_pass(world)
+  check("a body with no will to roll, a guard, simply dies and strikes nothing",
+        soldier.state[guard] == 5 and passes.rolls == 1 and soldier.health[enemy] == before)
+end
+-- }}}
+
+-- {{{ local function test_last_blows_bring_down_a_monster()
+-- The thing the roll exists for. A monster that beats a whole wave takes the wave's
+-- worth of last blows, and enough of them kill it. The Golem, given the same, does
+-- not move.
+local function test_last_blows_bring_down_a_monster()
+  local world, modules, parameters, put, row_named = a_field()
+  local soldier = world.soldier
+  world.stream.will[1] = a_loaded_die(8)
+
+  local function a_wave_beaten_by(monster)
+    local wave = {}
+    for index = 1, 7 do
+      local id = put(1, 1, -60, index * 10)
+      soldier.target[id] = monster
+      world.pending_damage[id] = soldier.health[id]
+      wave[#wave + 1] = id
+    end
+    modules.combat.resolve_pass(world)
+    return wave
+  end
+
+  local orc = put(3, row_named("the Pillar Orc"), 0, 0)
+  local blow = math.max(1, parameters.unit.archetype[1].damage - soldier.armour[orc])
+  local start = soldier.health[orc]
+  a_wave_beaten_by(orc)
+  check("a monster that beats a wave takes the wave's worth of last blows",
+        start - soldier.health[orc] == blow * 7,
+        string.format("took %s, seven last blows are %d",
+                      tostring(start - soldier.health[orc]), blow * 7))
+
+  soldier.health[orc] = blow * 7
+  a_wave_beaten_by(orc)
+  check("and enough of them kill it", soldier.state[orc] == 5,
+        string.format("health %s", tostring(soldier.health[orc])))
+
+  local golem = put(3, row_named("the Eternal Golem"), 0, 300)
+  local whole = soldier.health[golem]
+  for _ = 1, 3 do a_wave_beaten_by(golem) end
+  check("and the Golem, given the same, does not move",
+        soldier.health[golem] == whole and soldier.state[golem] ~= 5)
+end
+-- }}}
+
+-- {{{ local function test_a_last_blow_can_beat_somebody()
+-- A last blow is a blow like any other: the body it beats rolls in turn, inside the
+-- same pass. That cannot run away, because nobody rolls twice.
+local function test_a_last_blow_can_beat_somebody()
+  local world, modules, _, put = a_field()
+  local soldier = world.soldier
+  world.stream.will[1] = a_loaded_die(8)
+  world.stream.will[2] = a_loaded_die(8)
+
+  local first = put(1, 1, 0, 0)
+  local second = put(2, 1, 30, 0)
+  local third = put(1, 1, 60, 0)
+  soldier.target[first] = second
+  soldier.target[second] = third
+  soldier.health[second], soldier.health[third] = 1, 1
+  world.pending_damage[first] = soldier.health[first]
+  modules.combat.resolve_pass(world)
+  check("a last blow that beats somebody lets them land theirs in the same pass",
+        soldier.state[second] == 5 and soldier.state[third] == 5,
+        string.format("states %d and %d", soldier.state[second], soldier.state[third]))
+  check("and the list of blows owed is empty afterwards", world.last_blow_count == 0)
+end
+-- }}}
+
+-- {{{ local function test_only_a_routed_body_runs()
+-- Running is for leaving and nothing else (211d). A routed body gets out at running
+-- pace, and running pace is read in exactly one place in the source.
+local function test_only_a_routed_body_runs()
+  local world, modules, parameters = fresh_world(tick_module)
+  local soldier = world.soldier
+  local id = world.allocate(world)
+  world.give_body(world, id, parameters.unit.archetype[1])
+  soldier.team[id], soldier.archetype[id], soldier.lane[id] = 1, 1, 1
+  soldier.facing[id] = 1
+  modules.walking.set_lane_position(world, id, world.map.lane[1].length * 0.5, 0)
+
+  local function a_step()
+    local x, y = soldier.x[id], soldier.y[id]
+    modules.rest_of_brain.recover(world, id)
+    return math.sqrt((soldier.x[id] - x) ^ 2 + (soldier.y[id] - y) ^ 2)
+  end
+  local walked = a_step()
+  soldier.routed[id] = 1
+  local ran = a_step()
+  local want = soldier.speed[id] * parameters.unit.pace.run
+  check("a routed body gets out at running pace, and a wounded one at a walk",
+        math.abs(ran - want) < 1e-6 and ran > walked,
+        string.format("ran %.3f against %.3f, walked %.3f", ran, want, walked))
+
+  local readers = 0
+  for name in io.popen('ls "' .. ROOT .. '/src"'):lines() do
+    if name:match("%.lua$") then
+      local text = io.open(ROOT .. "/src/" .. name):read("*a")
+      for _ in text:gmatch("pace%.run") do readers = readers + 1 end
+    end
+  end
+  check("and running pace is read in exactly one place", readers == 1,
+        string.format("read in %d places", readers))
+end
+-- }}}
+-- }}}
+
 -- {{{ local function test_a_death_takes_two_seconds()
 -- A body at zero health leaves the field at once and its death becomes final later.
 --
@@ -1758,6 +1974,11 @@ test_a_friend_blocks_the_view()
 test_a_rank_fans_and_concentrates()
 test_a_death_takes_two_seconds()
 test_a_death_is_paid_for_when_it_is_certain()
+test_a_beaten_body_rolls_once()
+test_passing_is_staying()
+test_last_blows_bring_down_a_monster()
+test_a_last_blow_can_beat_somebody()
+test_only_a_routed_body_runs()
 test_formation_turns_a_corner()
 test_nothing_is_ever_hurried()
 test_the_opening_is_symmetric()

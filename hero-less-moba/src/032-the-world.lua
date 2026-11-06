@@ -332,6 +332,13 @@ local function make_soldier_arrays(capacity, kind_count)
   -- heal is a thing that runs rather than a thing that lands, which is what lets it
   -- have many going at once.
   soldier.regenerating      = zeroed(capacity)
+  -- The beaten body's one roll (issue 212). `will` is the die it rolls, copied from its
+  -- row, 0 for a body that never rolls. `rolled` is 1 once it has rolled, for the rest of
+  -- its life -- the second time it is beaten it simply dies. `routed` is 1 while it is
+  -- running from the roll it failed, which is the only time anything runs.
+  soldier.will              = zeroed(capacity)
+  soldier.rolled            = zeroed(capacity)
+  soldier.routed            = zeroed(capacity)
   soldier.regen_rate        = zeroed(capacity)
   -- Ticks of curse remaining. On an **enemy**: a curse-doctor heals whoever is in
   -- melee range of it, which makes its choice a targeting decision about the other
@@ -434,6 +441,11 @@ function M.create(parameters, map, stream)
     -- and a separate pass adds it into health, which is what makes two soldiers
     -- who would kill each other on the same tick both die.
     pending_damage = zeroed(capacity),
+    -- The bodies that passed their will save this tick and owe one last blow, in the
+    -- order they were beaten. Filled and emptied inside one resolve pass; a list of
+    -- slots with a count, so nothing allocates while a fight is being lost.
+    last_blow = zeroed(capacity),
+    last_blow_count = 0,
 
     -- The free list. Popping from the end is O(1) and, more importantly, is
     -- deterministic: the same match always reuses the same slots in the same
@@ -646,6 +658,9 @@ function M.release(world, id)
   soldier.orbit_milestone[id] = 0
   soldier.regenerating[id] = 0
   soldier.regen_rate[id] = 0
+  soldier.will[id] = 0
+  soldier.rolled[id] = 0
+  soldier.routed[id] = 0
   soldier.cursed[id] = 0
   for kind = 1, #soldier.upgrade_count do
     soldier.upgrade_count[kind][id] = 0
@@ -735,6 +750,9 @@ function M.give_body(world, id, row)
   soldier.speed[id]         = row.speed
   soldier.cooldown[id]      = row.cooldown_max
   soldier.cooldown_max[id]  = row.cooldown_max
+  -- The die, but not whether it has been rolled: a body re-stamped in place (a guard
+  -- under a changed tower) keeps the roll it has already spent.
+  soldier.will[id]          = row.will
   soldier.state[id]         = M.STATE_WALKING
   soldier.target[id]        = 0
   soldier.target_generation[id] = 0

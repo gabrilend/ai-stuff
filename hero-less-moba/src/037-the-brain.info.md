@@ -32,7 +32,7 @@ heroes at the centre of it, visibly stupid soldiers are the whole product.
 | 4 | **leashing** | Guards only. Walk back toward the leash node, **refusing to acquire anything on the way**. |
 | 5 | **dying** | One tick of bookkeeping, done by the reap pass. |
 | 6 | **waiting** | A hero standing at its own library during a calm. *Not built.* |
-| 7 | **recovering** | A wounded body that has pulled out of the line to mend. *Not built.* |
+| 7 | **recovering** | A wounded body that has pulled out of the line to mend, or a **routed** one that failed its will save and is running (issue 212). A routed body goes back in once mended to nine tenths, not because the line needs it. |
 
 States 6 and 7 have rows so that the table is the whole list of states rather than the
 list of implemented ones.

@@ -43,6 +43,8 @@ something else.
 | `archetype` | array of rows | One row per kind of body. A body's `archetype` field is an index into this. |
 | `max_radius` | number | The biggest body in the catalogue, in paces. **Derived from the rows**, not written down, so an archetype larger than the Golem cannot silently make a spatial query too small to find it. |
 | `wave` | table | What a wave is made of and how often one leaves the base. |
+| `pace` | table | The gaits as multipliers on a body's own speed: `relax`, `normal`, `hurry`, and `run`. **`run` is for leaving and nothing else** -- a beaten body that failed its will save -- and is read in one place, the recovery step. |
+| `will_target` | integer | What a will roll must reach to pass. 5. |
 
 ## An archetype row
 
@@ -58,6 +60,7 @@ something else.
 | `acquire_range` | double | Wider than `range`, so a body commits to a fight slightly before it can hit. |
 | `speed` | double | Paces per tick. |
 | `cooldown_max` | integer | Ticks between swings. |
+| `will` | integer | **The die a beaten body rolls once** (issue 212): 6 ranged, 8 melee, 10 captains, 12 heroes. **0 never rolls**: guards and monsters. Passing `will_target` makes it stay and land one last blow; failing makes it run. |
 
 The four rows are melee (1), ranged (2), captain (3), guard (4). A body **copies**
 these values into its own slot at birth; nothing ever reads a row through a

@@ -398,7 +398,13 @@ function M.recover(world, id)
     soldier.health[id] = soldier.health_max[id]
   end
 
+  -- **The one place anything runs.** A routed body is getting out of a fight it lost
+  -- (issue 212); every other body falling back gives ground at a walk. Running is read
+  -- here and nowhere else, so nothing still part of a fight can run (211d).
   local step = soldier.speed[id] * GIVING_GROUND
+  if soldier.routed[id] == 1 then
+    step = soldier.speed[id] * world.parameters.unit.pace.run
+  end
   world.walking.move_limited(world, id, -step * soldier.facing[id], 0, step)
 end
 -- }}}
