@@ -150,11 +150,38 @@ transcript_basename_start_ymd() {
 # {{{ transcript_is_new_format()
 # True when a filename is already in the date-range scheme, so the migrator can
 # skip it and stay idempotent. Matches "mon-d-yy", an optional "-through-..."
-# span, and an optional "_agent-N" collision suffix.
+# span, and an optional "_agent-N" collision suffix. The date may follow words
+# - lowercase letters and digits joined by single dashes - as in a helper's
+# "<task-words>-<date>.md" or delta-version 056c's "<slug>-<date>.md".
 transcript_is_new_format() {
    local name
    name="$(basename "$1")"
-   [[ "$name" =~ ^[a-z]{3}-[0-9]{1,2}-[0-9]{2}(-through-[a-z]{3}-[0-9]{1,2}-[0-9]{2})?(_agent-[0-9]+)?\.md$ ]]
+   [[ "$name" =~ ^([a-z0-9]+(-[a-z0-9]+)*-)?[a-z]{3}-[0-9]{1,2}-[0-9]{2}(-through-[a-z]{3}-[0-9]{1,2}-[0-9]{2})?(_agent-[0-9]+)?\.md$ ]]
+}
+# }}}
+
+# {{{ transcript_name_words()
+# The words in front of a transcript name's date: "sky-talk-jul-20-26_agent-1.md"
+# -> "sky-talk". Prints nothing for a bare date name, and nothing for a name
+# that does not end in a date or whose front is not words joined by single
+# dashes, so only a name in the scheme ever hands its words on.
+transcript_name_words() {
+   local base
+   base="$(transcript_strip_suffix "$1")"
+   local tok='[a-z]{3}-[0-9]{1,2}-[0-9]{2}'
+   local date_part="(${tok})(-through-(${tok}))?"
+   # A bare date or span has no words. Checked first, because a span's own
+   # start ("jul-20-26-through") is shaped like words.
+   [[ "$base" =~ ^${date_part}$ ]] && return 0
+   local front=""
+   if [[ "$base" =~ ^(.+)-${tok}-through-${tok}$ ]]; then
+      front="${BASH_REMATCH[1]}"
+   elif [[ "$base" =~ ^(.+)-${tok}$ ]]; then
+      front="${BASH_REMATCH[1]}"
+   fi
+   if [[ "$front" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+      printf '%s\n' "$front"
+   fi
 }
 # }}}
 
@@ -232,15 +259,38 @@ transcript_find_claim() {
 # usable date; this constant is where that finding finally does some work.
 TRANSCRIPT_VOLATILE_PREFIX="Generated on: "
 
+# The summary block delta-version's apply-summary.sh (issue 056c) writes
+# straight under the header line: this marker on line 2, then "## Session
+# Summary", the paragraph, a blank line, and a separator line of 80 dashes.
+# It is added to a transcript after export, so the exporter's own output never
+# has it, and comparing with it in would make every summarised transcript look
+# changed and be rewritten without it.
+TRANSCRIPT_SUMMARY_MARKER="<!-- transcript-summary v1 -->"
+TRANSCRIPT_SUMMARY_END="--------------------------------------------------------------------------------"
+
 # {{{ transcript_body_fingerprint()
 # Reduce a transcript to one short string standing for everything it says,
-# with the volatile stamp left out of the reckoning. Two transcripts with the
-# same fingerprint contain the same conversation, whenever they were written.
+# with the volatile stamp and the summary block left out of the reckoning.
+# Two transcripts with the same fingerprint contain the same conversation,
+# whenever they were written and whether or not one was summarised. A marker
+# on line 2 with no separator after it is not a block, and counts as text.
 transcript_body_fingerprint() {
    local file="$1"
    [ -f "$file" ] || return 1
    local summed
-   summed=$(grep -v "^${TRANSCRIPT_VOLATILE_PREFIX}" -- "$file" | md5sum) || return 1
+   summed=$(awk -v stamp="$TRANSCRIPT_VOLATILE_PREFIX" \
+                -v marker="$TRANSCRIPT_SUMMARY_MARKER" \
+                -v end="$TRANSCRIPT_SUMMARY_END" '
+      NR == 2 && $0 == marker { in_block = 1; held = $0 "\n"; next }
+      in_block {
+         held = held $0 "\n"
+         if ($0 == end) { in_block = 0; held = "" }
+         next
+      }
+      index($0, stamp) == 1 { next }
+      { print }
+      END { if (in_block) printf "%s", held }
+   ' "$file" | md5sum) || return 1
    printf '%s\n' "${summed%% *}"
 }
 # }}}
