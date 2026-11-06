@@ -254,3 +254,39 @@ When a modal is open, it should capture all input. Clicks outside dismiss or are
 - issues/506a-ui-component-system.md (component base)
 - issues/505e-input-commands.md (game input)
 - issues/506-build-ui-framework.md (parent issue)
+
+## Decisions (2026-11-05)
+
+Made without the owner, and the owner's to overturn (Q-4: Lua; see 506).
+
+1. **Hit testing over flat element records** (506a's): `src/ui/hit.lua`.
+   - The top of the draw order wins; at equal order, the element drawn
+     later wins.
+   - Hidden and passthrough elements are never hit.
+   - Disabled elements are hit (they block the world) but give no click.
+2. **A tracker turns each frame's input into events and states:**
+   - Events: enter, leave, press, release, click (pressed and let go on
+     the same element), hotkey, focus, blur, submit and text.
+   - States: normal, hovered, pressed and disabled.
+3. **Who owns the mouse:** the interface owns it while the mouse is over
+   the interface. During a press, the mouse belongs to whatever the press
+   began on, so a box drawn on the world stays the world's over the
+   console, and a press on a button stays the interface's off it.
+4. **Keyboard focus only for text entry** (chat), as the issue says.
+   While a text entry has focus, keys are typing, not hotkeys. Enter
+   submits, Esc or a click elsewhere drops the focus.
+5. **Not wired** into `input.c`, as asked, nor into `hud.lua`, whose
+   `over_ui` test does this job today (see 506, decision 3).
+   `hit.from_layout` turns the hud's layout into elements, so that
+   switch is small.
+
+## What happened (2026-11-05)
+
+- Added `src/ui/hit.lua` with its info page. `test_ui_framework.lua`
+  checks the order, hidden and passthrough elements, edges, hover, press,
+  click, drag-off, a world drag, disabled buttons, hotkeys, focus, and
+  the layout's elements.
+
+**Left for the owner:** wiring it into the hud (or into `input.c`, if
+the interface moves to C). Until then, the acceptance criteria hold for
+this module, not for the game.

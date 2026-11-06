@@ -293,3 +293,6 @@ words-pdf/input/
 # rewrite (delta-version issue 063) takes them out of every commit.
 neocities-modernization/compiled.txt
 words-pdf/backup-mvp/input/
+
+# fetch-cloud-conversations: the repository-to-project map holds paths on this computer
+scripts/config/cloud-session-projects

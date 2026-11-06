@@ -38,7 +38,8 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 911c | [Map Projects — the Unified Format as a Folder (and a .wex)](./completed/911c-map-projects-unified-format.md) | completed | 911a, 911b, 908a |
 | 912 | [Phase 9 Integration Test](./912-phase9-integration-test.md) | open | 901, 911 |
 | 912a | [The Editor's Integration Test](./completed/912a-editor-integration-test.md) | completed | 901, 909, 911a, 911b |
+| 913 | [Test Map Opens the W Client](./913-test-map-opens-the-w-client.md) | open | W02, 1109 |
 
-Completed 13, open 11, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 13, open 12, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->
