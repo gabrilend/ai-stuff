@@ -156,6 +156,11 @@ problems, after two findings: some maps ship their own object tables (the
 map's archive now tops the chain), and three-letter field codes are stored
 padded with a zero byte.
 
+Issue 117 (WC3 textures) is completed 2026-11-02: built in this project
+(by 522, finished by 117), and the reader stays here (Q-9, decided
+2026-11-02). One shared reader for BLP1 and BLP2 is the idea issue W09,
+not to be built until both readers are stable.
+
 ### Dependency Graph
 
 ```

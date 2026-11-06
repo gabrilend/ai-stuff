@@ -45,8 +45,8 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 115a | [What Each Patch Changed](./completed/115a-what-each-patch-changed.md) | completed | 115 |
 | 115b | [Patch Notes for the Versions We Don't Read](./completed/115b-notes-for-versions-we-dont-read.md) | completed | 115a |
 | 116 | [Read WC3 Models (.mdx)](./116-read-wc3-models.md) | open | — |
-| 117 | [Read WC3 Textures (BLP1)](./117-read-wc3-textures.md) | open | W01 |
+| 117 | [Read WC3 Textures (BLP1)](./completed/117-read-wc3-textures.md) | completed | W01 |
 
-Completed 23, open 6, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 24, open 5, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

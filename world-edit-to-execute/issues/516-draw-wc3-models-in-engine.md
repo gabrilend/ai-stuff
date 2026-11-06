@@ -137,7 +137,7 @@ One model's meshes and textures are shared by every unit that uses it.
 
 ## Related Documents
 
-- `issues/116-read-wc3-models.md`, `issues/117-read-wc3-textures.md`
+- `issues/116-read-wc3-models.md`, `issues/completed/117-read-wc3-textures.md`
 - `issues/515-render-graph-on-the-ceramic-engine.md`
 - `issues/completed/508-vertical-slice-testing-room.md`
 - `issues/W03-show-wow-models-with-wc3-unit-behavior.md`

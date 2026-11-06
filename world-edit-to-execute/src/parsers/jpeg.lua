@@ -108,8 +108,16 @@ function jpeg.decode(data)
     ffi.copy(buf, data, n)
     local pos = 0
 
-    local function u8() local v = buf[pos]; pos = pos + 1; return v end
-    local function u16() local v = buf[pos] * 256 + buf[pos + 1]; pos = pos + 2; return v end
+    -- (bounded: the buffer is raw memory, so a segment length or count
+    -- that runs past the data must fail here, not read beyond it)
+    local function u8()
+        if pos + 1 > n then error(string.format("JPEG: cut short at byte %d", pos)) end
+        local v = buf[pos]; pos = pos + 1; return v
+    end
+    local function u16()
+        if pos + 2 > n then error(string.format("JPEG: cut short at byte %d", pos)) end
+        local v = buf[pos] * 256 + buf[pos + 1]; pos = pos + 2; return v
+    end
 
     local qt = {}          -- id -> double[64] (natural order)
     local ht = { [0] = {}, [1] = {} }   -- class (0 DC, 1 AC) -> id -> table
@@ -127,8 +135,13 @@ function jpeg.decode(data)
         if m == 0xD9 then break end                      -- EOI
         if m >= 0xD0 and m <= 0xD7 then goto continue end  -- stray RST
         do
+            local seg_start = pos - 2
             local len = u16()
             local seg_end = pos + len - 2
+            if len < 2 or seg_end > n then
+                error(string.format("JPEG: segment %02X at byte %d claims %d bytes, %d are left",
+                    m, seg_start, len, n - seg_start - 2))
+            end
             if m == 0xDB then                             -- DQT
                 while pos < seg_end do
                     local pq = u8()
@@ -264,6 +277,9 @@ function jpeg._scan(buf, n, pos, frame, scomps, ht, restart, sp)
     local function fill()
         -- one byte into the bit buffer, unstuffing FF00; a marker stops input
         local b = 0
+        -- the data ending mid-scan reads as zeros from there, as libjpeg
+        -- does, instead of reading memory past the buffer
+        if pos >= n then marker_hit = true end
         if not marker_hit then
             b = buf[pos]
             if b == 0xFF then
