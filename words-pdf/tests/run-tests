@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# run-tests — runs every words-pdf test (tests/test-*.lua) under each Lua
+# interpreter this machine has.  The project runs on Lua 5.2 and LuaJIT
+# (CLAUDE.md), and Lua 5.4 is tried too, so a change that only works on
+# one of them shows up here.  The tests need no embedding server, no
+# libharu and no input corpus: they use tests/fixtures/ and stand-ins.
+# Prints each test's counts per interpreter and any failures; exits
+# non-zero if a check failed, a test crashed before counting, or no
+# interpreter was found.
+#
+# Usage: run-tests [project folder]   (default below)
+
+DIR="/home/ritz/programming/ai-stuff/words-pdf"
+if [ -n "$1" ]; then
+    DIR="$1"
+fi
+
+status=0
+ran=0
+for interpreter in lua5.2 luajit lua5.4; do
+    # An interpreter this machine does not have is skipped, and said so.
+    if ! command -v "$interpreter" > /dev/null; then
+        echo "$interpreter: not installed, skipped"
+        continue
+    fi
+    ran=$((ran + 1))
+    for test_file in "$DIR"/tests/test-*.lua; do
+        name=$(basename "$test_file" .lua)
+        output=$("$interpreter" "$test_file" "$DIR" 2>&1)
+        counts=$(printf '%s\n' "$output" | grep '^counts ' | tail -n 1)
+        # No counts line: the test crashed part-way; shown whole.
+        if [ -z "$counts" ]; then
+            echo "$interpreter $name: CRASHED before counting"
+            printf '%s\n' "$output"
+            status=1
+            continue
+        fi
+        passed=$(echo "$counts" | cut -d' ' -f2)
+        failed=$(echo "$counts" | cut -d' ' -f3)
+        echo "$interpreter $name: $passed passed, $failed failed"
+        printf '%s\n' "$output" | grep 'FAIL' || true
+        if [ "$failed" -ne 0 ]; then
+            status=1
+        fi
+    done
+done
+
+# No interpreter at all is a failure, not a pass.
+if [ "$ran" -eq 0 ]; then
+    echo "no Lua interpreter found (lua5.2, luajit, lua5.4)"
+    exit 1
+fi
+exit "$status"

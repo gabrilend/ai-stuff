@@ -13,6 +13,8 @@ This is a Lua-based PDF generation system that converts compiled text files (poe
   - Sets up library paths for libharu
   - Runs the main Lua script with input from `input/compiled.txt`
   - Requires lua5.2 to be installed
+- `tests/run-tests [DIR]` - Unit tests for loading, layout and theme
+  choice; needs no embedding server, libharu or corpus (issue 015)
 
 ### Dependencies
 - `lua5.2` - Required Lua interpreter
