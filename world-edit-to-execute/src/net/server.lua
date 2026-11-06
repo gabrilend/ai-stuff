@@ -20,6 +20,10 @@ nothing about units:
   sim.visible(player) -> unit records (as in the unit_states message)
 and optionally a fourth, for anything else a game sends each tick:
   sim.extras(player) -> a list of {name, message}
+and a fifth, for pings (issue 507f):
+  sim.allied(a, b) -> true when player b sees player a's pings; without
+  it a ping goes back to its own player only, so no position reaches an
+  enemy by default
 
 The rules, as decided with the owner (2026-09-25):
   - nothing is rewound: a silent player pauses the game, and play resumes
@@ -42,6 +46,7 @@ server.TOLERANCE_LEAST_MS = 250
 server.TOLERANCE_MOST_MS = 10000
 server.COUNTDOWN_MS = 30000         -- from a player's silence pausing the game to their drop vote opening
 server.WAITING_EVERY_MS = 100       -- how often the waiting dialog's news is sent while paused
+server.PING_EVERY_MS = 250          -- the most often one player may ping (issue 507f)
 -- }}}
 
 -- {{{ function server.votes_needed(connected)
@@ -165,6 +170,33 @@ function takes.tolerance(self, player, message)
     end
     self.players[player].tolerance_ms = message.ms
     self:send_tolerances()
+end
+-- }}}
+
+-- {{{ takes.ping
+-- A player pinged a point: sent at once to that player and every
+-- connected player the simulation says is their ally, never to anyone
+-- else. Pings are allowed while paused (the point of one is to talk), but
+-- not more often than PING_EVERY_MS from one player: more are refused.
+function takes.ping(self, player, message, now_ms)
+    local pl = self.players[player]
+    if pl.last_ping_ms and now_ms - pl.last_ping_ms < server.PING_EVERY_MS then
+        self.refused[#self.refused + 1] = { player = player, why = "pinging faster than once every "
+            .. server.PING_EVERY_MS .. " ms" }
+        return
+    end
+    if message.x ~= message.x or message.y ~= message.y
+        or math.abs(message.x) == math.huge or math.abs(message.y) == math.huge then
+        self.refused[#self.refused + 1] = { player = player, why = "a ping must be at a point" }
+        return
+    end
+    pl.last_ping_ms = now_ms
+    local bytes = messages.encode("pinged", { tick = self.tick, player = player, x = message.x, y = message.y })
+    for p in each_player(self) do
+        if p == player or (self.sim.allied and self.sim.allied(player, p)) then
+            self.send_bytes(p, bytes)
+        end
+    end
 end
 -- }}}
 
