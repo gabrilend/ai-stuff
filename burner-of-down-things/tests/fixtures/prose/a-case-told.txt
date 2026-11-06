@@ -1,0 +1,3 @@
+Case notes was surveyed on 2026-11-02: 14 files in 3 languages.
+Its blueprint holds 9 issues; 0 of them are built.
+notes is designed, not yet built.
