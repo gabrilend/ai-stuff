@@ -1,84 +1,58 @@
 # Project File Server
 
-A Lua-based utility that generates an interactive HTML interface for browsing local programming projects in a tree structure. Uses `file://` protocol links to navigate directories directly from your browser.
+A Lua utility that writes a plain HTML page for browsing a folder tree from a
+browser. Folders open and close with the browser's own `<details>`/`<summary>`
+elements, and every name is a `file://` link that opens in the file manager.
+The page has no CSS and no JavaScript (issue 007).
 
 ## Overview
 
-The Project File Server scans your programming directories and generates a self-contained HTML page with:
+The page holds, top to bottom:
 
-- **Tree-based navigation** - Expandable/collapsible directory structure
-- **Project analytics sidebar** - File counts, type distributions, detected project files
-- **Search functionality** - Filter projects and files in real-time
-- **Quick access links** - Jump to common directories
-- **Responsive design** - Works on desktop and mobile browsers
+- **Statistics**: file and folder counts, total size, and the ten most common
+  file extensions, in a `<pre>` block.
+- **Quick links**: `file://` links to the usual programming folders.
+- **Directory tree**: three levels of folders and files under the scanned
+  folder, with sizes in parentheses. A folder with something in it is a
+  `<details>` element. An empty folder is a plain link. Hidden files and
+  folders (names starting with `.`) are left out.
+
+To search the page, use the browser's own find (Ctrl+F).
 
 ## Usage
 
-### Quick Start
-
 ```bash
-# Generate with defaults (scans ai-stuff, outputs to ai-stuff/project-file-server.html)
+# Scan the default folder (ai-stuff); the page goes into that folder
 project-file-server
 
-# Open in browser
-xdg-open ~/programming/ai-stuff/project-file-server.html
-```
-
-### Command Line Options
-
-```bash
-# Interactive mode with menu
-project-file-server -I
-
-# Scan specific directory
+# Scan another folder; the page goes into it
 project-file-server /path/to/projects
 
-# Custom output location
-project-file-server -o ~/my-server.html
-
-# Combine options
+# Name the output file, as a second word or with -o
+project-file-server /path/to/projects /tmp/output.html
 project-file-server /path/to/projects -o /tmp/output.html
 
-# Help
+# Interactive menu (generate, serve over HTTP, open, change settings)
+project-file-server -I
+
 project-file-server -h
 ```
 
-### Interactive Mode
+The runner refuses an option it does not know and a folder that does not
+exist. It loads the library from beside itself, following a symlink to the
+runner, so any folder can be scanned, not only the monorepo.
 
-Running with `-I` provides a menu-driven interface:
+## Names are data
 
-1. Generate/Update file server HTML
-2. Start HTTP server (port 8080)
-3. Start HTTP server (custom port)
-4. Open file server in browser
-5. Change directory to scan
-6. Change output location
-7. Exit
+Names come from the disk, and a folder can be called anything. The library
+treats every name as data:
 
-## Features
-
-### Sidebar Analytics
-
-| Section | Description |
-|---------|-------------|
-| **Project Statistics** | Total file and directory counts |
-| **File Types** | Top 10 file extensions by count |
-| **Quick Tools** | Expand All, Collapse All, Find Large Files, Recent Files |
-| **Quick Access** | Links to common directories |
-| **Project Files Found** | Detected README.md, package.json, Cargo.toml, etc. |
-
-### Tree Navigation
-
-- Click folder icons to expand/collapse
-- `file://` links open directories in your file manager
-- File sizes displayed in parentheses
-- Dotted lines show hierarchy
-
-### Search
-
-- Type in search box to filter projects/files
-- Matching items remain visible
-- Parent directories auto-expand to show matches
+- **Shell:** each path is passed to `find`, `du` and `stat` in single quotes.
+  A folder called `$(...)` or `` `...` `` is listed, not run.
+- **Page:** each name is HTML-escaped. A file called `<script>.md` shows as
+  that text and adds no script to the page.
+- **Links:** each `file://` link is percent-encoded. Spaces, `#`, `&` and
+  quotes in a name don't break the link.
 
 ## Architecture
 
@@ -86,49 +60,47 @@ Running with `-I` provides a menu-driven interface:
 project-file-server (runner script)
          │
          ▼
-scripts/libs/project-file-server.lua (library)
+scripts/libs/project-file-server.lua (library, LuaJIT)
          │
-         ├── scan_directory_bash()     → Recursive directory scanning
-         ├── get_project_analysis()    → File type and project detection
-         ├── generate_sidebar_html()   → Analytics sidebar generation
-         ├── generate_tree_html()      → Tree structure generation
-         └── generate_html_page()      → Complete HTML assembly
+         ├── shell_quote / html_escape / file_url → names made safe
+         ├── scan_directory_bash()                → three levels of folders and files
+         ├── get_project_analysis()               → counts, size, file types
+         ├── generate_tree_html()                 → <details> tree
+         └── generate_html_page()                 → the whole page
          │
          ▼
-    [output.html]                      → Self-contained HTML file
+    [project-file-server.html]
 ```
 
 ## Dependencies
 
-- **Lua** (LuaJIT compatible)
-- **dkjson** (located at `/home/ritz/programming/ai-stuff/libs/lua/dkjson.lua`)
-- **Bash utilities**: `find`, `du`, `stat`, `wc`, `sed`, `sort`, `uniq`
+- **LuaJIT**
+- **Shell tools**: `find`, `du`, `stat`, `wc`, `sed`, `sort`, `uniq`
+- For the interactive menu's HTTP server only: `python3`
 
-## File Locations
+## Tests
 
-| File | Path |
-|------|------|
-| Library | `/home/ritz/programming/ai-stuff/scripts/libs/project-file-server.lua` |
-| Runner | `/home/ritz/programming/ai-stuff/scripts/project-file-server` |
-| Default Output | `/home/ritz/programming/ai-stuff/project-file-server.html` |
+`tests/test-project-file-server.sh [scripts-dir]` scans a scratch tree that
+contains hostile names. It then checks the page:
 
-## Configuration
+- no `<style>`, `<script>`, `style=`, `on…=` or `javascript:` anywhere;
+- every name escaped;
+- no hidden command run;
+- folders as `<details>` elements;
+- links percent-encoded;
+- the three-level depth limit.
 
-The library has hardcoded paths that can be modified:
-
-```lua
--- Line 8: Base path for shared libraries
-local SCRIPT_DIR = "/home/ritz/programming/ai-stuff"
-
--- Line 659: Root directory to scan
-local programming_root = "/mnt/mtwo/programming"
-```
+It also checks the runner's arguments.
 
 ## Origin
 
-Originally created as part of the **neocities-modernization** project (Issue 2-015) to provide a local file browsing interface. Migrated to shared utilities during project cleanup (Issue 8-009) on 2025-12-17.
+The file server started in the **neocities-modernization** project (issue
+2-015) as a local file-browsing page. It moved to the shared scripts during
+project cleanup (issue 8-009) on 2025-12-17. Its CSS and JavaScript were
+removed in issue 007.
 
 ## Related Documents
 
-- `/home/ritz/programming/ai-stuff/neocities-modernization/issues/completed/2-015-implement-local-project-file-server.md`
-- `/home/ritz/programming/ai-stuff/neocities-modernization/issues/completed/8-009-project-cleanup-and-organization.md`
+- `scripts/issues/completed/007-remove-css-and-javascript-from-file-server.md`
+- `neocities-modernization/issues/completed/2-015-implement-local-project-file-server.md`
+- `neocities-modernization/issues/completed/8-009-project-cleanup-and-organization.md`
