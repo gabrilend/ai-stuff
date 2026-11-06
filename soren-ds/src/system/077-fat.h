@@ -39,6 +39,7 @@ enum fat_error {
     FAT_EXISTS         = -10,
     FAT_LOOP           = -11,           /* a symlink chain longer than the hop limit */
     FAT_NO_MEMORY      = -12,
+    FAT_TOO_LONG       = -13,           /* a path longer or deeper than 078-files.h allows */
 };
 const char *fat_error_text(int error);
 
@@ -85,7 +86,14 @@ struct fat_entry {
 #define FAT_ATTR_LONG_NAME 0x0F
 
 /* {{{ the volume (402) */
+/* Read the card's partition table and boot block and the whole
+ * allocation table, into memory `owner` holds. Says on the developer's
+ * line what it found. A card that is not FAT32, or whose boot block does
+ * not add up, is refused with FAT_NOT_FAT32 and a line saying why. */
 int  fat_mount(struct fat_volume *v, int owner);
+/* Give the in-memory table back (the card was taken out, or a test is
+ * mounting again). Writes nothing: flush first if anything changed. */
+void fat_unmount(struct fat_volume *v);
 int  fat_flush(struct fat_volume *v);            /* write changed table pieces to every copy */
 uint64_t fat_cluster_block(const struct fat_volume *v, uint32_t cluster);
 /* }}} */

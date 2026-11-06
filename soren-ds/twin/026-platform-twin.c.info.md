@@ -137,6 +137,47 @@ void platform_screen_present(int which)
 uint64_t twin_screen_presents(int which)
 ```
 
+### twin_card_open
+
+```c
+void twin_card_open(const char *path)
+```
+
+### platform_card_blocks
+
+```c
+uint64_t platform_card_blocks(void)
+```
+
+### platform_card_read
+
+```c
+int platform_card_read(uint64_t block, uint32_t count, void *buffer)
+```
+
+### platform_card_write
+
+```c
+int platform_card_write(uint64_t block, uint32_t count, const void *buffer)
+```
+
+### platform_compile
+
+```c
+void *platform_compile(const char *c_text, size_t length, const char *entry_name, void **entry, char *why, size_t why_size)
+```
+
+The laptop's compiler: write the C to the RAM tier, compile it into a
+loadable object against the engine's headers, and load it. The object
+finds the engine's own functions in this program (which is linked so
+that its symbols are visible to what it loads).
+
+### platform_unload
+
+```c
+void platform_unload(void *handle)
+```
+
 ### platform_guarded_call
 
 ```c
