@@ -1,4 +1,4 @@
-# Issue #026: The skeleton half of init-project cannot run outside the monorepo
+# Issue #050 (was #026): The skeleton half of init-project cannot run outside the monorepo
 
 ## Current Behavior
 
@@ -187,3 +187,19 @@ but tells a reader nothing, and the intent folders in particular need saying.
 Raised by the developer in that project's `desire/what-would-be-better.md`,
 where the observation was written down as the skeleton was being built by
 hand.
+
+## What Happened
+
+**2026-11-02 — renumbered from 026 to 050.** Two different issues used the
+number 026: this one and `completed/026-mark-quoted-lines-in-transcripts.md`.
+They share the same first commit in the monorepo's grafted history, so the
+issues' own dates settle it. The quoted-lines issue had already forced the
+2026-09-08 backfill decision in issue 024 and is listed as 026 in
+`transcript-system-progress.md`; this issue's earliest dates are 2026-09-22
+and 2026-09-23. The newer issue, this one, took the next free number. A
+pointer is left at `moved-026-skeleton-without-a-monorepo.md`, and issue 033's
+two references were changed to 050.
+
+**2026-11-03.** This was first renumbered to 041, but open PR #125 had
+already filed a different issue 041, so it moved again to the next number no
+open PR uses. Its pointer file and the references to it follow.

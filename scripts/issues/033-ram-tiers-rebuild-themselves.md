@@ -109,7 +109,7 @@ path rule per room, so sessions may write into them from the shell (issue
    input, or a missing `cwd` field is exit 1 with a message, never a silent
    pass.
 4. Replace `link_ram_directories` in `init-project.sh` with a call to ensure
-   mode (issue 026 does this as part of the skeleton split).
+   mode (issue 050 does this as part of the skeleton split).
 5. Install the hook in `~/.claude/settings.json` under `SessionStart`, with a
    short timeout; it does a handful of `mkdir` and `ln` calls.
 6. Test both modes against scratch projects: a fresh directory, a dangling
@@ -145,7 +145,7 @@ forgotten:
 ## Related Documents and Tools
 
 - `init-project.sh`, `init-project.info.md` — the first caller of ensure mode.
-- `issues/026-skeleton-without-a-monorepo.md` — the skeleton split that moves
+- `issues/050-skeleton-without-a-monorepo.md` — the skeleton split that moves
   the tier set-up out of the sandbox-only path.
 - `/home/ritz/.claude/settings.json` — where the SessionStart hook is
   installed.
