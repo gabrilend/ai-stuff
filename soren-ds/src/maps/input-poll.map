@@ -12,10 +12,10 @@
 # backwards: `first_frame` puts 0 on it once, and from then on each tick
 # meets the previous frame and sends the next one round again. Only one
 # frame number is ever on that wire, so frames are made one at a time and
-# in order. Each frame fans out to the three surfaces; the read boxes are
-# stubs answering an empty state (502, 503 and 504 make them read), and
-# the event boxes after them are where button, stick and touch events
-# will come from. The settings of 507 will stand between those and any
+# in order. Each frame fans out to the three surfaces. The buttons are
+# read and turned into down, up and held events (502); the sticks and the
+# touch panels are still stubs answering an empty state (503 and 504 make
+# them read). The settings of 507 will stand between the events and any
 # consumer.
 
 boxes = ../boxes/
@@ -35,7 +35,53 @@ station frame (boxes/095-input.c:frame_next)
 
 station read_buttons (boxes/095-input.c:read_buttons)
   in 0 - frame.0
-  out 0 - button_events.0
+  out 0 - buttons.0
+
+# The buttons' history goes round its own loop, as the frame number does:
+# one history on the wire, so each frame's buttons are compared with the
+# frame before, in order. `buttons_at_rest` puts the first one on.
+station buttons_at_rest (boxes/095-input.c:buttons_at_rest)
+  in 0 = 0
+  out 0 - buttons.1
+
+station buttons (boxes/095-input.c:button_track)
+  in 0 - read_buttons.0
+  in 1 - buttons_at_rest.0
+  in 1 - buttons.0
+  out 0 - buttons.1
+  out 0 - button_down.0
+  out 0 - button_up.0
+  out 0 - button_held.0
+
+# Each event box is a comparator against an event about no buttons (all
+# its fields zero, the eighteen durations among them), so
+# only a frame where something happened leaves by "above" (exit 2). Port 1
+# is which buttons to listen for: 262143 is all eighteen. Until phase 6
+# gives events somewhere to go, downs and ups are said on the developer
+# line, and nothing listens to held (sixty lines a second while a button
+# is down is not something to say by default).
+comparator button_down (boxes/095-input.c:button_down)
+  in 0 - buttons.0
+  in 1 = 262143
+  in 2 = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
+  out 2 - say_down.0
+
+comparator button_up (boxes/095-input.c:button_up)
+  in 0 - buttons.0
+  in 1 = 262143
+  in 2 = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
+  out 2 - say_up.0
+
+comparator button_held (boxes/095-input.c:button_held)
+  in 0 - buttons.0
+  in 1 = 262143
+  in 2 = { 0, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
+
+station say_down (boxes/095-input.c:say_buttons)
+  in 0 - button_down.2
+
+station say_up (boxes/095-input.c:say_buttons)
+  in 0 - button_up.2
 
 station read_sticks (boxes/095-input.c:read_sticks)
   in 0 - frame.0
@@ -44,9 +90,6 @@ station read_sticks (boxes/095-input.c:read_sticks)
 station read_touch (boxes/095-input.c:read_touch)
   in 0 - frame.0
   out 0 - touch_events.0
-
-station button_events (boxes/095-input.c:button_events)
-  in 0 - read_buttons.0
 
 station stick_events (boxes/095-input.c:stick_events)
   in 0 - read_sticks.0

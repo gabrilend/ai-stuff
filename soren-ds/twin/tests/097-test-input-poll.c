@@ -40,7 +40,10 @@ static void sleep_ms(int ms)
 /* }}} */
 
 /* {{{ surface_counts */
-/* How many frames each of the three surfaces received, and their sum. */
+/* How many frames each of the three surfaces received, and their sum.
+ * The sticks and the touch panels are still stubs that tally the frame
+ * they were handed; the buttons are real (502), so for them it is how
+ * many frames their history station compared, and the sum is left out. */
 struct surfaces {
     uint64_t count[3];
     int64_t  sum[3];
@@ -48,11 +51,11 @@ struct surfaces {
 
 static struct surfaces surface_counts(int program)
 {
-    static const char *names[3] = { "button_events", "stick_events", "touch_events" };
     struct surfaces s;
-    for (int i = 0; i < 3; i++) {
-        tally_read(program_station(program, names[i]), &s.count[i], &s.sum[i]);
-    }
+    s.count[0] = engine_station_runs(program_station(program, "buttons"));
+    s.sum[0] = -1;
+    tally_read(program_station(program, "stick_events"), &s.count[1], &s.sum[1]);
+    tally_read(program_station(program, "touch_events"), &s.count[2], &s.sum[2]);
     return s;
 }
 /* }}} */
@@ -71,7 +74,7 @@ static void check_run(const char *label, int program, int timer, uint64_t first_
 
     CHECK(frames > 0, "%s: the frame ran (%llu frames)", label, (unsigned long long)frames);
     for (int i = 0; i < 3; i++) {
-        CHECK(s.count[i] == frames && s.sum[i] == want_sum,
+        CHECK(s.count[i] == frames && (s.sum[i] == want_sum || s.sum[i] == -1),
               "%s: surface %d saw every frame once: %llu frames summing to %lld (want %llu, %lld)",
               label, i, (unsigned long long)s.count[i], (long long)s.sum[i],
               (unsigned long long)frames, (long long)want_sum);
@@ -105,7 +108,7 @@ int main(void)
     CHECK(program >= 0 && poll.timer >= 0, "input-poll loads, brings up and is armed (%s)", report.text);
     CHECK(program_argument_count(program) == 1 && program_result_count(program) == 0,
           "it has one argument door, the tick, and no results");
-    CHECK(program_station_count(program) == 8, "its eight stations are placed (%d)",
+    CHECK(program_station_count(program) == 14, "its fourteen stations are placed (%d)",
           program_station_count(program));
     uint64_t first_ns = engine.timers[poll.timer].due_ns;
     CHECK(first_ns >= before + INPUT_FRAME_NS && first_ns <= platform_now_ns() + INPUT_FRAME_NS,

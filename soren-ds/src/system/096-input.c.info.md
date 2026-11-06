@@ -6,8 +6,17 @@ starting and stopping the input frame (issue 501).
 
 General description: see 096-input.h. The tick is a fixed value (1);
 its arrival is what matters, and the frame number is counted by the map.
+The buttons' names live here so the boxes and the tools that print
+events agree on them; how the buttons are read is each side's own
+(src/device/098-input-device.c, twin/099-input-twin.c).
 
 ## What it offers
+
+### button_name
+
+```c
+const char *button_name(int button)
+```
 
 ### input_poll_start
 

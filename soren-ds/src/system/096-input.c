@@ -3,12 +3,32 @@
  *
  * General description: see 096-input.h. The tick is a fixed value (1);
  * its arrival is what matters, and the frame number is counted by the map.
+ * The buttons' names live here so the boxes and the tools that print
+ * events agree on them; how the buttons are read is each side's own
+ * (src/device/098-input-device.c, twin/099-input-twin.c).
  */
 #include <stdint.h>
 #include "../engine/025-platform.h"
 #include "../engine/027-primitives.h"
 #include "../engine/031-engine.h"
 #include "096-input.h"
+
+/* {{{ button_name */
+const char *button_name(int button)
+{
+    static const char *const names[BUTTON_COUNT] = {
+        "dpad-up", "dpad-down", "dpad-left", "dpad-right",
+        "abxy-a", "abxy-b", "abxy-x", "abxy-y",
+        "l1", "r1", "l2", "r2",
+        "start1", "select1", "select2", "start2",
+        "stick-left", "stick-right",
+    };
+    if (button < 0 || button >= BUTTON_COUNT) {
+        return "?";
+    }
+    return names[button];
+}
+/* }}} */
 
 /* {{{ input_poll_start */
 int input_poll_start(struct input_poll *poll, struct map_report *report)

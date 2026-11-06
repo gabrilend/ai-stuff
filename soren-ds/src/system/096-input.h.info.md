@@ -13,6 +13,25 @@ belongs at the end of boot, once the engine's cores are running.
 
 ## What it declares
 
+### button_name
+
+```c
+const char *button_name(int button)
+```
+
+The name of one button, or "?" for a number that is not one.
+
+### input_buttons_now
+
+```c
+uint32_t input_buttons_now(void)
+```
+
+Every button's state at this instant, one batched read: a bit set for
+each button held down. Each side of the platform answers it its own way
+— the device from the GPIO banks (101 maps the pins; until then it
+answers 0), the twin from whatever a test set.
+
 ### input_poll_start
 
 ```c
