@@ -6,8 +6,10 @@
 local DIR = os.getenv("DIR") or "/mnt/mtwo/programming/ai-stuff"
 local SCRIPT_DIR = arg[0]:match("(.*/)")  or "./"
 
--- Add libs to path
-package.path = "/mnt/mtwo/programming/ai-stuff/scripts/libs/?.lua;" .. package.path
+-- Add libs to path: the monorepo's scripts/libs beside this project first,
+-- then the usual install.
+package.path = SCRIPT_DIR .. "../../scripts/libs/?.lua;"
+    .. "/mnt/mtwo/programming/ai-stuff/scripts/libs/?.lua;" .. package.path
 
 local tui = require("tui")
 
@@ -48,6 +50,12 @@ local state = {
     rows = 24,
     cols = 80,
 }
+
+-- The screen's three regions, as tui panels (scripts/libs/tui.lua, issue
+-- 070): a one-row header, the scrolling content, a one-row footer. Each is
+-- written in its own coordinates and clips what does not fit. layout()
+-- makes them again whenever the terminal changes size.
+local panels = {}
 
 -- ============================================================================
 -- Utility Functions
@@ -152,35 +160,38 @@ local function select_project_interactive()
         return false
     end
 
-    local selected = 1
+    local selected, first = 1, 1
 
     while true do
         tui.clear_back_buffer()
+        local cols, rows = tui.cols(), tui.rows()
+        local title = tui.create_panel(1, 1, cols, 2)
+        local list = tui.create_panel(4, 1, cols, math.max(1, rows - 3))
 
         -- Header
         tui.set_attrs(tui.ATTR_BOLD)
-        tui.write_str(1, 1, "Select Project")
+        title:write_str(1, 1, "Select Project")
         tui.reset_style()
 
         tui.set_attrs(tui.ATTR_DIM)
-        tui.write_str(2, 1, "Use j/k or arrows to navigate, Enter to select, q to quit")
+        title:write_str(2, 1, "Use j/k or arrows to navigate, Enter to select, q to quit")
         tui.reset_style()
 
-        -- Project list
-        for i, proj in ipairs(projects) do
-            local row = i + 3
+        -- Project list, scrolled so the selection stays in view
+        if selected < first then first = selected end
+        if selected > first + list.height - 1 then first = selected - list.height + 1 end
+        for i = first, math.min(#projects, first + list.height - 1) do
+            local proj, row = projects[i], i - first + 1
 
             if i == selected then
                 tui.set_attrs(tui.ATTR_INVERSE)
-                tui.write_str(row, 1, " " .. proj.name .. " ")
-                tui.reset_style()
-                tui.set_attrs(tui.ATTR_DIM)
-                tui.write_str(row, #proj.name + 4, "(" .. proj.count .. " commits)")
+                list:write_str(row, 1, " " .. proj.name .. " ")
             else
-                tui.write_str(row, 1, "  " .. proj.name .. " ")
-                tui.set_attrs(tui.ATTR_DIM)
-                tui.write_str(row, #proj.name + 4, "(" .. proj.count .. " commits)")
+                list:write_str(row, 1, "  " .. proj.name .. " ")
             end
+            tui.reset_style()
+            tui.set_attrs(tui.ATTR_DIM)
+            list:write_str(row, #proj.name + 4, "(" .. proj.count .. " commits)")
             tui.reset_style()
         end
 
@@ -380,19 +391,41 @@ end
 -- Rendering
 -- ============================================================================
 
+-- {{{ display_width
+-- Characters, not bytes: "│" is one cell and three bytes.
+local function display_width(str)
+    local _, count = str:gsub("[%z\1-\127\194-\244][\128-\191]*", "")
+    return count
+end
+-- }}}
+
+-- {{{ layout
+-- The header, content and footer panels for the current screen size.
+local function layout()
+    local content_height = math.max(1, state.rows - 2)
+    panels.header = tui.create_panel(1, 1, state.cols, 1)
+    panels.content = tui.create_panel(2, 1, state.cols, content_height)
+    panels.footer = tui.create_panel(math.max(state.rows, 3), 1, state.cols, 1)
+end
+-- }}}
+
+-- {{{ visible_rows
+local function visible_rows()
+    return panels.content and panels.content.height or math.max(1, state.rows - 2)
+end
+-- }}}
+
 -- {{{ render_header
 local function render_header()
+    local header = panels.header
     tui.set_bg(tui.BG_BLUE)
     tui.set_fg(tui.FG_WHITE)
     tui.set_attrs(tui.ATTR_BOLD)
 
-    -- Fill header bar
-    for x = 1, state.cols do
-        tui.set_cell(1, x, " ")
-    end
-
-    local header = " " .. state.project_name .. " │ Commit " .. state.current_idx .. " of " .. state.commit_count .. " "
-    tui.write_str(1, 1, header)
+    -- Fill the bar, then the title over it
+    header:write_str(1, 1, string.rep(" ", header.width))
+    header:write_str(1, 1, " " .. state.project_name .. " │ Commit " .. state.current_idx
+        .. " of " .. state.commit_count .. " ")
 
     tui.reset_style()
 end
@@ -400,26 +433,20 @@ end
 
 -- {{{ render_footer
 local function render_footer()
-    local row = state.rows
-
+    local footer = panels.footer
     tui.set_bg(tui.BG_WHITE)
     tui.set_fg(tui.FG_BLACK)
 
-    -- Fill footer bar
-    for x = 1, state.cols do
-        tui.set_cell(row, x, " ")
-    end
+    footer:write_str(1, 1, string.rep(" ", footer.width))
+    footer:write_str(1, 1, " [←] Prev  [→] Next  [↑↓] Scroll  [g/G] First/Last  [q] Quit ")
 
-    local hints = " [←] Prev  [→] Next  [↑↓] Scroll  [g/G] First/Last  [q] Quit "
-    tui.write_str(row, 1, hints)
-
-    -- Scroll percentage
+    -- Scroll percentage, right-aligned (by characters: "│" is three bytes)
     local scroll_pct = 0
     if state.line_count > 0 then
         scroll_pct = math.floor(state.scroll_offset * 100 / state.line_count)
     end
     local pct_str = "│ " .. scroll_pct .. "% "
-    tui.write_str(row, state.cols - #pct_str, pct_str)
+    footer:write_str(1, footer.width - display_width(pct_str) + 1, pct_str)
 
     tui.reset_style()
 end
@@ -427,21 +454,16 @@ end
 
 -- {{{ render_content
 local function render_content()
-    local visible_rows = state.rows - 2  -- Header and footer
+    local content = panels.content
 
-    -- Clear content area
     tui.reset_style()
-    for row = 2, state.rows - 1 do
-        for x = 1, state.cols do
-            tui.set_cell(row, x, " ")
-        end
-    end
+    content:clear()
 
     -- Render visible lines
-    local end_line = state.scroll_offset + visible_rows
+    local end_line = state.scroll_offset + content.height
     if end_line > state.line_count then end_line = state.line_count end
 
-    local screen_row = 2
+    local row = 1
     for i = state.scroll_offset + 1, end_line do
         local line = state.content_lines[i] or ""
 
@@ -468,21 +490,21 @@ local function render_content()
             tui.reset_style()
         end
 
-        -- Truncate line to terminal width
-        if #line > state.cols then
-            line = line:sub(1, state.cols - 1) .. "…"
+        -- The panel clips at its right edge; mark a cut line with "…"
+        content:write_str(row, 1, line)
+        if display_width(line) > content.width then
+            content:write_str(row, content.width, "…")
         end
-
-        tui.write_str(screen_row, 1, line)
         tui.reset_style()
 
-        screen_row = screen_row + 1
+        row = row + 1
     end
 end
 -- }}}
 
 -- {{{ render_full
 local function render_full()
+    if not panels.header then layout() end
     tui.clear_back_buffer()
     render_header()
     render_content()
@@ -528,7 +550,7 @@ local function goto_commit(new_idx)
     restore_position()
 
     -- Ensure valid scroll
-    local max_scroll = state.line_count - (state.rows - 2)
+    local max_scroll = state.line_count - visible_rows()
     if max_scroll < 0 then max_scroll = 0 end
     if state.scroll_offset > max_scroll then state.scroll_offset = max_scroll end
 end
@@ -536,7 +558,7 @@ end
 
 -- {{{ scroll_to
 local function scroll_to(target)
-    local max_scroll = state.line_count - (state.rows - 2)
+    local max_scroll = state.line_count - visible_rows()
     if max_scroll < 0 then max_scroll = 0 end
 
     if target < 0 then target = 0 end
@@ -612,8 +634,7 @@ local function handle_input()
 
     elseif key == "DOWN" or key == "j" then
         if check_double_tap("DOWN") then
-            local max_scroll = state.line_count - (state.rows - 2)
-            scroll_to(max_scroll)
+            scroll_to(state.line_count - visible_rows())
         else
             scroll_by(1)
         end
@@ -644,6 +665,7 @@ end
 -- {{{ run_viewer
 local function run_viewer()
     state.rows, state.cols = tui.init()
+    layout()
 
     -- Load first commit
     goto_commit(1)
@@ -658,6 +680,7 @@ local function run_viewer()
         if new_rows ~= state.rows or new_cols ~= state.cols then
             state.rows, state.cols = new_rows, new_cols
             tui.resize()
+            layout()
             render_full()
         end
     end
@@ -784,5 +807,13 @@ local function main()
     run_viewer()
 end
 -- }}}
+
+-- A test loads this file with HISTORY_VIEWER_AS_LIBRARY set and drives the
+-- screen parts itself, on tui.init_buffers instead of a terminal.
+if os.getenv("HISTORY_VIEWER_AS_LIBRARY") then
+    return { state = state, panels = panels, layout = layout, render_full = render_full,
+             render_content = render_content, render_footer = render_footer,
+             scroll_to = scroll_to, scroll_by = scroll_by, visible_rows = visible_rows }
+end
 
 main()
