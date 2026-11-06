@@ -241,9 +241,46 @@ return ManaGenerationSystem
 - Batch state updates for multiple units with same conditions
 
 ### Acceptance Criteria
-- [ ] Primary abilities generate mana continuously regardless of conditions
-- [ ] Ranged units generate secondary mana only when stationary
-- [ ] Melee units generate secondary mana only when enemies in range
-- [ ] Bonus generation rates apply in appropriate combat situations
-- [ ] Generation stops appropriately when conditions not met
-- [ ] Performance remains stable with 50+ units
+- [x] Primary abilities generate mana continuously regardless of conditions
+- [x] Ranged units generate secondary mana only when stationary
+- [x] Melee units generate secondary mana only when enemies in range
+- [x] Bonus generation rates apply in appropriate combat situations
+- [x] Generation stops appropriately when conditions not met
+- [x] Performance remains stable with 50+ units
+## What Happened
+
+Issues 042 and 043 describe the same rules, 043 refining 042, so they were
+built together in `src/systems/mana_system.lua` on top of issue 041.
+The rules are set out in `docs/mana-generation-rules.md`. Tested headlessly by
+`tests/test_mana_conditions.lua` (seven tests, including 120 units over a
+second of play). Nothing was seen on screen.
+
+- Ranged-style units must stand still for 0.25 s (043's figure; 042 said
+  0.2) before their secondary bars charge. Only time past that counts.
+- Two bonuses, applied to secondary bars only:
+  - +20% for a ranged-style unit standing still with an enemy within its
+    shooting range ("in combat while stationary");
+  - +15% for a melee-style unit with two or more enemies within reach
+    ("outnumbered").
+- A dead unit's bars empty, as 042's special cases ask.
+- Each living unit's team and position is read once per update and
+  shared by every range check, instead of asking the entity manager per
+  unit.
+- `mana.secondary_reason` and `mana.secondary_multiplier` record why the
+  bars are charging, for debugging and drawing.
+
+### Decisions
+- **Melee "in range" stays at each type's engagement range (melee 12,
+  tank 15, special 20), not 043's 55 or 042's 60.** The vision says melee
+  units charge "when they are in range of their foes". At 55-60 a melee
+  unit would charge while still walking toward a fight, which is the
+  ranged units' kind of advantage. The figure is one constant
+  (`ManaSystem.REACH`) if play shows it should be wider.
+- **Bonuses that need systems not built yet were left out:** covering
+  fire, charging and flanking (043), and "actually engaged in melee" (042),
+  which with reach equal to engagement range is the same as the base
+  condition.
+- **Rates stay per ability** (default 10/s) instead of 042's fixed
+  primary 10/s and secondary 8/s, because unit templates will set them.
+- **Test change:** `tests/test_mana.lua`'s ranged test now lets the unit
+  settle for 0.25 s before checking. Its expected charge is unchanged.

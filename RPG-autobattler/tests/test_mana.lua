@@ -93,6 +93,9 @@ function TestSuite.test_ranged_secondary_when_still()
     local mana = em:get_component(ranged, "mana")
 
     set_velocity(em, ranged, 0, 0)
+    -- Ranged units must first stand still for STILL_TIME (issue 043).
+    system:update(ManaSystem.STILL_TIME)
+    assert(mana.bars[2].current == 0, "Nothing until still for a quarter second")
     system:update(1.0)
     assert_near(mana.bars[2].current, 10, "Standing still charges the secondary")
     assert_near(em:get_component(support, "mana").bars[2].current, 10, "Support units follow the ranged rule")

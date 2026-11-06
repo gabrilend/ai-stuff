@@ -66,8 +66,8 @@
 
 ### 4.1 Mana System
 - [x] Implement mana bars for each unit ability (Issue #041)
-- [ ] Create mana generation rules (primary vs secondary)
-- [ ] Add conditional mana generation (ranged standing still, melee in range)
+- [x] Create mana generation rules (primary vs secondary) (Issue #042)
+- [x] Add conditional mana generation (ranged standing still, melee in range) (Issue #043)
 - [ ] Implement mana efficiency (proportional usage)
 - [ ] Add mana bar UI rendering
 

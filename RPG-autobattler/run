@@ -288,6 +288,13 @@ run_unit_tests() {
     require('tests.test_mana').run_all()
     " 2>/dev/null && print_success "Mana tests passed" || print_error "Mana tests failed"
     
+    # Test Mana conditions and bonuses (issues 042, 043)
+    print_info "Testing Mana conditions..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_mana_conditions').run_all()
+    " 2>/dev/null && print_success "Mana conditions tests passed" || print_error "Mana conditions tests failed"
+    
     # Test Unit template system
     print_info "Testing Unit template system..."
     lua -e "
