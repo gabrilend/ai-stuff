@@ -46,3 +46,30 @@ Medium - Important for visibility and project management
 
 ## Estimated Complexity
 Medium - Requires flexible architecture and data processing capabilities
+---
+
+## What Happened
+
+**2026-11-02 — closed because the repository-level reports this issue asked for exist, each in the tool that owns its data. The general framework sketched above has no remaining job.**
+
+Against the four groups of reports in the plan:
+
+| Asked for | Where it is now |
+|-----------|-----------------|
+| Repository statistics, project discovery and listing summaries | `scripts/census-projects.lua`. It covers every project's state, issue counts and completion, three months of activity per project, and how many projects keep each house convention. Output is terminal, markdown or JSON, and it keeps the root README's figures current (`--write-readme` / `--check-readme`). |
+| Per-project issue progress | `scripts/progress-dashboard.lua` (monorepo `scripts/`), by phase, in terminal, markdown or JSON |
+| Repository structure validation results | `scripts/validate-repository.sh` (issue 025) and the shared `scripts/validate-issues` |
+| Infrastructure and tooling status | `scripts/check-utilities.sh` (issues 042/042a) |
+| Git history and workflow | `scripts/generate-history.sh`, `history-viewer.lua`, and the shared `scripts/git-history.sh` |
+| Project metadata | `scripts/manage-metadata.sh` (issue 026) |
+
+Each of those writes its own report in the formats people actually used
+(terminal, markdown, JSON). A shared report-template layer on top would
+add an abstraction with no second consumer.
+
+The "APIs for projects to submit their own reports" were never asked for
+by any project. They are dropped rather than built.
+
+The acceptance boxes above stay unticked on purpose. They describe the
+framework, which was not built. The need behind them is met by the tools
+in the table.

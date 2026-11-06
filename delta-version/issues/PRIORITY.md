@@ -31,9 +31,7 @@ reading a number here:
 | Issue | What | Decision needed |
 |-------|------|-----------------|
 | **056** (056b–d) | Recursive transcript summarisation | 056a (llama.cpp client) exists. Is the local-model summariser still wanted, now that Claude can summarise transcripts inside a skill? |
-| **048** | Issue phase detection utility | The progress dashboard and `git-history.sh` both now read phases from issue filenames and `phase-N/` folders. Is a separate utility still needed, or is 048 answered by those two? |
 | **005** | Configure branch isolation | Partially complete; the worktree architecture (041, 046) may have replaced what is left. |
-| **027** | Basic reporting framework | The project census (`scripts/census-projects.lua`) produces the monorepo tables; check what 027 adds beyond it. |
 
 ## TIER 3: Large specifications, nothing built
 
