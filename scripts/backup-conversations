@@ -32,11 +32,23 @@
 #                                            project (default: current folder)
 #   backup-conversations --session <id> [project-dir]
 #                                            export one conversation by hand
+#   backup-conversations --newest [project-dir]
+#                                            export the most recent
+#                                            conversation and its helpers
+#   backup-conversations -I [project-dir]    a menu: pick a project from the
+#                                            ones Claude has conversations
+#                                            for, where its transcripts go,
+#                                            and back up all or the newest
+#
+#   -o, --output <folder>   with any of the above: write the transcripts here
+#                           instead of the project's llm-transcripts/
 #
 # Environment seams (for tests):
 #   CLAUDE_SESSIONS_ROOT   where Claude keeps session logs
 #                          (default: ~/.claude/projects)
 #   SCRIPTS_DIR            where this toolchain lives (default below)
+#   EXEC_TIER_ROOT         where the scratch tiers are made (defaults /tmp
+#   ARTIFACT_TIER_ROOT     and /dev/shm), as in libs/ensure-ram-tiers
 
 set -euo pipefail
 
@@ -58,8 +70,8 @@ SCRATCH_PROJECT_NAME="ai-stuff-scripts"
 # leaves the links dangling, so this re-creates them on every run rather than
 # trusting that someone else did.
 function ensure_scratch_tiers() {
-   local exec_tier="/tmp/${SCRATCH_PROJECT_NAME}"
-   local ram_tier="/dev/shm/${SCRATCH_PROJECT_NAME}"
+   local exec_tier="${EXEC_TIER_ROOT:-/tmp}/${SCRATCH_PROJECT_NAME}"
+   local ram_tier="${ARTIFACT_TIER_ROOT:-/dev/shm}/${SCRATCH_PROJECT_NAME}"
    mkdir -p "$exec_tier" "$ram_tier"
 
    # The project's tmp link. Three states: missing (create it), already a link
@@ -586,6 +598,19 @@ function export_logs() {
 }
 # }}}
 
+# -- {{{ transcript_dir_for
+# Where one project's transcripts go: the folder named with -o if there was
+# one, else the special folder listed above for it, else <project>/llm-transcripts.
+function transcript_dir_for() {
+   local project="$1"
+   if [ -n "${OUTPUT_CHOICE:-}" ]; then
+      printf '%s\n' "$OUTPUT_CHOICE"
+   else
+      printf '%s\n' "${TRANSCRIPT_DIR_OVERRIDE[$project]:-$project/llm-transcripts}"
+   fi
+}
+# }}}
+
 # -- {{{ resolve_project
 # Settle the three places one run touches: the project folder, the folder its
 # transcripts go to, and the folder where Claude keeps its session logs. Fails
@@ -607,7 +632,7 @@ function resolve_project() {
       return 1
    fi
    PROJECT_DIR=$(realpath "$given")
-   TRANSCRIPT_DIR="${TRANSCRIPT_DIR_OVERRIDE[$PROJECT_DIR]:-$PROJECT_DIR/llm-transcripts}"
+   TRANSCRIPT_DIR=$(transcript_dir_for "$PROJECT_DIR")
    if [ -n "$known_session_folder" ]; then
       # The hook path: Claude Code named the log, so its folder is the answer.
       SESSION_FOLDER="$known_session_folder"
@@ -717,12 +742,250 @@ function run_session() {
 }
 # }}}
 
+# -- {{{ run_newest
+# Hand-run mode for the most recent conversation (the log written to last),
+# with its helpers. What the menu's "Back up the newest conversation" runs.
+function run_newest() {
+   resolve_project "$1" || return 1
+   local newest
+   newest=$(newest_main_log "$SESSION_FOLDER")
+   if [ -z "$newest" ]; then
+      echo "backup-conversations: no conversations in $SESSION_FOLDER" >&2
+      return 1
+   fi
+   local session_id
+   session_id=$(basename "$newest" .jsonl)
+   echo "Exporting the newest conversation, $session_id, to $TRANSCRIPT_DIR"
+   { subagent_logs_of "$SESSION_FOLDER" "$session_id"; printf '%s\n' "$newest"; } | export_logs
+}
+# }}}
+
+# -- {{{ newest_main_log
+# The most recently written main conversation log in a session folder (not a
+# helper's), or nothing when it holds none.
+function newest_main_log() {
+   local folder="$1" f newest="" newest_time=0 t
+   for f in "$folder"/*.jsonl; do
+      [ -f "$f" ] || continue
+      case "$(basename "$f")" in agent-*) continue ;; esac
+      t=$(stat -c %Y "$f")
+      if [ -z "$newest" ] || [ "$t" -gt "$newest_time" ]; then
+         newest="$f"
+         newest_time="$t"
+      fi
+   done
+   printf '%s' "$newest"
+}
+# }}}
+
 # -- {{{ cleanup_temp_files
 # Remove any half-written temp transcripts left behind by an interrupted run.
 function cleanup_temp_files() {
    local f
    for f in "${TEMP_FILES[@]}"; do
       rm -f "$f"
+   done
+}
+# }}}
+
+# -- {{{ project_of_session_folder
+# The project one of Claude's session folders belongs to: the folder the
+# conversation started in, which Claude Code records as "cwd" on the log's
+# lines. Printed only when the session folder's name is the one Claude Code
+# gives that path (so nothing is credited to the wrong project) and the
+# project still exists; otherwise nothing is printed and it returns 1.
+function project_of_session_folder() {
+   local folder="$1" log cwd
+   log=$(newest_main_log "$folder")
+   [ -n "$log" ] || return 1
+   cwd=$(grep -m1 '"cwd":' "$log" | jq -r '.cwd // empty' 2>/dev/null)
+   [ -n "$cwd" ] && [ -d "$cwd" ] || return 1
+   [ "$(session_folder_for "$cwd")" = "$folder" ] || return 1
+   printf '%s\n' "$cwd"
+}
+# }}}
+
+# -- {{{ known_projects
+# Every project Claude has conversations on record for, most recently active
+# first, one per line: time of the newest log, project folder, how many
+# conversations, how many helper logs (tab-separated).
+function known_projects() {
+   local folder project logs main_count helper_count newest
+   for folder in "$CLAUDE_SESSIONS_ROOT"/*/; do
+      folder="${folder%/}"
+      project=$(project_of_session_folder "$folder") || continue
+      logs=$(all_logs_in "$folder")
+      main_count=$(printf '%s\n' "$logs" | grep -cv '/agent-[^/]*\.jsonl$')
+      helper_count=$(printf '%s\n' "$logs" | grep -c '/agent-[^/]*\.jsonl$')
+      newest=$(stat -c %Y "$(newest_main_log "$folder")")
+      printf '%s\t%s\t%s\t%s\n' "$newest" "$project" "$main_count" "$helper_count"
+   done | sort -t $'\t' -k1,1rn
+}
+# }}}
+
+# -- {{{ newest_transcript_in
+# The most recently changed transcript (.md) in a folder, for the menu's
+# preview panel; nothing when there is none yet.
+function newest_transcript_in() {
+   local folder="$1" f newest="" newest_time=0 t
+   for f in "$folder"/*.md; do
+      [ -f "$f" ] || continue
+      t=$(stat -c %Y "$f")
+      if [ -z "$newest" ] || [ "$t" -gt "$newest_time" ]; then
+         newest="$f"
+         newest_time="$t"
+      fi
+   done
+   printf '%s' "$newest"
+}
+# }}}
+
+# -- {{{ fit_to_screen
+# Cuts a note to the terminal's width (less the menu's borders), so a long
+# path does not spill over the frame. Long notes keep their start.
+function fit_to_screen() {
+   local text="$1" cols
+   cols=$(stty size </dev/tty 2>/dev/null | cut -d' ' -f2)
+   [[ "$cols" =~ ^[0-9]+$ ]] || cols=80
+   local max=$((cols - 4))
+   if [ "${#text}" -gt "$max" ]; then
+      text="${text:0:max-3}..."
+   fi
+   printf '%s\n' "$text"
+}
+# }}}
+
+# -- {{{ interactive_mode
+# The menu (issue 014, phase 4). A "Do" list picks what Go does: back up every
+# conversation of the chosen project, or only its newest. Below it, the
+# projects Claude has conversations on record for (most recently active
+# first, with how many), and where the transcripts go: the project's own
+# folder or another typed at a prompt. The panel at the bottom shows the last
+# four lines of the last run's output and the newest transcript of the
+# project under the cursor. Each backup is a run of this script (--all or
+# --newest, with -o for another folder), shown as it goes; then the menu
+# opens again with a note of how it went. q leaves.
+function interactive_mode() {
+   # The menu library is not written for stop-on-error or unset-variable
+   # checks; every step it starts is a separate run that has them.
+   set +euo pipefail
+   CLAUDE_SESSIONS_ROOT="${CLAUDE_SESSIONS_ROOT:-$HOME/.claude/projects}"
+   # shellcheck source=libs/lua-menu.sh
+   source "$SCRIPTS_DIR/libs/lua-menu.sh" || return 1
+
+   local self chosen="" output="" note="" last_run="Nothing has run yet."
+   local line i item choice="do_all" folder status out_file project_dir
+   local -a projects=() mains=() helpers=() mode_args=()
+   self=$(realpath "$0")
+   if [ -n "${1:-}" ]; then
+      if [ ! -d "$1" ]; then
+         echo "backup-conversations: '$1' is not a directory" >&2
+         return 1
+      fi
+      chosen=$(realpath -s "$1")
+   fi
+
+   while true; do
+      # the projects on record; the chosen one first if it has none
+      projects=(); mains=(); helpers=()
+      while IFS=$'\t' read -r _ project_dir i item; do
+         projects+=("$project_dir"); mains+=("$i"); helpers+=("$item")
+      done < <(known_projects)
+      if [ -z "$chosen" ]; then
+         # nothing named: the current folder if Claude knows it, else the
+         # most recently active project
+         chosen="${projects[0]:-}"
+         for project_dir in "${projects[@]}"; do
+            [ "$project_dir" = "${CLAUDE_PROJECT_DIR:-$PWD}" ] && chosen="$project_dir"
+         done
+      fi
+      if [ -n "$chosen" ] && ! printf '%s\n' "${projects[@]}" | grep -qxF -- "$chosen"; then
+         projects=("$chosen" "${projects[@]}"); mains=("" "${mains[@]}"); helpers=("" "${helpers[@]}")
+      fi
+      if [ "${#projects[@]}" -eq 0 ]; then
+         echo "backup-conversations: Claude has no conversations on record under $CLAUDE_SESSIONS_ROOT" >&2
+         return 1
+      fi
+
+      menu_init
+      menu_set_title "Conversation Backup" "$(fit_to_screen "${note:-Conversations on record in $CLAUDE_SESSIONS_ROOT}")"
+      menu_add_section "todo" "single" "Do"
+      menu_add_item "todo" "do_all" "Back up every conversation" "checkbox" \
+         "$([ "$choice" = "do_all" ] && echo 1 || echo 0)" \
+         "Every conversation Claude has for the project, helpers included (--all)"
+      menu_add_item "todo" "do_newest" "Back up the newest conversation" "checkbox" \
+         "$([ "$choice" = "do_newest" ] && echo 1 || echo 0)" \
+         "Only the conversation written to last, and its helpers (--newest)"
+
+      menu_add_section "project" "single" "Project (conversations on record)"
+      for i in "${!projects[@]}"; do
+         if [ -n "${mains[$i]}" ]; then
+            line="${mains[$i]} conversation(s), ${helpers[$i]} helper log(s); transcripts go to $(transcript_dir_for "$(realpath "${projects[$i]}")")"
+            item="${projects[$i]} (${mains[$i]})"
+         else
+            line="Claude has no conversations on record for this folder"
+            item="${projects[$i]} (none on record)"
+         fi
+         menu_add_item "project" "project_$i" "$item" "checkbox" \
+            "$([ "${projects[$i]}" = "$chosen" ] && echo 1 || echo 0)" "$line"
+         folder=$(newest_transcript_in "$(transcript_dir_for "$(realpath "${projects[$i]}")")")
+         [ -n "$folder" ] && menu_set_item_filepath "project_$i" "$folder"
+      done
+      menu_set_section_max_visible "project" 6
+
+      menu_add_section "output" "single" "Transcripts go to"
+      menu_add_item "output" "out_own" "The project's own folder" "checkbox" \
+         "$([ -z "$output" ] && echo 1 || echo 0)" \
+         "<project>/llm-transcripts (sessions in the home folder or at the drive's top go to the shared archive)"
+      if [ -n "$output" ]; then
+         menu_add_item "output" "out_chosen" "$output" "checkbox" "1" "The folder typed last time"
+      fi
+      menu_add_item "output" "out_other" "Another folder..." "checkbox" "0" "Asks for a path once the menu closes"
+
+      menu_add_section "go" "multi" "Actions"
+      menu_add_item "go" "go" "Go" "action" "" "Do what is chosen above"
+
+      menu_add_content_source "text" "Last run" "$last_run"
+      menu_add_content_source "item_file" "" ""
+
+      menu_run || return 0
+      note=""
+
+      # what was chosen
+      choice="do_all"
+      [ "${MENU_VALUES[do_newest]:-0}" = "1" ] && choice="do_newest"
+      for i in "${!projects[@]}"; do
+         [ "${MENU_VALUES[project_$i]:-0}" = "1" ] && chosen="${projects[$i]}"
+      done
+      if [ "${MENU_VALUES[out_other]:-0}" = "1" ]; then
+         read -r -e -p "Write the transcripts to: " folder
+         folder="${folder/#\~/$HOME}"
+         if [ -z "$folder" ]; then
+            note="Not done: no folder was given"
+            continue
+         fi
+         output=$(realpath -m "$folder")
+      elif [ "${MENU_VALUES[out_own]:-0}" = "1" ]; then
+         output=""
+      fi
+
+      mode_args=(--all "$chosen")
+      [ "$choice" = "do_newest" ] && mode_args=(--newest "$chosen")
+      [ -n "$output" ] && mode_args+=(-o "$output")
+
+      # the run itself, shown as it goes and kept for the panel
+      out_file=$(mktemp "$SCRATCH_DIR/backup-menu-run.XXXXXX") || return 1
+      echo "backup-conversations ${mode_args[*]}"
+      bash "$self" "${mode_args[@]}" 2>&1 | tee "$out_file"
+      status=${PIPESTATUS[0]}
+      last_run=$(grep -v '^[[:space:]]*$' "$out_file" | tail -n 4)
+      line=$(grep -v '^[[:space:]]*$' "$out_file" | tail -n 1)
+      rm -f "$out_file"
+      if [ "$status" -eq 0 ]; then
+         note="Backed up $(basename "$chosen"): $line"
+      else
+         note="Failed: ${line#backup-conversations: }"
+      fi
    done
 }
 # }}}
@@ -753,11 +1016,25 @@ function main() {
    # --hook.
    local default_project="${CLAUDE_PROJECT_DIR:-$(pwd)}"
 
+   # -o/--output may stand anywhere; it is taken out before the mode is read.
+   OUTPUT_CHOICE=""
+   local -a rest=()
+   while [ $# -gt 0 ]; do
+      case "$1" in
+         -o|--output)
+            OUTPUT_CHOICE=$(realpath -m "${2:?$1 needs a folder}")
+            shift 2 ;;
+         *) rest+=("$1"); shift ;;
+      esac
+   done
+   set -- ${rest[@]+"${rest[@]}"}
+
    # Mode dispatch: the first argument picks the mode; anything else is a
    # project directory for the default sweep.
    case "${1:-}" in
       --hook)    run_hook ;;
       --session) run_session "${2:?--session needs a session id}" "${3:-$default_project}" ;;
+      --newest)  run_newest "${2:-$default_project}" ;;
       --all)     run_sweep "${2:-$default_project}" ;;
       -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//' ;;
       *)         run_sweep "${1:-$default_project}" ;;
@@ -770,6 +1047,14 @@ function main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
    # The scratch tiers come first because the log lives in them.
    ensure_scratch_tiers
+   # The menu draws on the terminal, so it runs here rather than inside main,
+   # whose output goes through tee to the log. Each backup it starts is a run
+   # of this script, logged as usual.
+   if [ "${1:-}" = "-I" ] || [ "${1:-}" = "--interactive" ]; then
+      shift
+      interactive_mode "$@"
+      exit $?
+   fi
    # Everything this run says also goes to the toolchain's RAM log, so the
    # hook's output can be read after the fact; errors additionally reach
    # stderr, where Claude Code shows them to the person. A run is marked in
