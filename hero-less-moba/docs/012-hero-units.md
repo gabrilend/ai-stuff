@@ -117,10 +117,11 @@ there is no dropping a hero behind enemy lines.
 ### 1. Onto a wave
 
 The player picks one of their team's living waves and the hero appears with it,
-wherever that wave currently is, **immediately**. This is the aggressive option:
-the hero arrives already at the frontline, in formation, with the wave's
-protection around it. It is also the fragile one, because the frontline is where
-the enemy's damage already is.
+wherever that wave currently is, **immediately**, just behind the wave's rearmost
+living member. This is the aggressive option: the hero arrives already at the fight,
+with the wave in front of it. It is also the fragile one, because the wave is where
+the enemy's damage already is. Behind rather than in front, so it is not strictly
+better than the other two (issue 505; chosen by Claude, open for Ritz).
 
 ### 2. Onto a guard tower
 

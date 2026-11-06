@@ -47,7 +47,7 @@ again: that killing pays the whole team (502), that a hero is a soldier you boug
 
 | Check | Fails the day somebody… |
 | --- | --- |
-| A hero bought onto a living wave arrives in its lane, at its front | …breaks wave placement. The issue intends the rearmost living member; what is built is the front, and this pins what is built. |
+| **A hero bought onto a living wave lands just behind its rearmost living member, for both teams** | …puts it back at the front, or gets "behind" backwards for one team. |
 | **It does not join the wave's record** | …counts a hero toward `member_count` or `living_count`, so feeding heroes keeps a wave from being wiped. |
 | The enemy's wave, and an empty one, are refused as gone | …lets a hero be bought onto a wave that is not yours or has nobody left. |
 

@@ -328,14 +328,43 @@ local function test_spawning_onto_a_wave()
   check("a hero bought onto a living wave is accepted", verdict.accepted, verdict.reason)
   if not verdict.accepted then return end
 
-  local id = verdict.id
-  local along = soldier.lane_along[id]
-  check("and arrives in that wave's lane, at the wave's front",
-        soldier.lane[id] == wave.lane and math.abs(along - wave.anchor) < 1,
-        string.format("lane %d vs %d, along %.1f vs anchor %.1f",
-          soldier.lane[id], wave.lane, along, wave.anchor))
+  -- Behind its rearmost living member, and not far behind: about one body's width.
+  -- Checked for both teams, because "behind" is the opposite direction along the
+  -- lane for each, and a sign got wrong would put one side's heroes in front.
+  local function how_far_behind(hero, team_wave)
+    local facing = (team_wave.team == 1) and 1 or -1
+    local rear = math.huge
+    for other = 1, world.high_water do
+      if soldier.alive[other] == 1 and soldier.wave[other] == team_wave.id then
+        rear = math.min(rear, soldier.lane_along[other] * facing)
+      end
+    end
+    local mine = soldier.lane_along[hero] * facing
+    return soldier.lane[hero] == team_wave.lane and mine < rear and rear - mine < 20,
+      string.format("lane %d vs %d, %.1f behind the rearmost", soldier.lane[hero],
+        team_wave.lane, rear - mine)
+  end
+
+  check("and arrives in that wave's lane, just behind its rearmost living member",
+        how_far_behind(verdict.id, wave))
+
+  local far_wave
+  for _, candidate in ipairs(world.wave) do
+    if candidate.team == 2 and candidate.living_count > 0 then far_wave = candidate break end
+  end
+  local far_number = parameters.team_size + 1
+  fill_wallet(world, far_number)
+  local far_roster = parameters.commander.commander[world.player[far_number].commander].roster
+  local far = modules.commanders.buy(world, far_number, far_roster[1], "wave", far_wave.id)
+  local far_ok, far_detail = false, far.reason
+  if far.accepted then
+    far_ok, far_detail = how_far_behind(far.id, far_wave)
+  end
+  check("and the far team's hero lands behind its own wave, from the other end",
+        far_ok, far_detail)
   check("without joining the wave's record",
-        wave.member_count == members and wave.living_count == living and soldier.wave[id] == 0)
+        wave.member_count == members and wave.living_count == living
+        and soldier.wave[verdict.id] == 0)
 
   -- The other team's wave, and a wave with nobody left in it, are both "gone" from
   -- this player's point of view.

@@ -46,7 +46,7 @@ by watching rather than by being told.
 
 | | Arrives | Costs |
 | --- | --- | --- |
-| **onto a wave** | at the frontline, immediately, in formation | fragile — the frontline is where the enemy's damage already is |
+| **onto a wave** | just behind the wave's rearmost living member, immediately | fragile — the wave is where the fighting is — but it walks up behind its escort rather than landing in front of it |
 | **onto a tower** | at that tower, unless enemies are inside its command radius | a walk from wherever you were allowed to put it |
 | **onto the library** | in the lane where the enemy has pushed **deepest** | slow — a long walk |
 
