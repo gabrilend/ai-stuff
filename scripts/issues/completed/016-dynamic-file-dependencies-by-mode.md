@@ -84,3 +84,16 @@ Added to the file item loop in `run_tui()`:
 - `issue-splitter.sh` - Implementation location
 - `libs/lua-menu.sh` - Dependency API
 - `libs/menu.lua` - Dependency rendering
+
+---
+
+## What Happened
+
+Built in `issue-splitter.sh`, as recorded above: all five rules are
+`menu_add_dependency` calls in the file loop of `run_tui()`, and every
+acceptance box is ticked. The issue was marked Completed but never moved, so
+on 2026-11-02 it moves to `issues/completed/` with nothing changed. The rules
+were checked against the code that day. The two "Skip Analyzed" rules and the
+review, execute and clear rules are each one `menu_add_dependency ... "true"`
+call in that loop.
+

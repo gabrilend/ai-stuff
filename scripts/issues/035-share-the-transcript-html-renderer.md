@@ -4,7 +4,7 @@
 | --- | --- |
 | Cluster | transcript system (018–031; see `transcript-system-progress.md`) |
 | Blocked by | nothing |
-| Blocks | per-project HTML documentation that links into conversations |
+| Blocks | 038 (a gif for every turn); per-project HTML documentation that links into conversations |
 | Status | in progress (built and tested; open questions below; sub-issues 035a–035e) |
 | Sub-issues | 035a three parts that never meet · 035b the story page for every project · 035c the conversation page meets the game's · 035d the films join the library · 035e one settings file per project |
 
