@@ -32,6 +32,16 @@ lua progress-dashboard.lua -m                      # Markdown output
 lua progress-dashboard.lua -p 3                    # Show only phase 3
 ```
 
+### update-toc
+Checks that every document under a project's `docs/` is linked from `docs/table-of-contents.md`, and reports links there that reach no file. `--write` lists the unlinked documents in a marked block at the end of the table and touches nothing else; a project with no table gets a whole one. See `update-toc.info.md`.
+
+**Usage:**
+```bash
+./update-toc /path/to/project                  # report; exit 1 on findings
+./update-toc /path/to/project --write          # list unfiled documents in the table
+./update-toc /path/to/project --write --dry-run
+```
+
 ### git-history.sh
 Generates prettified commit logs segmented by project phase. Outputs human-readable markdown files preserving statistics and metadata.
 
