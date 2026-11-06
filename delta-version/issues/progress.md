@@ -223,7 +223,7 @@ These issues provide foundational utilities and can be implemented independently
 ## In Progress
 - **Issue 066**: Fans that follow a signal — one delivery contract (a single setting, or a stream in numbered chunks rmail-attachment style) moving a fan; first fan external, on another machine. Nothing built. Built in parallel as `centered-ui-design` phase 10.
 - **Issue 042a**: The integration audits still unbuilt — the three `check-utilities.sh` flags (`--issue-standards`, `--transcripts`, `--tui-audit`) that print "not yet implemented". Carried out of 042 so 042 could close.
-- **Issue 055**: Commit gated by issue completion — rewritten 2026-09-22 so the design can work (a gate only sees the command text) and narrowed to sit beside the shared line-ledger commit gate rather than duplicate it. Nothing built yet.
+- **Issue 055**: Commit gated by issue completion — the wrapper is built (2026-11-02): `scripts/commit-completed-issue.sh` moves an issue to `completed/`, records it in the phase or project progress file and commits both, through `commit-own-changes` in a Claude Code session or `git commit --only` by hand, undoing everything if the commit fails; `manage-issues.sh complete` runs it. Test: `scripts/test-commit-completed-issue.sh`. Left: the progress-file rule inside the shared `commit-own-changes` (outside this project).
 - **Issue 056**: Recursive transcript summarisation — 056a (llama.cpp client) exists; 056b–d unbuilt.
 
 (Issue 008, listed here until September 2026, is in `completed/`.)

@@ -229,6 +229,11 @@ function validate_issue() {
 
 # -- {{{ complete_issue
 function complete_issue() {
+    # Closing an issue is one commit: the move into completed/, the progress
+    # record and the commit are made together by commit-completed-issue.sh,
+    # which refuses and changes nothing if any step fails (issue 055). This
+    # stays as the menu's and the command line's way in, so there is one
+    # path that closes an issue.
     local issue_file="$1"
 
     if [[ ! -f "$issue_file" ]]; then
@@ -236,36 +241,8 @@ function complete_issue() {
         return 1
     fi
 
-    # Validate first
-    echo "Validating issue..."
-    if ! validate_issue "$issue_file"; then
-        echo
-        echo "ERROR: Issue validation failed. Fix errors before completing."
-        return 1
-    fi
-
-    local issue_name
-    issue_name=$(basename "$issue_file")
-    local completed_dir="${DIR}/issues/completed"
-
-    # Move to completed
-    echo
-    echo "Moving to completed directory..."
-    mv "$issue_file" "${completed_dir}/${issue_name}"
-    echo "  Moved to: ${completed_dir}/${issue_name}"
-
-    # Extract issue number for logging
-    local issue_num
-    issue_num=$(echo "$issue_name" | grep -oP '^\d{3}')
-
-    echo
-    echo "Issue $issue_num completed successfully!"
-    echo
-    echo "Remaining manual steps:"
-    echo "  1. Update issues/progress.md to reflect completion"
-    echo "  2. Update docs/table-of-contents.md if needed"
-    echo "  3. Update any related issues"
-    echo "  4. Commit changes to version control"
+    "$(dirname "${BASH_SOURCE[0]}")/commit-completed-issue.sh" "$issue_file" \
+        --dir "$(dirname "$DIR")"
 }
 # }}}
 
@@ -467,7 +444,8 @@ function show_help() {
     echo "  list [--status STATUS]      List issues (default: pending)"
     echo "  create TITLE                Create new issue with given title"
     echo "  validate FILE               Validate issue file structure"
-    echo "  complete FILE               Complete and archive issue"
+    echo "  complete FILE               Close an issue: move it to completed/, record"
+    echo "                              it in the progress file, commit both"
     echo "  search TERM                 Search issues by content"
     echo "  stats                       Show issue statistics"
     echo

@@ -1,6 +1,7 @@
 # Issue 055: Commit-Gated-By-Issue-Completion Hook and Wrapper Tool
 
-**Status**: Open (redesigned 2026-09-22; nothing built)
+**Status**: Open — the wrapper is built (2026-11-02); the progress-file rule
+inside the shared `commit-own-changes` is not
 **Priority**: Medium
 **Created**: 2026-05-21
 **Type**: Wrapper utility + one extra rule in the shared commit gate
@@ -91,6 +92,53 @@ between wrapper and gate (the gate never sees the wrapper's commit).
   progress.md` (delta-version's) or a `phase-X-progress.md` per the
   standing instructions? The wrapper needs one rule for projects that have
   both kinds.
+
+## What Happened (2026-11-02)
+
+**Built: piece 1, the wrapper, and step 5.**
+`delta-version/scripts/commit-completed-issue.sh <issue-file> [message-file]`
+closes an issue in one commit, with `--dry-run` to see what it would do.
+Its text work (id, phase, title, the progress record) is
+`scripts/libs/issue-completion.lua`; both have `.info.md` companions.
+`manage-issues.sh complete` (and its menu) now runs the wrapper, so there is
+one way to close an issue from the command line. Tested by
+`scripts/test-commit-completed-issue.sh <monorepo>` (42 checks).
+
+**Not built: piece 2**, the rule inside the shared `commit-own-changes` that a
+commit moving an issue into `completed/` must also change the progress file.
+That script lives in `scripts/` at the monorepo top, outside this project, so
+it is left for that project's own issue list; the wrapper already always
+changes the progress file, so the rule is only needed for closings that do
+not go through it. Kept open for that reason.
+
+**Decisions:**
+- *Which progress file* (the open question): `issues/phase-N-progress.md` when
+  the shared issue-name reader puts the issue in phase N and that file exists,
+  otherwise `issues/progress.md`; with neither, it refuses rather than invent
+  one. One rule for every project: a phase file is the more specific record,
+  and a project with only `progress.md` (this one) falls through to it.
+- *Validation*: through the shared `validate-issues --file`, as planned (A04
+  exists as that tool). Only findings about the issue's own shape (its name
+  and the three sections) refuse; its other findings are about links or other
+  files and are printed as notes, since a one-sided link elsewhere should not
+  stop an issue from closing.
+- *Where the record goes*: under the first "Completed" heading, at the end of
+  its list (the top of a "Recently ..." list), in the style of the list's
+  first item; a file without one gains `## Completed Issues` at its end.
+  Nothing else in the progress file is rewritten, since the files' formats
+  vary too much across projects for a safe automatic edit.
+- *Two commit routes*: inside a Claude Code session it claims the move and the
+  added lines in the session's ledger and commits with `commit-own-changes`;
+  run by hand (no session id) it uses `git commit --only` on exactly the three
+  paths, so nothing else staged rides along.
+- *Success is judged by outcome*: in testing, `commit-own-changes` made its
+  commit and still exited 1 (on this machine's LuaJIT, `os.execute` returns a
+  bare number, which its lock wrapper and hook runner read as failure). So the
+  wrapper decides by whether the branch moved to a commit holding the move,
+  never undoing a commit that landed.
+- *Undo*: the move is reversed with `mv` and the progress file's bytes and
+  date restored; the ledger is append-only, so claims made before a failed
+  commit stay, naming files that are back as they were.
 
 ---
 
