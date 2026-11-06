@@ -33,8 +33,8 @@
 
 ### Phase 1: Foundation Infrastructure
 - [Phase 1 Progress](../issues/phase-1/progress.md) - Foundation infrastructure development status
-- [Issue 001: Prepare Repository Structure](../issues/phase-1/001-prepare-repository-structure.md) ✅
-- [Issue 023: Create Project Listing Utility](../issues/phase-1/023-create-project-listing-utility.md) ✅
+- [Issue 001: Prepare Repository Structure](../issues/completed/001-prepare-repository-structure.md) ✅
+- [Issue 023: Create Project Listing Utility](../issues/completed/023-create-project-listing-utility.md) ✅
 - [Issue 025: Repository Structure Validation](../issues/phase-1/025-repository-structure-validation.md) 🔄
 - [Issue 026: Project Metadata System](../issues/phase-1/026-project-metadata-system.md) 🔄
 - [Issue 027: Basic Reporting Framework](../issues/phase-1/027-basic-reporting-framework.md) 📋
@@ -44,11 +44,11 @@
 
 ### Phase 2: Gitignore Unification System
 - [Phase 2 Progress](../issues/phase-2/progress.md) - Gitignore unification development status
-- [Issue 010: Design Unification Strategy](../issues/phase-2/010-design-unification-strategy.md) ✅
-- [Issue 011: Implement Pattern Processing](../issues/phase-2/011-implement-pattern-processing.md) ✅
+- [Issue 010: Design Unification Strategy](../issues/completed/010-design-unification-strategy.md) ✅
+- [Issue 011: Implement Pattern Processing](../issues/completed/011-implement-pattern-processing.md) ✅
 - [Issue 012: Generate Unified Gitignore](../issues/phase-2/012-generate-unified-gitignore.md) 📋
-- [Issue 013: Implement Validation and Testing](../issues/phase-2/013-implement-validation-and-testing.md) 📋
-- [Issue 014: Create Maintenance Utilities](../issues/phase-2/014-create-maintenance-utilities.md) 📋
+- [Issue 013: Implement Validation and Testing](../issues/completed/013-implement-validation-and-testing.md) ✅
+- [Issue 014: Create Maintenance Utilities](../issues/completed/014-create-maintenance-utilities.md) ✅
 
 ### Infrastructure Issues (Tier 2)
 - [Issue 009: Discover and Analyze Gitignore Files](../issues/009-discover-and-analyze-gitignore-files.md) ✅
@@ -61,8 +61,8 @@
 - [Issue 008: Validation and Documentation](../issues/completed/008-validation-and-documentation.md) ✅
 
 ### Gitignore System Issues
-- [Issue 013: Implement Validation and Testing](../issues/013-implement-validation-and-testing.md)
-- [Issue 014: Create Maintenance Utilities](../issues/014-create-maintenance-utilities.md)
+- [Issue 013: Implement Validation and Testing](../issues/completed/013-implement-validation-and-testing.md)
+- [Issue 014: Create Maintenance Utilities](../issues/completed/014-create-maintenance-utilities.md)
 - [Issue 015: Integration and Workflow Setup](../issues/015-integration-and-workflow-setup.md)
 
 ### Ticket Distribution System Issues
