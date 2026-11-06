@@ -98,6 +98,8 @@ menu_add_section() {
 # {{{ menu_add_item
 # Add item: section_id, item_id, label, type, value, description, shortcut, cli_flag
 # For flag type: value format is "value:width" (e.g., "3:2")
+# For multistate type: value "state1,state2,state3:default" (as menu.sh), or
+#   value "default" with the states as the description "state1,state2,state3"
 # shortcut: optional single character for quick access (e.g., "r" for reset)
 # cli_flag: optional CLI flag for command preview (e.g., "--verbose")
 menu_add_item() {
@@ -169,6 +171,26 @@ menu_add_item() {
         [[ "$width" == "$value" ]] && width="10"  # Default width if not specified
         MENU_VALUES["$item_id"]="$actual_value"
         MENU_ITEM_CONFIGS["$item_id"]="$width"
+    elif [[ "$type" == "multistate" ]]; then
+        # The states go to the Lua menu as the item's config, which is what
+        # it cycles through; until now it was always empty, so a multistate
+        # item had nothing to cycle. Two ways to give them:
+        #   - menu.sh's: value "state1,state2,state3:default" (no ":default"
+        #     means the first state);
+        #   - this library's README's: value "default" and the states as the
+        #     description, "state1,state2,state3" (generate-embeddings.sh's
+        #     model picker uses this). The description is kept, so the list
+        #     also shows in the description line.
+        local states="$value" default="$value"
+        if [[ "$value" == *[,:]* ]]; then
+            states="${value%:*}"
+            default="${value#*:}"
+            [[ "$default" == "$value" ]] && default="${states%%,*}"
+        elif [[ "$description" =~ ^[^,[:space:]]+(,[^,[:space:]]+)+$ && ",$description," == *",$value,"* ]]; then
+            states="$description"
+        fi
+        MENU_VALUES["$item_id"]="$default"
+        MENU_ITEM_CONFIGS["$item_id"]="$states"
     else
         MENU_VALUES["$item_id"]="$value"
         MENU_ITEM_CONFIGS["$item_id"]=""
