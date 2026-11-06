@@ -21,6 +21,7 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 301d | [Parse WTG ECA Functions](./completed/301d-parse-wtg-eca-functions.md) | completed | 301c |
 | 301e | [Parse WTG Parameters](./completed/301e-parse-wtg-parameters.md) | completed | 301d |
 | 302 | [Parse war3map.wct (Custom Text Triggers)](./completed/302-parse-war3map-wct.md) | completed | 102, 301 |
+| 302a | [war3map.wct as the Editor Writes It, and Protected Maps' Trigger Files](./completed/302a-wct-layout-and-protected-trigger-files.md) | completed | — |
 | 303 | [Parse war3map.j (JASS Script)](./completed/303-parse-war3map-j.md) | completed | 102 |
 | 304 | [Build JASS Lexer](./completed/304-build-jass-lexer.md) | completed | 303 |
 | 304a | [Lexer Core Infrastructure](./completed/304a-lexer-core-infrastructure.md) | completed | 303 |
@@ -60,6 +61,6 @@ Live counts: `lua /home/ritz/programming/ai-stuff/scripts/progress-dashboard.lua
 | 309f | [Test Event Dispatch](./completed/309f-test-event-dispatch.md) | completed | 307, 308 |
 | 309g | [Phase Demo](./completed/309g-phase-demo.md) | completed | 309a, 309f |
 
-Completed 45, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
+Completed 46, open 0, retired 0, as of the last run of `scripts/phase-progress-files.lua`.
 
 <!-- phase-progress-files: issues end -->

@@ -502,3 +502,16 @@ prevent testing other maps. Each test is independent.
 
 The tests also serve as documentation of expected parser output format.
 
+
+---
+
+## Note (2026-11-06): protected maps' trigger files
+
+Two maps added to `assets/` on 2026-11-02 are the first test maps that
+hold `war3map.wtg` and `war3map.wct`. Three of the four files are a map
+protector's placeholders (empty, or a line of text where the triggers
+were); the fourth, Master-Crafters-Final-Conquest's WCT, is a real file
+the WCT parser misread. The real-map sections of `test_309a` now count a
+protector's file apart, check it is refused with the protector reason,
+and require every other trigger file to parse. The decision and its
+reasons are in 302a (`302a-wct-layout-and-protected-trigger-files.md`).

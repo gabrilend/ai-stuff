@@ -12,6 +12,7 @@ local wct = {}
 -- WCT format versions
 -- Version 0: Reign of Chaos
 -- Version 1: The Frozen Throne (most common)
+-- (Reforged's 0x80000004 is not read.)
 local SUPPORTED_VERSIONS = { [0] = true, [1] = true }
 -- }}}
 
@@ -25,15 +26,15 @@ local function read_uint32(data, pos)
 end
 
 -- {{{ read_sized_string
--- Reads a string with a preceding int32 length field.
--- If length is 0, returns empty string.
--- The string data does NOT include a null terminator (it's length-prefixed).
+-- Reads a string with a preceding int32 length field. The length counts
+-- the string's closing NUL, which the World Editor writes (issue 302a);
+-- the NUL is not returned. A length of 0 gives an empty string.
 -- Returns: string, new_position, error_message
 local function read_sized_string(data, pos)
-    local length, new_pos = read_int32(data, pos)
-    if not length then
+    if pos + 3 > #data then
         return nil, pos, "Failed to read string length at offset " .. pos
     end
+    local length, new_pos = read_int32(data, pos)
 
     if length < 0 then
         return nil, pos, "Invalid negative string length " .. length .. " at offset " .. pos
@@ -49,14 +50,42 @@ local function read_sized_string(data, pos)
     end
 
     local str = data:sub(new_pos, new_pos + length - 1)
+    if str:sub(-1) == "\0" then str = str:sub(1, -2) end
     return str, new_pos + length, nil
+end
+-- }}}
+
+-- {{{ read_cstring
+-- Reads a NUL-terminated string.
+-- Returns: string, new_position, error_message
+local function read_cstring(data, pos)
+    local stop = data:find("\0", pos, true)
+    if not stop then
+        return nil, pos, "Unterminated string at offset " .. pos
+    end
+    return data:sub(pos, stop - 1), stop + 1, nil
 end
 -- }}}
 -- }}}
 
+-- {{{ protected
+-- Says whether war3map.wct looks emptied by a map protector, as released
+-- maps often are (issue 302a): a file of no bytes. Returns the reason, or
+-- nil when the file has content (which must then parse).
+function wct.protected(data)
+    if data and #data == 0 then
+        return "protected map: war3map.wct is empty (its trigger text was removed)"
+    end
+    return nil
+end
+-- }}}
+
 -- {{{ parse_header
--- Parses the WCT file header and extracts version and header comment.
--- Returns: { version, header_comment, _offset }, error_message
+-- Parses the WCT file header.
+-- Version 1 (TFT): version; the map's custom script comment, a
+-- NUL-terminated string; the map's custom script code, a sized string
+-- (issue 302a). Version 0 (RoC): the version alone.
+-- Returns: { version, header_comment, header_script, _offset }, error_message
 local function parse_header(data, offset)
     offset = offset or 1
 
@@ -74,21 +103,27 @@ local function parse_header(data, offset)
         return nil, "Unsupported WCT version: " .. version .. " (expected 0 or 1)"
     end
 
-    -- Version 1 (TFT) has a header comment, version 0 (RoC) does not
-    local header_comment = ""
+    local header_comment, header_script = "", ""
     if version >= 1 then
-        -- Read header comment (length-prefixed string)
-        local str, next_pos, err = read_sized_string(data, offset)
+        local str, next_pos, err = read_cstring(data, offset)
         if err then
             return nil, "Failed to read header comment: " .. err
         end
         header_comment = str
+        offset = next_pos
+
+        str, next_pos, err = read_sized_string(data, offset)
+        if err then
+            return nil, "Failed to read the map's custom script: " .. err
+        end
+        header_script = str
         offset = next_pos
     end
 
     return {
         version = version,
         header_comment = header_comment,
+        header_script = header_script,
         _offset = offset,
     }, nil
 end
@@ -109,6 +144,11 @@ local function parse_triggers(data, offset)
         return nil, "Failed to read trigger count at offset " .. offset
     end
     offset = new_offset
+
+    -- each entry is at least its 4-byte length
+    if count * 4 > #data - offset + 1 then
+        return nil, "Trigger count " .. count .. " doesn't fit the data at offset " .. (offset - 4)
+    end
 
     local triggers = {}
 
@@ -141,13 +181,18 @@ end
 -- Parses war3map.wct data and returns structured content.
 -- @param data: Raw binary data from war3map.wct file
 -- @return table: Parsed WCT structure
--- @return string|nil: Error message if parsing failed
+-- @return string|nil: Error message if parsing failed (for a protected
+--   map's emptied file, the reason wct.protected gives)
 function wct.parse(data)
-    if not data or #data == 0 then
+    if not data then
         return nil, "Empty WCT data"
     end
+    local protected = wct.protected(data)
+    if protected then
+        return nil, protected
+    end
 
-    -- Parse header (version + optional header comment)
+    -- Parse header (version, comment, the map's custom script)
     local header, err = parse_header(data, 1)
     if not header then
         return nil, err
@@ -162,6 +207,7 @@ function wct.parse(data)
     return {
         version = header.version,
         header_comment = header.header_comment,
+        header_script = header.header_script,
         triggers = trigger_data.triggers,
         trigger_count = trigger_data.count,
     }, nil
