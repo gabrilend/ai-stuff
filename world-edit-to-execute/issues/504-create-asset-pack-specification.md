@@ -34,9 +34,9 @@ overrides.
 
 ## Acceptance Criteria
 
-- [ ] The override file's format is written down with every field's type
+- [x] The override file's format is written down with every field's type (2026-11-06: below, and `src/assets/overrides.info.md`)
 - [ ] 516's chooser reads it, and a test override replaces a model path
-- [ ] A set of overrides can be passed as one file
+- [x] A set of overrides can be passed as one file (2026-11-06: one plain text file; `overrides.merge` takes a received set in)
 
 ---
 
@@ -217,3 +217,76 @@ For now, keep as single issue and split only if implementation exceeds expected 
 - notes/vision (legal philosophy)
 - issues/503-*.md (placeholder system this replaces)
 - Phase 6 issues (asset system expansion)
+
+---
+
+## Decisions (2026-11-06)
+
+Made without the owner; each one theirs to overturn.
+
+1. **The file is plain text, read line by line, never run.** The project's
+   other settings files are Lua that returns a table (`config/player-data.lua`,
+   the layer manifests), but a set of overrides is meant to pass between
+   players (609), and loading someone else's Lua runs their code. So the
+   form is a header line (`wete-overrides 1`), an optional `name` line, and
+   one tab-separated `override` line each: the model path, the file's hash,
+   then `key=value` options. Comments start with `#`.
+2. **The replacing file is named by its hash** (`sha256:` and 64 lower-case
+   hex digits) in the player's store (604, `assets/dedup.lua`), as the
+   issue says, not by a path on one machine: the same set means the same
+   models on every machine that has those blobs.
+3. **The options:** `scale=N` (above 0, multiplied with the unit's own
+   scale), `tint=R,G,B` (0-255, multiplied with the unit's own tint),
+   `team_colour=on|off` (whether the replacement's team-colour textures
+   take the owner's colour; on by default), `map=HASH` (only on the map
+   whose file has that hash; every map by default). Each at most once;
+   defaults are left out when written.
+4. **Every map or one: the file holds both.** 516 left that choice to the
+   override screen; the format allows either, so the screen can offer
+   both. On one map, that map's override wins over one for every map.
+5. **Paths match as the game's do:** whatever their case, slash direction,
+   leading slash or extension (`.mdx`, `.mdl` or none).
+6. **A file is all right or refused whole**, every problem listed with its
+   line number. The same path twice for the same scope is refused naming
+   both lines. A missing file is no overrides; a broken one is an error, as
+   `player_data` treats a broken config file: the player meant something.
+7. **The player's own set lives at `<player data>/overrides.txt`**
+   (`assets/player_data.lua`, from #79's branch). It is saved whole and
+   renamed into place.
+8. **Received sets are merged in priority order, the first winning**, with
+   every conflict (two sets naming different files for one path and scope)
+   listed, as asset packs are ordered in 601's loader.
+9. **516's stand-in chooser is built with it**, in `assets/chooser.lua`:
+   the override (read from the store), then the model the map requests,
+   then a placeholder; each path chosen once; uses counted by source, and
+   every placeholder and failed override kept with its reason. It takes the
+   map's model through a function (such as `A:model`), so W03's resolver
+   can replace it whole.
+10. **Stacked on #79** (the 601 loader, on #66 and #30): it uses
+    `player_data.lua` and `dedup.lua`, which only that chain has.
+
+## What happened (2026-11-06)
+
+- `src/assets/overrides.lua` (with its `.info.md`): `parse`, `write`,
+  `load`, `save`, `file_for`, `merge`, `key`; a set's `add`, `remove`,
+  `lookup`, `count`.
+- `src/assets/chooser.lua` (with its `.info.md`): `new`, `choose`,
+  `counts`, `placeholders`, `failed_overrides`, `report`, `clear`.
+- `src/tests/test_overrides.lua` (110 checks, with its `.info.md`): the
+  file read, refused line by line and written back the same; scopes;
+  adding, removing, merging; the player's file on disk; the chooser over a
+  real store in a scratch folder.
+- Mutation check: `overrides.lua` 212 mutants, 197 caught; `chooser.lua`
+  55, 54 caught. The 16 left are equivalent: `return nil` for
+  `return false` where callers only test for truth (11), an emptied entry
+  set to `false` instead of `nil` (1), and number formatting that gives
+  the same text either way (4).
+
+## Left (needs raylib, or the screen)
+
+- 516's chooser is not yet what the window calls: `A:model_for`
+  (`src/assets/init.lua`) would hand its path to `chooser:choose`, with
+  `A:model` as `requested`, and the window would use the look (scale,
+  tint, team colour). That changes the map viewer and waits on raylib.
+- The override screen (506) that writes the file.
+
