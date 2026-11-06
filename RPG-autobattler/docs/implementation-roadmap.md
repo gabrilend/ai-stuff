@@ -74,7 +74,7 @@
 ### 4.2 Ability Framework
 - [x] Create ability base class/component system (Issue #046)
 - [x] Implement targeting system for abilities (Issue #047)
-- [ ] Add ability activation when mana is full
+- [x] Add ability activation when mana is full (Issue #048)
 - [ ] Create different ability types (damage, heal, buff, etc.)
 - [ ] Implement ability cooldowns and effects
 

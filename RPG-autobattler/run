@@ -315,6 +315,13 @@ run_unit_tests() {
     package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
     require('tests.test_targeting').run_all()
     " 2>/dev/null && print_success "Targeting tests passed" || print_error "Targeting tests failed"
+
+    # Test Ability activation
+    print_info "Testing Ability activation..."
+    lua -e "
+    package.path = './?.lua;./src/?.lua;./src/?/init.lua;' .. package.path
+    require('tests.test_ability_activation').run_all()
+    " 2>/dev/null && print_success "Ability activation tests passed" || print_error "Ability activation tests failed"
     
     # Test Unit template system
     print_info "Testing Unit template system..."
