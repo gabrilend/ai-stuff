@@ -404,7 +404,7 @@ Phase 2 & 3 Complete
 | 502e | Terrain optimization | Re-cut 2026-09-26 | 502a, 501d |
 | **503** | Build sprite/placeholder system | Re-cut 2026-09-26 | 508, 501 |
 | 503a | Core sprite system | Re-cut 2026-09-26; partly built | 508, 508b |
-| 503b | Unit visual mappings | Re-cut 2026-09-26 | 110, 112 |
+| 503b | Unit visual mappings | In progress (the rows built; the window waits on raylib) | 110, 112 |
 | 503c | Team colors selection | Re-cut 2026-09-26; partly built | 503a |
 | 503d | Health bars indicators | Re-cut 2026-09-26 | 501 |
 | 503e | Facing direction | Re-cut 2026-09-26 | 501 |
