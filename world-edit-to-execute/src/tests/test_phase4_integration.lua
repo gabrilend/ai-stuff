@@ -19,7 +19,7 @@ That's intentional - this test defines the target.
 Run from project root: luajit src/tests/test_phase4_integration.lua
 ]]
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 -- {{{ Module loading with error handling

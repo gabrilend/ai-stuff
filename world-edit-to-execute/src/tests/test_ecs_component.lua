@@ -2,7 +2,7 @@
 -- Tests for component type registration and entity attachment.
 -- Run with: luajit src/tests/test_ecs_component.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local entity = require("runtime.ecs.entity")

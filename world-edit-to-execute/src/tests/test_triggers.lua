@@ -32,8 +32,8 @@ local TEST_SUITES = {
 -- @param suite Table with file, name, expected fields
 -- @return passed count, total count, success boolean
 local function run_test_suite(suite)
-    local cmd = string.format("cd %q && lua %s/%s 2>&1",
-        DIR, TEST_DIR, suite.file)
+    local cmd = string.format("cd %q && lua %s/%s %q 2>&1",
+        DIR, TEST_DIR, suite.file, DIR)
 
     local handle = io.popen(cmd)
     if not handle then

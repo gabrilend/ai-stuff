@@ -3,7 +3,7 @@
 -- Tests parsing terrain data from real map files.
 -- Run from project root: lua5.4 src/tests/test_w3e.lua
 
-local DIR = "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
+local DIR = arg[1] or "/mnt/mtwo/programming/ai-stuff/world-edit-to-execute"
 package.path = DIR .. "/src/?.lua;" .. DIR .. "/src/?/init.lua;" .. package.path
 
 local w3e = require("parsers.w3e")

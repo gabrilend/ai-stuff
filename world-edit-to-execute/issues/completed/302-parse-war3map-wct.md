@@ -251,3 +251,14 @@ require unprotected maps with GUI triggers.
 ### Related Changes
 
 - Created `tmp/check_wct.lua` for map inspection (can be removed after verification)
+
+---
+
+## Note (2026-11-06): the version 1 header as written
+
+The first real `war3map.wct` among the test maps (Master-Crafters-Final-
+Conquest, added 2026-11-02) showed the header comment is NUL-terminated
+and followed by the map's custom script code (length-prefixed), and that
+every length counts the text's closing NUL. Fixed in 302a
+(`302a-wct-layout-and-protected-trigger-files.md`), with the synthetic
+test data brought in line with the real file.
