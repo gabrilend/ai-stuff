@@ -1,5 +1,9 @@
 # Issue #031: Harness output blocks reach the transcript as raw tags
 
+**Status (2026-11-02):** built, apart from step 4 (rebuilding the corpus),
+which needs the session logs on the developer's machine. See *What Happened*
+at the end.
+
 ## Current Behavior
 
 When a command is run during a conversation, the harness writes the command and
@@ -87,3 +91,79 @@ where the raw tags are plainly visible. She asked for the fix upstream rather
 than in the renderer, which is right: the renderer would be painting over
 something the exporter should not be emitting, and every other consumer of the
 format would still see the tags.
+
+## What Happened
+
+Built on 2026-11-02 in `libs/conversation-parser.lua`, beside the other
+harness shapes as step 1 asked.
+
+**What a command now looks like in a transcript:**
+
+    `pwd` *(shell)*
+
+    ```
+    /home/ritz/games/tq/ai-stuff/double-diaper-dungeon
+    ```
+
+and, for one that wrote only to the error stream:
+
+    `ls missing` *(shell)*
+
+    *standard error:*
+
+    ```
+    ls: cannot access 'missing': No such file or directory
+    ```
+
+The command and its output are one unit closed by one rule line, written
+where the log has them, and take no number in the person's sequence. A
+command that printed nothing is the command line alone.
+
+**How:** `split_shell` runs before every other envelope rule and turns the
+tags into `shell`, `shell_output` and `shell_end` items; the main loop holds
+the command until its output message arrives (the log files them as two
+messages), then writes both. The unit is written without the wrapper, so a
+command's spacing and the output's columns survive.
+
+**Decisions made while building it** (the issue left these open):
+
+- *The marker.* `` `COMMAND` *(shell)* ``, the same shape as a skill
+  invocation's `` `name` *(skill)* `` line, so the format gains no new kind
+  of line. "shell" rather than "bash" because the reader cares that it was a
+  command, not which shell ran it.
+- *A command that would not survive as inline code* -- it spans lines, or
+  holds a backtick -- is the bare `*(shell)*` marker over a fenced `sh`
+  block, because nothing in a block is re-read as markdown.
+- *Only standard error is labelled.* Standard output is the expected case
+  and sits directly under the command; a label on it would be the monument
+  the issue warns against.
+- *Output containing the tag names.* When a message is exactly one of the two
+  shapes, each closing tag is found from the end of the message rather than
+  the first one met, so printing a session log with cat keeps the log whole.
+  Shell blocks are also lifted out before any other rule, or a
+  `<system-reminder>` inside printed output would have been cut out of it.
+- *Output containing fences.* A block's fence is one backtick longer than
+  the longest run that opens any of its lines, so `cat README.md` stays
+  inside its block. The site's markdown reader
+  (`transcript-site/libs/markdown.lua`) closed a block at any ``` line; it
+  now needs a fence at least as long as the opening one, which is the
+  CommonMark rule and changes nothing for ordinary three-backtick blocks.
+- *Trimming.* Blank lines at either end of a stream are dropped; the first
+  printed line keeps its indentation.
+
+**Tested** by `tests/test_conversation-parser-shell-blocks.lua`: the
+developer's `pwd` example, a command with no output, a stderr-only command
+whose text holds quotes and angle brackets, output holding the harness's own
+tags, output holding its own fences, numbering, ordering, and the site
+reader drawing a long fence. All the other parser tests, the wrapping,
+export-guard, patches and site tests still pass.
+
+**Left for the developer:** step 4, rebuilding the corpus. Every transcript
+whose log survives picks this up on its next export; to do them all at once,
+run `rederive-transcripts` to see what would change, then again with
+`--write`.
+
+**Known and not fixed here:** the site's transcript reader drops any line of
+eight or more dashes as a separator, even inside a code block, so output
+holding such a line loses it on the page (not in the file). It already did
+this for code the model wrote, and fixing it is the reader's business.

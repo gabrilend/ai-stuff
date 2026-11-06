@@ -261,6 +261,7 @@ It is now lifted out and rendered as a short line of its own, taking no number:
 | what it is | what happens to it |
 | --- | --- |
 | a slash command and its output | joined into one line naming the command and what it did — `` `/model` - Set model to Fable 5.1 …`` |
+| a command run from the shell prompt (`!pwd`) and its output | the command on a line marked `*(shell)*`, each non-empty stream as a code block under it, standard error labelled; an empty stream writes nothing (issue 031) |
 | a skill invocation | the invocation is named; the skill's own text, which arrives behind it as though the user had typed a reference manual, is dropped |
 | a background task reporting in | reduced to its summary line; the machine-readable result dump is dropped |
 | a notice from the harness itself | kept, on a line of its own, rather than presented as something the model said |

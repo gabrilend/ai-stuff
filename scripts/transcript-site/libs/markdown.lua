@@ -165,12 +165,17 @@ function M.render(md, opts)
         local line = lines[i]
 
         -- Fenced code block: ```lang ... ``` . Content is literal, escaped, no inline.
-        local fence = line:match("^```(.*)$")
-        if fence ~= nil then
+        -- A fence closes only at a line opening with at least as many
+        -- backticks as it did, so a block opened with ```` can hold ``` lines
+        -- (a markdown file printed by a command, scripts issue 031). For the
+        -- usual three that is every ``` line, exactly as before.
+        local ticks, fence = line:match("^(```+)(.*)$")
+        if ticks ~= nil then
             local lang = fence:match("^%s*(%S*)")
             local code = {}
             i = i + 1
-            while i <= n and not lines[i]:match("^```") do
+            while i <= n and not (lines[i]:match("^```+") and
+                    #lines[i]:match("^(`+)") >= #ticks) do
                 code[#code + 1] = escape_html(lines[i]); i = i + 1
             end
             i = i + 1  -- consume the closing fence
