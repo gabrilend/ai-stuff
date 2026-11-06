@@ -72,6 +72,13 @@ radio, a cable or a simulation of either.
 `src/system/121-peers.c`, ticked once a second by `src/maps/peers.map`.
 Test: `twin/tests/123` (28 checks).
 
+- **709** sending to a peer by name over whichever link reaches it (the
+  cable before the radio, alive before stale), and hearing a bound port
+  with the sender's name. Nothing above it names a link or an address.
+
+`src/system/124-transport.c`, the `send_to_peer` and `received` boxes in
+`src/boxes/125-transport.c`. Test: `twin/tests/126` (18 checks).
+
 ## Open issues
 
 All of 701 through 711.
